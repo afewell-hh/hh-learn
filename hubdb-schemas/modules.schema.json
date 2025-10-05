@@ -1,0 +1,12 @@
+{
+  "name": "modules",
+  "columns": [
+    {"name": "slug", "type": "TEXT", "required": true, "unique": true},
+    {"name": "title", "type": "TEXT"},
+    {"name": "lab_slug", "type": "TEXT"},
+    {"name": "concept_markdown", "type": "RICH_TEXT"},
+    {"name": "media_urls_json", "type": "RICH_TEXT"},
+    {"name": "quiz_schema_json", "type": "RICH_TEXT"},
+    {"name": "tags_csv", "type": "TEXT"}
+  ]
+}

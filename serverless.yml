@@ -1,0 +1,32 @@
+service: hedgehog-learn
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: ${env:AWS_REGION, 'us-east-1'}
+  stage: ${env:APP_STAGE, 'dev'}
+  environment:
+    HUBSPOT_PRIVATE_APP_TOKEN: ${env:HUBSPOT_PRIVATE_APP_TOKEN}
+    HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
+
+functions:
+  api:
+    handler: dist/src/api/lambda/index.handler
+    events:
+      - httpApi:
+          path: /events/track
+          method: POST
+      - httpApi:
+          path: /quiz/grade
+          method: POST
+
+package:
+  patterns:
+    - '!**/*.test.*'
+    - '!tests/**'
+    - '!infra/**'
+    - '!docs/**'
+    - '!hubdb-schemas/**'
+    - '!src/**'
+    - 'dist/**'

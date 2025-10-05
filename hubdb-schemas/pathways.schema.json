@@ -1,0 +1,11 @@
+{
+  "name": "pathways",
+  "columns": [
+    {"name": "slug", "type": "TEXT", "required": true, "unique": true},
+    {"name": "title", "type": "TEXT"},
+    {"name": "summary_markdown", "type": "RICH_TEXT"},
+    {"name": "module_slugs_json", "type": "RICH_TEXT"},
+    {"name": "estimated_minutes", "type": "NUMBER"},
+    {"name": "badge_image_url", "type": "TEXT"}
+  ]
+}

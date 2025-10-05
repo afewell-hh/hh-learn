@@ -1,0 +1,14 @@
+{
+  "name": "labs",
+  "columns": [
+    {"name": "slug", "type": "TEXT", "required": true, "unique": true},
+    {"name": "title", "type": "TEXT"},
+    {"name": "product", "type": "TEXT"},
+    {"name": "difficulty", "type": "TEXT"},
+    {"name": "estimated_minutes", "type": "NUMBER"},
+    {"name": "version", "type": "TEXT"},
+    {"name": "validated_on", "type": "DATE"},
+    {"name": "steps_markdown", "type": "RICH_TEXT"},
+    {"name": "resources_json", "type": "RICH_TEXT"}
+  ]
+}
