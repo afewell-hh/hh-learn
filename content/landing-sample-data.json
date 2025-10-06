@@ -1,0 +1,96 @@
+{
+  "hero_title": "Learn Hedgehog Cloud",
+  "hero_subtitle": "Hands-on labs and courses for cloud infrastructure",
+  "featured_pathways": [
+    {
+      "title": "Kubernetes Fundamentals",
+      "slug": "kubernetes-fundamentals",
+      "description": "Master the basics of Kubernetes orchestration, from pods to deployments",
+      "estimated_minutes": 120,
+      "module_count": 5,
+      "icon_url": ""
+    },
+    {
+      "title": "Cloud Native Security",
+      "slug": "cloud-native-security",
+      "description": "Learn security best practices for containerized applications",
+      "estimated_minutes": 90,
+      "module_count": 4,
+      "icon_url": ""
+    },
+    {
+      "title": "GitOps Workflow",
+      "slug": "gitops-workflow",
+      "description": "Implement GitOps practices for infrastructure automation",
+      "estimated_minutes": 60,
+      "module_count": 3,
+      "icon_url": ""
+    }
+  ],
+  "modules": [
+    {
+      "title": "Intro to Kubernetes",
+      "slug": "intro-to-kubernetes",
+      "description": "Learn Kubernetes basics: pods, services, and deployments",
+      "difficulty": "beginner",
+      "estimated_minutes": 30,
+      "tags": ["kubernetes", "containers"]
+    },
+    {
+      "title": "Kubernetes Storage",
+      "slug": "kubernetes-storage",
+      "description": "Understanding persistent volumes and storage classes",
+      "difficulty": "intermediate",
+      "estimated_minutes": 45,
+      "tags": ["kubernetes", "storage"]
+    },
+    {
+      "title": "Kubernetes Networking",
+      "slug": "kubernetes-networking",
+      "description": "Deep dive into Kubernetes networking concepts",
+      "difficulty": "intermediate",
+      "estimated_minutes": 50,
+      "tags": ["kubernetes", "networking"]
+    },
+    {
+      "title": "Helm Package Manager",
+      "slug": "helm-package-manager",
+      "description": "Package and deploy applications with Helm charts",
+      "difficulty": "intermediate",
+      "estimated_minutes": 40,
+      "tags": ["kubernetes", "helm", "deployment"]
+    },
+    {
+      "title": "Container Security Basics",
+      "slug": "container-security-basics",
+      "description": "Essential security practices for containerized workloads",
+      "difficulty": "beginner",
+      "estimated_minutes": 35,
+      "tags": ["security", "containers"]
+    },
+    {
+      "title": "Kubernetes RBAC",
+      "slug": "kubernetes-rbac",
+      "description": "Configure role-based access control in Kubernetes",
+      "difficulty": "advanced",
+      "estimated_minutes": 55,
+      "tags": ["kubernetes", "security", "rbac"]
+    },
+    {
+      "title": "GitOps with ArgoCD",
+      "slug": "gitops-argocd",
+      "description": "Deploy applications using GitOps and ArgoCD",
+      "difficulty": "intermediate",
+      "estimated_minutes": 60,
+      "tags": ["gitops", "argocd", "deployment"]
+    },
+    {
+      "title": "Monitoring with Prometheus",
+      "slug": "monitoring-prometheus",
+      "description": "Set up monitoring and alerting with Prometheus",
+      "difficulty": "intermediate",
+      "estimated_minutes": 45,
+      "tags": ["monitoring", "prometheus", "observability"]
+    }
+  ]
+}

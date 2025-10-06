@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Hedgehog Learn{% endblock %}</title>
+
+  <!-- Base theme CSS -->
+  <link rel="stylesheet" href="{{ get_asset_url('/css/theme.css') }}">
+
+  {% block stylesheets %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="/learn" class="logo">Hedgehog Learn</a>
+      <nav class="main-nav">
+        <a href="/learn">Home</a>
+        <a href="/learn/pathways">Pathways</a>
+        <a href="/learn/modules">Modules</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {% block body %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; {{ current_year }} Hedgehog Cloud. All rights reserved.</p>
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

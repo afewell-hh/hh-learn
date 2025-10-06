@@ -1,0 +1,46 @@
+{
+  "title": "Introduction to Kubernetes",
+  "slug": "intro-to-kubernetes",
+  "difficulty": "beginner",
+  "estimated_minutes": 45,
+  "version": "1.0.0",
+  "validated_on": "2025-10-06",
+  "tags": [
+    "kubernetes",
+    "containers",
+    "pods",
+    "fundamentals",
+    "kubectl",
+    "beginner"
+  ],
+  "description": "Learn Kubernetes fundamentals and deploy your first pod in this hands-on introduction to container orchestration.",
+  "learning_objectives": [
+    "Understand what Kubernetes is and why it's used",
+    "Learn about the Kubernetes architecture and core components",
+    "Deploy and manage your first pod",
+    "Inspect pod status and logs",
+    "Master basic kubectl commands"
+  ],
+  "prerequisites": [
+    "Basic understanding of containers and Docker",
+    "Familiarity with command line interfaces",
+    "Access to a Kubernetes cluster (minikube, kind, or cloud provider)"
+  ],
+  "lab_environment": {
+    "kubernetes_version": "1.28+",
+    "required_tools": [
+      "kubectl",
+      "bash or similar shell"
+    ],
+    "optional_tools": [
+      "metrics-server"
+    ]
+  },
+  "author": {
+    "name": "Hedgehog Learn Team",
+    "organization": "Hedgehog Learn"
+  },
+  "last_updated": "2025-10-06",
+  "category": "fundamentals",
+  "order": 1
+}

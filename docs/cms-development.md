@@ -230,6 +230,107 @@ Responsive utility classes are also available:
 6. **Document custom modules**: Add comments to complex HubL logic
 7. **Optimize assets**: Minimize CSS/JS before production
 
+## Creating Module Pages
+
+Module pages use the module detail template (`src/cms/templates/learn/module-detail.html`) to display learning content with tabs for Lab, Concepts, and Resources.
+
+### Module Data Structure
+
+Module content is stored in JSON files in the `content/modules/` directory. Each module requires the following structure:
+
+```json
+{
+  "title": "Module Title",
+  "slug": "module-slug",
+  "difficulty": "beginner|intermediate|advanced",
+  "estimated_minutes": 30,
+  "version": "v1.30",
+  "validated_on": "2025-10-01",
+  "pathway_slug": "pathway-slug",
+  "pathway_name": "Pathway Display Name",
+  "tags": ["tag1", "tag2", "tag3"],
+  "lab_markdown": "# Lab content in markdown...",
+  "concepts_markdown": "# Concept content in markdown...",
+  "resources": [
+    {
+      "title": "Resource Title",
+      "url": "https://example.com"
+    }
+  ],
+  "prev_module": {
+    "slug": "previous-module-slug"
+  },
+  "next_module": {
+    "slug": "next-module-slug"
+  }
+}
+```
+
+### Required Fields
+
+- **title**: The display name of the module
+- **slug**: URL-friendly identifier (used in `/learn/module/{slug}`)
+- **difficulty**: One of: `beginner`, `intermediate`, or `advanced`
+- **estimated_minutes**: Time to complete the module (number)
+- **version**: Software/platform version covered
+- **validated_on**: Date the module was last validated (YYYY-MM-DD format)
+- **pathway_slug**: URL slug of the parent pathway
+- **pathway_name**: Display name of the parent pathway
+- **tags**: Array of relevant tags for categorization
+- **lab_markdown**: Lab instructions in Markdown format
+- **concepts_markdown**: Conceptual explanation in Markdown format
+- **resources**: Array of related resources with `title` and `url`
+
+### Optional Fields
+
+- **prev_module**: Object with `slug` of the previous module in the pathway
+- **next_module**: Object with `slug` of the next module in the pathway
+
+### Template Features
+
+The module detail template includes:
+
+1. **Breadcrumb Navigation**: Shows the pathway and module hierarchy
+2. **Module Header**: Displays title, difficulty badge, and estimated time
+3. **Tabbed Content**: Three tabs for Lab, Concepts, and Resources
+4. **Sidebar**: Shows module metadata (difficulty, time, version, validation date) and tags
+5. **Module Navigation**: Previous/Next links if defined in module data
+6. **Code Block Copy Buttons**: Automatic copy buttons for all code blocks
+7. **Responsive Design**: Mobile-friendly layout with sidebar below content on small screens
+
+### Markdown Content Guidelines
+
+When writing content for `lab_markdown` and `concepts_markdown`:
+
+1. **Use proper heading hierarchy**: Start with `#` for main sections, `##` for subsections
+2. **Code blocks**: Use triple backticks with language identifier:
+   ```bash
+   kubectl get pods
+   ```
+3. **Inline code**: Use single backticks for commands or code references: `kubectl`
+4. **Lists**: Use `-` or `*` for unordered lists, numbers for ordered lists
+5. **Line breaks**: Use `\n` for newlines in the JSON string
+
+### Creating a New Module Page
+
+1. Create a JSON file in `content/modules/[module-slug].json` with all required fields
+2. Write lab content with step-by-step instructions
+3. Write conceptual content explaining the theory and background
+4. Add 3-5 relevant resources with titles and URLs
+5. Link to previous/next modules if part of a pathway
+6. Test locally by uploading: `npm run cms:upload`
+7. Create a page in HubSpot using the module-detail template
+8. Pass the module data to the template
+
+### Example: Intro to Kubernetes
+
+See `content/modules/intro-to-kubernetes.json` for a complete example that includes:
+
+- Comprehensive lab steps with kubectl commands
+- Detailed concept explanations of Kubernetes fundamentals
+- Links to official documentation and resources
+- Proper markdown formatting with code blocks
+
 ## Useful Resources
 
 - [HubSpot CMS Hub Documentation](https://developers.hubspot.com/docs/cms)

@@ -1,0 +1,331 @@
+/* Landing Page Styles */
+
+/* Hero Section */
+.learn-landing .hero {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: white;
+  text-align: center;
+  padding: 6rem 2rem;
+  margin-bottom: 4rem;
+}
+
+.learn-landing .hero h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.learn-landing .hero p {
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.learn-landing .hero .btn-primary {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background: white;
+  color: var(--color-primary);
+  text-decoration: none;
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.learn-landing .hero .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Pathways Section */
+.learn-landing .pathways {
+  padding: 0 2rem 4rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.learn-landing .pathways h2 {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+
+.pathway-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+/* Pathway Card Styles */
+.pathway-card {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: 2rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pathway-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.pathway-card .pathway-icon {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border-radius: var(--border-radius-md);
+}
+
+.pathway-card .pathway-icon img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.pathway-card h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-primary);
+}
+
+.pathway-card p {
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.pathway-card .pathway-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.pathway-card .btn-secondary {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.pathway-card .btn-secondary:hover {
+  background: var(--color-primary-dark);
+}
+
+/* Modules Section */
+.learn-landing .modules {
+  padding: 0 2rem 4rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.learn-landing .modules h2 {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+
+/* Search/Filter Bar */
+.search-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.search-bar input[type="text"] {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: 1rem;
+}
+
+.search-bar input[type="text"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.search-bar select {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+}
+
+.search-bar select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Module Grid */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Module Card Styles */
+.module-card {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.module-card .module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.module-card .badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.module-card .badge-beginner {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.module-card .badge-intermediate {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.module-card .badge-advanced {
+  background: #fce4ec;
+  color: #c2185b;
+}
+
+.module-card .time {
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.module-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+}
+
+.module-card p {
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  flex-grow: 1;
+}
+
+.module-card .module-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.module-card .tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+}
+
+.module-card .btn-tertiary {
+  display: inline-block;
+  padding: 0.625rem 1.25rem;
+  background: transparent;
+  color: var(--color-primary);
+  text-decoration: none;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
+  text-align: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.module-card .btn-tertiary:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .learn-landing .hero {
+    padding: 4rem 1rem;
+  }
+
+  .learn-landing .hero h1 {
+    font-size: 2rem;
+  }
+
+  .learn-landing .hero p {
+    font-size: 1rem;
+  }
+
+  .pathway-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .module-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .search-bar {
+    flex-direction: column;
+  }
+
+  .learn-landing .pathways,
+  .learn-landing .modules {
+    padding: 0 1rem 3rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .pathway-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .module-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

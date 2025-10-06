@@ -1,0 +1,14 @@
+<div class="pathway-card">
+  <div class="pathway-icon">
+    {% if module.icon_url %}
+      <img src="{{ module.icon_url }}" alt="{{ module.title }}">
+    {% endif %}
+  </div>
+  <h3>{{ module.title }}</h3>
+  <p>{{ module.description }}</p>
+  <div class="pathway-meta">
+    <span class="time">{{ module.estimated_minutes }} min</span>
+    <span class="modules">{{ module.module_count }} modules</span>
+  </div>
+  <a href="/learn/pathway/{{ module.slug }}" class="btn-secondary">Start Pathway</a>
+</div>

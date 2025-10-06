@@ -1,0 +1,14 @@
+<div class="module-card">
+  <div class="module-header">
+    <span class="badge badge-{{ module.difficulty }}">{{ module.difficulty }}</span>
+    <span class="time">{{ module.estimated_minutes }} min</span>
+  </div>
+  <h3>{{ module.title }}</h3>
+  <p>{{ module.description }}</p>
+  <div class="module-tags">
+    {% for tag in module.tags %}
+      <span class="tag">{{ tag }}</span>
+    {% endfor %}
+  </div>
+  <a href="/learn/module/{{ module.slug }}" class="btn-tertiary">View Module</a>
+</div>

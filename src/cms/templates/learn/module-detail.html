@@ -1,0 +1,99 @@
+{% extends "./layouts/base.html" %}
+
+{% block extra_css %}
+{{ require_css(get_asset_url("../../css/module-detail.css")) }}
+{% endblock %}
+
+{% block body %}
+<div class="module-detail">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb">
+    <a href="/learn">Learn</a> /
+    <a href="/learn/pathway/{{ module.pathway_slug }}">{{ module.pathway_name }}</a> /
+    <span>{{ module.title }}</span>
+  </nav>
+
+  <div class="module-layout">
+    <!-- Main content area -->
+    <div class="module-content">
+      <header>
+        <h1>{{ module.title }}</h1>
+        <div class="module-meta-inline">
+          <span class="badge badge-{{ module.difficulty }}">{{ module.difficulty }}</span>
+          <span class="time">{{ module.estimated_minutes }} min</span>
+        </div>
+      </header>
+
+      <!-- Tab navigation -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="lab">Lab</button>
+        <button class="tab-btn" data-tab="concepts">Concepts</button>
+        <button class="tab-btn" data-tab="resources">Resources</button>
+      </div>
+
+      <!-- Tab content -->
+      <div class="tab-content active" id="lab-content">
+        <div class="lab-steps">
+          {{ module.lab_markdown|markdown }}
+        </div>
+      </div>
+
+      <div class="tab-content" id="concepts-content">
+        <div class="concepts">
+          {{ module.concepts_markdown|markdown }}
+        </div>
+      </div>
+
+      <div class="tab-content" id="resources-content">
+        <div class="resources">
+          <ul>
+            {% for resource in module.resources %}
+              <li><a href="{{ resource.url }}" target="_blank">{{ resource.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="module-nav">
+        {% if module.prev_module %}
+          <a href="/learn/module/{{ module.prev_module.slug }}" class="btn-secondary">← Previous</a>
+        {% endif %}
+        {% if module.next_module %}
+          <a href="/learn/module/{{ module.next_module.slug }}" class="btn-primary">Next →</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="module-sidebar">
+      <div class="sidebar-section">
+        <h4>Module Info</h4>
+        <dl>
+          <dt>Difficulty</dt>
+          <dd>{{ module.difficulty }}</dd>
+          <dt>Estimated Time</dt>
+          <dd>{{ module.estimated_minutes }} minutes</dd>
+          <dt>Version</dt>
+          <dd>{{ module.version }}</dd>
+          <dt>Validated</dt>
+          <dd>{{ module.validated_on|datetimeformat('%B %Y') }}</dd>
+        </dl>
+      </div>
+
+      <div class="sidebar-section">
+        <h4>Tags</h4>
+        <div class="tags">
+          {% for tag in module.tags %}
+            <span class="tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ require_js(get_asset_url("../../js/tabs.js")) }}
+{% endblock %}

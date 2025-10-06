@@ -1,0 +1,42 @@
+{% extends "./layouts/base.html" %}
+
+{% block body %}
+<div class="learn-landing">
+  <!-- Hero section -->
+  <section class="hero">
+    <h1>{{ content.hero_title }}</h1>
+    <p>{{ content.hero_subtitle }}</p>
+    <a href="#modules" class="btn-primary">Browse Modules</a>
+  </section>
+
+  <!-- Featured pathways -->
+  <section class="pathways">
+    <h2>Learning Pathways</h2>
+    <div class="pathway-grid">
+      {% for pathway in content.featured_pathways %}
+        {% module "pathway-card" pathway=pathway %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Module list -->
+  <section class="modules">
+    <h2>All Modules</h2>
+    <!-- Search/filter placeholder -->
+    <div class="search-bar">
+      <input type="text" placeholder="Search modules...">
+      <select>
+        <option>All Levels</option>
+        <option>Beginner</option>
+        <option>Intermediate</option>
+        <option>Advanced</option>
+      </select>
+    </div>
+    <div class="module-grid">
+      {% for module in content.modules %}
+        {% module "module-card" module=module %}
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
