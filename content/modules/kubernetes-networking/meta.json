@@ -1,0 +1,25 @@
+{
+  "title": "Kubernetes Networking: Services, Ingress, and Network Policies",
+  "slug": "kubernetes-networking",
+  "difficulty": "intermediate",
+  "estimated_minutes": 50,
+  "version": "v1.30",
+  "validated_on": "2025-10-01",
+  "pathway_slug": "kubernetes-fundamentals",
+  "pathway_name": "Kubernetes Fundamentals",
+  "tags": ["kubernetes", "networking", "services", "ingress", "network-policies"],
+  "description": "Deep dive into Kubernetes networking concepts",
+  "prerequisites": [
+    "Completed Introduction to Kubernetes module",
+    "Understanding of basic networking concepts (TCP/IP, DNS)",
+    "Access to a Kubernetes cluster with Ingress controller"
+  ],
+  "learning_objectives": [
+    "Understand Kubernetes networking model",
+    "Create and use different Service types",
+    "Configure Ingress for HTTP/HTTPS routing",
+    "Implement Network Policies for security",
+    "Master service discovery with DNS",
+    "Apply networking best practices"
+  ]
+}
