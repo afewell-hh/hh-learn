@@ -1,0 +1,20 @@
+{
+  "label": "Hedgehog Learn Theme",
+  "author": {
+    "name": "Hedgehog Learn Team",
+    "email": "dev@hedgehog.cloud",
+    "url": "https://hedgehog.cloud"
+  },
+  "preview_path": "/learn-preview",
+  "screenshot_path": "./images/theme-preview.png",
+  "enable_domain_stylesheets": false,
+  "responsive_breakpoints": [
+    {
+      "name": "mobile",
+      "mediaQuery": "@media (max-width: 767px)",
+      "previewWidth": {
+        "value": 477
+      }
+    }
+  ]
+}
