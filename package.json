@@ -10,7 +10,10 @@
     "test": "echo \"(add tests in /tests)\" && exit 0",
     "deploy:aws": "serverless deploy",
     "remove:aws": "serverless remove",
-    "sync:hubdb": "ts-node src/sync/push-hubdb.ts"
+    "sync:hubdb": "ts-node src/sync/push-hubdb.ts",
+    "cms:watch": "hs project dev",
+    "cms:upload": "hs project upload",
+    "cms:fetch": "hs project fetch"
   },
   "dependencies": {
     "@hubspot/api-client": "^11.0.0",
