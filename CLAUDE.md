@@ -1,4 +1,6 @@
-# AGENTS.md
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working on HubSpot components
 
 IMPORTANT: IF THE 'HubSpot' MCP SERVER IS INSTALLED USE THE TOOLS BEFORE TRYING TO MANUALLY USE CLI COMMANDS OR BEFORE TRYING TO DO ANYTHING WITH HUBSPOT ASSETS
 
@@ -25,23 +27,23 @@ IMPORTANT: IF THE 'HubSpot' MCP SERVER IS INSTALLED USE THE TOOLS BEFORE TRYING 
 ### app component
 - There can only be one `app` component
 - `app` component must be in the `app` directory
-- If the `config.distribution` field is set to `marketplace`, the only valid `config.auth.type` value is `oauth`
+- If the `config.distribution` field is set to `marketplace`, the only valid `config.auth.type` value is `oauth` 
 
 ### card
 - `card` components must be in the `app/cards` directory
 - The global `window` object is not available in the `card` component
 - Cannot use `window.fetch`, and instead must use the `hubspot.fetch` function provided by the `@hubspot/ui-extensions` npm package.  Any urls called with the `hubspot.fetch` function must be added to the `config.permittedUrls.fetch` array in the `app` component's hsmeta.json file
-- Only components exported from the `@hubspot/ui-extensions` npm package can be used in `card` components
+- Only components exported from the `@hubspot/ui-extensions` npm package can be used in `card` components 
 
 ### app-event
 - `app-event` components must be in the `app/app-events` directory
--
+- 
 ### app-object
 - `app-object` components must be in the `app/app-object` directory
 
 ### app-function
 - `app-function` components must be in the `app/functions` directory
-- `app-function` components are not available when `config.distribution` is set to `marketplace` in the `app` component `-hsmeta.son` file
+- `app-function` components are not available when `config.distribution` is set to `marketplace` in the `app` component `-hsmeta.son` file 
 
 # settings
 - There can only be one `settings` component
@@ -77,5 +79,5 @@ IMPORTANT: IF THE 'HubSpot' MCP SERVER IS INSTALLED USE THE TOOLS BEFORE TRYING 
 ## General
 - Follow existing patterns in the codebase
 - Use proper component structure based on component `type` in the `-hsmeta.json` file
-- Ensure configuration files follow HubSpot naming conventions
+- Ensure configuration files follow HubSpot naming conventions 
 - Always validate that components are placed in correct directories

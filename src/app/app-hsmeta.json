@@ -1,0 +1,43 @@
+{
+  "uid": "app-hedgehog-learn-dev",
+  "type": "app",
+  "config": {
+    "description": "Hedgehog Learn - Learning platform for hedgehog.cloud with labs, modules, pathways, and progress tracking",
+    "name": "hedgehog-learn-dev-Application",
+    "distribution": "private",
+    "auth": {
+      "type": "static",
+      "requiredScopes": [
+        "oauth",
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write"
+      ],
+      "optionalScopes": [
+        "crm.schemas.custom.read",
+        "crm.schemas.custom.write",
+        "crm.objects.custom.read",
+        "crm.objects.custom.write",
+        "behavioral_events.event_definitions.read_write",
+        "content",
+        "hubdb",
+        "automation",
+        "cms.functions.read",
+        "cms.functions.write"
+      ],
+      "conditionallyRequiredScopes": []
+    },
+    "permittedUrls": {
+      "fetch": [
+        "https://api.hubapi.com"
+      ],
+      "iframe": [],
+      "img": []
+    },
+    "support": {
+      "supportEmail": "support@hedgehog.cloud",
+      "documentationUrl": "https://hedgehog.cloud/docs/learn",
+      "supportUrl": "https://hedgehog.cloud/support",
+      "supportPhone": ""
+    }
+  }
+}
