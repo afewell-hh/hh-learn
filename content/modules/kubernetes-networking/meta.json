@@ -1,0 +1,56 @@
+{
+  "title": "Kubernetes Networking: Services, Ingress, and Network Policies",
+  "slug": "kubernetes-networking",
+  "difficulty": "intermediate",
+  "estimated_minutes": 75,
+  "version": "1.0.0",
+  "validated_on": "2025-10-06",
+  "tags": [
+    "kubernetes",
+    "networking",
+    "services",
+    "ingress",
+    "network-policies",
+    "load-balancing",
+    "dns",
+    "intermediate"
+  ],
+  "description": "Learn how to expose applications, route traffic, and secure network communication in Kubernetes through Services, Ingress, and Network Policies.",
+  "learning_objectives": [
+    "Understand Kubernetes networking fundamentals",
+    "Create and configure different types of Services (ClusterIP, NodePort, LoadBalancer)",
+    "Implement Ingress for external HTTP/HTTPS access",
+    "Configure Ingress Controllers",
+    "Secure pod-to-pod communication with Network Policies",
+    "Understand service discovery and DNS in Kubernetes"
+  ],
+  "prerequisites": [
+    "Completed 'Introduction to Kubernetes' module recommended",
+    "Understanding of pods and deployments",
+    "Basic networking knowledge (DNS, HTTP, ports)",
+    "kubectl CLI configured",
+    "Access to a Kubernetes cluster"
+  ],
+  "lab_environment": {
+    "kubernetes_version": "1.28+",
+    "required_tools": [
+      "kubectl",
+      "bash or similar shell",
+      "curl or wget"
+    ],
+    "cluster_requirements": [
+      "Ingress controller installed (nginx-ingress recommended)",
+      "CNI plugin with Network Policy support (Calico, Cilium, etc.)"
+    ],
+    "optional_tools": [
+      "minikube (for local testing)"
+    ]
+  },
+  "author": {
+    "name": "Hedgehog Learn Team",
+    "organization": "Hedgehog Learn"
+  },
+  "last_updated": "2025-10-06",
+  "category": "networking",
+  "order": 3
+}

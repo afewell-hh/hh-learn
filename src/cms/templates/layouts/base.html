@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ content.html_title }}{% endblock %} - Hedgehog Learn</title>
+
+    {{ require_css(get_asset_url("../../css/theme.css")) }}
+    {% block extra_css %}{% endblock %}
+
+    {{ standard_header_includes }}
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <nav class="main-nav">
+          <a href="/" class="logo">Hedgehog Learn</a>
+          <ul class="nav-links">
+            <li><a href="/learn">Browse</a></li>
+            <li><a href="/pathways">Pathways</a></li>
+            <li><a href="https://hedgehog.cloud">Main Site</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      {% block body %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>&copy; {{ local_dt.year }} Hedgehog Cloud. All rights reserved.</p>
+      </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+    {{ standard_footer_includes }}
+  </body>
+</html>

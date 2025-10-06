@@ -1,0 +1,62 @@
+{% extends "../layouts/base.html" %}
+
+{% block extra_css %}
+{{ require_css(get_asset_url("../../css/landing.css")) }}
+{% endblock %}
+
+{% block body %}
+<div class="learn-landing">
+  <!-- Hero section -->
+  <section class="hero">
+    <h1>{{ content.hero_title }}</h1>
+    <p>{{ content.hero_subtitle }}</p>
+    <a href="#modules" class="btn-primary">Browse Modules</a>
+  </section>
+
+  <!-- Featured pathways -->
+  <section class="pathways">
+    <h2>Learning Pathways</h2>
+    <div class="pathway-grid">
+      {% for pathway in content.featured_pathways %}
+        {% module "pathway_card"
+          path="@hubspot/pathway-card"
+          title=pathway.title
+          description=pathway.description
+          estimated_minutes=pathway.estimated_minutes
+          module_count=pathway.module_count
+          slug=pathway.slug
+          icon_url=pathway.icon_url
+        %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Module list -->
+  <section class="modules" id="modules">
+    <h2>All Modules</h2>
+    <!-- Search/filter placeholder -->
+    <div class="search-bar">
+      <input type="text" placeholder="Search modules...">
+      <select>
+        <option>All Levels</option>
+        <option>Beginner</option>
+        <option>Intermediate</option>
+        <option>Advanced</option>
+      </select>
+    </div>
+    <div class="module-grid">
+      {% for module in content.modules %}
+        {% module "module_card"
+          path="@hubspot/module-card"
+          title=module.title
+          description=module.description
+          difficulty=module.difficulty
+          estimated_minutes=module.estimated_minutes
+          slug=module.slug
+          tags=module.tags
+        %}
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

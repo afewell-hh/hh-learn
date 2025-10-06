@@ -1,0 +1,50 @@
+{
+  "title": "Kubernetes Storage: Persistent Volumes and Storage Classes",
+  "slug": "kubernetes-storage",
+  "difficulty": "intermediate",
+  "estimated_minutes": 60,
+  "version": "1.0.0",
+  "validated_on": "2025-10-06",
+  "tags": [
+    "kubernetes",
+    "storage",
+    "persistent-volumes",
+    "pvc",
+    "storage-classes",
+    "statefulsets",
+    "intermediate"
+  ],
+  "description": "Master Kubernetes storage concepts including Persistent Volumes, PersistentVolumeClaims, and StorageClasses through hands-on labs.",
+  "learning_objectives": [
+    "Understand the difference between ephemeral and persistent storage",
+    "Create and manage Persistent Volumes (PV)",
+    "Use PersistentVolumeClaims (PVC) to request storage",
+    "Configure and use StorageClasses for dynamic provisioning",
+    "Implement storage in real-world application scenarios",
+    "Understand volume access modes and reclaim policies"
+  ],
+  "prerequisites": [
+    "Completed 'Introduction to Kubernetes' module",
+    "Understanding of pods and basic Kubernetes concepts",
+    "Access to a Kubernetes cluster with storage capabilities",
+    "kubectl CLI configured"
+  ],
+  "lab_environment": {
+    "kubernetes_version": "1.28+",
+    "required_tools": [
+      "kubectl",
+      "bash or similar shell"
+    ],
+    "cluster_requirements": [
+      "Default StorageClass configured",
+      "Dynamic provisioning capability"
+    ]
+  },
+  "author": {
+    "name": "Hedgehog Learn Team",
+    "organization": "Hedgehog Learn"
+  },
+  "last_updated": "2025-10-06",
+  "category": "storage",
+  "order": 2
+}
