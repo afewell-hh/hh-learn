@@ -12,6 +12,7 @@
  * Usage: npm run sync:content
  */
 
+import 'dotenv/config'; // Load .env file
 import { readdir, readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
