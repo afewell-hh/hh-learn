@@ -149,12 +149,14 @@ async function syncModules() {
       const difficultyId = difficultyMap[fm.difficulty || 'beginner'] || '1';
 
       // Prepare HubDB row
+      // Note: 'name' and 'path' are row-level fields for dynamic pages
+      // 'path' maps to hs_path (URL slug), 'name' maps to hs_name (page name)
       const row = {
-        path: fm.slug || moduleSlug, // Use slug as row ID for easy updates
+        name: fm.title, // Maps to hs_name (Name column)
+        path: (fm.slug || moduleSlug).toLowerCase(), // Maps to hs_path (Page Path) - must be lowercase
         values: {
-          title: fm.title,
-          slug: fm.slug || moduleSlug,
-          description: fm.description || '',
+          title: fm.title, // Display title (separate from hs_name)
+          meta_description: fm.description || '', // SEO meta description
           difficulty: difficultyId, // Use option ID for SELECT field
           estimated_minutes: fm.estimated_minutes || 30,
           tags: Array.isArray(fm.tags) ? fm.tags.join(',') : '',

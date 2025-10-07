@@ -264,7 +264,7 @@
           {% if modules %}
             <div class="modules-grid">
               {% for module in modules %}
-                <a href="{{ request.path }}/{{ module.slug }}" class="module-card">
+                <a href="{{ request.path }}/{{ module.hs_path }}" class="module-card">
                   <div class="module-card-header">
                     <span class="difficulty-badge">
                       {{ module.difficulty.label }}
