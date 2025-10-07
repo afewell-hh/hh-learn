@@ -48,6 +48,67 @@ interface ModuleFrontmatter {
   order?: number;
 }
 
+// Helper: Sleep for specified milliseconds
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper: Check if error is Cloudflare rate limiting
+function isCloudflareBlock(err: any): boolean {
+  if (err.code === 403 && typeof err.body === 'string') {
+    return err.body.includes('Cloudflare') || err.body.includes('cf-ray');
+  }
+  return false;
+}
+
+// Helper: Check if error is rate limiting
+function isRateLimitError(err: any): boolean {
+  if (err.code === 429) return true;
+  if (isCloudflareBlock(err)) return true;
+  if (err.message && err.message.includes('rate limit')) return true;
+  return false;
+}
+
+// Helper: Retry with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelayMs: number = 2000
+): Promise<T> {
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastError = err;
+
+      // Don't retry if not a rate limit issue
+      if (!isRateLimitError(err) && err.code !== 404) {
+        throw err;
+      }
+
+      // Don't retry on last attempt
+      if (attempt === maxRetries) {
+        throw err;
+      }
+
+      // Calculate delay with exponential backoff: 2s, 4s, 8s, etc.
+      const delayMs = initialDelayMs * Math.pow(2, attempt);
+
+      if (isCloudflareBlock(err)) {
+        console.log(`  ⏳ Cloudflare block detected, waiting ${delayMs/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+      } else {
+        console.log(`  ⏳ Rate limit hit, waiting ${delayMs/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+      }
+
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
+
 async function syncModules() {
   console.log('🔄 Starting module sync to HubDB...\n');
 
@@ -61,7 +122,12 @@ async function syncModules() {
 
   console.log(`Found ${modules.length} modules to sync:\n`);
 
-  for (const moduleSlug of modules) {
+  let successCount = 0;
+  let failCount = 0;
+
+  for (let i = 0; i < modules.length; i++) {
+    const moduleSlug = modules[i];
+
     try {
       // Read README.md
       const readmePath = join(modulesDir, moduleSlug, 'README.md');
@@ -89,36 +155,55 @@ async function syncModules() {
         }
       };
 
-      // Try to update existing row, create if doesn't exist
-      try {
-        await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(
-          TABLE_ID,
-          row.path,
-          row as any
-        );
-        console.log(`  ✓ Updated: ${fm.title}`);
-      } catch (updateErr: any) {
-        if (updateErr.code === 404) {
-          // Row doesn't exist, create it
-          await hubspot.cms.hubdb.rowsApi.createTableRow(
+      // Try to update existing row, create if doesn't exist (with retry)
+      await retryWithBackoff(async () => {
+        try {
+          await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(
             TABLE_ID,
+            row.path,
             row as any
           );
-          console.log(`  ✓ Created: ${fm.title}`);
-        } else {
-          throw updateErr;
+          console.log(`  ✓ Updated: ${fm.title}`);
+        } catch (updateErr: any) {
+          if (updateErr.code === 404) {
+            // Row doesn't exist, create it
+            await hubspot.cms.hubdb.rowsApi.createTableRow(
+              TABLE_ID,
+              row as any
+            );
+            console.log(`  ✓ Created: ${fm.title}`);
+          } else {
+            throw updateErr;
+          }
         }
+      });
+
+      successCount++;
+
+      // Add delay between modules to avoid rate limits (except after last module)
+      if (i < modules.length - 1) {
+        await sleep(1500); // 1.5 second delay between modules
       }
 
-    } catch (err) {
-      console.error(`  ✗ Failed to sync ${moduleSlug}:`, err);
+    } catch (err: any) {
+      failCount++;
+
+      if (isCloudflareBlock(err)) {
+        console.error(`  ✗ Failed to sync ${moduleSlug}: Cloudflare block (will retry on next run)`);
+      } else {
+        console.error(`  ✗ Failed to sync ${moduleSlug}:`, err.message || err);
+      }
     }
   }
 
-  // Publish table
+  // Publish table (with retry)
   console.log('\n📤 Publishing HubDB table...');
-  await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID);
+  await retryWithBackoff(async () => {
+    await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID);
+  });
+
   console.log('✅ Sync complete! Table published.\n');
+  console.log(`Summary: ${successCount} succeeded, ${failCount} failed\n`);
 }
 
 // Run sync
