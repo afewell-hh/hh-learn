@@ -1,0 +1,44 @@
+name: Sync Content to HubSpot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'content/modules/**'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync modules to HubDB
+        env:
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          HUBDB_MODULES_TABLE_ID: ${{ secrets.HUBDB_MODULES_TABLE_ID }}
+        run: npm run sync:content
+
+      - name: Report sync status
+        if: success()
+        run: |
+          echo "✅ Content sync completed successfully!"
+          echo "Modules have been synced to HubDB table ${{ secrets.HUBDB_MODULES_TABLE_ID }}"
+
+      - name: Report sync failure
+        if: failure()
+        run: |
+          echo "❌ Content sync failed!"
+          echo "Check the logs above for error details"
+          exit 1

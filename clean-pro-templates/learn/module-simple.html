@@ -1,0 +1,179 @@
+{% extends "../layouts/base.html" %}
+
+{% block body %}
+<div class="module-detail">
+  <div class="container">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs" style="padding: 1rem 0; color: #666; font-size: 0.875rem;">
+      <a href="/learn" style="color: #0066CC; text-decoration: none;">Learn</a>
+      <span style="margin: 0 0.5rem;">›</span>
+      <span>{{ content.module_title }}</span>
+    </nav>
+
+    <!-- Module Header -->
+    <header style="margin: 2rem 0; padding-bottom: 2rem; border-bottom: 1px solid #E5E7EB;">
+      <h1 style="margin: 0 0 1rem 0;">{{ content.module_title }}</h1>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; color: #666; align-items: center;">
+        <!-- Difficulty Badge -->
+        <span style="background: #EFF6FF; color: #0066CC; padding: 0.5rem 1rem; border-radius: 12px; font-weight: 600;">
+          {{ content.module_difficulty }}
+        </span>
+
+        <!-- Time Estimate -->
+        <span style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
+            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+          </svg>
+          {{ content.module_time }} minutes
+        </span>
+
+        <!-- Tags -->
+        {% if content.module_tags %}
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            {% set tag_list = content.module_tags.split(',') %}
+            {% for tag in tag_list %}
+              <span style="background: #F3F4F6; color: #374151; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem;">
+                {{ tag.strip() }}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <!-- Module Content -->
+    <div class="module-content" style="max-width: 800px; margin: 0 auto;">
+      <article style="line-height: 1.8; font-size: 1.0625rem;">
+        {{ content.module_content|safe }}
+      </article>
+
+      <!-- Module Navigation -->
+      <div style="display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #E5E7EB;">
+        {% if content.prev_module_slug %}
+          <a href="/learn/module/{{ content.prev_module_slug }}"
+             style="display: inline-flex; align-items: center; gap: 0.5rem; color: #0066CC; text-decoration: none; font-weight: 600;">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"/>
+            </svg>
+            Previous Module
+          </a>
+        {% else %}
+          <div></div>
+        {% endif %}
+
+        {% if content.next_module_slug %}
+          <a href="/learn/module/{{ content.next_module_slug }}"
+             style="display: inline-flex; align-items: center; gap: 0.5rem; color: #0066CC; text-decoration: none; font-weight: 600;">
+            Next Module
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8z"/>
+            </svg>
+          </a>
+        {% else %}
+          <div></div>
+        {% endif %}
+      </div>
+
+      <!-- Back to Learning Portal -->
+      <div style="text-align: center; margin-top: 2rem; padding: 2rem 0;">
+        <a href="/learn"
+           style="color: #0066CC; text-decoration: none; font-weight: 600;">
+          ← Back to Learning Portal
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom styles for module content -->
+<style>
+.module-content h2 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-size: 1.75rem;
+  color: #111827;
+}
+
+.module-content h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.375rem;
+  color: #111827;
+}
+
+.module-content p {
+  margin-bottom: 1rem;
+}
+
+.module-content ul,
+.module-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.module-content li {
+  margin-bottom: 0.5rem;
+}
+
+.module-content code {
+  background: #F3F4F6;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+  color: #E83E8C;
+}
+
+.module-content pre {
+  background: #1E293B;
+  color: #F1F5F9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.module-content pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.module-content blockquote {
+  border-left: 4px solid #0066CC;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: #666;
+  font-style: italic;
+}
+
+.module-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.module-content th,
+.module-content td {
+  border: 1px solid #E5E7EB;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.module-content th {
+  background: #F9FAFB;
+  font-weight: 600;
+}
+
+.module-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+}
+</style>
+{% endblock %}
