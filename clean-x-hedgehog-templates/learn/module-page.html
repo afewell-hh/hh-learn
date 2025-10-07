@@ -1,0 +1,306 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "../layouts/base.html" %}
+
+{% block body %}
+<style>
+  /* Header section styling */
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  .learn-page-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  /* Main content section */
+  .learn-main-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0;
+    min-height: 60vh;
+  }
+  .learn-container {
+    max-width: 1600px;
+    width: 100%;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(26,78,138,0.06);
+    min-height: 60vh;
+  }
+
+  /* Module grid (list view) */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+  }
+  .module-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+  }
+  .module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .module-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .difficulty-badge {
+    background: #EFF6FF;
+    color: #0066CC;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .module-time {
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .module-card p {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .module-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .module-tag {
+    background: #F3F4F6;
+    color: #374151;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+  }
+  .module-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Module detail view */
+  .module-detail {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .module-breadcrumbs {
+    padding: 16px 0;
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-breadcrumbs a {
+    color: #0066CC;
+    text-decoration: none;
+  }
+  .module-detail-header {
+    margin: 32px 0;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .module-detail-header h1 {
+    margin: 0 0 16px 0;
+    color: #1a4e8a;
+  }
+  .module-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  .module-content {
+    line-height: 1.8;
+    font-size: 1.0625rem;
+  }
+  .module-content h2 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-size: 1.75rem;
+    color: #111827;
+  }
+  .module-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.375rem;
+    color: #111827;
+  }
+  .module-content code {
+    background: #F3F4F6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875em;
+    color: #E83E8C;
+  }
+  .module-content pre {
+    background: #1E293B;
+    color: #F1F5F9;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+  .module-content pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container {
+      padding: 0 16px;
+    }
+    .modules-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<main id="main-content">
+  {% if dynamic_page_hubdb_row %}
+    {# Detail view - showing a single module #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        <h1 class="learn-page-title">{{ dynamic_page_hubdb_row.title }}</h1>
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        <div class="module-detail">
+          <!-- Breadcrumbs -->
+          <nav class="module-breadcrumbs">
+            <a href="{{ request.path|split('/')|slice(0,-1)|join('/') }}">← Back to Learning Portal</a>
+          </nav>
+
+          <!-- Module Header -->
+          <header class="module-detail-header">
+            <h1>{{ dynamic_page_hubdb_row.title }}</h1>
+            <div class="module-meta">
+              <span class="difficulty-badge">
+                {{ dynamic_page_hubdb_row.difficulty.label }}
+              </span>
+              <span class="module-time">
+                {{ dynamic_page_hubdb_row.estimated_minutes }} minutes
+              </span>
+              {% if dynamic_page_hubdb_row.tags %}
+                <div class="module-tags">
+                  {% set tag_list = dynamic_page_hubdb_row.tags.split(',') %}
+                  {% for tag in tag_list %}
+                    <span class="module-tag">{{ tag|trim }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </header>
+
+          <!-- Module Content -->
+          <div class="module-content">
+            {{ dynamic_page_hubdb_row.full_content|safe }}
+          </div>
+        </div>
+      </div>
+    </section>
+
+  {% else %}
+    {# List view - showing all modules #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        <h1 class="learn-page-title">Learn Hedgehog Cloud</h1>
+        <p class="learn-page-subtitle">Hands-on labs and tutorials for cloud-native infrastructure</p>
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        {% if dynamic_page_hubdb_table_id %}
+          {% set modules = hubdb_table_rows(dynamic_page_hubdb_table_id, "orderBy=display_order") %}
+          {% if modules %}
+            <div class="modules-grid">
+              {% for module in modules %}
+                <a href="{{ request.path }}/{{ module.slug }}" class="module-card">
+                  <div class="module-card-header">
+                    <span class="difficulty-badge">
+                      {{ module.difficulty.label }}
+                    </span>
+                    <span class="module-time">
+                      {{ module.estimated_minutes }} min
+                    </span>
+                  </div>
+
+                  <h3>{{ module.title }}</h3>
+
+                  {% if module.description %}
+                    <p>{{ module.description|striptags|truncate(150) }}</p>
+                  {% endif %}
+
+                  {% if module.tags %}
+                    <div class="module-tags">
+                      {% set tag_list = module.tags.split(',') %}
+                      {% for tag in tag_list %}
+                        <span class="module-tag">{{ tag|trim }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                  <span class="module-cta">View Module →</span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No learning modules have been added yet.</p>
+          {% endif %}
+        {% else %}
+          <p><em>This is a preview. Content will populate once this template is used on a dynamic page connected to a HubDB table.</em></p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+</main>
+{% endblock body %}
