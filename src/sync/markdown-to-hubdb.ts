@@ -140,6 +140,14 @@ async function syncModules() {
       // Convert markdown to HTML
       const html = await marked(markdown);
 
+      // Map difficulty to HubDB SELECT option IDs
+      const difficultyMap: Record<string, string> = {
+        'beginner': '1',
+        'intermediate': '2',
+        'advanced': '3'
+      };
+      const difficultyId = difficultyMap[fm.difficulty || 'beginner'] || '1';
+
       // Prepare HubDB row
       const row = {
         path: fm.slug || moduleSlug, // Use slug as row ID for easy updates
@@ -147,7 +155,7 @@ async function syncModules() {
           title: fm.title,
           slug: fm.slug || moduleSlug,
           description: fm.description || '',
-          difficulty: fm.difficulty || 'beginner',
+          difficulty: difficultyId, // Use option ID for SELECT field
           estimated_minutes: fm.estimated_minutes || 30,
           tags: Array.isArray(fm.tags) ? fm.tags.join(',') : '',
           full_content: html,

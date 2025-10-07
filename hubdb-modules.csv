@@ -1,0 +1,795 @@
+name,title,slug,description,difficulty,estimated_minutes,tags,full_content,display_order
+intro-to-kubernetes,Introduction to Kubernetes,intro-to-kubernetes,,1,30,"kubernetes,containers,orchestration,docker","<h1>Introduction to Kubernetes</h1>
+<p>Welcome to your first Kubernetes module! In this hands-on lab, you&#39;ll learn the fundamentals of Kubernetes by deploying your first containerized application.</p>
+<h2>Lab: Deploy Your First Application</h2>
+<h3>Prerequisites</h3>
+<ul>
+<li>Access to a Kubernetes cluster (minikube, kind, or cloud provider)</li>
+<li>kubectl CLI installed and configured</li>
+</ul>
+<h3>Step 1: Verify Cluster Access</h3>
+<p>First, let&#39;s verify that your Kubernetes cluster is running and accessible:</p>
+<pre><code class=""language-bash"">kubectl cluster-info
+</code></pre>
+<p>You should see output showing your cluster endpoints. Next, check the nodes in your cluster:</p>
+<pre><code class=""language-bash"">kubectl get nodes
+</code></pre>
+<p>This will display all nodes in your cluster along with their status.</p>
+<h3>Step 2: Create a Namespace</h3>
+<p>Namespaces provide logical isolation for your resources. Create a namespace for this lab:</p>
+<pre><code class=""language-bash"">kubectl create namespace learn-k8s
+</code></pre>
+<p>Verify the namespace was created:</p>
+<pre><code class=""language-bash"">kubectl get namespaces
+</code></pre>
+<h3>Step 3: Deploy Your First Pod</h3>
+<p>A Pod is the smallest deployable unit in Kubernetes. Let&#39;s deploy a simple nginx web server:</p>
+<pre><code class=""language-bash"">kubectl run nginx --image=nginx:latest --namespace=learn-k8s
+</code></pre>
+<p>Check the status of your pod:</p>
+<pre><code class=""language-bash"">kubectl get pods --namespace=learn-k8s
+</code></pre>
+<p>Wait until the STATUS shows &quot;Running&quot;.</p>
+<h3>Step 4: Inspect the Pod</h3>
+<p>Get detailed information about your pod:</p>
+<pre><code class=""language-bash"">kubectl describe pod nginx --namespace=learn-k8s
+</code></pre>
+<p>This command shows extensive details including events, container status, and resource allocations.</p>
+<h3>Step 5: Access Pod Logs</h3>
+<p>View the logs from your nginx container:</p>
+<pre><code class=""language-bash"">kubectl logs nginx --namespace=learn-k8s
+</code></pre>
+<p>Follow logs in real-time:</p>
+<pre><code class=""language-bash"">kubectl logs -f nginx --namespace=learn-k8s
+</code></pre>
+<p>Press Ctrl+C to stop following logs.</p>
+<h3>Step 6: Execute Commands in the Pod</h3>
+<p>You can run commands inside a running container:</p>
+<pre><code class=""language-bash"">kubectl exec nginx --namespace=learn-k8s -- nginx -v
+</code></pre>
+<p>Open an interactive shell:</p>
+<pre><code class=""language-bash"">kubectl exec -it nginx --namespace=learn-k8s -- /bin/bash
+</code></pre>
+<p>Type <code>exit</code> to leave the shell.</p>
+<h3>Step 7: Expose the Pod with a Service</h3>
+<p>Create a Service to make your nginx pod accessible:</p>
+<pre><code class=""language-bash"">kubectl expose pod nginx --port=80 --namespace=learn-k8s --type=NodePort
+</code></pre>
+<p>Get the service details:</p>
+<pre><code class=""language-bash"">kubectl get service nginx --namespace=learn-k8s
+</code></pre>
+<h3>Step 8: Test Connectivity</h3>
+<p>Port-forward to access the service locally:</p>
+<pre><code class=""language-bash"">kubectl port-forward service/nginx 8080:80 --namespace=learn-k8s
+</code></pre>
+<p>In another terminal or browser, visit <code>http://localhost:8080</code>. You should see the nginx welcome page.</p>
+<h3>Step 9: Scale with a Deployment</h3>
+<p>While we created a single Pod, in production you&#39;ll use Deployments. Create a deployment:</p>
+<pre><code class=""language-bash"">kubectl create deployment web --image=nginx:latest --replicas=3 --namespace=learn-k8s
+</code></pre>
+<p>Watch the pods being created:</p>
+<pre><code class=""language-bash"">kubectl get pods --namespace=learn-k8s --watch
+</code></pre>
+<h3>Step 10: Clean Up</h3>
+<p>Remove all resources in the namespace:</p>
+<pre><code class=""language-bash"">kubectl delete namespace learn-k8s
+</code></pre>
+<p>Verify deletion:</p>
+<pre><code class=""language-bash"">kubectl get namespaces
+</code></pre>
+<h2>Concepts: Understanding Kubernetes Fundamentals</h2>
+<h3>What is Kubernetes?</h3>
+<p>Kubernetes (often abbreviated as K8s) is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications. Originally developed by Google and now maintained by the Cloud Native Computing Foundation (CNCF), Kubernetes has become the de facto standard for container orchestration.</p>
+<h3>Why Kubernetes?</h3>
+<p>As applications grow in complexity and scale, managing containers manually becomes impractical. Kubernetes solves this by providing:</p>
+<ul>
+<li><strong>Automated rollouts and rollbacks</strong>: Deploy new versions safely with automatic rollback on failure</li>
+<li><strong>Service discovery and load balancing</strong>: Automatic DNS and load balancing for your services</li>
+<li><strong>Storage orchestration</strong>: Automatically mount storage systems of your choice</li>
+<li><strong>Self-healing</strong>: Restarts failed containers, replaces containers, and kills containers that don&#39;t respond to health checks</li>
+<li><strong>Secret and configuration management</strong>: Deploy and update secrets and configuration without rebuilding images</li>
+<li><strong>Horizontal scaling</strong>: Scale your application up and down with a simple command</li>
+</ul>
+<h3>Core Kubernetes Components</h3>
+<p><strong>Control Plane Components:</strong></p>
+<p>The control plane manages the cluster and makes global decisions about the cluster:</p>
+<ul>
+<li><strong>API Server (kube-apiserver)</strong>: The front-end for the Kubernetes control plane. All administrative tasks go through the API server.</li>
+<li><strong>etcd</strong>: Consistent and highly-available key-value store used as Kubernetes&#39; backing store for all cluster data.</li>
+<li><strong>Scheduler (kube-scheduler)</strong>: Watches for newly created Pods and assigns them to nodes.</li>
+<li><strong>Controller Manager (kube-controller-manager)</strong>: Runs controller processes that regulate the state of the cluster.</li>
+</ul>
+<p><strong>Node Components:</strong></p>
+<p>These components run on every node:</p>
+<ul>
+<li><strong>kubelet</strong>: An agent that ensures containers are running in a Pod.</li>
+<li><strong>kube-proxy</strong>: Maintains network rules on nodes, allowing network communication to your Pods.</li>
+<li><strong>Container Runtime</strong>: Software responsible for running containers (e.g., Docker, containerd, CRI-O).</li>
+</ul>
+<h3>Kubernetes Objects</h3>
+<p>Kubernetes uses objects to represent the state of your cluster. Key objects include:</p>
+<p><strong>Pod</strong>: The smallest deployable unit, representing one or more containers that share storage and network resources.</p>
+<p><strong>Deployment</strong>: Manages a replicated application, providing declarative updates for Pods and ReplicaSets.</p>
+<p><strong>Service</strong>: An abstract way to expose an application running on a set of Pods as a network service.</p>
+<p><strong>Namespace</strong>: Virtual clusters backed by the same physical cluster, used for dividing cluster resources between multiple users.</p>
+<p><strong>ConfigMap &amp; Secret</strong>: Objects for storing configuration data and sensitive information separately from application code.</p>
+<h3>The Kubernetes Architecture</h3>
+<p>Kubernetes follows a master-worker architecture:</p>
+<ol>
+<li><strong>Master Node (Control Plane)</strong>: Makes global decisions and detects/responds to cluster events</li>
+<li><strong>Worker Nodes</strong>: Run your application workloads in Pods</li>
+</ol>
+<p>The control plane maintains the desired state of the cluster, while kubelet on each node ensures that containers are running and healthy.</p>
+<h3>Desired State Management</h3>
+<p>Kubernetes operates on the principle of <strong>desired state</strong>. You declare the desired state of your application (e.g., &quot;I want 3 replicas of my nginx app&quot;), and Kubernetes works continuously to maintain that state. If a Pod crashes, Kubernetes automatically starts a new one to maintain your desired count.</p>
+<h3>Benefits of the Kubernetes Approach</h3>
+<ol>
+<li><strong>Declarative Configuration</strong>: Describe what you want, not how to achieve it</li>
+<li><strong>Infrastructure as Code</strong>: Version control your infrastructure configurations</li>
+<li><strong>Portability</strong>: Run on any cloud provider or on-premises</li>
+<li><strong>Ecosystem</strong>: Extensive ecosystem of tools and extensions</li>
+<li><strong>Community</strong>: Large, active community and enterprise support</li>
+</ol>
+<p>Understanding these fundamentals is crucial as you continue your Kubernetes journey. Every advanced concept builds on these core principles.</p>
+<h2>Resources</h2>
+<ul>
+<li><a href=""https://kubernetes.io/docs/"">Official Kubernetes Documentation</a></li>
+<li><a href=""https://kubernetes.io/docs/tutorials/kubernetes-basics/"">Kubernetes Basics Tutorial</a></li>
+<li><a href=""https://kubernetes.io/docs/reference/kubectl/cheatsheet/"">kubectl Cheat Sheet</a></li>
+<li><a href=""https://kubernetes.io/docs/reference/kubernetes-api/"">Kubernetes API Reference</a></li>
+<li><a href=""https://www.cncf.io/certification/cka/"">CNCF Kubernetes Certification</a></li>
+</ul>
+",1
+kubernetes-networking,"Kubernetes Networking: Services, Ingress, and Network Policies",kubernetes-networking,,2,50,"kubernetes,networking,services,ingress,network-policies","<h1>Kubernetes Networking: Services, Ingress, and Network Policies</h1>
+<p>Master Kubernetes networking concepts including Services, Ingress controllers, and Network Policies for secure communication between pods.</p>
+<h2>Lab: Kubernetes Networking in Action</h2>
+<h3>Prerequisites</h3>
+<ul>
+<li>Completed &quot;Introduction to Kubernetes&quot; module</li>
+<li>Access to a Kubernetes cluster</li>
+<li>kubectl CLI configured</li>
+<li>Ingress controller installed (e.g., nginx-ingress)</li>
+</ul>
+<h3>Step 1: Create a Namespace and Deployment</h3>
+<p>Create a namespace:</p>
+<pre><code class=""language-bash"">kubectl create namespace networking-lab
+</code></pre>
+<p>Create a deployment with multiple replicas:</p>
+<pre><code class=""language-bash"">kubectl create deployment web --image=nginx:latest --replicas=3 --namespace=networking-lab
+</code></pre>
+<p>Verify the pods are running:</p>
+<pre><code class=""language-bash"">kubectl get pods -n networking-lab -o wide
+</code></pre>
+<p>Note the IP addresses of each pod.</p>
+<h3>Step 2: Create a ClusterIP Service</h3>
+<p>Create a file named <code>service-clusterip.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+  namespace: networking-lab
+spec:
+  selector:
+    app: web
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+</code></pre>
+<p>Apply the Service:</p>
+<pre><code class=""language-bash"">kubectl apply -f service-clusterip.yaml
+</code></pre>
+<p>Get the Service details:</p>
+<pre><code class=""language-bash"">kubectl get service web-service -n networking-lab
+</code></pre>
+<p>Test the Service from within the cluster:</p>
+<pre><code class=""language-bash"">kubectl run test-pod --image=busybox --namespace=networking-lab --rm -it --restart=Never -- wget -qO- http://web-service
+</code></pre>
+<h3>Step 3: Explore Service Discovery</h3>
+<p>Services are automatically registered in DNS:</p>
+<pre><code class=""language-bash"">kubectl run dns-test --image=busybox --namespace=networking-lab --rm -it --restart=Never -- nslookup web-service
+</code></pre>
+<p>The service is accessible at: <code>web-service.networking-lab.svc.cluster.local</code></p>
+<h3>Step 4: Create a NodePort Service</h3>
+<p>Create a file named <code>service-nodeport.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: Service
+metadata:
+  name: web-nodeport
+  namespace: networking-lab
+spec:
+  selector:
+    app: web
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30080
+  type: NodePort
+</code></pre>
+<p>Apply the NodePort Service:</p>
+<pre><code class=""language-bash"">kubectl apply -f service-nodeport.yaml
+</code></pre>
+<p>Get the Service info:</p>
+<pre><code class=""language-bash"">kubectl get service web-nodeport -n networking-lab
+</code></pre>
+<p>Access the service on any node&#39;s IP at port 30080.</p>
+<h3>Step 5: Create a LoadBalancer Service</h3>
+<p>Create a file named <code>service-loadbalancer.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: Service
+metadata:
+  name: web-loadbalancer
+  namespace: networking-lab
+spec:
+  selector:
+    app: web
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+</code></pre>
+<p>Apply the LoadBalancer Service:</p>
+<pre><code class=""language-bash"">kubectl apply -f service-loadbalancer.yaml
+</code></pre>
+<p>Wait for external IP assignment:</p>
+<pre><code class=""language-bash"">kubectl get service web-loadbalancer -n networking-lab --watch
+</code></pre>
+<p>(This requires a cloud provider or MetalLB)</p>
+<h3>Step 6: Create an Ingress Resource</h3>
+<p>First, create a second deployment:</p>
+<pre><code class=""language-bash"">kubectl create deployment api --image=hashicorp/http-echo --namespace=networking-lab -- -text=&quot;API Response&quot;
+</code></pre>
+<p>Create a Service for the API:</p>
+<pre><code class=""language-bash"">kubectl expose deployment api --port=5678 --namespace=networking-lab
+</code></pre>
+<p>Create a file named <code>ingress.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  namespace: networking-lab
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: web.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80
+  - host: api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 5678
+</code></pre>
+<p>Apply the Ingress:</p>
+<pre><code class=""language-bash"">kubectl apply -f ingress.yaml
+</code></pre>
+<p>Check Ingress status:</p>
+<pre><code class=""language-bash"">kubectl get ingress -n networking-lab
+</code></pre>
+<p>Test with curl (add hosts to /etc/hosts or use Host header):</p>
+<pre><code class=""language-bash"">curl -H &quot;Host: web.example.com&quot; http://&lt;ingress-ip&gt;
+curl -H &quot;Host: api.example.com&quot; http://&lt;ingress-ip&gt;
+</code></pre>
+<h3>Step 7: Implement Network Policies</h3>
+<p>By default, all pods can communicate with each other. Let&#39;s restrict this.</p>
+<p>Create a file named <code>network-policy-deny-all.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: networking-lab
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+</code></pre>
+<p>Apply the policy:</p>
+<pre><code class=""language-bash"">kubectl apply -f network-policy-deny-all.yaml
+</code></pre>
+<p>Test connectivity (it should fail):</p>
+<pre><code class=""language-bash"">kubectl run test-pod --image=busybox --namespace=networking-lab --rm -it --restart=Never -- wget -qO- --timeout=5 http://web-service
+</code></pre>
+<h3>Step 8: Allow Specific Traffic</h3>
+<p>Create a file named <code>network-policy-allow-web.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-traffic
+  namespace: networking-lab
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 80
+</code></pre>
+<p>Apply the policy:</p>
+<pre><code class=""language-bash"">kubectl apply -f network-policy-allow-web.yaml
+</code></pre>
+<p>Also allow DNS:</p>
+<pre><code class=""language-yaml"">apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: networking-lab
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+</code></pre>
+<pre><code class=""language-bash"">kubectl apply -f network-policy-allow-dns.yaml
+</code></pre>
+<p>Now test again (should work):</p>
+<pre><code class=""language-bash"">kubectl run test-pod --image=busybox --namespace=networking-lab --rm -it --restart=Never -- wget -qO- http://web-service
+</code></pre>
+<h3>Step 9: Verify Network Policy Enforcement</h3>
+<p>Try accessing from a different namespace (should fail):</p>
+<pre><code class=""language-bash"">kubectl create namespace other-namespace
+kubectl run test-pod --image=busybox --namespace=other-namespace --rm -it --restart=Never -- wget -qO- --timeout=5 http://web-service.networking-lab
+</code></pre>
+<h3>Step 10: Clean Up</h3>
+<p>Delete the namespace:</p>
+<pre><code class=""language-bash"">kubectl delete namespace networking-lab
+kubectl delete namespace other-namespace
+</code></pre>
+<h2>Concepts: Understanding Kubernetes Networking</h2>
+<h3>The Kubernetes Networking Model</h3>
+<p>Kubernetes imposes the following fundamental requirements on any networking implementation:</p>
+<ol>
+<li><strong>Pods can communicate with all other pods</strong> on any node without NAT</li>
+<li><strong>Agents on a node</strong> can communicate with all pods on that node</li>
+<li><strong>Pods in the host network</strong> can communicate with all pods on all nodes without NAT</li>
+</ol>
+<p>This creates a &quot;flat&quot; network where every pod gets its own IP address and can communicate directly with other pods.</p>
+<h3>Services: The Abstraction Layer</h3>
+<p>Pods are ephemeral—they can be created, destroyed, and moved around. Their IP addresses change. Services provide a stable endpoint for accessing a set of pods.</p>
+<p><strong>How Services Work:</strong></p>
+<ol>
+<li>Service gets a stable virtual IP (ClusterIP)</li>
+<li>kube-proxy maintains iptables/IPVS rules on each node</li>
+<li>Traffic to the Service IP is load-balanced to backend pods</li>
+<li>Service selector determines which pods receive traffic</li>
+</ol>
+<h3>Service Types</h3>
+<p><strong>ClusterIP (Default)</strong></p>
+<ul>
+<li>Service is only accessible within the cluster</li>
+<li>Gets a virtual IP from the service CIDR range</li>
+<li>Used for internal communication between services</li>
+</ul>
+<p><strong>NodePort</strong></p>
+<ul>
+<li>Exposes service on each node&#39;s IP at a static port (30000-32767)</li>
+<li>Automatically creates a ClusterIP service</li>
+<li>External traffic → NodePort → ClusterIP → Pods</li>
+<li>Use case: Simple external access, development environments</li>
+</ul>
+<p><strong>LoadBalancer</strong></p>
+<ul>
+<li>Exposes service externally using cloud provider&#39;s load balancer</li>
+<li>Automatically creates NodePort and ClusterIP services</li>
+<li>Cloud provider provisions external load balancer</li>
+<li>Use case: Production external access on cloud platforms</li>
+</ul>
+<p><strong>ExternalName</strong></p>
+<ul>
+<li>Maps service to a DNS name</li>
+<li>No proxying, just DNS CNAME record</li>
+<li>Use case: Accessing external services with a consistent internal name</li>
+</ul>
+<h3>Ingress: HTTP/HTTPS Routing</h3>
+<p>Ingress provides HTTP and HTTPS routing to services based on hostnames and paths. Unlike Services, Ingress is not a service type—it&#39;s a separate resource that sits in front of services.</p>
+<p><strong>Benefits of Ingress:</strong></p>
+<ul>
+<li><strong>Single entry point</strong>: One load balancer for multiple services</li>
+<li><strong>Host-based routing</strong>: Route based on hostname (virtual hosting)</li>
+<li><strong>Path-based routing</strong>: Route based on URL path</li>
+<li><strong>TLS termination</strong>: Handle SSL/TLS certificates centrally</li>
+<li><strong>Cost effective</strong>: One load balancer instead of many</li>
+</ul>
+<p><strong>Ingress Controllers:</strong></p>
+<p>Ingress resources don&#39;t do anything by themselves—you need an Ingress controller:</p>
+<ul>
+<li><strong>NGINX Ingress Controller</strong>: Most popular, feature-rich</li>
+<li><strong>Traefik</strong>: Modern, easy to use, automatic Let&#39;s Encrypt</li>
+<li><strong>HAProxy Ingress</strong>: High performance</li>
+<li><strong>Cloud-specific</strong>: AWS ALB, Google Cloud Load Balancer, Azure Application Gateway</li>
+</ul>
+<h3>DNS in Kubernetes</h3>
+<p>Kubernetes runs a DNS service (typically CoreDNS) that provides DNS resolution for services and pods.</p>
+<p><strong>Service DNS Names:</strong></p>
+<p>Format: <code>&lt;service-name&gt;.&lt;namespace&gt;.svc.cluster.local</code></p>
+<ul>
+<li>Within same namespace: Just use <code>&lt;service-name&gt;</code></li>
+<li>Cross-namespace: Use <code>&lt;service-name&gt;.&lt;namespace&gt;</code></li>
+<li>Fully qualified: Use full FQDN</li>
+</ul>
+<p><strong>Pod DNS Names:</strong></p>
+<p>Format: <code>&lt;pod-ip-with-dashes&gt;.&lt;namespace&gt;.pod.cluster.local</code></p>
+<p>Example: <code>10-244-1-5.default.pod.cluster.local</code></p>
+<h3>Network Policies: Microsegmentation</h3>
+<p>By default, Kubernetes allows all pods to communicate with each other. Network Policies provide firewall rules to control pod-to-pod traffic.</p>
+<p><strong>Network Policy Features:</strong></p>
+<ul>
+<li><strong>Pod selector</strong>: Which pods the policy applies to</li>
+<li><strong>Ingress rules</strong>: Incoming traffic controls</li>
+<li><strong>Egress rules</strong>: Outgoing traffic controls</li>
+<li><strong>Namespace selector</strong>: Allow traffic from specific namespaces</li>
+<li><strong>IP block selector</strong>: Allow traffic from specific CIDR blocks</li>
+</ul>
+<p><strong>Important Notes:</strong></p>
+<ul>
+<li>Network Policies are additive (allow-list, not deny-list)</li>
+<li>Requires a CNI plugin that supports Network Policies (Calico, Cilium, Weave)</li>
+<li>Default deny-all is a common starting point</li>
+<li>Policies are applied at the pod level, not the service level</li>
+</ul>
+<h3>Container Network Interface (CNI)</h3>
+<p>Kubernetes uses CNI plugins to set up pod networking. Popular CNI plugins include:</p>
+<ul>
+<li><strong>Calico</strong>: Feature-rich, supports Network Policies, BGP routing</li>
+<li><strong>Cilium</strong>: eBPF-based, high performance, observability</li>
+<li><strong>Flannel</strong>: Simple, overlay network</li>
+<li><strong>Weave Net</strong>: Encrypted overlay network</li>
+<li><strong>AWS VPC CNI</strong>: Native AWS VPC networking</li>
+<li><strong>Multus</strong>: Multiple network interfaces per pod</li>
+</ul>
+<h3>Common Networking Patterns</h3>
+<p><strong>Service Mesh (Advanced):</strong></p>
+<ul>
+<li>Istio, Linkerd, Consul Connect</li>
+<li>Advanced traffic management, security, observability</li>
+<li>Sidecar proxies for each pod</li>
+</ul>
+<p><strong>East-West Traffic:</strong></p>
+<ul>
+<li>Service-to-service communication within the cluster</li>
+<li>Use ClusterIP services</li>
+<li>Implement Network Policies for security</li>
+</ul>
+<p><strong>North-South Traffic:</strong></p>
+<ul>
+<li>External traffic entering/leaving the cluster</li>
+<li>Use LoadBalancer or Ingress</li>
+<li>Implement TLS termination at Ingress</li>
+</ul>
+<p><strong>Multi-Cluster Networking:</strong></p>
+<ul>
+<li>Connect pods across multiple clusters</li>
+<li>Tools: Submariner, Cilium Cluster Mesh, Istio multi-cluster</li>
+</ul>
+<h3>Best Practices</h3>
+<ol>
+<li><strong>Use Services for discovery</strong>: Don&#39;t rely on pod IPs</li>
+<li><strong>Implement Network Policies</strong>: Start with default deny-all</li>
+<li><strong>Use Ingress for HTTP/HTTPS</strong>: More cost-effective than multiple LoadBalancers</li>
+<li><strong>Monitor network traffic</strong>: Use tools like Cilium Hubble</li>
+<li><strong>Plan IP address space</strong>: Avoid CIDR conflicts</li>
+<li><strong>Secure with TLS</strong>: Use cert-manager for automatic certificate management</li>
+<li><strong>Test network policies</strong>: Verify policies work as expected</li>
+<li><strong>Document network architecture</strong>: Maintain diagrams of traffic flows</li>
+</ol>
+<p>Understanding Kubernetes networking is essential for building secure, scalable applications.</p>
+<h2>Resources</h2>
+<ul>
+<li><a href=""https://kubernetes.io/docs/concepts/cluster-administration/networking/"">Kubernetes Networking Documentation</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/services-networking/service/"">Services</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/services-networking/ingress/"">Ingress</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/services-networking/network-policies/"">Network Policies</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/"">DNS for Services and Pods</a></li>
+</ul>
+",2
+kubernetes-storage,Kubernetes Storage: Persistent Volumes and Claims,kubernetes-storage,,2,45,"kubernetes,storage,persistent-volumes,stateful","<h1>Kubernetes Storage: Persistent Volumes and Claims</h1>
+<p>Learn how to manage persistent storage in Kubernetes using Persistent Volumes (PVs), Persistent Volume Claims (PVCs), and Storage Classes.</p>
+<h2>Lab: Working with Persistent Storage</h2>
+<h3>Prerequisites</h3>
+<ul>
+<li>Completed &quot;Introduction to Kubernetes&quot; module</li>
+<li>Access to a Kubernetes cluster with a storage provisioner</li>
+<li>kubectl CLI configured</li>
+</ul>
+<h3>Step 1: Create a Namespace</h3>
+<p>Create a namespace for this lab:</p>
+<pre><code class=""language-bash"">kubectl create namespace storage-lab
+</code></pre>
+<h3>Step 2: Create a Persistent Volume</h3>
+<p>Create a file named <code>pv.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data
+</code></pre>
+<p>Apply the PersistentVolume:</p>
+<pre><code class=""language-bash"">kubectl apply -f pv.yaml
+</code></pre>
+<p>Verify the PV was created:</p>
+<pre><code class=""language-bash"">kubectl get pv
+</code></pre>
+<p>The STATUS should show &quot;Available&quot;.</p>
+<h3>Step 3: Create a Persistent Volume Claim</h3>
+<p>Create a file named <code>pvc.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+  namespace: storage-lab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+  storageClassName: manual
+</code></pre>
+<p>Apply the PVC:</p>
+<pre><code class=""language-bash"">kubectl apply -f pvc.yaml
+</code></pre>
+<p>Check the PVC status:</p>
+<pre><code class=""language-bash"">kubectl get pvc -n storage-lab
+</code></pre>
+<p>The PVC should be &quot;Bound&quot; to the PV.</p>
+<h3>Step 4: Use the PVC in a Pod</h3>
+<p>Create a file named <code>pod-with-pvc.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-pod
+  namespace: storage-lab
+spec:
+  containers:
+  - name: app
+    image: nginx:latest
+    volumeMounts:
+    - mountPath: /usr/share/nginx/html
+      name: storage
+  volumes:
+  - name: storage
+    persistentVolumeClaim:
+      claimName: my-pvc
+</code></pre>
+<p>Create the pod:</p>
+<pre><code class=""language-bash"">kubectl apply -f pod-with-pvc.yaml
+</code></pre>
+<p>Wait for the pod to be running:</p>
+<pre><code class=""language-bash"">kubectl wait --for=condition=Ready pod/storage-pod -n storage-lab --timeout=60s
+</code></pre>
+<h3>Step 5: Write Data to Persistent Storage</h3>
+<p>Write some content to the persistent volume:</p>
+<pre><code class=""language-bash"">kubectl exec -it storage-pod -n storage-lab -- /bin/bash -c &quot;echo &#39;Hello from persistent storage!&#39; &gt; /usr/share/nginx/html/index.html&quot;
+</code></pre>
+<p>Verify the content:</p>
+<pre><code class=""language-bash"">kubectl exec storage-pod -n storage-lab -- cat /usr/share/nginx/html/index.html
+</code></pre>
+<h3>Step 6: Test Persistence</h3>
+<p>Delete the pod:</p>
+<pre><code class=""language-bash"">kubectl delete pod storage-pod -n storage-lab
+</code></pre>
+<p>Recreate the pod using the same YAML:</p>
+<pre><code class=""language-bash"">kubectl apply -f pod-with-pvc.yaml
+</code></pre>
+<p>Wait for the pod to be ready:</p>
+<pre><code class=""language-bash"">kubectl wait --for=condition=Ready pod/storage-pod -n storage-lab --timeout=60s
+</code></pre>
+<p>Verify the data persisted:</p>
+<pre><code class=""language-bash"">kubectl exec storage-pod -n storage-lab -- cat /usr/share/nginx/html/index.html
+</code></pre>
+<p>You should see the same content!</p>
+<h3>Step 7: Explore Storage Classes</h3>
+<p>List available storage classes in your cluster:</p>
+<pre><code class=""language-bash"">kubectl get storageclass
+</code></pre>
+<p>Get details on a storage class:</p>
+<pre><code class=""language-bash"">kubectl describe storageclass &lt;storage-class-name&gt;
+</code></pre>
+<h3>Step 8: Create a Dynamic PVC</h3>
+<p>Create a file named <code>dynamic-pvc.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+  namespace: storage-lab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: &lt;default-storage-class&gt;
+</code></pre>
+<p>Replace <code>&lt;default-storage-class&gt;</code> with your cluster&#39;s default storage class, then apply:</p>
+<pre><code class=""language-bash"">kubectl apply -f dynamic-pvc.yaml
+</code></pre>
+<p>Watch the PV be automatically provisioned:</p>
+<pre><code class=""language-bash"">kubectl get pv,pvc -n storage-lab
+</code></pre>
+<h3>Step 9: Create a StatefulSet with Storage</h3>
+<p>Create a file named <code>statefulset.yaml</code>:</p>
+<pre><code class=""language-yaml"">apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+  namespace: storage-lab
+spec:
+  serviceName: &quot;web&quot;
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ &quot;ReadWriteOnce&quot; ]
+      resources:
+        requests:
+          storage: 1Gi
+</code></pre>
+<p>Create the StatefulSet:</p>
+<pre><code class=""language-bash"">kubectl apply -f statefulset.yaml
+</code></pre>
+<p>Watch the pods and PVCs being created:</p>
+<pre><code class=""language-bash"">kubectl get pods,pvc -n storage-lab -w
+</code></pre>
+<p>Each pod gets its own PVC automatically!</p>
+<h3>Step 10: Clean Up</h3>
+<p>Delete all resources:</p>
+<pre><code class=""language-bash"">kubectl delete namespace storage-lab
+kubectl delete pv my-pv
+</code></pre>
+<h2>Concepts: Understanding Kubernetes Storage</h2>
+<h3>The Storage Problem in Kubernetes</h3>
+<p>By default, containers are ephemeral—when a Pod is deleted, all its data is lost. For stateful applications like databases, this is unacceptable. Kubernetes provides several abstractions to handle persistent storage.</p>
+<h3>Storage Architecture</h3>
+<p>Kubernetes storage architecture consists of several key components:</p>
+<ol>
+<li><strong>Persistent Volumes (PV)</strong>: Cluster-wide storage resources</li>
+<li><strong>Persistent Volume Claims (PVC)</strong>: Requests for storage by users</li>
+<li><strong>Storage Classes</strong>: Dynamic provisioning of storage</li>
+<li><strong>Volume Plugins</strong>: Interfaces to storage systems</li>
+</ol>
+<h3>Persistent Volumes (PV)</h3>
+<p>A PersistentVolume is a piece of storage in the cluster that has been provisioned by an administrator or dynamically provisioned using Storage Classes. It&#39;s a cluster resource, just like a node.</p>
+<p><strong>Key Properties:</strong></p>
+<ul>
+<li><strong>Capacity</strong>: Size of the storage</li>
+<li><strong>Access Modes</strong>: How the volume can be mounted (ReadWriteOnce, ReadOnlyMany, ReadWriteMany)</li>
+<li><strong>Reclaim Policy</strong>: What happens when the PVC is deleted (Retain, Recycle, Delete)</li>
+<li><strong>Storage Class</strong>: For dynamic provisioning</li>
+<li><strong>Volume Type</strong>: The underlying storage system (hostPath, NFS, AWS EBS, etc.)</li>
+</ul>
+<h3>Persistent Volume Claims (PVC)</h3>
+<p>A PersistentVolumeClaim is a request for storage by a user. It&#39;s similar to how a Pod consumes node resources; a PVC consumes PV resources.</p>
+<p><strong>Binding Process:</strong></p>
+<ol>
+<li>User creates a PVC with desired storage size and access mode</li>
+<li>Kubernetes finds a matching PV (or dynamically provisions one)</li>
+<li>The PVC is bound to the PV</li>
+<li>Pods can now use the PVC</li>
+</ol>
+<h3>Access Modes</h3>
+<p>Storage can be mounted in different modes:</p>
+<ul>
+<li><strong>ReadWriteOnce (RWO)</strong>: Volume can be mounted read-write by a single node</li>
+<li><strong>ReadOnlyMany (ROX)</strong>: Volume can be mounted read-only by many nodes</li>
+<li><strong>ReadWriteMany (RWX)</strong>: Volume can be mounted read-write by many nodes</li>
+</ul>
+<p>Not all storage types support all access modes. For example, AWS EBS only supports RWO.</p>
+<h3>Storage Classes</h3>
+<p>Storage Classes provide a way to describe different &quot;classes&quot; of storage. They enable dynamic provisioning of PVs.</p>
+<p><strong>Benefits:</strong></p>
+<ul>
+<li>No manual PV creation by administrators</li>
+<li>Automatic provisioning when PVC is created</li>
+<li>Different tiers of storage (SSD vs HDD, fast vs slow)</li>
+<li>Cloud provider integration (AWS EBS, Google Persistent Disk, Azure Disk)</li>
+</ul>
+<p><strong>Example Storage Class:</strong></p>
+<pre><code class=""language-yaml"">apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3
+  iops: &quot;3000&quot;
+</code></pre>
+<h3>Reclaim Policies</h3>
+<p>When a PVC is deleted, the PV can be handled in three ways:</p>
+<ul>
+<li><strong>Retain</strong>: Manual reclamation—PV still exists with data</li>
+<li><strong>Delete</strong>: Automatically delete the PV and underlying storage</li>
+<li><strong>Recycle</strong>: (Deprecated) Basic scrub and make available for new claim</li>
+</ul>
+<p>For production workloads with important data, &quot;Retain&quot; is typically the safest choice.</p>
+<h3>StatefulSets and Storage</h3>
+<p>StatefulSets are designed for stateful applications. They provide:</p>
+<ul>
+<li><strong>Stable network identifiers</strong>: Each pod gets a predictable name</li>
+<li><strong>Stable storage</strong>: PVCs persist across pod rescheduling</li>
+<li><strong>Ordered deployment and scaling</strong>: Pods are created/deleted in order</li>
+</ul>
+<p>The <code>volumeClaimTemplates</code> field in a StatefulSet automatically creates a PVC for each pod replica, ensuring each has dedicated storage.</p>
+<h3>Best Practices</h3>
+<ol>
+<li><strong>Use Storage Classes</strong>: Enable dynamic provisioning for flexibility</li>
+<li><strong>Size appropriately</strong>: Request storage sizes based on actual needs</li>
+<li><strong>Choose correct access mode</strong>: Use RWO when possible for better performance</li>
+<li><strong>Set resource limits</strong>: Prevent storage exhaustion</li>
+<li><strong>Back up data</strong>: Implement backup strategies for critical data</li>
+<li><strong>Monitor usage</strong>: Track storage consumption and performance</li>
+<li><strong>Test persistence</strong>: Verify data survives pod restarts</li>
+<li><strong>Use StatefulSets for stateful apps</strong>: Databases, message queues, etc.</li>
+</ol>
+<h3>Common Use Cases</h3>
+<ul>
+<li><strong>Databases</strong>: PostgreSQL, MySQL, MongoDB with persistent data</li>
+<li><strong>Message Queues</strong>: RabbitMQ, Kafka with durable messages</li>
+<li><strong>Shared Configuration</strong>: ConfigMaps and Secrets mounted as volumes</li>
+<li><strong>Log Aggregation</strong>: Persistent storage for log files</li>
+<li><strong>CI/CD Artifacts</strong>: Build artifacts and caches</li>
+</ul>
+<p>Understanding storage is crucial for running stateful applications successfully in Kubernetes.</p>
+<h2>Resources</h2>
+<ul>
+<li><a href=""https://kubernetes.io/docs/concepts/storage/"">Kubernetes Storage Documentation</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/storage/persistent-volumes/"">Persistent Volumes</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/storage/storage-classes/"">Storage Classes</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/"">StatefulSets</a></li>
+<li><a href=""https://kubernetes.io/docs/concepts/storage/volume-snapshots/"">Volume Snapshots</a></li>
+</ul>
+",3
