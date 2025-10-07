@@ -13,10 +13,15 @@
  */
 
 import { readdir, readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import matter from 'gray-matter';
 import { Client } from '@hubspot/api-client';
+
+// ES module compatibility: get __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Configure marked for better code block handling
 marked.setOptions({
