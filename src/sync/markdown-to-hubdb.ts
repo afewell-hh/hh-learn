@@ -150,13 +150,14 @@ async function syncModules() {
 
       // Prepare HubDB row
       // Note: 'name' and 'path' are row-level fields for dynamic pages
-      // 'path' maps to hs_path (URL slug), 'name' maps to hs_name (page name)
+      // 'path' maps to hs_path (URL slug), 'name' maps to hs_name (Name/display title)
       const row = {
-        name: fm.title, // Maps to hs_name (Name column)
+        name: fm.title, // Maps to hs_name (Name column) - this is the display title!
         path: (fm.slug || moduleSlug).toLowerCase(), // Maps to hs_path (Page Path) - must be lowercase
+        childTableId: 0, // Required for API compatibility
         values: {
-          title: fm.title, // Display title (separate from hs_name)
-          meta_description: fm.description || '', // SEO meta description
+          // NO 'title' here - it's in 'name' at row level!
+          meta_description: fm.description || '', // SEO meta description (for metadata mapping)
           difficulty: difficultyId, // Use option ID for SELECT field
           estimated_minutes: fm.estimated_minutes || 30,
           tags: Array.isArray(fm.tags) ? fm.tags.join(',') : '',

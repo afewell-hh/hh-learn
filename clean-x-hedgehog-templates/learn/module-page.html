@@ -207,7 +207,7 @@
     {# Detail view - showing a single module #}
     <section class="learn-header-section">
       <div class="learn-header-content">
-        <h1 class="learn-page-title">{{ dynamic_page_hubdb_row.title }}</h1>
+        <h1 class="learn-page-title">{{ dynamic_page_hubdb_row.hs_name }}</h1>
       </div>
     </section>
 
@@ -221,7 +221,7 @@
 
           <!-- Module Header -->
           <header class="module-detail-header">
-            <h1>{{ dynamic_page_hubdb_row.title }}</h1>
+            <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
             <div class="module-meta">
               <span class="difficulty-badge">
                 {{ dynamic_page_hubdb_row.difficulty.label }}
@@ -274,10 +274,10 @@
                     </span>
                   </div>
 
-                  <h3>{{ module.title }}</h3>
+                  <h3>{{ module.hs_name }}</h3>
 
-                  {% if module.description %}
-                    <p>{{ module.description|striptags|truncate(150) }}</p>
+                  {% if module.meta_description %}
+                    <p>{{ module.meta_description|striptags|truncate(150) }}</p>
                   {% endif %}
 
                   {% if module.tags %}
