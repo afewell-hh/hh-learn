@@ -1,0 +1,13 @@
+{
+  "prerequisites": [
+    "Google Cloud account with an active project",
+    "Google Cloud SDK (gcloud) installed on your local machine",
+    "Basic familiarity with command-line tools",
+    "Sufficient GCP quota for a 32-vCPU instance"
+  ],
+  "learning_objectives": [
+    "Understand the VM requirements for running Hedgehog VLAB",
+    "Create a properly configured Google Cloud VM with nested virtualization",
+    "Connect to your VM and prepare for VLAB installation"
+  ]
+}

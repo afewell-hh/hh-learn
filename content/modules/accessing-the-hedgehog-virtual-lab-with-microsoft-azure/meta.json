@@ -1,0 +1,13 @@
+{
+  "prerequisites": [
+    "Microsoft Azure account with an active subscription",
+    "Azure CLI (az) installed on your local machine",
+    "Basic familiarity with command-line tools",
+    "Sufficient Azure quota for a 32-vCPU instance"
+  ],
+  "learning_objectives": [
+    "Understand the VM requirements for running Hedgehog VLAB",
+    "Create a properly configured Azure VM with nested virtualization support",
+    "Connect to your VM and prepare for VLAB installation"
+  ]
+}
