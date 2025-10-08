@@ -122,6 +122,15 @@ async function syncModules() {
 
   console.log(`Found ${modules.length} modules to sync:\n`);
 
+  // Fetch all existing rows once at the start
+  console.log('📥 Fetching existing HubDB rows...');
+  const existingRowsResponse = await retryWithBackoff(() =>
+    hubspot.cms.hubdb.rowsApi.getTableRows(TABLE_ID, undefined, undefined, undefined)
+  );
+  const existingRows = existingRowsResponse.results || [];
+  console.log(`   Found ${existingRows.length} existing rows\n`);
+
+
   let successCount = 0;
   let failCount = 0;
 
@@ -140,13 +149,13 @@ async function syncModules() {
       // Convert markdown to HTML
       const html = await marked(markdown);
 
-      // Map difficulty to HubDB SELECT option IDs
-      const difficultyMap: Record<string, string> = {
-        'beginner': '1',
-        'intermediate': '2',
-        'advanced': '3'
+      // Map difficulty to HubDB SELECT option format
+      const difficultyMap: Record<string, any> = {
+        'beginner': { id: '1', name: 'beginner', type: 'option' },
+        'intermediate': { id: '2', name: 'intermediate', type: 'option' },
+        'advanced': { id: '3', name: 'advanced', type: 'option' }
       };
-      const difficultyId = difficultyMap[fm.difficulty || 'beginner'] || '1';
+      const difficultyValue = difficultyMap[fm.difficulty || 'beginner'] || difficultyMap['beginner'];
 
       // Prepare HubDB row
       // Note: 'name' and 'path' are row-level fields for dynamic pages
@@ -158,7 +167,7 @@ async function syncModules() {
         values: {
           // NO 'title' here - it's in 'name' at row level!
           meta_description: fm.description || '', // SEO meta description (for metadata mapping)
-          difficulty: difficultyId, // Use option ID for SELECT field
+          difficulty: difficultyValue, // Use option object for SELECT field
           estimated_minutes: fm.estimated_minutes || 30,
           tags: Array.isArray(fm.tags) ? fm.tags.join(',') : '',
           full_content: html,
@@ -166,26 +175,26 @@ async function syncModules() {
         }
       };
 
+      // Find existing row by path (hs_path field)
+      const existingRow = existingRows.find((r: any) => r.path === row.path);
+
       // Try to update existing row, create if doesn't exist (with retry)
       await retryWithBackoff(async () => {
-        try {
+        if (existingRow) {
+          // Update existing row using its numeric ID
           await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(
             TABLE_ID,
-            row.path,
+            existingRow.id, // Use numeric row ID, not path!
             row as any
           );
           console.log(`  ✓ Updated: ${fm.title}`);
-        } catch (updateErr: any) {
-          if (updateErr.code === 404) {
-            // Row doesn't exist, create it
-            await hubspot.cms.hubdb.rowsApi.createTableRow(
-              TABLE_ID,
-              row as any
-            );
-            console.log(`  ✓ Created: ${fm.title}`);
-          } else {
-            throw updateErr;
-          }
+        } else {
+          // Row doesn't exist, create it
+          await hubspot.cms.hubdb.rowsApi.createTableRow(
+            TABLE_ID,
+            row as any
+          );
+          console.log(`  ✓ Created: ${fm.title}`);
         }
       });
 
@@ -199,10 +208,22 @@ async function syncModules() {
     } catch (err: any) {
       failCount++;
 
-      if (isCloudflareBlock(err)) {
-        console.error(`  ✗ Failed to sync ${moduleSlug}: Cloudflare block (will retry on next run)`);
-      } else {
-        console.error(`  ✗ Failed to sync ${moduleSlug}:`, err.message || err);
+      console.error(`  ✗ Failed to sync ${moduleSlug}:`);
+      console.error(`     Error code: ${err.code}`);
+      console.error(`     Message: ${err.message}`);
+
+      if (err.body) {
+        if (typeof err.body === 'object') {
+          console.error(`     Body:`, JSON.stringify(err.body, null, 2));
+        } else if (typeof err.body === 'string') {
+          // For Cloudflare HTML responses, just show first 500 chars
+          const bodyPreview = err.body.substring(0, 500);
+          if (err.body.includes('Cloudflare')) {
+            console.error(`     Body: [Cloudflare block page - ${err.body.length} chars]`);
+          } else {
+            console.error(`     Body preview:`, bodyPreview);
+          }
+        }
       }
     }
   }
