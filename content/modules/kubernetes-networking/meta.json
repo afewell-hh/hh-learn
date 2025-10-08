@@ -12,7 +12,8 @@
   "prerequisites": [
     "Completed Introduction to Kubernetes module",
     "Understanding of basic networking concepts (TCP/IP, DNS)",
-    "Access to a Kubernetes cluster with Ingress controller"
+    "Access to a Kubernetes cluster with Ingress controller",
+    "Ability to pull images from Docker Hub (curlimages/curl)"
   ],
   "learning_objectives": [
     "Understand Kubernetes networking model",

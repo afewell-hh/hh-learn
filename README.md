@@ -35,6 +35,14 @@ Only evergreen documentation lives in this repository. Historical decisions and 
 - Track work in GitHub Projects/Issues; avoid adding point-in-time plans to the repo.
 - Reference issue numbers in commits/PRs to keep the development history searchable.
 - Use pull requests for all changes (including documentation updates) so reviewers can ensure docs stay current.
+- Before opening a PR, sync with `main` and verify the branch merges cleanly:
+  1. `git fetch origin`
+  2. `git checkout main && git pull`
+  3. `git checkout <feature-branch>`
+  4. `git rebase main` (or merge) and resolve conflicts locally
+  5. Run `npm test` / `npm run build` / `npm run sync:content` as appropriate
+  6. `git push --force-with-lease` (for rebases) and open/update the PR
+- After approval, merge via GitHub's UI to ensure status checks stay enforceable and history remains auditable.
 
 ## Deploying AWS Functions
 Serverless functions that back interactive features are defined under `src/` with configuration in `serverless.yml`.
