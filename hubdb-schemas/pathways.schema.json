@@ -6,6 +6,8 @@
     {"name": "summary_markdown", "type": "RICH_TEXT"},
     {"name": "module_slugs_json", "type": "RICH_TEXT"},
     {"name": "estimated_minutes", "type": "NUMBER"},
-    {"name": "badge_image_url", "type": "TEXT"}
+    {"name": "badge_image_url", "type": "TEXT"},
+    {"name": "display_order", "type": "NUMBER"},
+    {"name": "tags", "type": "TEXT"}
   ]
 }

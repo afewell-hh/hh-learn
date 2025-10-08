@@ -92,3 +92,64 @@ curl -H "Authorization: Bearer $TOKEN" \
 ```
 
 Record any new failure signatures here so future contributors know how to respond.
+
+## Pathways Mapping
+
+Pathways group multiple modules into structured learning journeys. The sync handles two input formats.
+
+### Input Sources
+1. **Primary**: JSON files at `content/pathways/<slug>.json` (recommended)
+2. **Fallback**: Module front matter with `pathway_slug` and `order` fields
+
+### HubDB Pathways Table Schema
+
+| Field | HubDB Column | Type | Notes |
+|-------|--------------|------|-------|
+| `slug` | `slug` | Text | Unique pathway identifier. Required, unique.
+| `title` | `title` | Text | Display name for the pathway.
+| `summary_markdown` | `summary_markdown` | Rich Text | Markdown description (no H1 headings).
+| `module_slugs` | `module_slugs_json` | Rich Text | JSON array string of ordered module slugs.
+| `estimated_minutes` | `estimated_minutes` | Number | Total time to complete all modules.
+| `badge_image_url` | `badge_image_url` | Text | URL to completion badge graphic.
+| `display_order` | `display_order` | Number | Manual sorting weight for pathway lists.
+| `tags` | `tags` | Text | Comma-separated topic tags.
+
+### Environment Configuration
+Add to `.env`:
+```env
+HUBDB_PATHWAYS_TABLE_ID=<numeric id>
+```
+
+Use a staging or test table during initial development. Production table ID should be configured in CI secrets.
+
+### Sync Behavior
+- Pathways are synced alongside modules during `npm run sync:content`
+- The script reads `content/pathways/*.json` and creates/updates HubDB rows by `slug`
+- **Deletions are out of scope** for the v0.2 initial implementation (removed pathways will remain in HubDB)
+- Ordering is single-sourced via the `module_slugs` array in each pathway JSON file
+- The table is published after successful writes
+
+### Example Pathway JSON
+```json
+{
+  "slug": "kubernetes-fundamentals",
+  "title": "Kubernetes Fundamentals",
+  "summary_markdown": "Learn Kubernetes core concepts...",
+  "module_slugs": [
+    "intro-to-kubernetes",
+    "pods-and-deployments",
+    "services-and-networking"
+  ],
+  "estimated_minutes": 180,
+  "badge_image_url": "https://example.com/badges/k8s.png",
+  "display_order": 10,
+  "tags": "kubernetes,containers,orchestration"
+}
+```
+
+See `docs/course-authoring.md` § Pathways for full authoring guidelines.
+
+## Notes
+- Running locally with ESM: this repo uses `"type": "module"`; scripts call Node with the ts-node ESM loader. If you previously ran `ts-node src/...` and saw `Unknown file extension ".ts"`, use `npm run sync:content` (which executes `node --loader ts-node/esm ...`).
+- Deletions: the sync will delete HubDB rows whose slugs are not present under `content/modules/` (defaults on). To disable deletion, set `SYNC_DELETE_MISSING=false` in your environment.
+- Archiving: placing a module under `content/archive/` marks the corresponding HubDB row with a `archived` tag instead of deleting it. The list page hides archived modules; their detail pages show an "archived" banner. You can also soft‑archive by adding `archived: true` in front matter and resyncing.
