@@ -91,11 +91,32 @@ async function readConstantsFile(): Promise<any> {
   try {
     console.log(`📥 Reading constants file: ${CONSTANTS_PATH}`);
 
-    // Use API client with flexible typing
-    const api: any = hubspot.cms.sourceCode;
-    const response: any = await retryWithBackoff(() =>
-      api.extractApi.getFileMetadataAndContent(CONSTANTS_PATH, 'draft')
-    );
+    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+    const encodedPath = encodeURIComponent(CONSTANTS_PATH);
+
+    // Use raw HTTP API for Source Code
+    const response: any = await retryWithBackoff(async () => {
+      const res = await fetch(
+        `https://api.hubapi.com/content/api/v4/files/${encodedPath}?environment=draft`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        const error: any = new Error(`HTTP ${res.status}: ${errorText}`);
+        error.code = res.status;
+        error.body = errorText;
+        throw error;
+      }
+
+      return await res.json();
+    });
 
     // The response should contain the file content as a string
     const content = (response.source || response.content || '{}') as string;
@@ -106,7 +127,7 @@ async function readConstantsFile(): Promise<any> {
     console.error(`✗ Failed to read constants file:`, err.message);
     console.error(`   Note: Ensure Source Code API access is enabled for your private app.`);
     if (err.body) {
-      console.error('   Error details:', JSON.stringify(err.body, null, 2));
+      console.error('   Error details:', err.body);
     }
     throw err;
   }
@@ -118,15 +139,36 @@ async function writeConstantsFile(constants: any, publish: boolean = false): Pro
 
     // Format JSON with proper indentation
     const content = JSON.stringify(constants, null, 2);
+    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+    const encodedPath = encodeURIComponent(CONSTANTS_PATH);
 
-    // Update draft version using flexible typing
-    const api: any = hubspot.cms.sourceCode;
-    await retryWithBackoff(() =>
-      api.contentApi.createOrUpdateFile(
-        CONSTANTS_PATH,
-        { content }
-      )
-    );
+    // Update draft version using raw HTTP API
+    await retryWithBackoff(async () => {
+      const res = await fetch(
+        `https://api.hubapi.com/content/api/v4/files/${encodedPath}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            source: content,
+            environment: 'draft'
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        const error: any = new Error(`HTTP ${res.status}: ${errorText}`);
+        error.code = res.status;
+        error.body = errorText;
+        throw error;
+      }
+
+      return await res.json();
+    });
     console.log(`   ✓ Draft constants updated`);
 
     // Optionally publish
@@ -141,7 +183,7 @@ async function writeConstantsFile(constants: any, publish: boolean = false): Pro
     console.error(`✗ Failed to write constants file:`, err.message);
     console.error(`   Note: Ensure Source Code API access is enabled for your private app.`);
     if (err.body) {
-      console.error('   Error details:', JSON.stringify(err.body, null, 2));
+      console.error('   Error details:', err.body);
     }
     throw err;
   }

@@ -117,12 +117,13 @@ async function createOrUpdatePage(
 ): Promise<PageResult | null> {
   const existingPage = await findPageBySlug(config.slug);
 
+  // Dynamic page data source type enum: HUBDB = 1
   const pagePayload = {
     name: config.name,
     slug: config.slug,
     templatePath: config.templatePath,
-    dynamicPageDataSourceType: 'HUBDB',
-    dynamicPageDataSourceId: tableId,
+    dynamicPageDataSourceType: 1, // HUBDB
+    dynamicPageDataSourceId: parseInt(tableId, 10),
     state: 'DRAFT',
     ...(publish && {
       publishImmediately: true,

@@ -111,10 +111,11 @@ async function findTableByName(tableName: string): Promise<any | null> {
       hubspot.cms.hubdb.tablesApi.getAllTables(undefined, undefined, undefined)
     );
 
-    const tables = response.results || [];
+    // Handle both array and object responses from the API
+    const tables = Array.isArray(response) ? response : (response.results || []);
     return tables.find((t: any) => t.name === tableName) || null;
-  } catch (err) {
-    console.error(`Error finding table "${tableName}":`, err);
+  } catch (err: any) {
+    console.error(`Error finding table "${tableName}":`, err.message || err);
     return null;
   }
 }
@@ -126,13 +127,18 @@ async function createOrUpdateTable(
   const existingTable = await findTableByName(schema.name);
 
   // Map schema columns to HubDB column format
-  const columns = schema.columns.map((col) => ({
-    name: col.name,
-    label: col.name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-    type: col.type,
-    ...(col.required && { options: { required: true } }),
-    ...(col.unique && { options: { unique: true } })
-  }));
+  const columns = schema.columns.map((col) => {
+    const column: any = {
+      name: col.name,
+      label: col.name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+      type: col.type
+    };
+
+    // Don't include options for now - we'll set them separately if needed
+    // The HubDB API has specific requirements for the options structure
+
+    return column;
+  });
 
   const tablePayload = {
     name: schema.name,
@@ -158,31 +164,81 @@ async function createOrUpdateTable(
 
   try {
     let table: any;
+    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
 
     if (existingTable) {
-      // Update existing table
+      // Update existing table via raw HTTP API
       console.log(`📝 Updating table: ${schema.name} (ID: ${existingTable.id})`);
-      table = await retryWithBackoff(() =>
-        hubspot.cms.hubdb.tablesApi.updateDraftTable(
-          String(existingTable.id),
-          tablePayload as any
-        )
-      );
+      const response = await retryWithBackoff(async () => {
+        const res = await fetch(`https://api.hubapi.com/cms/v3/hubdb/tables/${existingTable.id}/draft`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(tablePayload)
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          const error: any = new Error(`HTTP ${res.status}: ${errorText}`);
+          error.code = res.status;
+          error.body = errorText;
+          throw error;
+        }
+
+        return await res.json();
+      });
+      table = response;
       console.log(`   ✓ Table updated`);
     } else {
-      // Create new table
+      // Create new table via raw HTTP API
       console.log(`📝 Creating table: ${schema.name}`);
-      table = await retryWithBackoff(() =>
-        hubspot.cms.hubdb.tablesApi.createTable(tablePayload as any)
-      );
+      const response = await retryWithBackoff(async () => {
+        const res = await fetch('https://api.hubapi.com/cms/v3/hubdb/tables', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(tablePayload)
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          const error: any = new Error(`HTTP ${res.status}: ${errorText}`);
+          error.code = res.status;
+          error.body = errorText;
+          throw error;
+        }
+
+        return await res.json();
+      });
+      table = response;
       console.log(`   ✓ Table created with ID: ${table.id}`);
     }
 
-    // Publish the table
+    // Publish the table via raw HTTP API
     console.log(`📤 Publishing table: ${schema.name}`);
-    await retryWithBackoff(() =>
-      hubspot.cms.hubdb.tablesApi.publishDraftTable(String(table.id))
-    );
+    await retryWithBackoff(async () => {
+      const res = await fetch(`https://api.hubapi.com/cms/v3/hubdb/tables/${table.id}/draft/push-live`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        const error: any = new Error(`HTTP ${res.status}: ${errorText}`);
+        error.code = res.status;
+        error.body = errorText;
+        throw error;
+      }
+
+      return await res.json();
+    });
     console.log(`   ✓ Table published`);
 
     return {
@@ -193,7 +249,7 @@ async function createOrUpdateTable(
   } catch (err: any) {
     console.error(`✗ Failed to provision table "${schema.name}":`, err.message);
     if (err.body) {
-      console.error('   Error details:', JSON.stringify(err.body, null, 2));
+      console.error('   Error details:', err.body);
     }
     return null;
   }
