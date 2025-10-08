@@ -10,8 +10,10 @@
     "test": "echo \"(add tests in /tests)\" && exit 0",
     "deploy:aws": "serverless deploy",
     "remove:aws": "serverless remove",
-    "sync:hubdb": "ts-node src/sync/push-hubdb.ts",
-    "sync:content": "ts-node src/sync/markdown-to-hubdb.ts"
+    "sync:hubdb": "npm run build && node dist/src/sync/push-hubdb.js",
+    "sync:content": "npm run build && node dist/src/sync/markdown-to-hubdb.js",
+    "sync:pathways": "npm run build && node dist/src/sync/pathways-to-hubdb.js",
+    "sync:courses": "npm run build && node dist/src/sync/courses-to-hubdb.js"
   },
   "dependencies": {
     "@hubspot/api-client": "^11.0.0",
