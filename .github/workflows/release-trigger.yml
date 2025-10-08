@@ -1,0 +1,52 @@
+name: Product Release Trigger
+
+on:
+  repository_dispatch:
+    types: [product_release]
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Product key from .hhl-products.yml
+        required: true
+      version:
+        description: Released version
+        required: true
+      channel:
+        description: Release channel
+        default: stable
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  plan-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install deps
+        run: npm ci --ignore-scripts
+      - name: Determine product/version
+        id: vars
+        run: |
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            echo "product=${{ github.event.client_payload.product }}" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
+            echo "channel=${{ github.event.client_payload.channel || 'stable' }}" >> $GITHUB_OUTPUT
+          else
+            echo "product=${{ inputs.product }}" >> $GITHUB_OUTPUT
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "channel=${{ inputs.channel }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Open validation issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCT: ${{ steps.vars.outputs.product }}
+          VERSION: ${{ steps.vars.outputs.version }}
+          CHANNEL: ${{ steps.vars.outputs.channel }}
+        run: node .github/scripts/open-validation-issues.mjs
+

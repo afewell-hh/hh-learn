@@ -1,0 +1,51 @@
+labels:
+  # Types
+  - name: type/feature
+    color: 1D76DB
+    description: Feature work
+  - name: type/bug
+    color: D93F0B
+    description: Bug fix
+  - name: type/docs
+    color: 0E8A16
+    description: Documentation
+  - name: type/content
+    color: 5319E7
+    description: Learning content
+  - name: type/chore
+    color: 9E9E9E
+    description: Maintenance
+
+  # Areas
+  - name: area/cms-template
+    color: 1ABC9C
+  - name: area/hubdb-sync
+    color: 2ECC71
+  - name: area/lambda
+    color: 3498DB
+  - name: area/analytics
+    color: 9B59B6
+  - name: area/docs
+    color: 34495E
+  - name: area/content
+    color: 16A085
+
+  # Priority
+  - name: priority/P0
+    color: B60205
+  - name: priority/P1
+    color: D93F0B
+  - name: priority/P2
+    color: FBCA04
+  - name: priority/P3
+    color: 0E8A16
+
+  # Status helpers
+  - name: blocked
+    color: B60205
+  - name: docs-exempt
+    color: 5319E7
+    description: Skip docs gate for exceptional cases
+  - name: epic
+    color: 0052CC
+    description: High-level tracking issue (epic)

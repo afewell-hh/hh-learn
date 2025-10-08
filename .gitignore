@@ -6,3 +6,4 @@ dist
 .serverless
 coverage
 scratch.txt
+reference/*

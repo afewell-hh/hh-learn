@@ -1,0 +1,7 @@
+products:
+  hedgehog-platform:
+    repo: hedgehog-cloud/platform
+    modules:
+      - intro-to-kubernetes
+      - kubernetes-networking
+      - kubernetes-storage

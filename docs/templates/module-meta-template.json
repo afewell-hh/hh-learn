@@ -1,0 +1,11 @@
+{
+  "prerequisites": [
+    "Access to a Kubernetes cluster",
+    "kubectl configured"
+  ],
+  "learning_objectives": [
+    "Objective 1",
+    "Objective 2",
+    "Objective 3"
+  ]
+}

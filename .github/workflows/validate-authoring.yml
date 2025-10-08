@@ -1,0 +1,37 @@
+name: Validate Authoring & Docs
+
+on:
+  pull_request:
+    paths:
+      - 'content/**'
+      - 'clean-x-hedgehog-templates/**'
+      - 'src/sync/**'
+      - 'docs/**'
+      - '.github/**'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install deps
+        run: npm ci --ignore-scripts
+      - name: Front matter validation
+        run: node .github/scripts/validate-frontmatter.mjs
+      - name: Check docs updated
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node .github/scripts/check-docs-updated.mjs
+
