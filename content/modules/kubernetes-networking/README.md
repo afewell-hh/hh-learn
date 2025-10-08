@@ -26,6 +26,7 @@ Master Kubernetes networking concepts including Services, Ingress controllers, a
 - Access to a Kubernetes cluster
 - kubectl CLI configured
 - Ingress controller installed (e.g., nginx-ingress)
+- Cluster can pull public container images (e.g., `curlimages/curl`)
 
 ### Step 1: Create a Namespace and Deployment
 
@@ -81,10 +82,10 @@ Get the Service details:
 kubectl get service web-service -n networking-lab
 ```
 
-Test the Service from within the cluster:
+Test the Service from within the cluster using a lightweight curl image:
 
 ```bash
-kubectl run test-pod --image=busybox --namespace=networking-lab --rm -it --restart=Never -- wget -qO- http://web-service
+kubectl run test-client --image=curlimages/curl:8.5.0 --namespace=networking-lab --rm -it --restart=Never -- -s http://web-service
 ```
 
 ### Step 3: Explore Service Discovery
@@ -227,11 +228,11 @@ Check Ingress status:
 kubectl get ingress -n networking-lab
 ```
 
-Test with curl (add hosts to /etc/hosts or use Host header):
+Test with curl by resolving the hostnames to the Ingress IP (either update `/etc/hosts` or use `--resolve`):
 
 ```bash
-curl -H "Host: web.example.com" http://<ingress-ip>
-curl -H "Host: api.example.com" http://<ingress-ip>
+curl --resolve web.example.com:80:<ingress-ip> http://web.example.com
+curl --resolve api.example.com:80:<ingress-ip> http://api.example.com
 ```
 
 ### Step 7: Implement Network Policies
@@ -259,10 +260,10 @@ Apply the policy:
 kubectl apply -f network-policy-deny-all.yaml
 ```
 
-Test connectivity (it should fail):
+Test connectivity (it should fail). `--max-time` stops curl after five seconds so the command exits quickly:
 
 ```bash
-kubectl run test-pod --image=busybox --namespace=networking-lab --rm -it --restart=Never -- wget -qO- --timeout=5 http://web-service
+kubectl run deny-check --image=curlimages/curl:8.5.0 --namespace=networking-lab --rm -it --restart=Never -- --max-time 5 -sf http://web-service
 ```
 
 ### Step 8: Allow Specific Traffic
@@ -324,7 +325,7 @@ kubectl apply -f network-policy-allow-dns.yaml
 Now test again (should work):
 
 ```bash
-kubectl run test-pod --image=busybox --namespace=networking-lab --rm -it --restart=Never -- wget -qO- http://web-service
+kubectl run allow-check --image=curlimages/curl:8.5.0 --namespace=networking-lab --rm -it --restart=Never -- -sf http://web-service
 ```
 
 ### Step 9: Verify Network Policy Enforcement
@@ -333,7 +334,7 @@ Try accessing from a different namespace (should fail):
 
 ```bash
 kubectl create namespace other-namespace
-kubectl run test-pod --image=busybox --namespace=other-namespace --rm -it --restart=Never -- wget -qO- --timeout=5 http://web-service.networking-lab
+kubectl run external-check --image=curlimages/curl:8.5.0 --namespace=other-namespace --rm -it --restart=Never -- --max-time 5 -sf http://web-service.networking-lab
 ```
 
 ### Step 10: Clean Up
