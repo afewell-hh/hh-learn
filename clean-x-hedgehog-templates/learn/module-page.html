@@ -669,7 +669,7 @@
               {% endif %}
             </div>
 
-            {# Minimal pathway progress affordance (CSP-safe) #}
+            {# Minimal pathway progress affordance (CSP-safe, authenticated) #}
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
             <div id="hhl-auth-context"
                  data-email="{{ request_contact.email if request_contact.is_logged_in }}"
