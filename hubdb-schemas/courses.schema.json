@@ -3,6 +3,7 @@
   "columns": [
     {"name": "slug", "type": "TEXT", "required": true, "unique": true},
     {"name": "title", "type": "TEXT"},
+    {"name": "meta_description", "type": "TEXT"},
     {"name": "summary_markdown", "type": "RICHTEXT"},
     {"name": "module_slugs_json", "type": "RICHTEXT"},
     {"name": "estimated_minutes", "type": "NUMBER"},

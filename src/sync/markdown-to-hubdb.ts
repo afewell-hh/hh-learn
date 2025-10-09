@@ -46,6 +46,7 @@ interface ModuleFrontmatter {
   tags: string[];
   description: string;
   order?: number;
+  archived?: boolean;
 }
 
 // Helper: Sleep for specified milliseconds
@@ -116,9 +117,22 @@ async function syncModules() {
     throw new Error('HUBDB_MODULES_TABLE_ID environment variable not set');
   }
 
-  const modulesDir = join(__dirname, '../../content/modules');
+  const modulesDir = join(process.cwd(), 'content/modules');
   const moduleDirs = await readdir(modulesDir, { withFileTypes: true });
   const modules = moduleDirs.filter(d => d.isDirectory()).map(d => d.name);
+
+  // Discover archived modules directory (soft archive or delete per strategy)
+  const archiveDirRel = process.env.SYNC_ARCHIVE_DIR || 'content/archive';
+  const archiveStrategy = (process.env.SYNC_ARCHIVE_STRATEGY || 'tag').toLowerCase(); // 'tag' | 'delete'
+  let archivedSlugs: string[] = [];
+  try {
+    const archiveDir = join(process.cwd(), archiveDirRel);
+    const archiveDirs = await readdir(archiveDir, { withFileTypes: true });
+    archivedSlugs = archiveDirs.filter(d => d.isDirectory()).map(d => d.name.toLowerCase());
+    if (archivedSlugs.length) console.log(`Found ${archivedSlugs.length} archived module(s) in ${archiveDirRel}: ${archivedSlugs.join(', ')}`);
+  } catch {
+    // no archive directory
+  }
 
   console.log(`Found ${modules.length} modules to sync:\n`);
 
@@ -147,7 +161,11 @@ async function syncModules() {
       const fm = frontmatter as ModuleFrontmatter;
 
       // Convert markdown to HTML
-      const html = await marked(markdown);
+      let html = await marked(markdown);
+      const stripH1 = (process.env.SYNC_STRIP_LEADING_H1 || 'true').toLowerCase() === 'true';
+      if (stripH1) {
+        html = html.replace(/^\s*<h1[^>]*>[\s\S]*?<\/h1>\s*/i, '');
+      }
 
       // Map difficulty to HubDB SELECT option format
       const difficultyMap: Record<string, any> = {
@@ -160,6 +178,14 @@ async function syncModules() {
       // Prepare HubDB row
       // Note: 'name' and 'path' are row-level fields for dynamic pages
       // 'path' maps to hs_path (URL slug), 'name' maps to hs_name (Name/display title)
+      // Build tags, ensure 'archived' tag is present if front matter marks archived
+      let tagsCsv = Array.isArray(fm.tags) ? fm.tags.join(',') : '';
+      if (fm.archived) {
+        const tagsSet = new Set(tagsCsv.split(',').map(t => t.trim()).filter(Boolean));
+        tagsSet.add('archived');
+        tagsCsv = Array.from(tagsSet).join(',');
+      }
+
       const row = {
         name: fm.title, // Maps to hs_name (Name column) - this is the display title!
         path: (fm.slug || moduleSlug).toLowerCase(), // Maps to hs_path (Page Path) - must be lowercase
@@ -169,7 +195,7 @@ async function syncModules() {
           meta_description: fm.description || '', // SEO meta description (for metadata mapping)
           difficulty: difficultyValue, // Use option object for SELECT field
           estimated_minutes: fm.estimated_minutes || 30,
-          tags: Array.isArray(fm.tags) ? fm.tags.join(',') : '',
+          tags: tagsCsv,
           full_content: html,
           display_order: fm.order || 999
         }
@@ -184,7 +210,7 @@ async function syncModules() {
           // Update existing row using its numeric ID
           await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(
             TABLE_ID,
-            existingRow.id, // Use numeric row ID, not path!
+            String(existingRow.id), // numeric id -> string
             row as any
           );
           console.log(`  ✓ Updated: ${fm.title}`);
@@ -226,6 +252,76 @@ async function syncModules() {
         }
       }
     }
+  }
+
+  // Optionally delete or archive HubDB rows that no longer exist in content/modules
+  const deleteMissing = (process.env.SYNC_DELETE_MISSING || 'true').toLowerCase() === 'true';
+  if (deleteMissing) {
+    const contentSlugs = new Set(modules.map((m) => m.toLowerCase()));
+    const toDelete = existingRows.filter((r: any) => !contentSlugs.has((r.path || '').toLowerCase()));
+    if (toDelete.length) {
+      // Partition into archived vs actual deletes, based on content/archive
+      const wantsArchive = toDelete.filter((r: any) => archivedSlugs.includes(String(r.path || '').toLowerCase()));
+      const realDeletes = toDelete.filter((r: any) => !archivedSlugs.includes(String(r.path || '').toLowerCase()));
+
+      if (wantsArchive.length) {
+        if (archiveStrategy === 'delete') {
+          console.log(`\n🗑️  Deleting ${wantsArchive.length} archived row(s) (SYNC_ARCHIVE_STRATEGY=delete)...`);
+          for (const r of wantsArchive) {
+            try {
+              await retryWithBackoff(async () => {
+                await hubspot.cms.hubdb.rowsApi.purgeDraftTableRow(TABLE_ID, String(r.id));
+              });
+              console.log(`  • Deleted (archived dir): ${r.path}`);
+            } catch (err: any) {
+              console.error(`  ✗ Failed to delete ${r.path || r.id}: ${err.message}`);
+            }
+          }
+        } else {
+          console.log(`\n📦 Marking ${wantsArchive.length} row(s) as archived (soft-hide via tags)...`);
+          for (const r of wantsArchive) {
+            try {
+              const currentTags = ((r.values && r.values.tags) || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+              if (!currentTags.map((t: string) => t.toLowerCase()).includes('archived')) currentTags.push('archived');
+              const update = {
+                name: r.name,
+                path: r.path,
+                childTableId: 0,
+                values: { ...(r.values || {}), tags: currentTags.join(',') }
+              } as any;
+              await retryWithBackoff(async () => {
+                await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(TABLE_ID, String(r.id), update);
+              });
+              console.log(`  • Archived (tagged): ${r.path}`);
+            } catch (err: any) {
+              console.error(`  ✗ Failed to tag archived ${r.path || r.id}: ${err.message}`);
+            }
+          }
+        }
+      }
+
+      if (realDeletes.length) {
+        console.log(`\n🗑️  Deleting ${realDeletes.length} HubDB row(s) not present in content/modules or archive...`);
+        for (const r of realDeletes) {
+          try {
+            await retryWithBackoff(async () => {
+              await hubspot.cms.hubdb.rowsApi.purgeDraftTableRow(TABLE_ID, String(r.id));
+            });
+            console.log(`  • Deleted: ${r.path || r.id}`);
+          } catch (err: any) {
+            console.error(`  ✗ Failed to delete ${r.path || r.id}: ${err.message}`);
+          }
+        }
+      }
+
+      // Publish after updates/deletions
+      console.log('📤 Publishing HubDB table after updates...');
+      await retryWithBackoff(async () => {
+        await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID);
+      });
+    }
+  } else {
+    console.log('\nℹ️  SYNC_DELETE_MISSING=false – skipped deleting removed modules from HubDB.');
   }
 
   // Publish table (with retry)

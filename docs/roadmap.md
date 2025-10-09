@@ -20,7 +20,29 @@ Acceptance Criteria
 - Prev/next navigation on detail pages
 - CI green on front-matter validation
 
-## v0.2 – Structured Media (Video & Assets)
+## v0.2 – Learning Pathways (High Priority)
+Outcomes
+- Define and ship “Pathways” to group modules into guided sequences
+- Render pathway list/detail pages and per-pathway progress summary
+- Support ordering, prerequisites, and basic completion logic
+
+Acceptance Criteria
+- Pathway HubDB schema + sync support (relationships and ordering)
+- Pathway list and detail pages render with associated modules
+- Per-learner progress summary placeholder (UI only) on pathway pages
+
+## v0.3 – Auth & Progress (Login + CRM) (Next Priority)
+Outcomes
+- Enable learner login (HubSpot membership or OAuth via app project)
+- Track module/pathway progress to CRM (custom objects or events)
+- Basic learner dashboard (what’s started, in-progress, completed)
+
+Acceptance Criteria
+- Authenticated session on module/pathway pages
+- Progress events stored in CRM (contact or custom object)
+- Minimal dashboard showing learner progress
+
+## v0.4 – Structured Media (Video & Assets)
 Outcomes
 - Support `media` (video/image) in front matter → HubDB JSON → rendered block
 - Author snippets for YouTube, Vimeo, HubSpot-hosted video
@@ -29,26 +51,16 @@ Acceptance Criteria
 - Media JSON synced and rendered on detail pages
 - Backwards compatible with inline Markdown embeds
 
-## v0.3 – Quizzes & Progress Tracking
+## v0.5 – Quizzes (Schema + Grading)
 Outcomes
 - Define quiz schema and storage in HubDB
 - Client UI for quizzes on module pages
-- Lambda `/quiz/grade` computes score; `/events/track` logs start/complete
+- Lambda `/quiz/grade` computes score
 
 Acceptance Criteria
-- One module with a working quiz and recorded completion event
-- Basic results shown to learner (score/pass)
+- One module with a working quiz and score displayed to learner
 
-## v0.4 – Pathways & Labs
-Outcomes
-- Pathways (ordered sets of modules) with list/detail pages
-- Labs schema and rendering (standalone or embedded)
-- Sync supports relationships and ordering
-
-Acceptance Criteria
-- One pathway with 3+ modules rendered with sequence and completion hints
-
-## v0.5 – Analytics, Accessibility, Performance
+## v0.6 – Analytics, Accessibility, Performance
 Outcomes
 - Behavioral events wired into HubSpot analytics/CRM
 - Accessibility sweep on templates (headings, contrast, focus)
