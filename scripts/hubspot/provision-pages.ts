@@ -95,16 +95,134 @@ async function retryWithBackoff<T>(
 }
 
 async function findPageBySlug(slug: string): Promise<any | null> {
-  try {
-    // Search for pages by slug
-    // Note: API client may not expose all methods; use manual fetch if needed
-    console.log(`   Searching for existing page with slug: ${slug}`);
-
-    // For now, we'll return null and let the create method handle duplicates
-    // In production, you may want to use the HubSpot API directly via fetch
+  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+  if (!token) {
+    console.log('   ⚠️  No HUBSPOT_PRIVATE_APP_TOKEN set; cannot check for existing pages.');
     return null;
+  }
+
+  console.log(`   Searching for existing page with slug: ${slug}`);
+
+  // Prefer search endpoint; fall back to list+filter if unavailable
+  const base = 'https://api.hubapi.com';
+
+  // Helper for retries on rate limits/Cloudflare
+  async function httpRetry<T>(fn: () => Promise<T>) {
+    return retryWithBackoff(fn, 3, 1500);
+  }
+
+  try {
+    // Attempt CMS Pages search by slug
+    const searchBody = {
+      filters: [
+        { propertyName: 'slug', operator: 'EQ', value: slug }
+      ],
+      limit: 10
+    } as any;
+
+    const searchRes: any = await httpRetry(async () => {
+      const res = await fetch(`${base}/cms/v3/pages/site-pages/search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(searchBody)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        const err: any = new Error(`HTTP ${res.status}: ${text}`);
+        err.code = res.status;
+        err.body = text;
+        throw err;
+      }
+      return res.json();
+    });
+
+    const results = (searchRes?.results ?? []) as any[];
+    const found = results.find(r => r.slug === slug) || null;
+    if (found) return found;
   } catch (err: any) {
-    console.error(`Error finding page with slug "${slug}":`, err.message);
+    // Fall through to list+filter approach
+    const hint = err?.message || String(err);
+    console.log(`   ↪︎ Search endpoint not available or failed (${hint}). Falling back to list.`);
+  }
+
+  try {
+    // Fallback: list pages and filter client-side (paginate up to a few pages)
+    let after: string | undefined = undefined;
+    for (let i = 0; i < 5; i++) {
+      const url = new URL(`${base}/cms/v3/pages/site-pages`);
+      url.searchParams.set('limit', '100');
+      if (after) url.searchParams.set('after', after);
+
+      const listRes: any = await httpRetry(async () => {
+        const res = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          const err: any = new Error(`HTTP ${res.status}: ${text}`);
+          err.code = res.status;
+          err.body = text;
+          throw err;
+        }
+        return res.json();
+      });
+
+      const results = (listRes?.results ?? listRes ?? []) as any[];
+      const found = results.find((r: any) => r.slug === slug);
+      if (found) return found;
+
+      after = listRes?.paging?.next?.after;
+      if (!after) break;
+    }
+  } catch (err: any) {
+    console.error(`Error listing pages:`, err.message || err);
+  }
+
+  return null;
+}
+
+// New helpers: robust page lookup to avoid duplicate creation
+async function findPagesBySlugPrefix(slug: string): Promise<any[]> {
+  const results: any[] = [];
+  let after: string | undefined = undefined;
+  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN as string;
+  const baseUrl = 'https://api.hubapi.com/cms/v3/pages/site-pages';
+  while (true) {
+    const params = new URLSearchParams({ limit: '100', archived: 'false', 'slug__icontains': slug });
+    if (after) params.set('after', after);
+    const url = `${baseUrl}?${params.toString()}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Pages API list failed: ${resp.status} ${text}`);
+    }
+    const data = await resp.json();
+    results.push(...(data.results || []));
+    after = (data.paging && data.paging.next && data.paging.next.after) || undefined;
+    if (!after) break;
+  }
+  return results.filter(p => typeof p.slug === 'string' && (p.slug === slug || p.slug.startsWith(`${slug}-`)));
+}
+
+async function findPrimaryPageBySlug(slug: string): Promise<any | null> {
+  try {
+    console.log(`   Searching for existing page(s) with slug prefix: ${slug}`);
+    const pages = await findPagesBySlugPrefix(slug);
+    if (!pages.length) return null;
+    const exact = pages.find(p => p.slug === slug);
+    if (exact) return exact;
+    pages.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return pages[0];
+  } catch (err: any) {
+    console.error(`Error finding page with slug \"${slug}\":`, err.message);
     return null;
   }
 }
@@ -115,7 +233,7 @@ async function createOrUpdatePage(
   dryRun: boolean = false,
   publish: boolean = false
 ): Promise<PageResult | null> {
-  const existingPage = await findPageBySlug(config.slug);
+  const existingPage = await findPrimaryPageBySlug(config.slug);
 
   // Dynamic page data source type enum: HUBDB = 1
   const pagePayload = {
@@ -134,7 +252,12 @@ async function createOrUpdatePage(
   if (dryRun) {
     console.log(`\n📄 Page: ${config.name}`);
     console.log(`   Slug: ${config.slug}`);
-    console.log(existingPage ? '   Action: UPDATE (page exists)' : '   Action: CREATE (new page)');
+    if (existingPage) {
+      console.log('   Action: UPDATE (page exists)');
+      console.log(`   Target ID: ${existingPage.id} (slug: ${existingPage.slug})`);
+    } else {
+      console.log('   Action: CREATE (no existing page found)');
+    }
     console.log('   Payload:');
     console.log(JSON.stringify(pagePayload, null, 2));
     return {
@@ -159,7 +282,17 @@ async function createOrUpdatePage(
       );
       console.log(`   ✓ Page updated`);
     } else {
-      // Create new page
+      // Respect update-only default to prevent duplicate pages.
+      const allowCreate = process.argv.includes('--allow-create') || process.env.ALLOW_CREATE_PAGES === 'true';
+      if (!allowCreate) {
+        console.log(`   ⚠️  Skipping CREATE for ${config.name}: creation disabled to prevent duplicates. Use --allow-create to create once.`);
+        return {
+          name: config.name,
+          slug: config.slug,
+          id: '<skipped-create>',
+          state: 'SKIPPED'
+        };
+      }
       console.log(`📝 Creating page: ${config.name}`);
       page = await retryWithBackoff(() =>
         hubspot.cms.pages.sitePagesApi.create(pagePayload as any)
