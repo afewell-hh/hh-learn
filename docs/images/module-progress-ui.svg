@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="200" viewBox="0 0 680 200" role="img" aria-label="Module progress UI mock">
+  <style>
+    .card{fill:#fff;stroke:#e5e7eb;stroke-width:1}
+    .title{font:700 20px system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    .meta{font:14px system-ui,Segoe UI,Roboto,Helvetica,Arial;fill:#374151}
+    .btn{fill:#1a4e8a}
+    .btn-text{font:600 14px system-ui,Segoe UI,Roboto,Helvetica,Arial;fill:#fff}
+    .link{font:600 14px system-ui,Segoe UI,Roboto,Helvetica,Arial;fill:#0066cc}
+  </style>
+  <rect x="10" y="10" rx="12" ry="12" width="660" height="180" class="card"/>
+  <text x="30" y="50" class="title">Intro to Kubernetes</text>
+  <text x="30" y="75" class="meta">Beginner • 20 minutes • tags: kubernetes, containers</text>
+
+  <rect x="30" y="105" rx="8" ry="8" width="150" height="34" class="btn"/>
+  <text x="45" y="127" class="btn-text">Mark as started</text>
+
+  <rect x="190" y="105" rx="8" ry="8" width="130" height="34" class="btn"/>
+  <text x="205" y="127" class="btn-text">Mark complete</text>
+
+  <text x="340" y="128" class="link">← Back to pathway</text>
+</svg>
+
