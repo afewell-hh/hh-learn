@@ -36,15 +36,26 @@ const hubspot = new Client({
 
 const TABLE_ID = process.env.HUBDB_PATHWAYS_TABLE_ID;
 
+interface ContentBlock {
+  id: string;
+  type: 'text' | 'callout' | 'module_ref' | 'course_ref';
+  title?: string;
+  body_markdown?: string;
+  module_slug?: string;
+  course_slug?: string;
+}
+
 interface PathwayData {
   slug: string;
   title: string;
+  meta_description?: string;
   summary_markdown: string;
   modules?: string[]; // ordered array of module slugs (optional if courses is present)
   courses?: string[]; // ordered array of course slugs (takes precedence over modules)
   badge_image_url?: string;
   display_order?: number;
   tags?: string;
+  content_blocks?: ContentBlock[];
 }
 
 interface ModuleFrontmatter {
@@ -227,6 +238,19 @@ async function syncPathways(dryRun: boolean = false) {
       // Convert summary_markdown to HTML
       const summaryHtml = await marked(pathway.summary_markdown);
 
+      // Generate meta_description: use explicit value or extract from summary (strip HTML, max 160 chars)
+      const metaDescription = pathway.meta_description
+        || pathway.summary_markdown.replace(/<[^>]*>/g, '').substring(0, 160);
+
+      // Calculate module_count and total_estimated_minutes
+      const moduleCount = pathway.modules?.length || 0;
+      const totalEstimatedMinutes = totalMinutes; // Alias for better clarity in templates
+
+      // Serialize content_blocks_json if present
+      const contentBlocksJson = pathway.content_blocks
+        ? JSON.stringify(pathway.content_blocks)
+        : '';
+
       // Prepare HubDB row
       const row = {
         path: pathway.slug.toLowerCase(), // Use slug as path for consistency
@@ -235,13 +259,17 @@ async function syncPathways(dryRun: boolean = false) {
         values: {
           slug: pathway.slug,
           title: pathway.title,
+          meta_description: metaDescription,
           summary_markdown: summaryHtml, // Store as HTML for RICH_TEXT column
           module_slugs_json: pathway.modules ? JSON.stringify(pathway.modules) : '',
           course_slugs_json: pathway.courses ? JSON.stringify(pathway.courses) : '',
-          estimated_minutes: totalMinutes,
+          module_count: moduleCount,
+          total_estimated_minutes: totalEstimatedMinutes,
+          estimated_minutes: totalMinutes, // Keep for backward compatibility
           badge_image_url: pathway.badge_image_url || '',
           display_order: pathway.display_order || 999,
-          tags: pathway.tags || ''
+          tags: pathway.tags || '',
+          content_blocks_json: contentBlocksJson
         }
       };
 
@@ -254,6 +282,7 @@ async function syncPathways(dryRun: boolean = false) {
           console.log(`   Modules: ${pathway.modules.length}`);
         }
         console.log(`   Estimated minutes: ${totalMinutes}`);
+        console.log(`   Content blocks: ${pathway.content_blocks?.length || 0}`);
         console.log(`   Payload:`);
         console.log(JSON.stringify(row, null, 2));
         console.log('');

@@ -6,7 +6,8 @@
 
 {% block head %}
   {% if dynamic_page_hubdb_row %}
-    <meta name="description" content="{{ dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) }}">
+    {% set meta_desc = dynamic_page_hubdb_row.meta_description or dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) %}
+    <meta name="description" content="{{ meta_desc }}">
   {% endif %}
 {% endblock head %}
 
@@ -366,8 +367,12 @@
 
     <section class="learn-main-section">
       <div class="learn-container">
-        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-        {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+        {# Prefer dynamic_page_hubdb_table_id, fallback to constants.json for backward compatibility #}
+        {% set pathways_table_id = dynamic_page_hubdb_table_id %}
+        {% if not pathways_table_id %}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+        {% endif %}
         {% if pathways_table_id %}
           {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
           {% if pathways %}
@@ -412,7 +417,7 @@
             <p>No learning pathways have been added yet.</p>
           {% endif %}
         {% else %}
-          <p><em>Configure HUBDB_PATHWAYS_TABLE_ID in constants.json, then bind this page to the Pathways table.</em></p>
+          <p><em>Bind this page to the Pathways table in the HubSpot page settings.</em></p>
         {% endif %}
       </div>
     </section>

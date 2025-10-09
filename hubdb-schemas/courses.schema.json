@@ -3,12 +3,13 @@
   "columns": [
     {"name": "slug", "type": "TEXT", "required": true, "unique": true},
     {"name": "title", "type": "TEXT"},
-    {"name": "summary_markdown", "type": "RICH_TEXT"},
-    {"name": "module_slugs_json", "type": "RICH_TEXT"},
+    {"name": "meta_description", "type": "TEXT"},
+    {"name": "summary_markdown", "type": "RICHTEXT"},
+    {"name": "module_slugs_json", "type": "RICHTEXT"},
     {"name": "estimated_minutes", "type": "NUMBER"},
     {"name": "badge_image_url", "type": "TEXT"},
     {"name": "display_order", "type": "NUMBER"},
     {"name": "tags", "type": "TEXT"},
-    {"name": "content_blocks_json", "type": "RICH_TEXT"}
+    {"name": "content_blocks_json", "type": "RICHTEXT"}
   ]
 }

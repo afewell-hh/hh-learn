@@ -192,12 +192,81 @@
     color: inherit;
   }
 
+  /* Hide a duplicate leading H1 inside rendered module content */
+  .module-content > h1:first-child {
+    display: none;
+  }
+
+  /* Pathways band */
+  .pathways-band {
+    max-width: 1600px;
+    margin: 32px auto;
+    padding: 0 40px;
+  }
+  .pathways-band-content {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border: 1px solid #BFDBFE;
+    border-radius: 12px;
+    padding: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+  .pathways-band-text {
+    flex: 1;
+  }
+  .pathways-band-text h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a4e8a;
+  }
+  .pathways-band-text p {
+    margin: 0;
+    font-size: 1rem;
+    color: #374151;
+  }
+  .pathways-band-cta {
+    flex-shrink: 0;
+  }
+  .pathways-cta-button {
+    display: inline-block;
+    background: #1a4e8a;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .pathways-cta-button:hover {
+    background: #154171;
+    transform: translateY(-2px);
+  }
+
   @media (max-width: 900px) {
     .learn-header-content, .learn-container {
       padding: 0 16px;
     }
     .modules-grid {
       grid-template-columns: 1fr;
+    }
+    .pathways-band {
+      padding: 0 16px;
+    }
+    .pathways-band-content {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 24px;
+    }
+    .pathways-band-cta {
+      width: 100%;
+    }
+    .pathways-cta-button {
+      display: block;
+      text-align: center;
+      width: 100%;
     }
   }
 </style>
@@ -207,7 +276,7 @@
     {# Detail view - showing a single module #}
     <section class="learn-header-section">
       <div class="learn-header-content">
-        <h1 class="learn-page-title">{{ dynamic_page_hubdb_row.hs_name }}</h1>
+        {# Omit a visible H1 in the hero on detail pages to avoid duplicates #}
       </div>
     </section>
 
@@ -241,6 +310,20 @@
           </header>
 
           <!-- Module Content -->
+          {% set is_archived = false %}
+          {% if dynamic_page_hubdb_row.tags %}
+            {% set tag_list = dynamic_page_hubdb_row.tags|lower|split(',') %}
+            {% for tag in tag_list %}
+              {% if tag|trim == 'archived' %}
+                {% set is_archived = true %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if is_archived %}
+            <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+              This module is archived and may be out of date.
+            </div>
+          {% endif %}
           <div class="module-content">
             {{ dynamic_page_hubdb_row.full_content|safe }}
           </div>
@@ -252,18 +335,54 @@
     {# List view - showing all modules #}
     <section class="learn-header-section">
       <div class="learn-header-content">
-        <h1 class="learn-page-title">Learn Hedgehog Cloud</h1>
-        <p class="learn-page-subtitle">Hands-on labs and tutorials for cloud-native infrastructure</p>
+        <h1 class="learn-page-title">Learn Hedgehog AI Networking</h1>
+        <p class="learn-page-subtitle">Build high-performance AI networks on open Ethernet and OCP hardware. Hedgehog's Kubernetes-based control plane abstracts SONiC complexity, delivering simple, automated fabrics without proprietary lock-in or runaway cost.</p>
+      </div>
+    </section>
+
+    {# Courses band #}
+    <section class="pathways-band">
+      <div class="pathways-band-content">
+        <div class="pathways-band-text">
+          <h2>Explore Structured Courses</h2>
+          <p>Take comprehensive courses that combine multiple modules into cohesive learning experiences with narrative guidance.</p>
+        </div>
+        <div class="pathways-band-cta">
+          <a href="/learn/courses" class="pathways-cta-button">View Courses</a>
+        </div>
+      </div>
+    </section>
+
+    {# Pathways band #}
+    <section class="pathways-band">
+      <div class="pathways-band-content">
+        <div class="pathways-band-text">
+          <h2>Explore Learning Pathways</h2>
+          <p>Follow curated learning paths that guide you through progressively complex topics with hands-on labs and real-world scenarios.</p>
+        </div>
+        <div class="pathways-band-cta">
+          <a href="/learn/pathways" class="pathways-cta-button">View Pathways</a>
+        </div>
       </div>
     </section>
 
     <section class="learn-main-section">
       <div class="learn-container">
         {% if dynamic_page_hubdb_table_id %}
-          {% set modules = hubdb_table_rows(dynamic_page_hubdb_table_id, "orderBy=display_order") %}
+          {% set modules = hubdb_table_rows(dynamic_page_hubdb_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
           {% if modules %}
             <div class="modules-grid">
               {% for module in modules %}
+                {% set is_archived = false %}
+                {% if module.tags %}
+                  {% set tag_list = module.tags|lower|split(',') %}
+                  {% for tag in tag_list %}
+                    {% if tag|trim == 'archived' %}
+                      {% set is_archived = true %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+                {% if not is_archived %}
                 <a href="{{ request.path }}/{{ module.hs_path }}" class="module-card">
                   <div class="module-card-header">
                     <span class="difficulty-badge">
@@ -284,13 +403,16 @@
                     <div class="module-tags">
                       {% set tag_list = module.tags.split(',') %}
                       {% for tag in tag_list %}
-                        <span class="module-tag">{{ tag|trim }}</span>
+                        {% if tag|lower|trim != 'archived' %}
+                          <span class="module-tag">{{ tag|trim }}</span>
+                        {% endif %}
                       {% endfor %}
                     </div>
                   {% endif %}
 
                   <span class="module-cta">View Module →</span>
                 </a>
+                {% endif %}
               {% endfor %}
             </div>
           {% else %}

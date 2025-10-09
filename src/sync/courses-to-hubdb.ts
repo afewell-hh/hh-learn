@@ -48,6 +48,7 @@ interface ContentBlock {
 interface CourseData {
   slug: string;
   title: string;
+  meta_description?: string;
   summary_markdown: string;
   modules: string[]; // ordered array of module slugs
   badge_image_url?: string;
@@ -230,6 +231,10 @@ async function syncCourses(dryRun: boolean = false) {
         ? JSON.stringify(course.content_blocks)
         : '';
 
+      // Generate meta_description: use explicit value or extract from summary (strip HTML, max 160 chars)
+      const metaDescription = course.meta_description
+        || course.summary_markdown.replace(/<[^>]*>/g, '').substring(0, 160);
+
       // Prepare HubDB row
       const row = {
         path: course.slug.toLowerCase(), // Use slug as path for consistency
@@ -238,6 +243,7 @@ async function syncCourses(dryRun: boolean = false) {
         values: {
           slug: course.slug,
           title: course.title,
+          meta_description: metaDescription,
           summary_markdown: summaryHtml, // Store as HTML for RICH_TEXT column
           module_slugs_json: JSON.stringify(course.modules),
           estimated_minutes: totalMinutes,

@@ -106,6 +106,7 @@ JSON files at `content/courses/<slug>.json`
 |-------|--------------|------|-------|
 | `slug` | `slug` | Text | Unique course identifier. Required, unique.
 | `title` | `title` | Text | Display name for the course.
+| `meta_description` | `meta_description` | Text | SEO meta description (auto-generated from summary if not provided).
 | `summary_markdown` | `summary_markdown` | Rich Text | Markdown description converted to HTML (no H1 headings).
 | `modules` | `module_slugs_json` | Rich Text | JSON array string of ordered module slugs.
 | `estimated_minutes` | `estimated_minutes` | Number | Auto-computed total time from included modules.
@@ -218,13 +219,17 @@ JSON files at `content/pathways/<slug>.json`
 |-------|--------------|------|-------|
 | `slug` | `slug` | Text | Unique pathway identifier. Required, unique.
 | `title` | `title` | Text | Display name for the pathway.
+| `meta_description` | `meta_description` | Text | SEO meta description (auto-generated from summary if not provided).
 | `summary_markdown` | `summary_markdown` | Rich Text | Markdown description (no H1 headings).
 | `courses` | `course_slugs_json` | Rich Text | JSON array string of ordered course slugs (preferred).
 | `modules` | `module_slugs_json` | Rich Text | JSON array string of ordered module slugs (fallback).
+| `module_count` | `module_count` | Number | Count of modules in pathway (auto-computed).
+| `total_estimated_minutes` | `total_estimated_minutes` | Number | Alias for estimated_minutes (for template clarity).
 | `estimated_minutes` | `estimated_minutes` | Number | Total time to complete all modules (computed from modules only).
 | `badge_image_url` | `badge_image_url` | Text | URL to completion badge graphic.
 | `display_order` | `display_order` | Number | Manual sorting weight for pathway lists.
 | `tags` | `tags` | Text | Comma-separated topic tags.
+| `content_blocks` | `content_blocks_json` | Rich Text | Optional JSON array of narrative content blocks (same structure as Courses).
 
 ### Precedence Rules
 - **Preferred**: Use `courses` array to reference courses. The `course_slugs_json` column will be populated.
@@ -244,6 +249,7 @@ Use a staging or test table during initial development. Production table ID shou
 - The script reads `content/pathways/*.json` and creates/updates HubDB rows by `slug`
 - **Deletions are out of scope** for the v0.2 initial implementation (removed pathways will remain in HubDB)
 - Ordering is single-sourced via the `courses` or `modules` array in each pathway JSON file
+- Optional `content_blocks` array supports narrative content (same structure as Courses)
 - The table is published after successful writes
 
 ### Example Pathway JSON (with Courses)
@@ -343,6 +349,320 @@ Summary: 1 succeeded, 0 failed
 - **Idempotent**: Re-running the sync with the same data produces no diff.
 - **Course/Module ordering**: The order of the `courses` or `modules` array in the pathway JSON is preserved in the respective JSON column.
 - **Precedence**: When both `courses` and `modules` are present, templates should prefer `course_slugs_json` when rendering pathways.
+
+## Automation / Provisioning
+
+The project includes automation scripts for one-command staging setup. These scripts provision HubDB tables, create dynamic pages, and update theme constants with table IDs.
+
+### Provisioning Overview
+
+The provisioning workflow automates:
+1. **HubDB Table Creation**: Creates or updates `courses` and `pathways` tables from `hubdb-schemas/*.schema.json`
+2. **Content Sync**: Syncs course and pathway data to the tables
+3. **Theme Constants Update**: Updates `constants.json` with table IDs
+4. **Dynamic Page Creation**: Creates `/learn/courses` and `/learn/pathways` pages bound to HubDB tables
+
+### Quick Start
+
+#### Full Provisioning (Recommended)
+
+Run the complete provisioning workflow with a single command:
+
+```bash
+npm run provision:all
+```
+
+This runs all steps in sequence:
+1. `provision:tables` — Creates/updates HubDB tables
+2. `sync:courses` — Syncs course data
+3. `sync:pathways` — Syncs pathway data
+4. `provision:constants` — Updates theme constants
+5. `provision:pages` — Creates/updates dynamic pages
+
+#### Individual Provisioning Commands
+
+Run individual steps as needed:
+
+```bash
+# Provision HubDB tables only
+npm run provision:tables
+
+# Update theme constants only
+npm run provision:constants
+
+# Provision dynamic pages only
+npm run provision:pages
+```
+
+### Script Details
+
+#### `provision:tables` — HubDB Table Provisioning
+
+Creates or updates the `courses` and `pathways` HubDB tables.
+
+**Usage:**
+```bash
+# Dry-run (shows payloads without making changes)
+npm run provision:tables -- --dry-run
+
+# Live run (creates/updates and publishes tables)
+npm run provision:tables
+```
+
+**What it does:**
+- Reads table schemas from `hubdb-schemas/courses.schema.json` and `hubdb-schemas/pathways.schema.json`
+- Creates new tables or updates existing ones (idempotent)
+- Sets `useForPages=true`, `allowChildTables=false`, `allowPublicApiAccess=false`
+- Publishes tables after creation/update
+- Outputs table IDs for use in `.env` file
+
+**Expected output:**
+```
+🔄 Starting HubDB table provisioning...
+
+📝 Creating table: courses
+   ✓ Table created with ID: 12345678
+📤 Publishing table: courses
+   ✓ Table published
+
+📝 Creating table: pathways
+   ✓ Table created with ID: 87654321
+📤 Publishing table: pathways
+   ✓ Table published
+
+============================================================
+📊 Provisioning Summary
+============================================================
+
+Table: courses
+  ID: 12345678
+  Published: Yes
+
+Table: pathways
+  ID: 87654321
+  Published: Yes
+
+✅ Table provisioning complete!
+
+📋 Add these to your .env file:
+
+HUBDB_COURSES_TABLE_ID=12345678
+HUBDB_PATHWAYS_TABLE_ID=87654321
+```
+
+#### `provision:constants` — Theme Constants Update
+
+Updates the theme's `constants.json` file with HubDB table IDs.
+
+**Usage:**
+```bash
+# Dry-run (shows diff without making changes)
+npm run provision:constants -- --dry-run
+
+# Live run (updates draft constants)
+npm run provision:constants
+
+# Live run + publish (updates and publishes theme)
+npm run provision:constants -- --publish
+```
+
+**What it does:**
+- Reads current `CLEAN x HEDGEHOG/templates/config/constants.json` via CMS Source Code API
+- Updates `HUBDB_MODULES_TABLE_ID` (if missing), `HUBDB_COURSES_TABLE_ID`, `HUBDB_PATHWAYS_TABLE_ID`
+- Writes updated constants back to draft
+- Optionally publishes with `--publish` flag (requires manual theme publish in Design Manager)
+
+**Expected output:**
+```
+🔄 Starting constants.json update...
+
+📥 Reading constants file: CLEAN x HEDGEHOG/templates/config/constants.json
+   ✓ Current constants loaded
+
+============================================================
+📊 Constants Update Diff
+============================================================
+  HUBDB_MODULES_TABLE_ID: 11111111 (no change)
+  HUBDB_COURSES_TABLE_ID:
+    - <not set>
+    + 12345678
+  HUBDB_PATHWAYS_TABLE_ID:
+    - <not set>
+    + 87654321
+
+📝 Writing updated constants to: CLEAN x HEDGEHOG/templates/config/constants.json
+   ✓ Draft constants updated
+
+✅ Constants update complete!
+
+💡 Constants updated in DRAFT. Publish the theme in Design Manager or run with --publish.
+```
+
+#### `provision:pages` — Dynamic Page Creation
+
+Creates or updates the two dynamic pages for courses and pathways.
+
+**Usage:**
+```bash
+# Dry-run (shows payloads without making changes)
+npm run provision:pages -- --dry-run
+
+# Live run (creates/updates pages in DRAFT state)
+npm run provision:pages
+
+# Live run + publish (creates/updates and publishes pages)
+npm run provision:pages -- --publish
+```
+
+**What it does:**
+- Creates or updates two site pages via CMS Pages API:
+  - **Courses**: slug `learn/courses`, template `CLEAN x HEDGEHOG/templates/learn/courses/courses-page.html`
+  - **Pathways**: slug `learn/pathways`, template `CLEAN x HEDGEHOG/templates/learn/pathways/pathways-page.html`
+- Binds pages to HubDB tables using `dynamicPageDataSourceType=HUBDB` and `dynamicPageDataSourceId`
+- Creates pages in DRAFT state by default
+- Idempotent: if page exists (by slug), updates the draft instead of creating duplicates
+- Optionally schedules immediate publish with `--publish` flag
+
+**Expected output:**
+```
+🔄 Starting CMS page provisioning...
+
+📝 Creating page: Courses
+   ✓ Page created with ID: 98765432
+📝 Creating page: Pathways
+   ✓ Page created with ID: 23456789
+
+============================================================
+📊 Page Provisioning Summary
+============================================================
+
+Page: Courses
+  Slug: learn/courses
+  ID: 98765432
+  State: DRAFT
+  URL: https://example.hubspotpagebuilder.com/...
+
+Page: Pathways
+  Slug: learn/pathways
+  ID: 23456789
+  State: DRAFT
+  URL: https://example.hubspotpagebuilder.com/...
+
+✅ Page provisioning complete!
+
+💡 Pages created in DRAFT state. To publish, run with --publish flag.
+```
+
+### Environment Configuration
+
+Ensure these environment variables are set in your `.env` file:
+
+```env
+HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-...
+HUBDB_MODULES_TABLE_ID=<numeric id>
+HUBDB_COURSES_TABLE_ID=<numeric id>
+HUBDB_PATHWAYS_TABLE_ID=<numeric id>
+```
+
+The provisioning scripts will output the table IDs after creating tables. Add them to your `.env` file.
+
+### Idempotency
+
+All provisioning scripts are idempotent:
+- **Tables**: Re-running with existing tables updates them in place (by table name)
+- **Pages**: Re-running with existing pages updates the draft (by slug)
+- **Constants**: Re-running with same values shows "no change"
+
+Running `provision:all` multiple times is safe and will only update changed values.
+
+### Verification
+
+#### Tables
+```bash
+# Dry-run shows intended payloads
+npm run provision:tables -- --dry-run
+
+# Live run creates/updates tables
+npm run provision:tables
+```
+
+#### Sync
+```bash
+# Dry-run shows course payloads (with computed estimated_minutes)
+npm run sync:courses -- --dry-run
+
+# Dry-run shows pathway payloads
+npm run sync:pathways -- --dry-run
+
+# Live syncs
+npm run sync:courses
+npm run sync:pathways
+```
+
+#### Constants
+```bash
+# Dry-run shows diff
+npm run provision:constants -- --dry-run
+
+# Live update (draft only)
+npm run provision:constants
+
+# Live update + publish (requires manual theme publish in Design Manager)
+npm run provision:constants -- --publish
+```
+
+#### Pages
+```bash
+# Dry-run shows page payloads
+npm run provision:pages -- --dry-run
+
+# Live run (creates DRAFT pages)
+npm run provision:pages
+
+# Live run + publish
+npm run provision:pages -- --publish
+```
+
+### GUI Verification Steps
+
+After running `provision:all`, verify in HubSpot:
+
+1. **Tables** (Design Manager → HubDB):
+   - Confirm `courses` and `pathways` tables exist with correct schema
+   - Verify `useForPages=true` and tables are published
+   - Check that synced rows are present
+
+2. **Constants** (Design Manager → Theme Files):
+   - Open `CLEAN x HEDGEHOG/templates/config/constants.json`
+   - Verify table IDs are correct
+   - Publish theme if needed
+
+3. **Pages** (Content → Website Pages):
+   - Open `/learn/courses` and `/learn/pathways` pages in editor
+   - Verify `dynamicPageDataSourceType=HUBDB` and table binding
+   - Publish pages (or schedule publish)
+
+4. **Live Site**:
+   - Visit `/learn/courses` and `/learn/pathways`
+   - Verify list pages render cards from HubDB
+   - Click a card to verify detail pages load
+   - Confirm single H1 per view, archived filtering in lists
+
+### Troubleshooting
+
+| Symptom | Likely Cause | Resolution |
+|---------|--------------|------------|
+| `HUBSPOT_PRIVATE_APP_TOKEN environment variable not set` | Missing `.env` file or token | Ensure `.env` contains `HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-...` |
+| `HUBDB_COURSES_TABLE_ID environment variable not set` | Tables not provisioned yet | Run `provision:tables` first, then add IDs to `.env` |
+| `Error finding table` | API permissions or network issue | Check private app has HubDB read/write scopes; retry after delay |
+| `Error finding page with slug` | Pages API permissions | Check private app has CMS Pages read/write scopes |
+| `Failed to read constants file` | File path incorrect or permissions | Verify theme path is `CLEAN x HEDGEHOG/templates/config/constants.json`; check Source Code API access |
+
+### Notes on Publishing
+
+- **Tables**: Auto-published after creation/update
+- **Constants**: Updated in draft; requires manual theme publish in Design Manager (or `--publish` flag + manual theme publish)
+- **Pages**: Created in DRAFT by default; use `--publish` flag to schedule immediate publish, or publish manually in CMS editor
 
 ## Notes
 - Running locally with ESM: this repo uses `"type": "module"`; scripts call Node with the ts-node ESM loader. If you previously ran `ts-node src/...` and saw `Unknown file extension ".ts"`, use `npm run sync:content` (which executes `node --loader ts-node/esm ...`).
