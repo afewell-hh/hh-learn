@@ -101,9 +101,102 @@ Full example: see `docs/templates/module-README-template.md`.
 - PR reviewed and merged; CI green
 - Sync succeeded; new module appears under `/learn` list; detail page renders
 
-## Pathways & Labs (Roadmap)
-- Pathways group multiple modules; you’ll declare membership in front matter and ordering; the sync will handle relationships
-- Separate “labs” content type may be introduced; you’ll be able to embed or link to labs from modules
+## Archiving a Module
+Choose one of the following:
+- Soft archive (recommended):
+  - Move the module folder to `content/archive/<slug>/` and run `npm run sync:content`.
+    - The sync tags the HubDB row with `archived` and it is hidden from the list view (detail page shows an archived banner).
+  - Or add `archived: true` to the module front matter and resync (keeps content under `content/modules/`).
+- Hard delete:
+  - Remove the module from `content/modules/` without moving it to `content/archive/` and run `npm run sync:content`.
+    - The sync will delete the corresponding HubDB row (set `SYNC_DELETE_MISSING=false` to prevent deletions if needed).
+
+## Pathways
+
+Pathways group multiple modules into a curated learning journey. Authors declare pathways in JSON files and modules reference them in front matter.
+
+### Purpose
+- Provide structured learning sequences with clear progression
+- Group related modules by topic, product, or skill level
+- Track learner progress through multi-module journeys
+- Display estimated completion time and award badges
+
+### Author Workflow
+
+#### Creating a Pathway
+Create a JSON file at `content/pathways/<pathway-slug>.json` with the following structure:
+
+```json
+{
+  "slug": "kubernetes-fundamentals",
+  "title": "Kubernetes Fundamentals",
+  "summary_markdown": "Learn Kubernetes core concepts and operations through hands-on labs. This pathway covers pods, deployments, services, and essential cluster management skills.\n\n**What you'll learn:**\n- Container orchestration basics\n- Kubernetes architecture and components\n- Deploying and managing applications\n- Troubleshooting common issues",
+  "module_slugs": [
+    "intro-to-kubernetes",
+    "pods-and-deployments",
+    "services-and-networking",
+    "storage-and-persistence",
+    "troubleshooting-k8s"
+  ],
+  "estimated_minutes": 240,
+  "badge_image_url": "https://example.com/badges/k8s-fundamentals.png",
+  "display_order": 10,
+  "tags": "kubernetes,containers,orchestration"
+}
+```
+
+#### Fallback: Module Front Matter
+Alternatively, modules can declare pathway membership in their front matter (useful for migrating existing content):
+
+```yaml
+---
+title: Intro to Kubernetes
+slug: intro-to-kubernetes
+pathway_slug: kubernetes-fundamentals
+pathway_name: Kubernetes Fundamentals
+order: 1
+---
+```
+
+The sync script can support both approaches; the primary JSON file takes precedence.
+
+### Required Fields
+- `slug` (string): Unique identifier for the pathway (lowercase, hyphen-separated)
+- `title` (string): Display name for the pathway
+- `summary_markdown` (string): Rich description of the pathway goals and content
+- `module_slugs` (array of strings): Ordered list of module slugs in the pathway
+
+### Optional Fields
+- `estimated_minutes` (number): Total estimated time to complete all modules
+- `badge_image_url` (string): URL to badge graphic awarded upon completion
+- `display_order` (number): Manual sorting weight for pathway lists
+- `tags` (string): Comma-separated topics for filtering
+
+### Authoring Guidelines
+
+#### Ordering
+- The `module_slugs` array is the **single source of truth** for ordering
+- List modules in the sequence learners should follow
+- Prerequisites or dependencies may be noted in the `summary_markdown` prose
+- Do not introduce duplicate ordering fields; ordering is managed exclusively via `module_slugs`
+
+#### Summary Content
+- Use markdown for formatting (lists, bold, links)
+- **Do not include H1 headings** in summaries (violates single-H1-per-page rule)
+- Keep summaries focused: 2-4 paragraphs covering goals, topics, and outcomes
+- Include learning objectives, target audience, or prerequisites as appropriate
+
+#### Examples
+See `content/pathways/` for reference implementations.
+
+### Sync & Publishing
+- Pathways sync to HubDB via `npm run sync:content` (separate from modules)
+- The `HUBDB_PATHWAYS_TABLE_ID` environment variable controls the target table
+- Deletions are out of scope for the v0.2 initial implementation
+- Templates will render pathway list and detail pages from the HubDB table
+
+## Labs (Roadmap)
+- Separate "labs" content type may be introduced; you'll be able to embed or link to labs from modules
 
 ## Templates & Examples
 - Start with `docs/templates/module-README-template.md` and `docs/templates/module-meta-template.json`
