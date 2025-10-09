@@ -93,6 +93,24 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 Record any new failure signatures here so future contributors know how to respond.
 
+## Pathway Progress (Placeholder)
+
+For v0.2, module detail pages expose a minimal, no‑auth progress affordance that cooperates with the pathway page’s localStorage‑based progress API.
+
+- UI: Two buttons appear on module detail pages — “Mark as started” and “Mark complete”. If you navigated from a pathway detail page, a “Back to pathway” link is also shown.
+- Behavior: Buttons call a global function `window.hhUpdatePathwayProgress(started, completed)` if it exists. If not present, the clicks are no‑ops (no errors thrown).
+- Storage: Progress is stored client‑side in `localStorage` by the pathway page script. There is no server‑side persistence or authentication in this placeholder.
+
+How to test
+1. Open a pathway detail page under `/learn/pathways/<slug>` so its progress script is loaded.
+2. Click into a module from that pathway (the “Back to pathway” link should appear on the module detail page).
+3. Click “Mark complete”.
+4. Use the “Back to pathway” link (or browser back) — the pathway’s progress bar should reflect the completion for that module.
+
+Notes
+- The module template guards all browser APIs behind `DOMContentLoaded` and does not reference `window` in HubL, keeping server‑side rendering safe.
+- Accessibility: buttons include `aria-label`s and are keyboard‑focusable.
+
 ## Courses Mapping
 
 Courses group multiple modules into structured, narrative-driven learning units. Courses sit between Modules and Pathways in the content hierarchy.

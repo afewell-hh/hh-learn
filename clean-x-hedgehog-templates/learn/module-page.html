@@ -307,6 +307,47 @@
                 </div>
               {% endif %}
             </div>
+
+            {# Minimal pathway progress affordance (no auth) #}
+            <div class="module-progress-cta" role="region" aria-label="Module progress" style="margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="pathways-cta-button" id="hhl-mark-started" aria-label="Mark module as started" style="padding:8px 14px;">
+                Mark as started
+              </button>
+              <button type="button" class="pathways-cta-button" id="hhl-mark-complete" aria-label="Mark module as complete" style="padding:8px 14px;">
+                Mark complete
+              </button>
+              <a id="hhl-back-to-pathway" href="#" style="display:none; color:#0066CC; text-decoration:none; font-weight:600;">← Back to pathway</a>
+            </div>
+            <script>
+              document.addEventListener('DOMContentLoaded', function () {
+                function callProgress(started, completed) {
+                  try {
+                    if (typeof window !== 'undefined' && typeof window.hhUpdatePathwayProgress === 'function') {
+                      window.hhUpdatePathwayProgress(started, completed);
+                    }
+                  } catch (e) {
+                    // no-op
+                  }
+                }
+
+                var startBtn = document.getElementById('hhl-mark-started');
+                var completeBtn = document.getElementById('hhl-mark-complete');
+                var backLink = document.getElementById('hhl-back-to-pathway');
+
+                if (startBtn) startBtn.addEventListener('click', function(){ callProgress(1, 0); });
+                if (completeBtn) completeBtn.addEventListener('click', function(){ callProgress(1, 1); });
+
+                try {
+                  var ref = document.referrer || '';
+                  if (/\/learn\/pathways\//.test(ref) && backLink) {
+                    backLink.href = ref;
+                    backLink.style.display = 'inline-block';
+                  }
+                } catch (e) {
+                  // ignore
+                }
+              });
+            </script>
           </header>
 
           <!-- Module Content -->
