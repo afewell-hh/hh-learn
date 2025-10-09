@@ -1,0 +1,421 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "../../layouts/base.html" %}
+
+{% block head %}
+  {% if dynamic_page_hubdb_row %}
+    <meta name="description" content="{{ dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) }}">
+  {% endif %}
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* Header section styling */
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  .learn-page-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  /* Main content section */
+  .learn-main-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0;
+    min-height: 60vh;
+  }
+  .learn-container {
+    max-width: 1600px;
+    width: 100%;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(26,78,138,0.06);
+    min-height: 60vh;
+  }
+
+  /* Pathway grid (list view) */
+  .pathways-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+  }
+  .pathway-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+  }
+  .pathway-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .pathway-card h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .pathway-card-summary {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .pathway-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+  }
+  .pathway-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pathway-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Pathway detail view */
+  .pathway-detail {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .pathway-breadcrumbs {
+    padding: 16px 0;
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .pathway-breadcrumbs a {
+    color: #0066CC;
+    text-decoration: none;
+  }
+  .pathway-detail-header {
+    margin: 32px 0;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .pathway-detail-header h1 {
+    margin: 0 0 16px 0;
+    color: #1a4e8a;
+  }
+  .pathway-summary {
+    line-height: 1.8;
+    font-size: 1.0625rem;
+    margin: 32px 0;
+    padding: 24px;
+    background: #F9FAFB;
+    border-left: 4px solid #1a4e8a;
+    border-radius: 4px;
+  }
+
+  /* Module/Course list section */
+  .pathway-modules-section {
+    margin-top: 48px;
+  }
+  .pathway-modules-section h2 {
+    margin: 0 0 24px 0;
+    font-size: 1.75rem;
+    color: #111827;
+  }
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+  }
+  .module-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    position: relative;
+  }
+  .module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .module-card-number {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #1a4e8a;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+  }
+  .module-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+    padding-right: 40px;
+  }
+  .module-card p {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .module-time {
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container {
+      padding: 0 16px;
+    }
+    .pathways-grid, .modules-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<main id="main-content">
+  {% if dynamic_page_hubdb_row %}
+    {# Detail mode - showing a single pathway #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        {# Omit a visible H1 in the hero on detail pages to avoid duplicates #}
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        <div class="pathway-detail">
+          <!-- Breadcrumbs -->
+          <nav class="pathway-breadcrumbs">
+            <a href="{{ request.path|split('/')|slice(0,-1)|join('/') }}">← Back to Learning Pathways</a>
+          </nav>
+
+          <!-- Pathway Header -->
+          <header class="pathway-detail-header">
+            <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
+            <div class="pathway-meta">
+              {% if dynamic_page_hubdb_row.module_count %}
+                <span class="pathway-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.module_count }}</strong> modules
+                </span>
+              {% endif %}
+              {% if dynamic_page_hubdb_row.total_estimated_minutes %}
+                <span class="pathway-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.total_estimated_minutes }}</strong> minutes total
+                </span>
+              {% endif %}
+            </div>
+          </header>
+
+          <!-- Pathway Summary -->
+          {% if dynamic_page_hubdb_row.summary_markdown %}
+            <div class="pathway-summary">
+              {{ dynamic_page_hubdb_row.summary_markdown|safe }}
+            </div>
+          {% endif %}
+
+          <!-- Archived warning -->
+          {% set is_archived = false %}
+          {% if dynamic_page_hubdb_row.tags %}
+            {% set tag_list = dynamic_page_hubdb_row.tags|lower|split(',') %}
+            {% for tag in tag_list %}
+              {% if tag|trim == 'archived' %}
+                {% set is_archived = true %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if is_archived %}
+            <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+              This pathway is archived and may be out of date.
+            </div>
+          {% endif %}
+
+          <!-- Pathway Content: Prefer course_slugs_json if present, otherwise fallback to module_slugs_json -->
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
+
+          {% if dynamic_page_hubdb_row.course_slugs_json and courses_table_id %}
+            {# Prefer courses when available #}
+            <section class="pathway-modules-section">
+              <h2>Courses</h2>
+              {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+              <div class="modules-grid">
+                {% for slug in course_slugs %}
+                  {% set course_rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                  {% if course_rows and course_rows|length > 0 %}
+                    {% set course = course_rows[0] %}
+                    <a href="/learn/courses/{{ course.hs_path }}" class="module-card">
+                      <div class="module-card-number">{{ loop.index }}</div>
+                      <h3>{{ course.hs_name }}</h3>
+
+                      {% if course.summary_markdown %}
+                        <p>{{ course.summary_markdown|striptags|truncate(150) }}</p>
+                      {% endif %}
+
+                      <div style="display: flex; gap: 16px; color: #666; font-size: 0.875rem; margin-bottom: 16px;">
+                        {% if course.module_slugs_json %}
+                          {% set module_count = course.module_slugs_json|fromjson|length %}
+                          <span><strong>{{ module_count }}</strong> module{% if module_count != 1 %}s{% endif %}</span>
+                        {% endif %}
+                        {% if course.estimated_minutes %}
+                          <span><strong>{{ course.estimated_minutes }}</strong> minutes</span>
+                        {% endif %}
+                      </div>
+
+                      <span class="module-cta">View Course →</span>
+                    </a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </section>
+
+          {% elif dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
+            {# Fallback: Render modules list #}
+            <section class="pathway-modules-section">
+              <h2>Learning Modules</h2>
+              {% set modules_base_path = '/learn' %}
+              {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+              <div class="modules-grid">
+                {% for slug in module_slugs %}
+                  {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                  {% if module_rows and module_rows|length > 0 %}
+                    {% set module = module_rows[0] %}
+                    <a href="{{ modules_base_path }}/{{ module.hs_path }}" class="module-card">
+                      <div class="module-card-number">{{ loop.index }}</div>
+                      <h3>{{ module.hs_name }}</h3>
+
+                      {% if module.meta_description %}
+                        <p>{{ module.meta_description|striptags|truncate(150) }}</p>
+                      {% endif %}
+
+                      <div class="module-time">
+                        {{ module.estimated_minutes }} minutes
+                      </div>
+
+                      <div style="margin-top: 16px;">
+                        <span class="module-cta">Start Module →</span>
+                      </div>
+                    </a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+  {% else %}
+    {# List mode - showing all pathways #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        <h1 class="learn-page-title">Learning Pathways</h1>
+        <p class="learn-page-subtitle">Follow structured learning paths to master Hedgehog AI networking concepts step-by-step.</p>
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+        {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+        {% if pathways_table_id %}
+          {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+          {% if pathways %}
+            <div class="pathways-grid">
+              {% for pathway in pathways %}
+                {% set is_archived = false %}
+                {% if pathway.tags %}
+                  {% set tag_list = pathway.tags|lower|split(',') %}
+                  {% for tag in tag_list %}
+                    {% if tag|trim == 'archived' %}
+                      {% set is_archived = true %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+                {% if not is_archived %}
+                <a href="{{ request.path }}/{{ pathway.hs_path }}" class="pathway-card">
+                  <h2>{{ pathway.hs_name }}</h2>
+
+                  {% if pathway.summary_markdown %}
+                    <p class="pathway-card-summary">{{ pathway.summary_markdown|striptags|truncate(150) }}</p>
+                  {% endif %}
+
+                  <div class="pathway-meta">
+                    {% if pathway.module_count %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ pathway.module_count }}</strong> modules
+                      </span>
+                    {% endif %}
+                    {% if pathway.total_estimated_minutes %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ pathway.total_estimated_minutes }}</strong> minutes
+                      </span>
+                    {% endif %}
+                  </div>
+
+                  <span class="pathway-cta">View Pathway →</span>
+                </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No learning pathways have been added yet.</p>
+          {% endif %}
+        {% else %}
+          <p><em>Configure HUBDB_PATHWAYS_TABLE_ID in constants.json, then bind this page to the Pathways table.</em></p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+</main>
+{% endblock body %}

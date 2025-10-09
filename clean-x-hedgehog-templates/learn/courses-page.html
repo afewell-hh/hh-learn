@@ -1,0 +1,460 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "../../layouts/base.html" %}
+
+{% block head %}
+  {% if dynamic_page_hubdb_row %}
+    <meta name="description" content="{{ dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) }}">
+  {% endif %}
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* Header section styling */
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  .learn-page-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  /* Main content section */
+  .learn-main-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0;
+    min-height: 60vh;
+  }
+  .learn-container {
+    max-width: 1600px;
+    width: 100%;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(26,78,138,0.06);
+    min-height: 60vh;
+  }
+
+  /* Course grid (list view) */
+  .courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+  }
+  .course-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+  }
+  .course-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .course-card h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .course-card-summary {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .course-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+  }
+  .course-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .course-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Course detail view */
+  .course-detail {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .course-breadcrumbs {
+    padding: 16px 0;
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .course-breadcrumbs a {
+    color: #0066CC;
+    text-decoration: none;
+  }
+  .course-detail-header {
+    margin: 32px 0;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .course-detail-header h1 {
+    margin: 0 0 16px 0;
+    color: #1a4e8a;
+  }
+  .course-summary {
+    line-height: 1.8;
+    font-size: 1.0625rem;
+    margin: 32px 0;
+    padding: 24px;
+    background: #F9FAFB;
+    border-left: 4px solid #1a4e8a;
+    border-radius: 4px;
+  }
+
+  /* Content blocks styling */
+  .content-blocks-section {
+    margin-top: 48px;
+  }
+  .content-block {
+    margin-bottom: 32px;
+  }
+  .content-block-text,
+  .content-block-callout {
+    padding: 24px;
+    border-radius: 8px;
+    line-height: 1.8;
+  }
+  .content-block-text {
+    background: #FFFFFF;
+  }
+  .content-block-text h2,
+  .content-block-callout h2 {
+    margin: 0 0 16px 0;
+    font-size: 1.5rem;
+    color: #111827;
+  }
+  .content-block-callout {
+    background: #FEF3C7;
+    border: 1px solid #FCD34D;
+    border-left: 4px solid #F59E0B;
+  }
+
+  /* Module cards in content blocks */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .module-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    position: relative;
+  }
+  .module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .module-card-number {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #1a4e8a;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+  }
+  .module-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+    padding-right: 40px;
+  }
+  .module-card p {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .module-time {
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container {
+      padding: 0 16px;
+    }
+    .courses-grid, .modules-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<main id="main-content">
+  {% if dynamic_page_hubdb_row %}
+    {# Detail mode - showing a single course #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        {# Omit a visible H1 in the hero on detail pages to avoid duplicates #}
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        <div class="course-detail">
+          <!-- Breadcrumbs -->
+          <nav class="course-breadcrumbs">
+            <a href="{{ request.path|split('/')|slice(0,-1)|join('/') }}">← Back to Courses</a>
+          </nav>
+
+          <!-- Course Header -->
+          <header class="course-detail-header">
+            <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
+            <div class="course-meta">
+              {% if dynamic_page_hubdb_row.module_slugs_json %}
+                {% set module_count = dynamic_page_hubdb_row.module_slugs_json|fromjson|length %}
+                <span class="course-meta-item">
+                  <strong>{{ module_count }}</strong> module{% if module_count != 1 %}s{% endif %}
+                </span>
+              {% endif %}
+              {% if dynamic_page_hubdb_row.estimated_minutes %}
+                <span class="course-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.estimated_minutes }}</strong> minutes total
+                </span>
+              {% endif %}
+            </div>
+          </header>
+
+          <!-- Course Summary -->
+          {% if dynamic_page_hubdb_row.summary_markdown %}
+            <div class="course-summary">
+              {{ dynamic_page_hubdb_row.summary_markdown|safe }}
+            </div>
+          {% endif %}
+
+          <!-- Archived warning -->
+          {% set is_archived = false %}
+          {% if dynamic_page_hubdb_row.tags %}
+            {% set tag_list = dynamic_page_hubdb_row.tags|lower|split(',') %}
+            {% for tag in tag_list %}
+              {% if tag|trim == 'archived' %}
+                {% set is_archived = true %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if is_archived %}
+            <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+              This course is archived and may be out of date.
+            </div>
+          {% endif %}
+
+          <!-- Course Content: Prefer content_blocks_json if present, otherwise fallback to module_slugs_json -->
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
+
+          {% if dynamic_page_hubdb_row.content_blocks_json %}
+            {# Render content blocks (narrative-driven course) #}
+            <section class="content-blocks-section">
+              {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
+              {% set module_index = 0 %}
+              {% for block in blocks %}
+                {% if block.type == 'text' %}
+                  <div class="content-block content-block-text">
+                    {% if block.title %}
+                      <h2>{{ block.title }}</h2>
+                    {% endif %}
+                    {% if block.body_markdown %}
+                      {{ block.body_markdown|safe }}
+                    {% endif %}
+                  </div>
+                {% elif block.type == 'callout' %}
+                  <div class="content-block content-block-callout">
+                    {% if block.title %}
+                      <h2>{{ block.title }}</h2>
+                    {% endif %}
+                    {% if block.body_markdown %}
+                      {{ block.body_markdown|safe }}
+                    {% endif %}
+                  </div>
+                {% elif block.type == 'module_ref' and block.module_slug and modules_table_id %}
+                  {% set module_index = module_index + 1 %}
+                  {# Fetch the referenced module from HubDB #}
+                  {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ block.module_slug ~ "&tags__not__icontains=archived") %}
+                  {% if module_rows and module_rows|length > 0 %}
+                    {% set module = module_rows[0] %}
+                    <div class="content-block">
+                      <a href="/learn/{{ module.hs_path }}" class="module-card">
+                        <div class="module-card-number">{{ module_index }}</div>
+                        <h3>{{ module.hs_name }}</h3>
+
+                        {% if module.meta_description %}
+                          <p>{{ module.meta_description|striptags|truncate(150) }}</p>
+                        {% endif %}
+
+                        <div class="module-time">
+                          {{ module.estimated_minutes }} minutes
+                        </div>
+
+                        <div style="margin-top: 16px;">
+                          <span class="module-cta">Start Module →</span>
+                        </div>
+                      </a>
+                    </div>
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            </section>
+
+          {% elif dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
+            {# Fallback: Render modules list #}
+            <section class="content-blocks-section">
+              <h2>Course Modules</h2>
+              {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+              <div class="modules-grid">
+                {% for slug in module_slugs %}
+                  {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                  {% if module_rows and module_rows|length > 0 %}
+                    {% set module = module_rows[0] %}
+                    <a href="/learn/{{ module.hs_path }}" class="module-card">
+                      <div class="module-card-number">{{ loop.index }}</div>
+                      <h3>{{ module.hs_name }}</h3>
+
+                      {% if module.meta_description %}
+                        <p>{{ module.meta_description|striptags|truncate(150) }}</p>
+                      {% endif %}
+
+                      <div class="module-time">
+                        {{ module.estimated_minutes }} minutes
+                      </div>
+
+                      <div style="margin-top: 16px;">
+                        <span class="module-cta">Start Module →</span>
+                      </div>
+                    </a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+  {% else %}
+    {# List mode - showing all courses #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        <h1 class="learn-page-title">Courses</h1>
+        <p class="learn-page-subtitle">Structured learning units that combine multiple modules into comprehensive, narrative-driven courses.</p>
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+        {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
+        {% if courses_table_id %}
+          {% set courses = hubdb_table_rows(courses_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+          {% if courses %}
+            <div class="courses-grid">
+              {% for course in courses %}
+                {% set is_archived = false %}
+                {% if course.tags %}
+                  {% set tag_list = course.tags|lower|split(',') %}
+                  {% for tag in tag_list %}
+                    {% if tag|trim == 'archived' %}
+                      {% set is_archived = true %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+                {% if not is_archived %}
+                <a href="{{ request.path }}/{{ course.hs_path }}" class="course-card">
+                  <h2>{{ course.hs_name }}</h2>
+
+                  {% if course.summary_markdown %}
+                    <p class="course-card-summary">{{ course.summary_markdown|striptags|truncate(150) }}</p>
+                  {% endif %}
+
+                  <div class="course-meta">
+                    {% if course.module_slugs_json %}
+                      {% set module_count = course.module_slugs_json|fromjson|length %}
+                      <span class="course-meta-item">
+                        <strong>{{ module_count }}</strong> module{% if module_count != 1 %}s{% endif %}
+                      </span>
+                    {% endif %}
+                    {% if course.estimated_minutes %}
+                      <span class="course-meta-item">
+                        <strong>{{ course.estimated_minutes }}</strong> minutes
+                      </span>
+                    {% endif %}
+                  </div>
+
+                  <span class="course-cta">View Course →</span>
+                </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No courses have been added yet.</p>
+          {% endif %}
+        {% else %}
+          <p><em>Configure HUBDB_COURSES_TABLE_ID in constants.json, then bind this page to the Courses table.</em></p>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+</main>
+{% endblock body %}
