@@ -430,6 +430,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
 
   const pageConfigs: PageConfig[] = [
     {
+      name: 'Learn',
+      slug: 'learn',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/module-page.html',
+      tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
+    },
+    {
       name: 'Courses',
       slug: 'learn/courses',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/courses-page.html',
@@ -440,6 +446,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       slug: 'learn/pathways',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/pathways-page.html',
       tableEnvVar: 'HUBDB_PATHWAYS_TABLE_ID'
+    },
+    {
+      name: 'My Learning',
+      slug: 'learn/my-learning',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/my-learning.html',
+      tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
     }
   ];
 

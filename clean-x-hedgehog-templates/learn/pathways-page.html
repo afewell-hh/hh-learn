@@ -5,9 +5,175 @@
 {% extends "../layouts/base.html" %}
 
 {% block head %}
+  {{ super() }}
   {% if dynamic_page_hubdb_row %}
-    {% set meta_desc = dynamic_page_hubdb_row.meta_description or dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) %}
+    {# SEO metadata for pathway detail pages #}
+    {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Pathways - Learn Hedgehog" %}
+    {% set meta_desc = dynamic_page_hubdb_row.meta_description|striptags|truncate(160) if dynamic_page_hubdb_row.meta_description else (dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) if dynamic_page_hubdb_row.summary_markdown else "Learn " ~ dynamic_page_hubdb_row.hs_name) %}
+    {% set canonical_url = "https://" ~ request.domain ~ "/learn/pathways/" ~ dynamic_page_hubdb_row.hs_path %}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else (constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png") %}
+
+    <title>{{ page_title }}</title>
     <meta name="description" content="{{ meta_desc }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+
+    {# Open Graph tags #}
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ meta_desc }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:image" content="{{ social_image }}">
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ meta_desc }}">
+    <meta name="twitter:image" content="{{ social_image }}">
+
+    {# JSON-LD structured data for pathway detail #}
+    {# Note: Pathways are collections, so we use ItemList type #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": {{ dynamic_page_hubdb_row.hs_name|tojson }},
+      {% if dynamic_page_hubdb_row.meta_description or dynamic_page_hubdb_row.summary_markdown %}
+      "description": {{ meta_desc|tojson }},
+      {% endif %}
+      "url": "https://{{ request.domain }}/learn/pathways/{{ dynamic_page_hubdb_row.hs_path }}",
+      {% if dynamic_page_hubdb_row.module_count %}
+      "numberOfItems": {{ dynamic_page_hubdb_row.module_count }},
+      {% endif %}
+      "itemListElement": [
+        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+        {% if dynamic_page_hubdb_row.course_slugs_json and constants.HUBDB_COURSES_TABLE_ID %}
+          {# Pathway contains courses #}
+          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
+          {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+          {% for slug in course_slugs %}
+            {% set course_rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if course_rows and course_rows|length > 0 %}
+              {% set course = course_rows[0] %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "Course",
+            "name": {{ course.hs_name|tojson }},
+            "url": "https://{{ request.domain }}/learn/courses/{{ course.hs_path }}"
+          }
+        }{% if not loop.last %},{% endif %}
+            {% endif %}
+          {% endfor %}
+        {% elif dynamic_page_hubdb_row.module_slugs_json and constants.HUBDB_MODULES_TABLE_ID %}
+          {# Pathway contains modules #}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
+          {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+          {% for slug in module_slugs %}
+            {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if module_rows and module_rows|length > 0 %}
+              {% set module = module_rows[0] %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "LearningResource",
+            "name": {{ module.hs_name|tojson }},
+            "url": "https://{{ request.domain }}/learn/{{ module.hs_path }}"
+          }
+        }{% if not loop.last %},{% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      ]
+    }
+    </script>
+
+    {# BreadcrumbList JSON-LD #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Learn",
+          "item": "https://{{ request.domain }}/learn"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Pathways",
+          "item": "https://{{ request.domain }}/learn/pathways"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": {{ dynamic_page_hubdb_row.hs_name|tojson }}
+        }
+      ]
+    }
+    </script>
+  {% else %}
+    {# SEO metadata for pathways list page #}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+    <title>Learning Pathways - Learn Hedgehog AI Networking</title>
+    <meta name="description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
+    <link rel="canonical" href="https://{{ request.domain }}/learn/pathways">
+
+    {# Open Graph tags #}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Learning Pathways - Learn Hedgehog AI Networking">
+    <meta property="og:description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
+    <meta property="og:url" content="https://{{ request.domain }}/learn/pathways">
+    <meta property="og:image" content="{{ social_image }}">
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Learning Pathways - Learn Hedgehog AI Networking">
+    <meta name="twitter:description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
+    <meta name="twitter:image" content="{{ social_image }}">
+
+    {# JSON-LD structured data for pathways list #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Learning Pathways",
+      "description": "Hedgehog AI Networking learning pathways",
+      "itemListElement": [
+        {% set pathways_table_id = dynamic_page_hubdb_table_id %}
+        {% if not pathways_table_id %}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID if constants else none %}
+        {% endif %}
+        {% if pathways_table_id %}
+          {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+          {% for pathway in pathways %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "ItemList",
+            "name": {{ pathway.hs_name|tojson }},
+            "url": "https://{{ request.domain }}/learn/pathways/{{ pathway.hs_path }}"
+            {% if pathway.summary_markdown %}
+            ,"description": {{ pathway.summary_markdown|striptags|truncate(160)|tojson }}
+            {% endif %}
+            {% if pathway.module_count %}
+            ,"numberOfItems": {{ pathway.module_count }}
+            {% endif %}
+          }
+        }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        {% endif %}
+      ]
+    }
+    </script>
   {% endif %}
 {% endblock head %}
 
@@ -43,6 +209,24 @@
     font-weight: 400;
     margin: 0;
     opacity: 0.9;
+  }
+  .learn-header-nav {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .learn-header-nav a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: background 0.2s;
+  }
+  .learn-header-nav a:hover {
+    background: rgba(255, 255, 255, 0.15);
   }
 
   /* Main content section */
@@ -347,8 +531,57 @@
 
           <script>
             (function() {
+              // Get constants for beacon tracking
+              {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+              var TRACK_EVENTS_ENABLED = {{ constants.TRACK_EVENTS_ENABLED|tojson if constants else false }};
+              var TRACK_EVENTS_URL = {{ constants.TRACK_EVENTS_URL|tojson if constants else '""' }};
+
               const pathwaySlug = '{{ dynamic_page_hubdb_row.hs_path }}';
               const totalModules = {{ dynamic_page_hubdb_row.module_count|default(0) }};
+
+              // Send beacon event (once per session for enrollment)
+              function sendEnrollmentBeacon() {
+                if (!TRACK_EVENTS_ENABLED || !TRACK_EVENTS_URL) return;
+
+                // Check if already sent this session
+                var sessionKey = 'hh-pathway-enrolled-' + pathwaySlug;
+                try {
+                  if (sessionStorage.getItem(sessionKey)) return;
+                } catch(e) {
+                  return; // If sessionStorage not available, skip beacon
+                }
+
+                var eventData = {
+                  eventName: 'learning_pathway_enrolled',
+                  payload: {
+                    pathway_slug: pathwaySlug,
+                    ts: new Date().toISOString()
+                  }
+                };
+
+                try {
+                  // Prefer sendBeacon when available
+                  if (navigator.sendBeacon) {
+                    var blob = new Blob([JSON.stringify(eventData)], { type: 'application/json' });
+                    navigator.sendBeacon(TRACK_EVENTS_URL, blob);
+                  } else {
+                    // Fallback to fetch with keepalive
+                    fetch(TRACK_EVENTS_URL, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(eventData),
+                      keepalive: true
+                    }).catch(function() {
+                      // Silently fail if beacon can't be sent
+                    });
+                  }
+
+                  // Mark as sent for this session
+                  sessionStorage.setItem(sessionKey, 'true');
+                } catch (e) {
+                  // Silently fail - don't break user experience
+                }
+              }
 
               // Get progress from localStorage
               function getProgress() {
@@ -383,6 +616,7 @@
 
               // Initialize on page load
               updateProgressDisplay();
+              sendEnrollmentBeacon();
 
               // Expose update function for module pages to call
               window.hhUpdatePathwayProgress = function(started, completed) {
@@ -505,6 +739,12 @@
       <div class="learn-header-content">
         <h1 class="learn-page-title">Learning Pathways</h1>
         <p class="learn-page-subtitle">Follow structured learning paths to master Hedgehog AI networking concepts step-by-step.</p>
+        <nav class="learn-header-nav" aria-label="Learning sections">
+          <a href="/learn">Modules</a>
+          <a href="/learn/courses">Courses</a>
+          <a href="/learn/pathways">Pathways</a>
+          <a href="/learn/my-learning">My Learning</a>
+        </nav>
       </div>
     </section>
 

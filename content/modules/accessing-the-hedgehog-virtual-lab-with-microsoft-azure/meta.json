@@ -1,9 +1,16 @@
 {
   "prerequisites": [
-    "Microsoft Azure account with an active subscription",
-    "Azure CLI (az) installed on your local machine",
+    "accessing-the-hedgehog-virtual-lab-with-amazon-web-services",
+    {
+      "title": "Microsoft Azure account with an active subscription",
+      "url": "https://azure.microsoft.com/free/"
+    },
+    {
+      "title": "Azure CLI (az) installed",
+      "url": "https://learn.microsoft.com/en-us/cli/azure/install-azure-cli"
+    },
     "Basic familiarity with command-line tools",
-    "Sufficient Azure quota for a 32-vCPU instance"
+    "some-nonexistent-module-slug"
   ],
   "learning_objectives": [
     "Understand the VM requirements for running Hedgehog VLAB",

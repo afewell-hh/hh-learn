@@ -1,0 +1,521 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "../layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+  {# SEO metadata for My Learning dashboard #}
+  {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+  {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+  <title>My Learning - Learn Hedgehog AI Networking</title>
+  <meta name="description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn/my-learning">
+
+  {# Open Graph tags #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="My Learning - Learn Hedgehog AI Networking">
+  <meta property="og:description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
+  <meta property="og:url" content="https://{{ request.domain }}/learn/my-learning">
+  <meta property="og:image" content="{{ social_image }}">
+
+  {# Twitter Card tags #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="My Learning - Learn Hedgehog AI Networking">
+  <meta name="twitter:description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
+  <meta name="twitter:image" content="{{ social_image }}">
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* Header section styling */
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  .learn-page-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  /* Main content section */
+  .learn-main-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0;
+    min-height: 60vh;
+  }
+  .learn-container {
+    max-width: 1600px;
+    width: 100%;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(26,78,138,0.06);
+    min-height: 60vh;
+  }
+
+  /* Progress summary section */
+  .progress-summary {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border: 1px solid #BFDBFE;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .progress-stats {
+    display: flex;
+    gap: 48px;
+  }
+  .progress-stat {
+    text-align: center;
+  }
+  .progress-stat-number {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #1a4e8a;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .progress-stat-label {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #0369a1;
+    font-weight: 600;
+  }
+  .auth-prompt {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 0.875rem;
+    color: #78350f;
+    display: none;
+  }
+  .auth-prompt a {
+    color: #92400e;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  /* Section headers */
+  .section-header {
+    margin: 48px 0 24px 0;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #E5E7EB;
+  }
+  .section-header h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    color: #111827;
+    font-weight: 700;
+  }
+  .section-header .section-count {
+    color: #666;
+    font-size: 1rem;
+    font-weight: 400;
+    margin-left: 12px;
+  }
+
+  /* Module cards */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .module-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    background: #fff;
+  }
+  .module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .module-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .module-progress-badge {
+    background: #EFF6FF;
+    color: #1a4e8a;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .module-progress-badge.completed {
+    background: #D1FAE5;
+    color: #065F46;
+  }
+  .module-time {
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .module-card p {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .module-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    color: #666;
+  }
+  .empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 24px;
+    opacity: 0.3;
+  }
+  .empty-state h2 {
+    font-size: 1.75rem;
+    color: #111827;
+    margin: 0 0 16px 0;
+  }
+  .empty-state p {
+    font-size: 1.125rem;
+    margin: 0 0 32px 0;
+    line-height: 1.6;
+  }
+  .empty-state-cta {
+    display: inline-block;
+    background: #1a4e8a;
+    color: #fff;
+    padding: 12px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .empty-state-cta:hover {
+    background: #154171;
+    transform: translateY(-2px);
+  }
+
+  /* Loading state */
+  .loading-state {
+    text-align: center;
+    padding: 80px 40px;
+    color: #666;
+  }
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #E5E7EB;
+    border-top-color: #1a4e8a;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container {
+      padding: 0 16px;
+    }
+    .modules-grid {
+      grid-template-columns: 1fr;
+    }
+    .progress-summary {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .progress-stats {
+      gap: 32px;
+    }
+  }
+</style>
+
+<main id="main-content">
+  <section class="learn-header-section">
+    <div class="learn-header-content">
+      <h1 class="learn-page-title">My Learning</h1>
+      <p class="learn-page-subtitle">Track your progress and pick up where you left off.</p>
+    </div>
+  </section>
+
+  <section class="learn-main-section">
+    <div class="learn-container">
+      <!-- Loading state (shown initially) -->
+      <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading your progress...</p>
+      </div>
+
+      <!-- Main content (hidden until loaded) -->
+      <div id="main-content-container" style="display: none;">
+        <!-- Progress Summary -->
+        <div class="progress-summary">
+          <div class="progress-stats">
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-in-progress">0</div>
+              <div class="progress-stat-label">In Progress</div>
+            </div>
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-completed">0</div>
+              <div class="progress-stat-label">Completed</div>
+            </div>
+          </div>
+          <div class="auth-prompt" id="auth-prompt">
+            ℹ️ Progress is saved locally in your browser. Sign in to sync across devices (coming in v0.3).
+          </div>
+        </div>
+
+        <!-- In Progress Section -->
+        <section id="in-progress-section" style="display: none;">
+          <div class="section-header">
+            <h2>In Progress <span class="section-count" id="in-progress-count">(0)</span></h2>
+          </div>
+          <div class="modules-grid" id="in-progress-modules"></div>
+        </section>
+
+        <!-- Completed Section -->
+        <section id="completed-section" style="display: none;">
+          <div class="section-header">
+            <h2>Completed <span class="section-count" id="completed-count">(0)</span></h2>
+          </div>
+          <div class="modules-grid" id="completed-modules"></div>
+        </section>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">📚</div>
+          <h2>Start Your Learning Journey</h2>
+          <p>You haven't started any modules yet. Explore our pathways and courses to begin learning!</p>
+          <a href="/learn/pathways" class="empty-state-cta">Explore Pathways</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function() {
+  // Get constants for table IDs
+  {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+  const MODULES_TABLE_ID = {{ constants.HUBDB_MODULES_TABLE_ID|tojson if constants else '""' }};
+  const TRACK_EVENTS_ENABLED = {{ constants.TRACK_EVENTS_ENABLED|tojson if constants else false }};
+
+  // Data structures
+  let modulesData = [];
+  let inProgressModules = [];
+  let completedModules = [];
+
+  // Helper: Get all progress from localStorage
+  function getAllProgress() {
+    const progress = { inProgress: new Set(), completed: new Set() };
+
+    try {
+      // Scan all localStorage keys for pathway progress
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('hh-pathway-progress-')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key));
+            // For pathway progress, we don't have module-level details
+            // This is just to detect that user has some activity
+          } catch (e) {
+            // Skip invalid entries
+          }
+        }
+        // Check for any module-specific progress keys (if we add them in future)
+        if (key && key.startsWith('hh-module-')) {
+          const moduleSlug = key.replace('hh-module-', '');
+          try {
+            const data = JSON.parse(localStorage.getItem(key));
+            if (data.completed) {
+              progress.completed.add(moduleSlug);
+            } else if (data.started) {
+              progress.inProgress.add(moduleSlug);
+            }
+          } catch (e) {
+            // Skip invalid entries
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error reading progress:', e);
+    }
+
+    return progress;
+  }
+
+  // Helper: Fetch modules from HubDB
+  async function fetchModules(slugs) {
+    if (!MODULES_TABLE_ID || slugs.length === 0) {
+      return [];
+    }
+
+    try {
+      // Build filter query for multiple slugs
+      const filterParts = slugs.map(slug => `path__eq=${encodeURIComponent(slug)}`);
+      const filter = filterParts.join('&');
+
+      const url = `/hs/api/hubdb/v3/tables/${MODULES_TABLE_ID}/rows?${filter}&tags__not__icontains=archived`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HubDB API returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.results || [];
+    } catch (e) {
+      console.error('Error fetching modules:', e);
+      return [];
+    }
+  }
+
+  // Helper: Render module card
+  function renderModuleCard(module, isCompleted) {
+    const card = document.createElement('a');
+    card.href = `/learn/${module.path}`;
+    card.className = 'module-card';
+
+    const estimatedMinutes = module.values?.estimated_minutes || 0;
+    const moduleName = module.values?.hs_name || module.name || 'Untitled Module';
+    const metaDescription = module.values?.meta_description || '';
+
+    card.innerHTML = `
+      <div class="module-card-header">
+        <span class="module-progress-badge ${isCompleted ? 'completed' : ''}">${isCompleted ? 'Completed' : 'In Progress'}</span>
+        <span class="module-time">${estimatedMinutes} min</span>
+      </div>
+      <h3>${moduleName}</h3>
+      ${metaDescription ? `<p>${metaDescription.substring(0, 150)}${metaDescription.length > 150 ? '...' : ''}</p>` : ''}
+      <span class="module-cta">${isCompleted ? 'Review Module' : 'Continue Learning'} →</span>
+    `;
+
+    return card;
+  }
+
+  // Main: Load and render dashboard
+  async function loadDashboard() {
+    const progress = getAllProgress();
+
+    // For now, since we don't have module-level tracking yet,
+    // we'll show an empty state or a message
+    const hasAnyProgress = progress.inProgress.size > 0 || progress.completed.size > 0;
+
+    // Fetch module data
+    const allSlugs = [...progress.inProgress, ...progress.completed];
+    if (allSlugs.length > 0) {
+      modulesData = await fetchModules(allSlugs);
+
+      // Separate into in-progress and completed
+      inProgressModules = modulesData.filter(m => progress.inProgress.has(m.path));
+      completedModules = modulesData.filter(m => progress.completed.has(m.path));
+    }
+
+    // Hide loading state
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('main-content-container').style.display = 'block';
+
+    // Update stats
+    document.getElementById('stat-in-progress').textContent = inProgressModules.length;
+    document.getElementById('stat-completed').textContent = completedModules.length;
+
+    // Show auth prompt if user has activity
+    if (hasAnyProgress && !TRACK_EVENTS_ENABLED) {
+      document.getElementById('auth-prompt').style.display = 'block';
+    }
+
+    // Render sections or empty state
+    if (inProgressModules.length === 0 && completedModules.length === 0) {
+      document.getElementById('empty-state').style.display = 'block';
+    } else {
+      // Render in-progress modules
+      if (inProgressModules.length > 0) {
+        const section = document.getElementById('in-progress-section');
+        const container = document.getElementById('in-progress-modules');
+        document.getElementById('in-progress-count').textContent = `(${inProgressModules.length})`;
+
+        inProgressModules.forEach(module => {
+          container.appendChild(renderModuleCard(module, false));
+        });
+
+        section.style.display = 'block';
+      }
+
+      // Render completed modules
+      if (completedModules.length > 0) {
+        const section = document.getElementById('completed-section');
+        const container = document.getElementById('completed-modules');
+        document.getElementById('completed-count').textContent = `(${completedModules.length})`;
+
+        completedModules.forEach(module => {
+          container.appendChild(renderModuleCard(module, true));
+        });
+
+        section.style.display = 'block';
+      }
+    }
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+  } else {
+    loadDashboard();
+  }
+})();
+</script>
+{% endblock body %}
