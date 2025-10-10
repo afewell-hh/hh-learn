@@ -208,6 +208,31 @@
   .learn-header-nav a:hover {
     background: rgba(255, 255, 255, 0.15);
   }
+  .auth-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .user-greeting {
+    color: #fff;
+    font-size: 0.875rem;
+    opacity: 0.9;
+  }
+  .auth-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 6px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .auth-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
 
   /* Main content section */
   .learn-main-section {
@@ -570,6 +595,18 @@
           <a href="/learn/pathways">Pathways</a>
           <a href="/learn/my-learning">My Learning</a>
         </nav>
+        {# Auth controls #}
+        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+        {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
+        {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
+        <div class="auth-controls">
+          {% if request_contact.is_logged_in %}
+            <span class="user-greeting">Hi, {{ request_contact.firstname|default('there') }}!</span>
+            <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign Out</a>
+          {% else %}
+            <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign In</a>
+          {% endif %}
+        </div>
       </div>
     </section>
 

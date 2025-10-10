@@ -128,6 +128,20 @@
     font-weight: 600;
     text-decoration: underline;
   }
+  .synced-indicator {
+    background: #D1FAE5;
+    border: 1px solid #6EE7B7;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 0.875rem;
+    color: #065F46;
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+  .synced-indicator-icon {
+    font-size: 1.125rem;
+  }
 
   /* Section headers */
   .section-header {
@@ -314,9 +328,22 @@
               <div class="progress-stat-label">Completed</div>
             </div>
           </div>
-          <div class="auth-prompt" id="auth-prompt">
-            ℹ️ Progress is saved locally in your browser. Sign in to sync across devices (coming in v0.3).
+          {# Show synced indicator when authenticated and CRM progress enabled #}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% if request_contact.is_logged_in and constants.ENABLE_CRM_PROGRESS %}
+          <div class="synced-indicator" style="display: flex;">
+            <span class="synced-indicator-icon">✓</span>
+            <span>Progress synced across devices</span>
           </div>
+          {% else %}
+          <div class="auth-prompt" id="auth-prompt">
+            {% if request_contact.is_logged_in %}
+              ℹ️ Progress is saved locally in your browser. Enable CRM sync in settings to sync across devices.
+            {% else %}
+              ℹ️ Progress is saved locally in your browser. <a href="/hs-login?redirect_url={{ request.url|urlencode }}">Sign in</a> to sync across devices.
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
 
         <!-- In Progress Section -->
@@ -473,10 +500,8 @@
     document.getElementById('stat-in-progress').textContent = inProgressModules.length;
     document.getElementById('stat-completed').textContent = completedModules.length;
 
-    // Show auth prompt if user has activity
-    if (hasAnyProgress && !TRACK_EVENTS_ENABLED) {
-      document.getElementById('auth-prompt').style.display = 'block';
-    }
+    // Auth prompt is handled server-side via HubL conditionals
+    // No need to show/hide dynamically in JavaScript
 
     // Render sections or empty state
     if (inProgressModules.length === 0 && completedModules.length === 0) {

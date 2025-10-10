@@ -12,7 +12,8 @@
         "crm.objects.contacts.read",
         "crm.objects.contacts.write",
         "hubdb",
-        "content"
+        "content",
+        "analytics.behavioral_events.send"
       ],
       "optionalScopes": [
         "crm.schemas.custom.read",

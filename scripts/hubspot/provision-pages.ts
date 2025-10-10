@@ -238,18 +238,20 @@ async function validateTemplateExists(templatePath: string): Promise<boolean> {
   try {
     console.log(`   Validating template: ${templatePath}`);
 
-    // Use Source Code API to check if template exists
+    // Use v3 Source Code API to check if template exists in draft
     const base = 'https://api.hubapi.com';
-    const encodedPath = encodeURIComponent(templatePath);
 
     const response = await retryWithBackoff(async () => {
-      const res = await fetch(`${base}/content/api/v2/templates/${encodedPath}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+      const res = await fetch(
+        `${base}/cms/v3/source-code/draft/metadata/${encodeURIComponent(templatePath)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
         }
-      });
+      );
 
       // 200 = exists, 404 = not found
       if (res.status === 200) {

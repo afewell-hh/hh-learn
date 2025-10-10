@@ -1,5 +1,5 @@
 service: hedgehog-learn
-frameworkVersion: "4"
+frameworkVersion: "3"
 
 provider:
   name: aws
@@ -7,8 +7,10 @@ provider:
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${env:APP_STAGE, 'dev'}
   environment:
+    HUBSPOT_PROJECT_ACCESS_TOKEN: ${env:HUBSPOT_PROJECT_ACCESS_TOKEN, ''}
     HUBSPOT_PRIVATE_APP_TOKEN: ${env:HUBSPOT_PRIVATE_APP_TOKEN}
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
+    ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
 
 functions:
   api:
@@ -20,6 +22,7 @@ functions:
           cors:
             allowedOrigins:
               - https://hedgehog.cloud
+              - https://www.hedgehog.cloud
               - https://*.hubspotusercontent-na1.net
               - https://*.hubspotusercontent00.net
               - https://*.hubspotusercontent20.net
@@ -36,6 +39,7 @@ functions:
           cors:
             allowedOrigins:
               - https://hedgehog.cloud
+              - https://www.hedgehog.cloud
               - https://*.hubspotusercontent-na1.net
               - https://*.hubspotusercontent00.net
               - https://*.hubspotusercontent20.net
