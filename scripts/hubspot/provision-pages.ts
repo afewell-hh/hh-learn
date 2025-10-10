@@ -227,12 +227,89 @@ async function findPrimaryPageBySlug(slug: string): Promise<any | null> {
   }
 }
 
+// Helper: Validate template existence via Source Code API
+async function validateTemplateExists(templatePath: string): Promise<boolean> {
+  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+  if (!token) {
+    console.log('   ⚠️  No HUBSPOT_PRIVATE_APP_TOKEN set; cannot validate template.');
+    return false;
+  }
+
+  try {
+    console.log(`   Validating template: ${templatePath}`);
+
+    // Use Source Code API to check if template exists
+    const base = 'https://api.hubapi.com';
+    const encodedPath = encodeURIComponent(templatePath);
+
+    const response = await retryWithBackoff(async () => {
+      const res = await fetch(`${base}/content/api/v2/templates/${encodedPath}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      // 200 = exists, 404 = not found
+      if (res.status === 200) {
+        return { exists: true };
+      } else if (res.status === 404) {
+        return { exists: false };
+      } else {
+        const text = await res.text();
+        const err: any = new Error(`HTTP ${res.status}: ${text}`);
+        err.code = res.status;
+        err.body = text;
+        throw err;
+      }
+    });
+
+    return response.exists;
+  } catch (err: any) {
+    console.error(`   Error validating template "${templatePath}":`, err.message);
+    return false;
+  }
+}
+
+// Helper: Check for common misnamed template paths
+async function checkForMisnamedTemplates(dryRun: boolean = false): Promise<void> {
+  const commonMispaths = [
+    'CLEAN x HEDGEHOG/templates/learn/courses/courses-page.html',
+    'CLEAN x HEDGEHOG/templates/learn/pathways/pathways-page.html'
+  ];
+
+  for (const mispath of commonMispaths) {
+    const exists = await validateTemplateExists(mispath);
+    if (exists) {
+      console.log(`   🚩 RED FLAG: Found incorrectly nested template at "${mispath}"`);
+      console.log(`      This template should be deleted or moved to remove nested folder structure.`);
+      if (!dryRun) {
+        console.log(`      Pages will not be updated until duplicate templates are resolved.`);
+      }
+    }
+  }
+}
+
 async function createOrUpdatePage(
   config: PageConfig,
   tableId: string,
   dryRun: boolean = false,
   publish: boolean = false
 ): Promise<PageResult | null> {
+  // Validate template exists before attempting to create/update page
+  if (!dryRun) {
+    const templateExists = await validateTemplateExists(config.templatePath);
+    if (!templateExists) {
+      console.log(`\n📄 Page: ${config.name}`);
+      console.log(`   Slug: ${config.slug}`);
+      console.log(`   ❌ ERROR: Template not found at "${config.templatePath}"`);
+      console.log(`   Skipping page creation/update to prevent misconfiguration.`);
+      console.log(`   Please verify the template exists in Design Manager.`);
+      return null;
+    }
+  }
+
   const existingPage = await findPrimaryPageBySlug(config.slug);
 
   // Dynamic page data source type enum: HUBDB = 1
@@ -346,17 +423,22 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
     throw new Error('HUBSPOT_PRIVATE_APP_TOKEN environment variable not set');
   }
 
+  // Check for common misnamed templates
+  console.log('🔍 Checking for common template path issues...\n');
+  await checkForMisnamedTemplates(dryRun);
+  console.log('');
+
   const pageConfigs: PageConfig[] = [
     {
       name: 'Courses',
       slug: 'learn/courses',
-      templatePath: 'CLEAN x HEDGEHOG/templates/learn/courses/courses-page.html',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/courses-page.html',
       tableEnvVar: 'HUBDB_COURSES_TABLE_ID'
     },
     {
       name: 'Pathways',
       slug: 'learn/pathways',
-      templatePath: 'CLEAN x HEDGEHOG/templates/learn/pathways/pathways-page.html',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/pathways-page.html',
       tableEnvVar: 'HUBDB_PATHWAYS_TABLE_ID'
     }
   ];

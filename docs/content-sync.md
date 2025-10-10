@@ -534,11 +534,12 @@ npm run provision:pages -- --publish
 
 **What it does:**
 - Creates or updates two site pages via CMS Pages API:
-  - **Courses**: slug `learn/courses`, template `CLEAN x HEDGEHOG/templates/learn/courses/courses-page.html`
-  - **Pathways**: slug `learn/pathways`, template `CLEAN x HEDGEHOG/templates/learn/pathways/pathways-page.html`
+  - **Courses**: slug `learn/courses`, template `CLEAN x HEDGEHOG/templates/learn/courses-page.html`
+  - **Pathways**: slug `learn/pathways`, template `CLEAN x HEDGEHOG/templates/learn/pathways-page.html`
 - Binds pages to HubDB tables using `dynamicPageDataSourceType=HUBDB` and `dynamicPageDataSourceId`
 - Creates pages in DRAFT state by default
 - Idempotent: if page exists (by slug), updates the draft instead of creating duplicates
+- Validates template existence before creating/updating pages to prevent misconfiguration
 - Optionally schedules immediate publish with `--publish` flag
 
 **Expected output:**

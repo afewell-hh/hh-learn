@@ -18,7 +18,7 @@ clean-x-hedgehog-templates/
     └── module-simple.html       # static testing template
 ```
 
-When uploading to HubSpot the template path should be `Clean.Pro/templates/learn/`. Keep filenames stable so Design Manager updates in place instead of duplicating templates.
+When uploading to HubSpot the target directory should be `CLEAN x HEDGEHOG/templates/learn/` (no nested subdirectories for individual page types). Keep filenames stable so Design Manager updates in place instead of duplicating templates.
 
 ### Modules
 If we need bespoke HubL modules, follow the same namespace: `Clean.Pro/modules/learn/<module-name>/`. Store the module source in Git under `clean-x-hedgehog-templates/modules/` before uploading. Modules must include:
@@ -30,10 +30,11 @@ If we need bespoke HubL modules, follow the same namespace: `Clean.Pro/modules/l
 ## Working With the HubSpot CLI
 1. Authenticate once with `hs auth` (see HubSpot developer docs).
 2. Pull the latest marketplace theme if needed: `hs fetch @marketplace/clean-pro clean-pro`.
-3. Upload our customized assets:
+3. Upload our customized assets to the flat `learn/` directory (no nested subdirectories):
    ```bash
-   hs upload clean-x-hedgehog-templates/learn/ clean-pro/templates/learn/
+   hs upload clean-x-hedgehog-templates/learn/ "CLEAN x HEDGEHOG/templates/learn/"
    ```
+   This uploads all `*-page.html` files directly to `CLEAN x HEDGEHOG/templates/learn/` without nested folders.
 4. For modules, mirror the same command with the `modules` directory.
 
 Always commit HubSpot asset changes alongside code updates so reviewers understand the intent.
