@@ -41,14 +41,54 @@ async function track(raw: string) {
   if (!parse.success) return bad(400, 'Invalid payload');
 
   const input = parse.data as TrackEventInput;
-  // Minimal example: emit a custom behavioral event or upsert a custom object
-  const hubspot = getHubSpotClient();
 
-  // TODO: map eventName/payload -> HubSpot Custom Behavioral Event (or CRM objects)
-  // Example placeholder (no-op):
-  console.log('Track event', input.eventName, input.contactIdentifier, input.payload);
+  // Check if CRM persistence is enabled
+  const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
 
-  return ok({ status: 'queued' });
+  if (!enableCrmProgress) {
+    // Anonymous mode - just log
+    console.log('Track event (anonymous)', input.eventName, input.payload);
+    return ok({ status: 'logged', mode: 'anonymous' });
+  }
+
+  // CRM persistence enabled - require contact identifier
+  if (!input.contactIdentifier?.email && !input.contactIdentifier?.contactId) {
+    console.log('Track event (no identity)', input.eventName);
+    return ok({ status: 'logged', mode: 'anonymous' });
+  }
+
+  try {
+    const hubspot = getHubSpotClient();
+
+    // Send custom behavioral event completion to HubSpot
+    // Event names in HubSpot must be prefixed with portal ID, but we'll use a generic event approach
+    // See: https://developers.hubspot.com/docs/guides/api/analytics-and-events/custom-events/custom-event-completions
+
+    const eventData: any = {
+      eventName: input.eventName,
+      occurredAt: new Date(), // Use Date object, not ISO string
+      properties: {
+        ...(input.payload || {}),
+      },
+    };
+
+    // Identify contact by email or contactId
+    if (input.contactIdentifier.email) {
+      eventData.email = input.contactIdentifier.email;
+    } else if (input.contactIdentifier.contactId) {
+      eventData.objectId = input.contactIdentifier.contactId;
+    }
+
+    // Send event to HubSpot (v11 client)
+    await hubspot.events.send.behavioralEventsTrackingApi.send(eventData as any);
+
+    console.log('Track event (persisted)', input.eventName, input.contactIdentifier);
+    return ok({ status: 'persisted', mode: 'authenticated' });
+  } catch (err: any) {
+    console.error('Failed to persist event to CRM:', err.message || err);
+    // Return success even if CRM persistence fails - don't break user experience
+    return ok({ status: 'logged', mode: 'fallback', error: err.message });
+  }
 }
 
 async function grade(raw: string) {

@@ -1,0 +1,16 @@
+Request 3: Invalid Event Name
+==============================
+Timestamp: Fri Oct 10 20:23:24 UTC 2025
+
+Request:
+{
+  "eventName": "invalid_event_name",
+  "payload": {
+    "module_slug": "test",
+    "ts": "2025-10-10T20:23:24Z"
+  }
+}
+
+HTTP Status: 400
+Response:
+{"error":"Invalid payload"}

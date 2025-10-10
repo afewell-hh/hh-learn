@@ -1,8 +1,11 @@
 {
-  "HUBDB_MODULES_TABLE_ID": "<set in portal>",
-  "HUBDB_PATHWAYS_TABLE_ID": "<set in portal>",
-  "HUBDB_COURSES_TABLE_ID": "<set in portal>",
+  "HUBDB_MODULES_TABLE_ID": "135621904",
+  "HUBDB_PATHWAYS_TABLE_ID": "135381504",
+  "HUBDB_COURSES_TABLE_ID": "135381433",
   "DEFAULT_SOCIAL_IMAGE_URL": "https://hedgehog.cloud/hubfs/social-share-default.png",
-  "TRACK_EVENTS_ENABLED": false,
-  "TRACK_EVENTS_URL": ""
+  "TRACK_EVENTS_ENABLED": true,
+  "TRACK_EVENTS_URL": "https://axo396gm7l.execute-api.us-west-2.amazonaws.com/events/track",
+  "ENABLE_CRM_PROGRESS": true,
+  "LOGIN_URL": "/hs-login",
+  "LOGOUT_URL": "/hs-logout"
 }

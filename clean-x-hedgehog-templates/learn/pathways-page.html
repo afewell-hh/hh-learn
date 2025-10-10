@@ -228,6 +228,31 @@
   .learn-header-nav a:hover {
     background: rgba(255, 255, 255, 0.15);
   }
+  .auth-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .user-greeting {
+    color: #fff;
+    font-size: 0.875rem;
+    opacity: 0.9;
+  }
+  .auth-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 6px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .auth-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
 
   /* Main content section */
   .learn-main-section {
@@ -535,6 +560,11 @@
               {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
               var TRACK_EVENTS_ENABLED = {{ constants.TRACK_EVENTS_ENABLED|tojson if constants else false }};
               var TRACK_EVENTS_URL = {{ constants.TRACK_EVENTS_URL|tojson if constants else '""' }};
+              var ENABLE_CRM_PROGRESS = {{ constants.ENABLE_CRM_PROGRESS|tojson if constants else false }};
+
+              // Contact identity (only if signed in and CRM progress enabled)
+              var contactEmail = {{ request_contact.email|tojson if request_contact.is_logged_in else 'null' }};
+              var contactId = {{ request_contact.hs_object_id|tojson if request_contact.is_logged_in else 'null' }};
 
               const pathwaySlug = '{{ dynamic_page_hubdb_row.hs_path }}';
               const totalModules = {{ dynamic_page_hubdb_row.module_count|default(0) }};
@@ -558,6 +588,13 @@
                     ts: new Date().toISOString()
                   }
                 };
+
+                // Include contact identifier if authenticated and CRM persistence enabled
+                if (ENABLE_CRM_PROGRESS && (contactEmail || contactId)) {
+                  eventData.contactIdentifier = {};
+                  if (contactEmail) eventData.contactIdentifier.email = contactEmail;
+                  if (contactId) eventData.contactIdentifier.contactId = contactId;
+                }
 
                 try {
                   // Prefer sendBeacon when available
@@ -745,6 +782,18 @@
           <a href="/learn/pathways">Pathways</a>
           <a href="/learn/my-learning">My Learning</a>
         </nav>
+        {# Auth controls #}
+        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+        {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
+        {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
+        <div class="auth-controls">
+          {% if request_contact.is_logged_in %}
+            <span class="user-greeting">Hi, {{ request_contact.firstname|default('there') }}!</span>
+            <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign Out</a>
+          {% else %}
+            <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign In</a>
+          {% endif %}
+        </div>
       </div>
     </section>
 

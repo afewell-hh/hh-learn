@@ -1,0 +1,19 @@
+Request 4: Pathway Enrollment Event
+====================================
+Timestamp: Fri Oct 10 20:23:25 UTC 2025
+
+Request:
+{
+  "eventName": "learning_pathway_enrolled",
+  "payload": {
+    "pathway_slug": "getting-started",
+    "ts": "2025-10-10T20:23:25Z"
+  }
+}
+
+HTTP Status: 200
+Response:
+{
+  "status": "logged",
+  "mode": "anonymous"
+}
