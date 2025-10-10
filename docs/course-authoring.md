@@ -195,6 +195,41 @@ See `content/pathways/` for reference implementations.
 - Deletions are out of scope for the v0.2 initial implementation
 - Templates will render pathway list and detail pages from the HubDB table
 
+## Module Progress Tracking
+
+Module detail pages include lightweight progress UI that integrates with localStorage-based pathway progress tracking.
+
+### What It Does
+- Two buttons appear on every module detail page: "Mark as started" and "Mark complete"
+- Clicking either button calls the global `window.hhUpdatePathwayProgress(started, completed)` function (if available)
+- Progress state is stored in the browser's localStorage (no authentication required)
+- A "Back to pathway" link appears automatically if the visitor came from a pathway detail page
+- Progress updates immediately reflect in pathway progress bars
+
+### For Content Authors
+The progress UI is template-driven and requires no action from module authors. However:
+
+- **No inline `<script>` tags** in module content: The template already includes the necessary client-side logic
+- **Testing:** After publishing a module, verify:
+  1. Both buttons appear on the module detail page
+  2. Clicking "Mark as started" updates the progress bar on any pathway containing the module
+  3. Clicking "Mark complete" marks the module as 100% complete
+  4. No JavaScript console errors occur
+  5. Buttons are keyboard accessible (test with Tab key and Enter)
+
+### Technical Details
+- The progress UI is rendered in `module-page.html` at lines 312–350
+- The script waits for `DOMContentLoaded` before attaching event listeners
+- Calls to `hhUpdatePathwayProgress` are wrapped in try/catch to avoid errors if the function is unavailable
+- The "Back to pathway" link checks `document.referrer` for `/learn/pathways/` and only displays if matched
+- All buttons use semantic HTML and include `aria-label` attributes for accessibility
+
+### Lighthouse & Accessibility
+- The progress UI passes Lighthouse accessibility checks
+- Buttons are fully keyboard navigable
+- ARIA labels provide context for screen readers
+- Mobile-responsive design (buttons wrap on narrow screens)
+
 ## Labs (Roadmap)
 - Separate "labs" content type may be introduced; you'll be able to embed or link to labs from modules
 

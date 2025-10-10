@@ -17,7 +17,7 @@
     "provision:tables": "npm run build && node dist/scripts/hubspot/provision-tables.js",
     "provision:constants": "npm run build && node dist/scripts/hubspot/update-constants.js",
     "provision:pages": "npm run build && node dist/scripts/hubspot/provision-pages.js",
-    "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants && npm run provision:pages"
+    "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants"
   },
   "dependencies": {
     "@hubspot/api-client": "^11.0.0",

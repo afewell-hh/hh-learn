@@ -2,7 +2,7 @@
   templateType: "page"
   isAvailableForNewContent: true
 -->
-{% extends "../../layouts/base.html" %}
+{% extends "../layouts/base.html" %}
 
 {% block head %}
   {% if dynamic_page_hubdb_row %}
@@ -213,6 +213,73 @@
     align-items: center;
   }
 
+  /* Progress tracker */
+  .pathway-progress {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .progress-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0c4a6e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .progress-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 0.875rem;
+    color: #0369a1;
+  }
+  .progress-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .progress-stat strong {
+    font-weight: 700;
+    color: #0c4a6e;
+  }
+  .progress-bar-container {
+    background: #ffffff;
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+  }
+  .progress-bar {
+    background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%);
+    height: 100%;
+    border-radius: 8px;
+    transition: width 0.3s ease;
+  }
+  .progress-auth-prompt {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #78350f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .progress-auth-prompt a {
+    color: #92400e;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
   @media (max-width: 900px) {
     .learn-header-content, .learn-container {
       padding: 0 16px;
@@ -256,6 +323,82 @@
               {% endif %}
             </div>
           </header>
+
+          <!-- Progress Tracker -->
+          <div class="pathway-progress" id="pathway-progress">
+            <div class="progress-header">
+              <div class="progress-title">Your Progress</div>
+              <div class="progress-stats">
+                <div class="progress-stat">
+                  <span>Started: <strong id="progress-started">0</strong></span>
+                </div>
+                <div class="progress-stat">
+                  <span>Completed: <strong id="progress-completed">0</strong></span>
+                </div>
+              </div>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="progress-auth-prompt" style="display: none;" id="auth-prompt">
+              ℹ️ Progress is saved locally. <a href="#" onclick="alert('Sign-in coming in v0.3!'); return false;">Sign in</a> to sync across devices.
+            </div>
+          </div>
+
+          <script>
+            (function() {
+              const pathwaySlug = '{{ dynamic_page_hubdb_row.hs_path }}';
+              const totalModules = {{ dynamic_page_hubdb_row.module_count|default(0) }};
+
+              // Get progress from localStorage
+              function getProgress() {
+                try {
+                  const progress = localStorage.getItem('hh-pathway-progress-' + pathwaySlug);
+                  return progress ? JSON.parse(progress) : { started: 0, completed: 0 };
+                } catch(e) {
+                  return { started: 0, completed: 0 };
+                }
+              }
+
+              // Update progress display
+              function updateProgressDisplay() {
+                const progress = getProgress();
+                const startedEl = document.getElementById('progress-started');
+                const completedEl = document.getElementById('progress-completed');
+                const barEl = document.getElementById('progress-bar');
+                const authPrompt = document.getElementById('auth-prompt');
+
+                if (startedEl) startedEl.textContent = progress.started;
+                if (completedEl) completedEl.textContent = progress.completed;
+
+                // Calculate percentage (based on completed)
+                const percentage = totalModules > 0 ? Math.round((progress.completed / totalModules) * 100) : 0;
+                if (barEl) barEl.style.width = percentage + '%';
+
+                // Show auth prompt if user has made any progress
+                if (authPrompt && (progress.started > 0 || progress.completed > 0)) {
+                  authPrompt.style.display = 'flex';
+                }
+              }
+
+              // Initialize on page load
+              updateProgressDisplay();
+
+              // Expose update function for module pages to call
+              window.hhUpdatePathwayProgress = function(started, completed) {
+                try {
+                  localStorage.setItem('hh-pathway-progress-' + pathwaySlug, JSON.stringify({
+                    started: started,
+                    completed: completed,
+                    lastUpdated: new Date().toISOString()
+                  }));
+                  updateProgressDisplay();
+                } catch(e) {
+                  console.error('Failed to save progress:', e);
+                }
+              };
+            })();
+          </script>
 
           <!-- Pathway Summary -->
           {% if dynamic_page_hubdb_row.summary_markdown %}
