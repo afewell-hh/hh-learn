@@ -56,6 +56,7 @@ interface PathwayData {
   display_order?: number;
   tags?: string;
   content_blocks?: ContentBlock[];
+  social_image?: string;
 }
 
 interface ModuleFrontmatter {
@@ -269,7 +270,8 @@ async function syncPathways(dryRun: boolean = false) {
           badge_image_url: pathway.badge_image_url || '',
           display_order: pathway.display_order || 999,
           tags: pathway.tags || '',
-          content_blocks_json: contentBlocksJson
+          content_blocks_json: contentBlocksJson,
+          social_image_url: pathway.social_image || ''
         }
       };
 

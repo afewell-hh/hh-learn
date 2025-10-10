@@ -11,7 +11,7 @@ _Last updated: keep in sync when major platform or integration changes land._
 
 ## Current Flows
 1. **Authoring** – Contributors edit markdown in Git, open PRs, and merge to `main`.
-2. **Sync** – `npm run sync:content` (locally or via GitHub Actions) converts markdown → HTML, applies front matter metadata, and updates the HubDB `learning_modules` table with retry/backoff protection.
+2. **Sync** – `npm run sync:content` (locally or via GitHub Actions) converts markdown → HTML, applies front matter metadata, and updates the HubDB `modules` table with retry/backoff protection.
 3. **Delivery** – HubSpot dynamic page template (`module-page.html`) reads HubDB rows. `/learn` lists modules, `/learn/{slug}` renders detail pages, and Clean.Pro handles styling.
 4. **Analytics** – Published modules trigger HubSpot tracking (page analytics today, behavioral events once Lambda endpoints ship).
 

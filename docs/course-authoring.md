@@ -42,6 +42,79 @@ docs/templates/
   module-meta-template.json
 ```
 
+## Prerequisites
+
+Prerequisites allow you to guide learners by indicating what knowledge or resources they need before starting a module. The system supports smart linking for internal modules and external resources.
+
+### How to Define Prerequisites
+
+Prerequisites are defined in the optional `meta.json` file as an array under the `prerequisites` key. Each prerequisite can be:
+
+1. **Internal module slug** (string): References another module by its slug. The system automatically resolves this to a clickable link with the module's title.
+   ```json
+   "prerequisites": [
+     "intro-to-kubernetes",
+     "kubernetes-networking"
+   ]
+   ```
+
+2. **External resource** (object): Links to external documentation or resources.
+   ```json
+   "prerequisites": [
+     {
+       "title": "AWS account with an active subscription",
+       "url": "https://aws.amazon.com/free/"
+     },
+     {
+       "title": "Docker installed on your local machine",
+       "url": "https://docs.docker.com/get-docker/"
+     }
+   ]
+   ```
+
+3. **Plain text** (string without a matching module): Use for general requirements that don't need links.
+   ```json
+   "prerequisites": [
+     "Basic familiarity with command-line tools",
+     "Understanding of networking concepts"
+   ]
+   ```
+
+### Mixed Example
+
+You can combine all three types in a single module:
+
+```json
+{
+  "prerequisites": [
+    "intro-to-kubernetes",
+    {
+      "title": "AWS CLI v2",
+      "url": "https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html"
+    },
+    "Basic familiarity with YAML syntax"
+  ],
+  "learning_objectives": [
+    "Deploy a Kubernetes cluster on AWS",
+    "Configure kubectl for cluster access"
+  ]
+}
+```
+
+### Rendering Behavior
+
+- **Internal module slugs**: The template queries the Modules HubDB table to resolve the slug to a module title and creates a link to `/learn/<module-slug>`.
+- **Unknown slugs**: If a slug doesn't match any published module, it renders as plain text with an HTML comment warning (no broken links).
+- **External resources**: Rendered as `<a href>` with `rel="noopener" target="_blank"` attributes for security.
+- **Empty prerequisites**: If no prerequisites are defined or the array is empty, the section is hidden.
+
+### Best Practices
+
+- **Be specific**: Instead of "Kubernetes knowledge", use `"intro-to-kubernetes"` to link to your intro module.
+- **Order logically**: List prerequisites in the order learners should complete them.
+- **Link external resources**: If you reference a tool or service, provide a URL so learners can find it quickly.
+- **Test after sync**: After running `npm run sync:content`, verify that internal links resolve correctly and external links open properly.
+
 ## Front Matter – Required Fields
 - `title` (string): Module display title
 - `slug` (string): URL slug (lowercase, hyphen-separated); should match folder name

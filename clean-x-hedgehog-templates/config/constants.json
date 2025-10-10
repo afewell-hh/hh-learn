@@ -1,5 +1,8 @@
 {
   "HUBDB_MODULES_TABLE_ID": "<set in portal>",
   "HUBDB_PATHWAYS_TABLE_ID": "<set in portal>",
-  "HUBDB_COURSES_TABLE_ID": "<set in portal>"
+  "HUBDB_COURSES_TABLE_ID": "<set in portal>",
+  "DEFAULT_SOCIAL_IMAGE_URL": "https://hedgehog.cloud/hubfs/social-share-default.png",
+  "TRACK_EVENTS_ENABLED": false,
+  "TRACK_EVENTS_URL": ""
 }

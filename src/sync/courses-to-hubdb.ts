@@ -55,6 +55,7 @@ interface CourseData {
   display_order?: number;
   tags?: string;
   content_blocks?: ContentBlock[];
+  social_image?: string;
 }
 
 interface ModuleFrontmatter {
@@ -250,7 +251,8 @@ async function syncCourses(dryRun: boolean = false) {
           badge_image_url: course.badge_image_url || '',
           display_order: course.display_order || 999,
           tags: course.tags || '',
-          content_blocks_json: contentBlocksJson
+          content_blocks_json: contentBlocksJson,
+          social_image_url: course.social_image || ''
         }
       };
 

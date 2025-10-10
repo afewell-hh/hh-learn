@@ -20,11 +20,18 @@ const hubspot = new Client({
   accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
 });
 
+interface ColumnOption {
+  id: string;
+  name: string;
+  type: string;
+}
+
 interface ColumnSchema {
   name: string;
   type: string;
   required?: boolean;
   unique?: boolean;
+  options?: ColumnOption[];
 }
 
 interface TableSchema {
@@ -134,8 +141,10 @@ async function createOrUpdateTable(
       type: col.type
     };
 
-    // Don't include options for now - we'll set them separately if needed
-    // The HubDB API has specific requirements for the options structure
+    // Include options for SELECT type columns
+    if (col.type === 'SELECT' && col.options && col.options.length > 0) {
+      column.options = col.options;
+    }
 
     return column;
   });
@@ -266,7 +275,7 @@ async function provisionTables(dryRun: boolean = false) {
     throw new Error('HUBSPOT_PRIVATE_APP_TOKEN environment variable not set');
   }
 
-  const tableSchemas = ['courses', 'pathways'];
+  const tableSchemas = ['courses', 'pathways', 'modules'];
   const results: TableResult[] = [];
 
   for (const schemaName of tableSchemas) {

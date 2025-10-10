@@ -17,9 +17,35 @@ functions:
       - httpApi:
           path: /events/track
           method: POST
+          cors:
+            allowedOrigins:
+              - https://hedgehog.cloud
+              - https://*.hubspotusercontent-na1.net
+              - https://*.hubspotusercontent00.net
+              - https://*.hubspotusercontent20.net
+              - https://*.hubspotusercontent30.net
+              - https://*.hubspotusercontent40.net
+            allowedHeaders:
+              - Content-Type
+            allowedMethods:
+              - POST
+              - OPTIONS
       - httpApi:
           path: /quiz/grade
           method: POST
+          cors:
+            allowedOrigins:
+              - https://hedgehog.cloud
+              - https://*.hubspotusercontent-na1.net
+              - https://*.hubspotusercontent00.net
+              - https://*.hubspotusercontent20.net
+              - https://*.hubspotusercontent30.net
+              - https://*.hubspotusercontent40.net
+            allowedHeaders:
+              - Content-Type
+            allowedMethods:
+              - POST
+              - OPTIONS
 
 package:
   patterns:
