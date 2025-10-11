@@ -36,7 +36,58 @@ For open learning (no restrictions), skip this step.
 3. Test signing in with a contact email
 4. Verify redirect works after login
 
-## Step 2: Create HubSpot Custom Event Definitions
+## Step 2: Choose Progress Backend (MVP: Contact Properties)
+
+**Important**: As of Issue #62, the default backend for progress persistence is **Contact Properties** (`PROGRESS_BACKEND=properties`), which is license-safe and works with all HubSpot tiers.
+
+### Backend Options
+
+| Backend | Environment Variable | License Requirements | Status |
+|---------|---------------------|---------------------|--------|
+| **Contact Properties** | `PROGRESS_BACKEND=properties` | None (default CRM) | **Default (MVP)** |
+| Custom Behavioral Events | `PROGRESS_BACKEND=events` | Custom Behavioral Events addon | Future enhancement |
+
+### Option A: Contact Properties (Recommended - Default)
+
+This is the MVP default and requires no Custom Events. Progress is stored in three contact properties:
+
+- `hhl_progress_state` (TEXT) - JSON storage of progress
+- `hhl_progress_updated_at` (DATETIME) - Last update timestamp
+- `hhl_progress_summary` (TEXT) - Human-readable summary
+
+**Setup Steps**:
+
+1. Navigate to **Settings** → **Properties** → **Contact Properties**
+2. Create a new property group: **"HHL Progress"**
+3. Create three properties (see [phase2-contact-properties.md](./phase2-contact-properties.md) for details):
+
+   **Property 1: HHL Progress State**
+   - Label: `HHL Progress State`
+   - Internal name: `hhl_progress_state`
+   - Field type: Multi-line text
+   - Group: HHL Progress
+
+   **Property 2: HHL Progress Updated At**
+   - Label: `HHL Progress Updated At`
+   - Internal name: `hhl_progress_updated_at`
+   - Field type: Date picker (with time)
+   - Group: HHL Progress
+
+   **Property 3: HHL Progress Summary**
+   - Label: `HHL Progress Summary`
+   - Internal name: `hhl_progress_summary`
+   - Field type: Single-line text
+   - Group: HHL Progress
+
+4. Skip to Step 3 (no Custom Events needed)
+
+**Required Scopes**: `crm.objects.contacts.write` (usually already present)
+
+See [docs/phase2-contact-properties.md](./phase2-contact-properties.md) for detailed documentation.
+
+### Option B: Custom Behavioral Events (Future Enhancement)
+
+⚠️ **Note**: This option requires Custom Behavioral Events in your HubSpot license. If you don't have this addon, use Contact Properties instead.
 
 You need to create 3 custom behavioral events for tracking progress.
 
@@ -169,6 +220,9 @@ APP_STAGE=dev
 
 # Enable CRM Progress
 ENABLE_CRM_PROGRESS=true
+
+# Progress Backend (default: properties)
+PROGRESS_BACKEND=properties  # 'properties' (default) or 'events' (requires Custom Behavioral Events)
 ```
 
 ### 4.2 Production (AWS Lambda)
@@ -179,6 +233,7 @@ Set environment variables in AWS Systems Manager Parameter Store or directly in 
 provider:
   environment:
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'true'}
+    PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
 ```
 
 ## Step 5: Update HubSpot Template Constants
