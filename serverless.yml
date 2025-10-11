@@ -3,7 +3,7 @@ frameworkVersion: "3"
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${env:APP_STAGE, 'dev'}
   environment:
@@ -12,6 +12,8 @@ provider:
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
     PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
+  httpApi:
+    cors: true
 
 functions:
   api:
@@ -20,39 +22,15 @@ functions:
       - httpApi:
           path: /events/track
           method: POST
-          cors:
-            allowedOrigins:
-              - https://hedgehog.cloud
-              - https://www.hedgehog.cloud
-              - https://*.hubspotusercontent-na1.net
-              - https://*.hubspotusercontent00.net
-              - https://*.hubspotusercontent20.net
-              - https://*.hubspotusercontent30.net
-              - https://*.hubspotusercontent40.net
-            allowedHeaders:
-              - Content-Type
-            allowedMethods:
-              - POST
-              - OPTIONS
       - httpApi:
           path: /quiz/grade
           method: POST
-          cors:
-            allowedOrigins:
-              - https://hedgehog.cloud
-              - https://www.hedgehog.cloud
-              - https://*.hubspotusercontent-na1.net
-              - https://*.hubspotusercontent00.net
-              - https://*.hubspotusercontent20.net
-              - https://*.hubspotusercontent30.net
-              - https://*.hubspotusercontent40.net
-            allowedHeaders:
-              - Content-Type
-            allowedMethods:
-              - POST
-              - OPTIONS
+      - httpApi:
+          path: /progress/read
+          method: GET
 
 package:
+  individually: true
   patterns:
     - '!**/*.test.*'
     - '!tests/**'
@@ -60,4 +38,15 @@ package:
     - '!docs/**'
     - '!hubdb-schemas/**'
     - '!src/**'
+    - '!node_modules/@types/**'
+    - '!node_modules/eslint*/**'
+    - '!node_modules/prettier/**'
+    - '!node_modules/serverless/**'
+    - '!node_modules/ts-node/**'
+    - '!node_modules/typescript/**'
+    - '!aws/**'
+    - '!*.zip'
+    - '!.git/**'
+    - '!.serverless/**'
     - 'dist/**'
+    - 'node_modules/**'

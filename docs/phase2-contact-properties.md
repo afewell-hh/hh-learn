@@ -80,26 +80,26 @@ The following scope is required (already present in most configurations):
 ### Option 1: HubSpot UI
 
 1. Navigate to **Settings** → **Properties** → **Contact Properties**
-2. Click **Create property** for each of the following:
+2. Click **Create property** for each of the following (Group: "Learning Program Properties"):
 
 **Property 1: Progress State**
 - Label: `HHL Progress State`
 - Internal name: `hhl_progress_state`
-- Group: Create new group "HHL Progress" (or use existing)
+- Group: Create new group "Learning Program Properties" (or use existing)
 - Field type: Multi-line text
 - Description: "JSON storage for Hedgehog Learn progress (managed by API)"
 
 **Property 2: Progress Updated At**
 - Label: `HHL Progress Updated At`
 - Internal name: `hhl_progress_updated_at`
-- Group: HHL Progress
+- Group: Learning Program Properties
 - Field type: Date picker (with time)
 - Description: "Last update timestamp for learning progress"
 
 **Property 3: Progress Summary**
 - Label: `HHL Progress Summary`
 - Internal name: `hhl_progress_summary`
-- Group: HHL Progress
+- Group: Learning Program Properties
 - Field type: Single-line text
 - Description: "Human-readable progress summary"
 
@@ -228,7 +228,7 @@ The "Synced" indicator logic remains unchanged:
 
 In HubSpot UI:
 - Settings → Properties → Contact Properties
-- Search for "HHL Progress"
+- Search for "Learning Program Properties"
 - Verify all three properties are present
 
 ### 2. Test Authenticated Flow
@@ -238,7 +238,7 @@ In HubSpot UI:
 3. Click "Mark as Started"
 4. Open HubSpot Contacts
 5. Find your contact record
-6. Check the "HHL Progress" section:
+6. Check the "Learning Program Properties" section:
    - `hhl_progress_state` should contain JSON
    - `hhl_progress_updated_at` should show recent timestamp
    - `hhl_progress_summary` should show "pathway-slug: 0/N modules"
@@ -315,6 +315,24 @@ Track overall pathway completion:
 ```
 
 Calculate when all modules in a pathway are completed.
+
+### New: Read API (implemented)
+
+Endpoint: `GET /progress/read?email=user@example.com` or `GET /progress/read?contactId=12345`
+
+Response (authenticated):
+```
+{
+  "mode": "authenticated",
+  "progress": { /* hhl_progress_state JSON */ },
+  "updated_at": "2025-10-11T18:02:00.000Z",
+  "summary": "pathway: 1/5 modules"
+}
+```
+
+Notes:
+- CORS allowed from hedgehog.cloud and HubSpot CDN.
+- Requires `ENABLE_CRM_PROGRESS=true` and `crm.objects.contacts.read` scope.
 
 ### Progress Analytics Dashboard
 

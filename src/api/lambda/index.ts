@@ -3,25 +3,123 @@ import { z } from 'zod';
 import { getHubSpotClient } from '../../shared/hubspot.js';
 import type { TrackEventInput, QuizGradeInput, QuizGradeResult } from '../../shared/types.js';
 
-const ok = (body: unknown = {}) => ({ statusCode: 200, body: JSON.stringify(body) });
-const bad = (code: number, msg: string) => ({ statusCode: code, body: JSON.stringify({ error: msg }) });
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://hedgehog.cloud',
+  'https://www.hedgehog.cloud',
+];
+
+// Check if origin matches HubSpot CDN patterns
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return false;
+
+  // Check exact matches
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+
+  // Check HubSpot CDN patterns
+  const hubspotPatterns = [
+    /^https:\/\/.*\.hubspotusercontent-na1\.net$/,
+    /^https:\/\/.*\.hubspotusercontent00\.net$/,
+    /^https:\/\/.*\.hubspotusercontent20\.net$/,
+    /^https:\/\/.*\.hubspotusercontent30\.net$/,
+    /^https:\/\/.*\.hubspotusercontent40\.net$/,
+  ];
+
+  return hubspotPatterns.some(pattern => pattern.test(origin));
+}
+
+const ok = (body: unknown = {}, origin?: string) => ({
+  statusCode: 200,
+  body: JSON.stringify(body),
+  headers: {
+    'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  },
+});
+
+const bad = (code: number, msg: string, origin?: string) => ({
+  statusCode: code,
+  body: JSON.stringify({ error: msg }),
+  headers: {
+    'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  },
+});
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
+    const origin = event.headers?.origin || event.headers?.Origin;
     const path = (event.rawPath || '').toLowerCase();
-    if (event.requestContext.http.method !== 'POST') return bad(405, 'POST only');
 
-    if (path.endsWith('/events/track')) return await track(event.body || '');
-    if (path.endsWith('/quiz/grade')) return await grade(event.body || '');
+    // Handle OPTIONS preflight
+    if (event.requestContext.http.method === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        },
+      };
+    }
 
-    return bad(404, 'Not found');
+    if (path.endsWith('/progress/read') && event.requestContext.http.method === 'GET') return await readProgress(event, origin);
+    if (event.requestContext.http.method !== 'POST') return bad(405, 'POST only', origin);
+    if (path.endsWith('/events/track')) return await track(event.body || '', origin);
+    if (path.endsWith('/quiz/grade')) return await grade(event.body || '', origin);
+
+    return bad(404, 'Not found', origin);
   } catch (err: any) {
     console.error('Handler error', err);
-    return bad(500, 'Internal error');
+    return bad(500, 'Internal error', event.headers?.origin || event.headers?.Origin);
   }
 };
 
-async function track(raw: string) {
+async function readProgress(event: any, origin?: string) {
+  const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
+  if (!enableCrmProgress) return ok({ mode: 'anonymous' }, origin);
+
+  try {
+    const hubspot = getHubSpotClient();
+    const qs = event.queryStringParameters || {};
+    let contactId = qs.contactId as string | undefined;
+    const email = (qs.email as string | undefined) || undefined;
+
+    if (!contactId && !email) return ok({ mode: 'anonymous' }, origin);
+
+    if (!contactId && email) {
+      const search = await (hubspot as any).crm.contacts.searchApi.doSearch({
+        filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }],
+        properties: ['hhl_progress_state', 'hhl_progress_updated_at', 'hhl_progress_summary'],
+        limit: 1,
+      });
+      if (!search.results || search.results.length === 0) return ok({ mode: 'anonymous' }, origin);
+      contactId = search.results[0].id;
+    }
+
+    const contact = await hubspot.crm.contacts.basicApi.getById(contactId!, [
+      'hhl_progress_state',
+      'hhl_progress_updated_at',
+      'hhl_progress_summary',
+    ]);
+    let state: any = {};
+    try { state = contact.properties.hhl_progress_state ? JSON.parse(contact.properties.hhl_progress_state) : {}; } catch (e) { state = {}; }
+
+    return ok({
+      mode: 'authenticated',
+      progress: state,
+      updated_at: contact.properties.hhl_progress_updated_at || null,
+      summary: contact.properties.hhl_progress_summary || null,
+    }, origin);
+  } catch (e: any) {
+    console.error('readProgress error', e?.message || e);
+    return ok({ mode: 'fallback', error: 'Unable to read progress' }, origin);
+  }
+}
+
+async function track(raw: string, origin?: string) {
   const schema = z.object({
     eventName: z.enum([
       'learning_module_started',
@@ -38,7 +136,7 @@ async function track(raw: string) {
   });
 
   const parse = schema.safeParse(JSON.parse(raw || '{}'));
-  if (!parse.success) return bad(400, 'Invalid payload');
+  if (!parse.success) return bad(400, 'Invalid payload', origin);
 
   const input = parse.data as TrackEventInput;
 
@@ -49,13 +147,13 @@ async function track(raw: string) {
   if (!enableCrmProgress) {
     // Anonymous mode - just log
     console.log('Track event (anonymous)', input.eventName, input.payload);
-    return ok({ status: 'logged', mode: 'anonymous' });
+    return ok({ status: 'logged', mode: 'anonymous' }, origin);
   }
 
   // CRM persistence enabled - require contact identifier
   if (!input.contactIdentifier?.email && !input.contactIdentifier?.contactId) {
     console.log('Track event (no identity)', input.eventName);
-    return ok({ status: 'logged', mode: 'anonymous' });
+    return ok({ status: 'logged', mode: 'anonymous' }, origin);
   }
 
   try {
@@ -66,20 +164,20 @@ async function track(raw: string) {
       // Contact Properties backend (MVP default)
       await persistViaContactProperties(hubspot, input);
       console.log('Track event (persisted via properties)', input.eventName, input.contactIdentifier);
-      return ok({ status: 'persisted', mode: 'authenticated', backend: 'properties' });
+      return ok({ status: 'persisted', mode: 'authenticated', backend: 'properties' }, origin);
     } else if (progressBackend === 'events') {
       // Custom Behavioral Events backend (future enhancement)
       await persistViaBehavioralEvents(hubspot, input);
       console.log('Track event (persisted via events)', input.eventName, input.contactIdentifier);
-      return ok({ status: 'persisted', mode: 'authenticated', backend: 'events' });
+      return ok({ status: 'persisted', mode: 'authenticated', backend: 'events' }, origin);
     } else {
       console.error('Invalid PROGRESS_BACKEND:', progressBackend);
-      return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' });
+      return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' }, origin);
     }
   } catch (err: any) {
     console.error('Failed to persist event to CRM:', err.message || err);
     // Return success even if CRM persistence fails - don't break user experience
-    return ok({ status: 'logged', mode: 'fallback', error: err.message });
+    return ok({ status: 'logged', mode: 'fallback', error: err.message }, origin);
   }
 }
 
@@ -213,14 +311,14 @@ function generateProgressSummary(progressState: any): string {
   return summaries.join('; ') || 'In progress';
 }
 
-async function grade(raw: string) {
+async function grade(raw: string, origin?: string) {
   const schema = z.object({
     module_slug: z.string().min(1),
     answers: z.array(z.object({ id: z.string(), value: z.any() })),
   });
 
   const parse = schema.safeParse(JSON.parse(raw || '{}'));
-  if (!parse.success) return bad(400, 'Invalid payload');
+  if (!parse.success) return bad(400, 'Invalid payload', origin);
 
   const input = parse.data as QuizGradeInput;
 
@@ -230,5 +328,5 @@ async function grade(raw: string) {
   console.log('Graded module', input.module_slug, '=>', result);
 
   // Optionally emit completion event
-  return ok(result);
+  return ok(result, origin);
 }
