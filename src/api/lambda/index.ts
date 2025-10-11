@@ -44,6 +44,7 @@ async function track(raw: string) {
 
   // Check if CRM persistence is enabled
   const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
+  const progressBackend = process.env.PROGRESS_BACKEND || 'properties';
 
   if (!enableCrmProgress) {
     // Anonymous mode - just log
@@ -60,35 +61,156 @@ async function track(raw: string) {
   try {
     const hubspot = getHubSpotClient();
 
-    // Send custom behavioral event completion to HubSpot
-    // Event names in HubSpot must be prefixed with portal ID, but we'll use a generic event approach
-    // See: https://developers.hubspot.com/docs/guides/api/analytics-and-events/custom-events/custom-event-completions
-
-    const eventData: any = {
-      eventName: input.eventName,
-      occurredAt: new Date(), // Use Date object, not ISO string
-      properties: {
-        ...(input.payload || {}),
-      },
-    };
-
-    // Identify contact by email or contactId
-    if (input.contactIdentifier.email) {
-      eventData.email = input.contactIdentifier.email;
-    } else if (input.contactIdentifier.contactId) {
-      eventData.objectId = input.contactIdentifier.contactId;
+    // Route to appropriate backend
+    if (progressBackend === 'properties') {
+      // Contact Properties backend (MVP default)
+      await persistViaContactProperties(hubspot, input);
+      console.log('Track event (persisted via properties)', input.eventName, input.contactIdentifier);
+      return ok({ status: 'persisted', mode: 'authenticated', backend: 'properties' });
+    } else if (progressBackend === 'events') {
+      // Custom Behavioral Events backend (future enhancement)
+      await persistViaBehavioralEvents(hubspot, input);
+      console.log('Track event (persisted via events)', input.eventName, input.contactIdentifier);
+      return ok({ status: 'persisted', mode: 'authenticated', backend: 'events' });
+    } else {
+      console.error('Invalid PROGRESS_BACKEND:', progressBackend);
+      return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' });
     }
-
-    // Send event to HubSpot (v11 client)
-    await hubspot.events.send.behavioralEventsTrackingApi.send(eventData as any);
-
-    console.log('Track event (persisted)', input.eventName, input.contactIdentifier);
-    return ok({ status: 'persisted', mode: 'authenticated' });
   } catch (err: any) {
     console.error('Failed to persist event to CRM:', err.message || err);
     // Return success even if CRM persistence fails - don't break user experience
     return ok({ status: 'logged', mode: 'fallback', error: err.message });
   }
+}
+
+/**
+ * Persist progress via Contact Properties (MVP default)
+ * Uses hhl_progress_state property to store JSON progress data
+ */
+async function persistViaContactProperties(hubspot: any, input: TrackEventInput) {
+  // Find contact by email or ID
+  let contactId: string;
+
+  if (input.contactIdentifier?.contactId) {
+    contactId = input.contactIdentifier.contactId;
+  } else if (input.contactIdentifier?.email) {
+    // Look up contact by email
+    const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+      filterGroups: [{
+        filters: [{
+          propertyName: 'email',
+          operator: 'EQ',
+          value: input.contactIdentifier.email,
+        }],
+      }],
+      properties: ['hhl_progress_state'],
+      limit: 1,
+    });
+
+    if (!searchResponse.results || searchResponse.results.length === 0) {
+      throw new Error(`Contact not found for email: ${input.contactIdentifier.email}`);
+    }
+
+    contactId = searchResponse.results[0].id;
+  } else {
+    throw new Error('No contact identifier provided');
+  }
+
+  // Read current progress state
+  const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['hhl_progress_state']);
+  let progressState: any = {};
+
+  try {
+    if (contact.properties.hhl_progress_state) {
+      progressState = JSON.parse(contact.properties.hhl_progress_state);
+    }
+  } catch (err) {
+    console.warn('Failed to parse existing progress state, starting fresh:', err);
+    progressState = {};
+  }
+
+  // Extract pathway and module info from payload
+  const pathwaySlug = input.payload?.pathway_slug as string || 'unknown';
+  const moduleSlug = input.payload?.module_slug as string || null;
+
+  // Initialize pathway if needed
+  if (!progressState[pathwaySlug]) {
+    progressState[pathwaySlug] = { modules: {} };
+  }
+
+  // Update progress based on event type
+  const timestamp = new Date().toISOString();
+
+  if (input.eventName === 'learning_pathway_enrolled') {
+    progressState[pathwaySlug].enrolled = true;
+    progressState[pathwaySlug].enrolled_at = timestamp;
+  } else if (moduleSlug) {
+    if (!progressState[pathwaySlug].modules[moduleSlug]) {
+      progressState[pathwaySlug].modules[moduleSlug] = {};
+    }
+
+    if (input.eventName === 'learning_module_started') {
+      progressState[pathwaySlug].modules[moduleSlug].started = true;
+      progressState[pathwaySlug].modules[moduleSlug].started_at = timestamp;
+    } else if (input.eventName === 'learning_module_completed') {
+      progressState[pathwaySlug].modules[moduleSlug].completed = true;
+      progressState[pathwaySlug].modules[moduleSlug].completed_at = timestamp;
+    }
+  }
+
+  // Update contact properties
+  await hubspot.crm.contacts.basicApi.update(contactId, {
+    properties: {
+      hhl_progress_state: JSON.stringify(progressState),
+      hhl_progress_updated_at: timestamp,
+      hhl_progress_summary: generateProgressSummary(progressState),
+    },
+  });
+}
+
+/**
+ * Persist progress via Custom Behavioral Events (future enhancement)
+ * Requires Custom Behavioral Events in HubSpot license
+ */
+async function persistViaBehavioralEvents(hubspot: any, input: TrackEventInput) {
+  const eventData: any = {
+    eventName: input.eventName,
+    occurredAt: new Date(), // Use Date object, not ISO string
+    properties: {
+      ...(input.payload || {}),
+    },
+  };
+
+  // Identify contact by email or contactId
+  if (input.contactIdentifier?.email) {
+    eventData.email = input.contactIdentifier.email;
+  } else if (input.contactIdentifier?.contactId) {
+    eventData.objectId = input.contactIdentifier.contactId;
+  }
+
+  // Send event to HubSpot (v11 client)
+  await hubspot.events.send.behavioralEventsTrackingApi.send(eventData as any);
+}
+
+/**
+ * Generate a human-readable summary of progress state
+ */
+function generateProgressSummary(progressState: any): string {
+  const pathways = Object.keys(progressState);
+  if (pathways.length === 0) return 'No progress yet';
+
+  const summaries: string[] = [];
+  for (const pathway of pathways) {
+    const modules = Object.keys(progressState[pathway].modules || {});
+    const completed = modules.filter(m => progressState[pathway].modules[m].completed).length;
+    const total = modules.length;
+
+    if (total > 0) {
+      summaries.push(`${pathway}: ${completed}/${total} modules`);
+    }
+  }
+
+  return summaries.join('; ') || 'In progress';
 }
 
 async function grade(raw: string) {
