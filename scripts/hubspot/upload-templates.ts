@@ -11,11 +11,16 @@
 import 'dotenv/config';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { getHubSpotToken } from './get-hubspot-token.js';
+import { getHubSpotToken, allowlistOverrideEnabled, maskToken } from './get-hubspot-token.js';
 
 const HUBSPOT_TOKEN = getHubSpotToken();
 const LOCAL_BASE = 'clean-x-hedgehog-templates';
 const REMOTE_BASE = 'CLEAN x HEDGEHOG/templates';
+const ALLOWED_REMOTE_PREFIXES = [
+  'CLEAN x HEDGEHOG/templates/learn/',
+  'CLEAN x HEDGEHOG/templates/assets/',
+];
+const ALLOWED_SINGLE_FILE = 'CLEAN x HEDGEHOG/templates/config/constants.json';
 
 interface FileToUpload {
   localPath: string;
@@ -154,11 +159,23 @@ async function uploadTemplates(dryRun: boolean = false) {
   const files = collectFiles(LOCAL_BASE, REMOTE_BASE);
   console.log(`   Found ${files.length} file(s) to upload\n`);
 
+  // Guardrails: filter to allow‑listed remote paths unless override is enabled
+  const override = allowlistOverrideEnabled();
+  const filtered = files.filter((f) =>
+    override || ALLOWED_REMOTE_PREFIXES.some((p) => f.remotePath.startsWith(p)) || f.remotePath === ALLOWED_SINGLE_FILE
+  );
+  const blocked = files.length - filtered.length;
+  if (!override && blocked > 0) {
+    console.log(`⚠️  Guardrails: ${blocked} file(s) outside allowlist skipped. Use --unsafe-allow-outside-allowlist (or ALLOWLIST_OVERRIDE=true) to override.`);
+  }
+
+  console.log(`🔐 Using HubSpot token: ${maskToken(HUBSPOT_TOKEN)}`);
+
   // Upload each file
   let successCount = 0;
   let failCount = 0;
 
-  for (const file of files) {
+  for (const file of filtered) {
     const success = await uploadFile(file, dryRun);
     if (success) {
       successCount++;

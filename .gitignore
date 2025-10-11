@@ -10,3 +10,8 @@ reference/*
 
 # HubSpot config file
 hubspot.config.yml
+test-results/
+playwright-report/
+aws/
+awscliv2.zip
+module-page.html

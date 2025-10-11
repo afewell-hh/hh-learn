@@ -67,11 +67,7 @@
       {% set head_all_pathways = hubdb_table_rows(head_pathways_table_id, "tags__not__icontains=archived") %}
       {% for pathway in head_all_pathways %}
         {% if pathway.module_slugs_json and not head_in_pathway %}
-          {% set head_module_slugs = none %}
-          {% try %}
-            {% set head_module_slugs = pathway.module_slugs_json|fromjson %}
-          {% catch %}
-          {% endtry %}
+          {% set head_module_slugs = pathway.module_slugs_json|fromjson %}
           {% if head_module_slugs and head_current_slug in head_module_slugs %}
             {% set head_in_pathway = true %}
             {% for slug in head_module_slugs %}
@@ -673,7 +669,15 @@
               {% endif %}
             </div>
 
-            {# Minimal pathway progress affordance (no auth) #}
+            {# Minimal pathway progress affordance (CSP-safe) #}
+            {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+            <div id="hhl-auth-context"
+                 data-email="{{ request_contact.email if request_contact.is_logged_in }}"
+                 data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
+                 data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+                 data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+                 style="display:none"></div>
+
             <div class="module-progress-cta" role="region" aria-label="Module progress" style="margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
               <button type="button" class="pathways-cta-button" id="hhl-mark-started" aria-label="Mark module as started" style="padding:8px 14px;">
                 Mark as started
@@ -683,116 +687,13 @@
               </button>
               <a id="hhl-back-to-pathway" href="#" style="display:none; color:#0066CC; text-decoration:none; font-weight:600;">← Back to pathway</a>
             </div>
-            <script>
-              document.addEventListener('DOMContentLoaded', function () {
-                // Get constants for beacon tracking
-                {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-                var TRACK_EVENTS_ENABLED = {{ constants.TRACK_EVENTS_ENABLED|tojson if constants else false }};
-                var TRACK_EVENTS_URL = {{ constants.TRACK_EVENTS_URL|tojson if constants else '""' }};
-                var ENABLE_CRM_PROGRESS = {{ constants.ENABLE_CRM_PROGRESS|tojson if constants else false }};
-                var moduleSlug = '{{ dynamic_page_hubdb_row.hs_path }}';
-                var pathwaySlug = null; // Will be set if in pathway context
-
-                // Contact identity (only if signed in and CRM progress enabled)
-                var contactEmail = {{ request_contact.email|tojson if request_contact.is_logged_in else 'null' }};
-                var contactId = {{ request_contact.hs_object_id|tojson if request_contact.is_logged_in else 'null' }};
-
-                // Send beacon event
-                function sendBeacon(eventName, payload) {
-                  if (!TRACK_EVENTS_ENABLED || !TRACK_EVENTS_URL) return;
-
-                  var eventData = {
-                    eventName: eventName,
-                    payload: payload
-                  };
-
-                  // Include contact identifier if authenticated and CRM persistence enabled
-                  if (ENABLE_CRM_PROGRESS && (contactEmail || contactId)) {
-                    eventData.contactIdentifier = {};
-                    if (contactEmail) eventData.contactIdentifier.email = contactEmail;
-                    if (contactId) eventData.contactIdentifier.contactId = contactId;
-                  }
-
-                  try {
-                    // Prefer sendBeacon when available
-                    if (navigator.sendBeacon) {
-                      var blob = new Blob([JSON.stringify(eventData)], { type: 'application/json' });
-                      navigator.sendBeacon(TRACK_EVENTS_URL, blob);
-                    } else {
-                      // Fallback to fetch with keepalive
-                      fetch(TRACK_EVENTS_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(eventData),
-                        keepalive: true
-                      }).catch(function() {
-                        // Silently fail if beacon can't be sent
-                      });
-                    }
-                  } catch (e) {
-                    // Silently fail - don't break user experience
-                  }
-                }
-
-                function callProgress(started, completed) {
-                  try {
-                    if (typeof window !== 'undefined' && typeof window.hhUpdatePathwayProgress === 'function') {
-                      window.hhUpdatePathwayProgress(started, completed);
-                    }
-                  } catch (e) {
-                    // no-op
-                  }
-
-                  // Send beacon for started/completed events
-                  if (started && !completed) {
-                    sendBeacon('learning_module_started', {
-                      module_slug: moduleSlug,
-                      pathway_slug: pathwaySlug,
-                      ts: new Date().toISOString()
-                    });
-                  } else if (completed) {
-                    sendBeacon('learning_module_completed', {
-                      module_slug: moduleSlug,
-                      pathway_slug: pathwaySlug,
-                      ts: new Date().toISOString()
-                    });
-                  }
-                }
-
-                var startBtn = document.getElementById('hhl-mark-started');
-                var completeBtn = document.getElementById('hhl-mark-complete');
-                var backLink = document.getElementById('hhl-back-to-pathway');
-
-                if (startBtn) startBtn.addEventListener('click', function(){ callProgress(1, 0); });
-                if (completeBtn) completeBtn.addEventListener('click', function(){ callProgress(1, 1); });
-
-                try {
-                  var ref = document.referrer || '';
-                  if (/\/learn\/pathways\//.test(ref) && backLink) {
-                    backLink.href = ref;
-                    backLink.style.display = 'inline-block';
-
-                    // Extract pathway slug from referrer
-                    var pathwayMatch = ref.match(/\/learn\/pathways\/([^/?#]+)/);
-                    if (pathwayMatch) {
-                      pathwaySlug = pathwayMatch[1];
-                    }
-                  }
-                } catch (e) {
-                  // ignore
-                }
-              });
-            </script>
+            {# Load external JS to avoid inline script CSP issues #}
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
           </header>
 
           {# Prerequisites Section #}
           {% if dynamic_page_hubdb_row.prerequisites_json %}
-            {% set prerequisites = none %}
-            {% try %}
-              {% set prerequisites = dynamic_page_hubdb_row.prerequisites_json|fromjson %}
-            {% catch %}
-              {# JSON parse failed, skip prerequisites section #}
-            {% endtry %}
+            {% set prerequisites = dynamic_page_hubdb_row.prerequisites_json|fromjson %}
 
             {% if prerequisites and prerequisites|length > 0 %}
               <section class="module-prerequisites" id="prerequisites" role="region" aria-label="Prerequisites">
@@ -858,13 +759,7 @@
             {% set all_pathways = hubdb_table_rows(pathways_table_id, "tags__not__icontains=archived") %}
             {% for pathway in all_pathways %}
               {% if pathway.module_slugs_json and not in_pathway %}
-                {# Guard against JSON parse errors #}
-                {% set module_slugs = none %}
-                {% try %}
-                  {% set module_slugs = pathway.module_slugs_json|fromjson %}
-                {% catch %}
-                  {# JSON parse failed, skip this pathway #}
-                {% endtry %}
+                {% set module_slugs = pathway.module_slugs_json|fromjson %}
 
                 {% if module_slugs and current_slug in module_slugs %}
                   {% set in_pathway = true %}
