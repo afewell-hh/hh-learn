@@ -8,10 +8,10 @@
 
 import 'dotenv/config';
 import { Client } from '@hubspot/api-client';
+import { getHubSpotToken, allowlistOverrideEnabled, maskToken } from './get-hubspot-token.js';
 
-const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
-});
+const ACCESS_TOKEN = getHubSpotToken();
+const hubspot = new Client({ accessToken: ACCESS_TOKEN });
 
 // Page IDs from provisioning output (Issue #59)
 const PAGES_TO_PUBLISH = [
@@ -20,6 +20,12 @@ const PAGES_TO_PUBLISH = [
   { slug: 'learn/pathways', id: '197280289546' },
   { slug: 'learn/my-learning', id: '197399202740' }
 ];
+
+const ALLOWED_SLUGS = new Set(
+  PAGES_TO_PUBLISH.map((p) => p.slug)
+);
+
+const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
 
 // Helper: Sleep for specified milliseconds
 function sleep(ms: number): Promise<void> {
@@ -88,6 +94,19 @@ async function publishPage(pageId: string, slug: string, dryRun: boolean = false
   console.log(`   Current state: ${page.state}`);
   console.log(`   URL: ${page.url || 'N/A'}`);
 
+  // Guardrails: only operate on allow‑listed slugs and templates unless override is set
+  const override = allowlistOverrideEnabled();
+  const isSlugAllowed = ALLOWED_SLUGS.has(slug);
+  const templatePath: string | undefined = (page as any).templatePath || (page as any).template_path;
+  const isTemplateAllowed = !!templatePath && templatePath.startsWith(ALLOWED_TEMPLATE_PREFIX);
+
+  if (!override && (!isSlugAllowed || !isTemplateAllowed)) {
+    console.log('   ❌ Guardrail blocked operation.');
+    console.log(`      slugAllowed=${isSlugAllowed}, templateAllowed=${isTemplateAllowed}, templatePath=${templatePath || '<none>'}`);
+    console.log('      Use --unsafe-allow-outside-allowlist (or ALLOWLIST_OVERRIDE=true) only if absolutely necessary.');
+    return false;
+  }
+
   if (page.state === 'PUBLISHED') {
     console.log(`   ℹ️  Already published`);
     return true;
@@ -102,7 +121,7 @@ async function publishPage(pageId: string, slug: string, dryRun: boolean = false
     console.log(`   Publishing...`);
 
     // Use REST API directly to publish
-    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+    const token = ACCESS_TOKEN;
     const updated = await retryWithBackoff(async () => {
       const res = await fetch(
         `https://api.hubapi.com/cms/v3/pages/site-pages/${pageId}`,
@@ -148,9 +167,7 @@ async function publishPages(dryRun: boolean = false) {
     console.log('📝 DRY RUN MODE - no changes will be made\n');
   }
 
-  if (!process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
-    throw new Error('HUBSPOT_PRIVATE_APP_TOKEN environment variable not set');
-  }
+  console.log(`🔐 Using HubSpot token: ${maskToken(ACCESS_TOKEN)}`);
 
   const results: { slug: string; success: boolean }[] = [];
 

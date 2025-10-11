@@ -28,6 +28,24 @@ export function getHubSpotToken(): string {
 }
 
 /**
+ * Guard: ensure a value is not accidentally logged.
+ * Returns a masked version for safe logs.
+ */
+export function maskToken(token?: string | null): string {
+  if (!token) return '<empty>';
+  if (token.length <= 8) return '<masked>';
+  return `${token.slice(0,4)}…${token.slice(-4)}`;
+}
+
+/**
+ * Guard: evaluate whether the override flag is set.
+ * Set via CLI flag `--unsafe-allow-outside-allowlist` or env `ALLOWLIST_OVERRIDE=true`.
+ */
+export function allowlistOverrideEnabled(argv: string[] = process.argv): boolean {
+  return argv.includes('--unsafe-allow-outside-allowlist') || process.env.ALLOWLIST_OVERRIDE === 'true';
+}
+
+/**
  * Check if a HubSpot token is available (without throwing)
  */
 export function hasHubSpotToken(): boolean {

@@ -12,6 +12,7 @@
  */
 
 import 'dotenv/config';
+import { getHubSpotToken, allowlistOverrideEnabled } from './get-hubspot-token.js';
 import { Client } from '@hubspot/api-client';
 
 const hubspot = new Client({
@@ -95,7 +96,7 @@ async function retryWithBackoff<T>(
 }
 
 async function findPageBySlug(slug: string): Promise<any | null> {
-  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+  const token = getHubSpotToken();
   if (!token) {
     console.log('   ⚠️  No HUBSPOT_PRIVATE_APP_TOKEN set; cannot check for existing pages.');
     return null;
@@ -299,6 +300,28 @@ async function createOrUpdatePage(
   dryRun: boolean = false,
   publish: boolean = false
 ): Promise<PageResult | null> {
+  // Guardrails: allow only expected templates/slugs unless override is enabled
+  const override = allowlistOverrideEnabled();
+  const ALLOWED_SLUGS = new Set(['learn','learn/courses','learn/pathways','learn/my-learning']);
+  const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
+
+  if (!override) {
+    if (!ALLOWED_SLUGS.has(config.slug)) {
+      console.log(`\n📄 Page: ${config.name}`);
+      console.log(`   Slug: ${config.slug}`);
+      console.log('   ❌ Guardrail blocked: slug outside allowlist.');
+      console.log('      Use --unsafe-allow-outside-allowlist (or ALLOWLIST_OVERRIDE=true) if absolutely necessary.');
+      return null;
+    }
+    if (!config.templatePath.startsWith(ALLOWED_TEMPLATE_PREFIX)) {
+      console.log(`\n📄 Page: ${config.name}`);
+      console.log(`   Template: ${config.templatePath}`);
+      console.log('   ❌ Guardrail blocked: template path outside allowlist.');
+      console.log('      Use --unsafe-allow-outside-allowlist (or ALLOWLIST_OVERRIDE=true) if absolutely necessary.');
+      return null;
+    }
+  }
+
   // Validate template exists before attempting to create/update page
   if (!dryRun) {
     const templateExists = await validateTemplateExists(config.templatePath);

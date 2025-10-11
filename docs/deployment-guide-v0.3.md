@@ -58,26 +58,26 @@ This is the MVP default and requires no Custom Events. Progress is stored in thr
 **Setup Steps**:
 
 1. Navigate to **Settings** → **Properties** → **Contact Properties**
-2. Create a new property group: **"HHL Progress"**
+2. Create a new property group: **"Learning Program Properties"**
 3. Create three properties (see [phase2-contact-properties.md](./phase2-contact-properties.md) for details):
 
    **Property 1: HHL Progress State**
    - Label: `HHL Progress State`
    - Internal name: `hhl_progress_state`
    - Field type: Multi-line text
-   - Group: HHL Progress
+   - Group: Learning Program Properties
 
    **Property 2: HHL Progress Updated At**
    - Label: `HHL Progress Updated At`
    - Internal name: `hhl_progress_updated_at`
    - Field type: Date picker (with time)
-   - Group: HHL Progress
+   - Group: Learning Program Properties
 
    **Property 3: HHL Progress Summary**
    - Label: `HHL Progress Summary`
    - Internal name: `hhl_progress_summary`
    - Field type: Single-line text
-   - Group: HHL Progress
+   - Group: Learning Program Properties
 
 4. Skip to Step 3 (no Custom Events needed)
 
