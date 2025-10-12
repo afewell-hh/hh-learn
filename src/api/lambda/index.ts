@@ -238,6 +238,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
 
   // Update progress based on event type
   const timestamp = new Date().toISOString();
+  const dateOnly = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format for HubSpot date property
 
   if (input.eventName === 'learning_pathway_enrolled') {
     progressState[pathwaySlug].enrolled = true;
@@ -260,7 +261,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
   await hubspot.crm.contacts.basicApi.update(contactId, {
     properties: {
       hhl_progress_state: JSON.stringify(progressState),
-      hhl_progress_updated_at: timestamp,
+      hhl_progress_updated_at: dateOnly, // Date-only format (YYYY-MM-DD) for HubSpot date property
       hhl_progress_summary: generateProgressSummary(progressState),
     },
   });
