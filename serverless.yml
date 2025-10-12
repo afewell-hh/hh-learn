@@ -3,7 +3,7 @@ frameworkVersion: "3"
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${env:APP_STAGE, 'dev'}
   environment:
@@ -32,9 +32,25 @@ functions:
 package:
   individually: true
   patterns:
-    # Exclude unnecessary files and directories
+    # Include only compiled lambda code
+    - 'dist/src/api/**'
+    - 'dist/src/shared/**'
+    # Include only the minimal runtime dependencies used by the lambda
+    - 'node_modules/@hubspot/api-client/**'
+    - 'node_modules/bottleneck/**'
+    - 'node_modules/es6-promise/**'
+    - 'node_modules/form-data/**'
+    - 'node_modules/lodash.get/**'
+    - 'node_modules/lodash.merge/**'
+    - 'node_modules/node-fetch/**'
+    - 'node_modules/url-parse/**'
+    - 'node_modules/zod/**'
+    # Exclude everything else by default
     - '!**/*.test.*'
     - '!**/*.spec.*'
+    - '!**/*.map'
+    - '!**/*.ts'
+    - '!**/*.md'
     - '!tests/**'
     - '!infra/**'
     - '!docs/**'
@@ -53,28 +69,5 @@ package:
     - '!.playwright/**'
     - '!playwright-report/**'
     - '!test-results/**'
-    # Exclude dev dependencies from node_modules
     - '!node_modules/@types/**'
-    - '!node_modules/@playwright/**'
-    - '!node_modules/playwright*/**'
-    - '!node_modules/eslint*/**'
-    - '!node_modules/prettier/**'
-    - '!node_modules/serverless/**'
-    - '!node_modules/@serverless/**'
-    - '!node_modules/ts-node/**'
-    - '!node_modules/typescript/**'
-    - '!node_modules/marked/**'
-    - '!node_modules/gray-matter/**'
-    - '!node_modules/dotenv/**'
-    # Exclude large dependencies not needed in Lambda runtime
-    - '!node_modules/aws-sdk/**'  # Lambda runtime provides AWS SDK
-    - '!node_modules/rxjs/**'  # Not used in Lambda handler
-    - '!node_modules/lodash/**'  # Not directly used
-    - '!node_modules/json-refs/**'  # Build-time only
-    - '!node_modules/ajv-formats/**'  # Build-time validation
-    - '!node_modules/playwright-core/**'  # Testing only
-    - '!node_modules/playwright/**'  # Testing only
-    # Include compiled code and runtime deps
-    - 'dist/src/api/**'
-    - 'dist/src/shared/**'
-    - 'node_modules/**'
+    - '!node_modules/aws-sdk/**'  # Provided by Lambda
