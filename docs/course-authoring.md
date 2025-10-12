@@ -310,6 +310,12 @@ The progress UI is template-driven and requires no action from module authors. H
 - Start with `docs/templates/module-README-template.md` and `docs/templates/module-meta-template.json`
 - See existing modules under `content/modules/` for examples
 
+## My Learning – Authenticated Hydration (Info)
+As of Oct 12, 2025, the My Learning dashboard hydrates from CRM when a learner is signed in and `ENABLE_CRM_PROGRESS=true`.
+The system reads three Contact Properties (`hhl_progress_state`, `hhl_progress_updated_at`, `hhl_progress_summary`) to
+populate In Progress and Completed modules. When logged out, the dashboard falls back to localStorage.
+No authoring changes are required.
+
 ## FAQ
 - Q: Can I draft in Google Docs and paste later?
   - A: Prefer authoring directly in Markdown for accurate code blocks, headings, and diff‑friendly review
