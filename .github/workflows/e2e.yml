@@ -37,6 +37,16 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - name: "Accessing the Hedgehog Virtual Lab with Google Cloud"
+            url: "https://hedgehog.cloud/learn/accessing-the-hedgehog-virtual-lab-with-google-cloud"
+          - name: "Deploying the Virtual Lab on AWS"
+            url: "https://hedgehog.cloud/learn/deploying-the-virtual-lab-on-aws"
+          - name: "Kubernetes Networking Fundamentals"
+            url: "https://hedgehog.cloud/learn/kubernetes-networking-fundamentals"
 
     steps:
       - name: Checkout
@@ -54,19 +64,19 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
+      - name: Run E2E tests for ${{ matrix.module.name }}
         env:
           HUBSPOT_TEST_USERNAME: ${{ secrets.HUBSPOT_TEST_USERNAME }}
           HUBSPOT_TEST_PASSWORD: ${{ secrets.HUBSPOT_TEST_PASSWORD }}
           HUBSPOT_API_TOKEN: ${{ secrets.HUBSPOT_API_TOKEN }}
-          MODULE_URL: ${{ github.event.inputs.module_url }}
+          MODULE_URL: ${{ github.event.inputs.module_url || matrix.module.url }}
         run: npm run test:e2e
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.run_id }}-${{ strategy.job-index }}
           path: playwright-report/
           retention-days: 7
 
@@ -75,8 +85,9 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MODULE_NAME: ${{ matrix.module.name }}
         run: |
-          payload=$(jq -n --arg text "E2E failed in $GITHUB_WORKFLOW on $GITHUB_REF — $JOB_URL" '{text: $text}')
+          payload=$(jq -n --arg text "E2E failed for '$MODULE_NAME' in $GITHUB_WORKFLOW on $GITHUB_REF — $JOB_URL" '{text: $text}')
           curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
 
       - name: Teams notify on failure
@@ -84,6 +95,7 @@ jobs:
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
           JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MODULE_NAME: ${{ matrix.module.name }}
         run: |
-          payload=$(jq -n --arg text "E2E failed in $GITHUB_WORKFLOW on $GITHUB_REF — $JOB_URL" '{text: $text}')
+          payload=$(jq -n --arg text "E2E failed for '$MODULE_NAME' in $GITHUB_WORKFLOW on $GITHUB_REF — $JOB_URL" '{text: $text}')
           curl -X POST -H 'Content-type: application/json' --data "$payload" "$TEAMS_WEBHOOK_URL"
