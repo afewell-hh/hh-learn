@@ -3,7 +3,7 @@ frameworkVersion: "3"
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${env:APP_STAGE, 'dev'}
   environment:
@@ -66,8 +66,22 @@ package:
     - '!.git/**'
     - '!.github/**'
     - '!.serverless/**'
+    - '!.serverless-artifacts/**'
     - '!.playwright/**'
     - '!playwright-report/**'
     - '!test-results/**'
     - '!node_modules/@types/**'
     - '!node_modules/aws-sdk/**'  # Provided by Lambda
+    - '!package-lock.json'
+    - '!.env'
+    - '!.env.*'
+    - '!.eslintrc.*'
+    - '!.prettierrc*'
+    - '!.hsignore'
+    - '!*.yml'
+    - '!*.yaml'
+    - '!*.json'
+    - '!*.html'
+    - '!*.csv'
+    - '!dist/scripts/**'
+    - '!dist/src/sync/**'
