@@ -1,0 +1,24 @@
+Request 2: Beacon WITH contactIdentifier (Phase 1)
+===================================================
+Timestamp: Fri Oct 10 20:23:24 UTC 2025
+
+Request:
+{
+  "eventName": "learning_module_completed",
+  "contactIdentifier": {
+    "email": "verification-test@example.com"
+  },
+  "payload": {
+    "module_slug": "verification-test-with-id",
+    "ts": "2025-10-10T20:23:24Z"
+  }
+}
+
+HTTP Status: 200
+Response:
+{
+  "status": "logged",
+  "mode": "anonymous"
+}
+
+Note: Even with contactIdentifier, Phase 1 (ENABLE_CRM_PROGRESS=false) should return mode=anonymous

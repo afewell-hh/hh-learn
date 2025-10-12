@@ -1,5 +1,7 @@
 # Cloudflare WAF Blocking kubernetes-networking Module
 
+> **Note:** This document references legacy table names. The HubDB table is now named `modules` (not `learning_modules`). Older screenshots or examples may still reference the old name.
+
 ## Issue Confirmed
 
 **You were absolutely right** - it's not an IP reputation issue, it's specific content in the kubernetes-networking module triggering HubSpot's Cloudflare WAF.
@@ -64,7 +66,7 @@ WAF likely uses a scoring system - networking module hits too many triggers.
 cat /tmp/kubernetes-networking-html.txt
 
 # Then in HubSpot GUI:
-1. Content > HubDB > learning_modules
+1. Content > HubDB > modules
 2. Edit row: kubernetes-networking
 3. Paste HTML into full_content field
 4. Save & Publish

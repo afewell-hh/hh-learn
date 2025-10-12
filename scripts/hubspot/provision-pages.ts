@@ -12,6 +12,7 @@
  */
 
 import 'dotenv/config';
+import { getHubSpotToken, allowlistOverrideEnabled } from './get-hubspot-token.js';
 import { Client } from '@hubspot/api-client';
 
 const hubspot = new Client({
@@ -95,7 +96,7 @@ async function retryWithBackoff<T>(
 }
 
 async function findPageBySlug(slug: string): Promise<any | null> {
-  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+  const token = getHubSpotToken();
   if (!token) {
     console.log('   ⚠️  No HUBSPOT_PRIVATE_APP_TOKEN set; cannot check for existing pages.');
     return null;
@@ -238,18 +239,20 @@ async function validateTemplateExists(templatePath: string): Promise<boolean> {
   try {
     console.log(`   Validating template: ${templatePath}`);
 
-    // Use Source Code API to check if template exists
+    // Use v3 Source Code API to check if template exists in draft
     const base = 'https://api.hubapi.com';
-    const encodedPath = encodeURIComponent(templatePath);
 
     const response = await retryWithBackoff(async () => {
-      const res = await fetch(`${base}/content/api/v2/templates/${encodedPath}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+      const res = await fetch(
+        `${base}/cms/v3/source-code/draft/metadata/${encodeURIComponent(templatePath)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
         }
-      });
+      );
 
       // 200 = exists, 404 = not found
       if (res.status === 200) {
@@ -297,6 +300,28 @@ async function createOrUpdatePage(
   dryRun: boolean = false,
   publish: boolean = false
 ): Promise<PageResult | null> {
+  // Guardrails: allow only expected templates/slugs unless override is enabled
+  const override = allowlistOverrideEnabled();
+  const ALLOWED_SLUGS = new Set(['learn','learn/courses','learn/pathways','learn/my-learning']);
+  const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
+
+  if (!override) {
+    if (!ALLOWED_SLUGS.has(config.slug)) {
+      console.log(`\n📄 Page: ${config.name}`);
+      console.log(`   Slug: ${config.slug}`);
+      console.log('   ❌ Guardrail blocked: slug outside allowlist.');
+      console.log('      Use --unsafe-allow-outside-allowlist (or ALLOWLIST_OVERRIDE=true) if absolutely necessary.');
+      return null;
+    }
+    if (!config.templatePath.startsWith(ALLOWED_TEMPLATE_PREFIX)) {
+      console.log(`\n📄 Page: ${config.name}`);
+      console.log(`   Template: ${config.templatePath}`);
+      console.log('   ❌ Guardrail blocked: template path outside allowlist.');
+      console.log('      Use --unsafe-allow-outside-allowlist (or ALLOWLIST_OVERRIDE=true) if absolutely necessary.');
+      return null;
+    }
+  }
+
   // Validate template exists before attempting to create/update page
   if (!dryRun) {
     const templateExists = await validateTemplateExists(config.templatePath);
@@ -430,6 +455,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
 
   const pageConfigs: PageConfig[] = [
     {
+      name: 'Learn',
+      slug: 'learn',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/module-page.html',
+      tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
+    },
+    {
       name: 'Courses',
       slug: 'learn/courses',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/courses-page.html',
@@ -440,6 +471,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       slug: 'learn/pathways',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/pathways-page.html',
       tableEnvVar: 'HUBDB_PATHWAYS_TABLE_ID'
+    },
+    {
+      name: 'My Learning',
+      slug: 'learn/my-learning',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/my-learning.html',
+      tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
     }
   ];
 

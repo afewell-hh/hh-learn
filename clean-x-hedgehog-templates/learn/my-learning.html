@@ -1,0 +1,386 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "../layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+  {# SEO metadata for My Learning dashboard #}
+  {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+  {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+  <title>My Learning - Learn Hedgehog AI Networking</title>
+  <meta name="description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn/my-learning">
+
+  {# Open Graph tags #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="My Learning - Learn Hedgehog AI Networking">
+  <meta property="og:description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
+  <meta property="og:url" content="https://{{ request.domain }}/learn/my-learning">
+  <meta property="og:image" content="{{ social_image }}">
+
+  {# Twitter Card tags #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="My Learning - Learn Hedgehog AI Networking">
+  <meta name="twitter:description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
+  <meta name="twitter:image" content="{{ social_image }}">
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* Header section styling */
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  .learn-page-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  /* Main content section */
+  .learn-main-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0;
+    min-height: 60vh;
+  }
+  .learn-container {
+    max-width: 1600px;
+    width: 100%;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(26,78,138,0.06);
+    min-height: 60vh;
+  }
+
+  /* Progress summary section */
+  .progress-summary {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border: 1px solid #BFDBFE;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .progress-stats {
+    display: flex;
+    gap: 48px;
+  }
+  .progress-stat {
+    text-align: center;
+  }
+  .progress-stat-number {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #1a4e8a;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .progress-stat-label {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #0369a1;
+    font-weight: 600;
+  }
+  .auth-prompt {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 0.875rem;
+    color: #78350f;
+    display: none;
+  }
+  .auth-prompt a {
+    color: #92400e;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .synced-indicator {
+    background: #D1FAE5;
+    border: 1px solid #6EE7B7;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 0.875rem;
+    color: #065F46;
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+  .synced-indicator-icon {
+    font-size: 1.125rem;
+  }
+
+  /* Section headers */
+  .section-header {
+    margin: 48px 0 24px 0;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #E5E7EB;
+  }
+  .section-header h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    color: #111827;
+    font-weight: 700;
+  }
+  .section-header .section-count {
+    color: #666;
+    font-size: 1rem;
+    font-weight: 400;
+    margin-left: 12px;
+  }
+
+  /* Module cards */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .module-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    background: #fff;
+  }
+  .module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .module-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .module-progress-badge {
+    background: #EFF6FF;
+    color: #1a4e8a;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .module-progress-badge.completed {
+    background: #D1FAE5;
+    color: #065F46;
+  }
+  .module-time {
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .module-card p {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .module-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    color: #666;
+  }
+  .empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 24px;
+    opacity: 0.3;
+  }
+  .empty-state h2 {
+    font-size: 1.75rem;
+    color: #111827;
+    margin: 0 0 16px 0;
+  }
+  .empty-state p {
+    font-size: 1.125rem;
+    margin: 0 0 32px 0;
+    line-height: 1.6;
+  }
+  .empty-state-cta {
+    display: inline-block;
+    background: #1a4e8a;
+    color: #fff;
+    padding: 12px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .empty-state-cta:hover {
+    background: #154171;
+    transform: translateY(-2px);
+  }
+
+  /* Loading state */
+  .loading-state {
+    text-align: center;
+    padding: 80px 40px;
+    color: #666;
+  }
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #E5E7EB;
+    border-top-color: #1a4e8a;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container {
+      padding: 0 16px;
+    }
+    .modules-grid {
+      grid-template-columns: 1fr;
+    }
+    .progress-summary {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .progress-stats {
+      gap: 32px;
+    }
+  }
+</style>
+
+<main id="main-content">
+  <section class="learn-header-section">
+    <div class="learn-header-content">
+      <h1 class="learn-page-title">My Learning</h1>
+      <p class="learn-page-subtitle">Track your progress and pick up where you left off.</p>
+    </div>
+  </section>
+
+  <section class="learn-main-section">
+    <div class="learn-container">
+      <!-- Loading state (shown initially) -->
+      <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading your progress...</p>
+      </div>
+
+      <!-- Main content (hidden until loaded) -->
+      <div id="main-content-container" style="display: none;">
+        <!-- Progress Summary -->
+        <div class="progress-summary">
+          <div class="progress-stats">
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-in-progress">0</div>
+              <div class="progress-stat-label">In Progress</div>
+            </div>
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-completed">0</div>
+              <div class="progress-stat-label">Completed</div>
+            </div>
+          </div>
+          {# Show synced indicator when authenticated and CRM progress enabled #}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% if request_contact.is_logged_in and constants.ENABLE_CRM_PROGRESS %}
+          <div class="synced-indicator" style="display: flex;">
+            <span class="synced-indicator-icon">✓</span>
+            <span>Progress synced across devices</span>
+          </div>
+          {% else %}
+          <div class="auth-prompt" id="auth-prompt">
+            {% if request_contact.is_logged_in %}
+              ℹ️ Progress is saved locally in your browser. Enable CRM sync in settings to sync across devices.
+            {% else %}
+              ℹ️ Progress is saved locally in your browser. <a href="/hs-login?redirect_url={{ request.url|urlencode }}">Sign in</a> to sync across devices.
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- In Progress Section -->
+        <section id="in-progress-section" style="display: none;">
+          <div class="section-header">
+            <h2>In Progress <span class="section-count" id="in-progress-count">(0)</span></h2>
+          </div>
+          <div class="modules-grid" id="in-progress-modules"></div>
+        </section>
+
+        <!-- Completed Section -->
+        <section id="completed-section" style="display: none;">
+          <div class="section-header">
+            <h2>Completed <span class="section-count" id="completed-count">(0)</span></h2>
+          </div>
+          <div class="modules-grid" id="completed-modules"></div>
+        </section>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">📚</div>
+          <h2>Start Your Learning Journey</h2>
+          <p>You haven't started any modules yet. Explore our pathways and courses to begin learning!</p>
+          <a href="/learn/pathways" class="empty-state-cta">Explore Pathways</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+{# Auth context for external JS and constants URL #}
+{% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+<div id="hhl-auth-context"
+     data-email="{{ request_contact.email if request_contact.is_logged_in }}"
+     data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
+     data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+     data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+     style="display:none"></div>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/my-learning.js') }}"></script>
+{% endblock body %}

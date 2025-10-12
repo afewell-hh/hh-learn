@@ -14,10 +14,14 @@
     "sync:content": "npm run build && node dist/src/sync/markdown-to-hubdb.js",
     "sync:pathways": "npm run build && node dist/src/sync/pathways-to-hubdb.js",
     "sync:courses": "npm run build && node dist/src/sync/courses-to-hubdb.js",
+    "upload:templates": "npm run build && node dist/scripts/hubspot/upload-templates.js",
     "provision:tables": "npm run build && node dist/scripts/hubspot/provision-tables.js",
     "provision:constants": "npm run build && node dist/scripts/hubspot/update-constants.js",
     "provision:pages": "npm run build && node dist/scripts/hubspot/provision-pages.js",
-    "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants"
+    "publish:pages": "npm run build && node dist/scripts/hubspot/publish-pages.js",
+    "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants",
+    "validate:cms": "npm run build && npm run provision:tables -- --dry-run && npm run provision:constants -- --dry-run && npm run provision:pages -- --dry-run",
+    "test:e2e": "npx playwright test --reporter=list"
   },
   "dependencies": {
     "@hubspot/api-client": "^11.0.0",
@@ -28,12 +32,13 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.2",
     "@types/aws-lambda": "^8.10.134",
     "@types/node": "^22.7.4",
     "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.3.3",
-    "serverless": "^4.1.10",
+    "serverless": "^3.40.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }

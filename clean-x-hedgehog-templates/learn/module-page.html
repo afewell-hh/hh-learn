@@ -4,6 +4,202 @@
 -->
 {% extends "../layouts/base.html" %}
 
+{% block head %}
+  {{ super() }}
+  {% if dynamic_page_hubdb_row %}
+    {# SEO metadata for detail pages #}
+    {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Learn Hedgehog" %}
+    {% set meta_desc = dynamic_page_hubdb_row.meta_description|striptags|truncate(160) if dynamic_page_hubdb_row.meta_description else "Learn " ~ dynamic_page_hubdb_row.hs_name %}
+    {% set canonical_url = "https://" ~ request.domain ~ "/learn/" ~ dynamic_page_hubdb_row.hs_path %}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else (constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png") %}
+
+    <title>{{ page_title }}</title>
+    <meta name="description" content="{{ meta_desc }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+
+    {# Open Graph tags #}
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ meta_desc }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:image" content="{{ social_image }}">
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ meta_desc }}">
+    <meta name="twitter:image" content="{{ social_image }}">
+  {% else %}
+    {# SEO metadata for list pages #}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+    <title>Learn Hedgehog AI Networking</title>
+    <meta name="description" content="Build high-performance AI networks on open Ethernet and OCP hardware. Learn Hedgehog's Kubernetes-based control plane and automated fabric management.">
+    <link rel="canonical" href="https://{{ request.domain }}/learn">
+
+    {# Open Graph tags #}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Learn Hedgehog AI Networking">
+    <meta property="og:description" content="Build high-performance AI networks on open Ethernet and OCP hardware. Learn Hedgehog's Kubernetes-based control plane and automated fabric management.">
+    <meta property="og:url" content="https://{{ request.domain }}/learn">
+    <meta property="og:image" content="{{ social_image }}">
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Learn Hedgehog AI Networking">
+    <meta name="twitter:description" content="Build high-performance AI networks on open Ethernet and OCP hardware. Learn Hedgehog's Kubernetes-based control plane and automated fabric management.">
+    <meta name="twitter:image" content="{{ social_image }}">
+  {% endif %}
+
+  {% if dynamic_page_hubdb_row %}
+    {# Compute prev/next early for head tags - using same logic as navigation #}
+    {% set head_prev_module = none %}
+    {% set head_next_module = none %}
+    {% set head_current_slug = dynamic_page_hubdb_row.hs_path %}
+    {% set head_constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set head_pathways_table_id = head_constants.HUBDB_PATHWAYS_TABLE_ID if head_constants else none %}
+    {% set head_modules_table_id = head_constants.HUBDB_MODULES_TABLE_ID if head_constants else dynamic_page_hubdb_table_id %}
+    {% set head_in_pathway = false %}
+
+    {% if head_pathways_table_id %}
+      {% set head_all_pathways = hubdb_table_rows(head_pathways_table_id, "tags__not__icontains=archived") %}
+      {% for pathway in head_all_pathways %}
+        {% if pathway.module_slugs_json and not head_in_pathway %}
+          {% set head_module_slugs = pathway.module_slugs_json|fromjson %}
+          {% if head_module_slugs and head_current_slug in head_module_slugs %}
+            {% set head_in_pathway = true %}
+            {% for slug in head_module_slugs %}
+              {% if slug == head_current_slug %}
+                {% set head_current_index = loop.index0 %}
+                {% if head_current_index > 0 %}
+                  {% set head_prev_slug = head_module_slugs[head_current_index - 1] %}
+                  {% set head_prev_rows = hubdb_table_rows(head_modules_table_id, "path__eq=" ~ head_prev_slug ~ "&tags__not__icontains=archived") %}
+                  {% if head_prev_rows and head_prev_rows|length > 0 %}
+                    {% set head_prev_module = head_prev_rows[0] %}
+                  {% endif %}
+                {% endif %}
+                {% if head_current_index < (head_module_slugs|length - 1) %}
+                  {% set head_next_slug = head_module_slugs[head_current_index + 1] %}
+                  {% set head_next_rows = hubdb_table_rows(head_modules_table_id, "path__eq=" ~ head_next_slug ~ "&tags__not__icontains=archived") %}
+                  {% if head_next_rows and head_next_rows|length > 0 %}
+                    {% set head_next_module = head_next_rows[0] %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% if not head_in_pathway and head_modules_table_id %}
+      {% set head_all_modules = hubdb_table_rows(head_modules_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+      {% for module in head_all_modules %}
+        {% if module.hs_path == head_current_slug %}
+          {% set head_current_index = loop.index0 %}
+          {% if head_current_index > 0 %}
+            {% set head_prev_module = head_all_modules[head_current_index - 1] %}
+          {% endif %}
+          {% if head_current_index < (head_all_modules|length - 1) %}
+            {% set head_next_module = head_all_modules[head_current_index + 1] %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {# Add SEO/browser hint rel links #}
+    {% if head_prev_module %}
+  <link rel="prev" href="/learn/{{ head_prev_module.hs_path }}">
+    {% endif %}
+    {% if head_next_module %}
+  <link rel="next" href="/learn/{{ head_next_module.hs_path }}">
+    {% endif %}
+
+    {# JSON-LD structured data for detail pages #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LearningResource",
+      "name": {{ dynamic_page_hubdb_row.hs_name|tojson }},
+      {% if dynamic_page_hubdb_row.meta_description %}
+      "description": {{ dynamic_page_hubdb_row.meta_description|striptags|tojson }},
+      {% endif %}
+      "url": "https://{{ request.domain }}/learn/{{ dynamic_page_hubdb_row.hs_path }}",
+      {% if dynamic_page_hubdb_row.estimated_minutes %}
+      "timeRequired": "PT{{ dynamic_page_hubdb_row.estimated_minutes }}M",
+      {% endif %}
+      {% if dynamic_page_hubdb_row.difficulty %}
+      "educationalLevel": {{ dynamic_page_hubdb_row.difficulty.label|tojson }},
+      {% endif %}
+      {% if dynamic_page_hubdb_row.tags %}
+      "about": [
+        {% set tag_list = dynamic_page_hubdb_row.tags.split(',') %}
+        {% for tag in tag_list %}
+          {% if tag|trim|lower != 'archived' %}
+        { "@type": "Thing", "name": {{ tag|trim|tojson }} }{% if not loop.last %},{% endif %}
+          {% endif %}
+        {% endfor %}
+      ],
+      {% endif %}
+      "learningResourceType": "Module",
+      "inLanguage": "en-US"
+    }
+    </script>
+
+    {# BreadcrumbList JSON-LD #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Learn",
+          "item": "https://{{ request.domain }}/learn"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": {{ dynamic_page_hubdb_row.hs_name|tojson }}
+        }
+      ]
+    }
+    </script>
+  {% else %}
+    {# JSON-LD structured data for list page #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Learning Modules",
+      "description": "Hedgehog AI Networking learning modules",
+      "itemListElement": [
+        {% if dynamic_page_hubdb_table_id %}
+          {% set modules = hubdb_table_rows(dynamic_page_hubdb_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+          {% for module in modules %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "LearningResource",
+            "name": {{ module.hs_name|tojson }},
+            "url": "https://{{ request.domain }}/learn/{{ module.hs_path }}"
+            {% if module.meta_description %}
+            ,"description": {{ module.meta_description|striptags|tojson }}
+            {% endif %}
+          }
+        }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        {% endif %}
+      ]
+    }
+    </script>
+  {% endif %}
+{% endblock head %}
+
 {% block body %}
 <style>
   /* Header section styling */
@@ -36,6 +232,49 @@
     font-weight: 400;
     margin: 0;
     opacity: 0.9;
+  }
+  .learn-header-nav {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .learn-header-nav a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: background 0.2s;
+  }
+  .learn-header-nav a:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  .auth-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .user-greeting {
+    color: #fff;
+    font-size: 0.875rem;
+    opacity: 0.9;
+  }
+  .auth-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 6px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .auth-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
   }
 
   /* Main content section */
@@ -197,6 +436,116 @@
     display: none;
   }
 
+  /* Prerequisites section */
+  .module-prerequisites {
+    margin: 24px 0;
+    padding: 20px;
+    background: #F9FAFB;
+    border-left: 4px solid #1a4e8a;
+    border-radius: 8px;
+  }
+  .module-prerequisites h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .module-prerequisites ul {
+    margin: 0;
+    padding-left: 24px;
+    list-style-type: disc;
+  }
+  .module-prerequisites li {
+    margin: 8px 0;
+    line-height: 1.6;
+  }
+  .module-prerequisites a {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .module-prerequisites a:hover {
+    text-decoration: underline;
+  }
+
+  /* Prev/Next Navigation */
+  .module-nav {
+    margin: 24px 0;
+    padding: 20px 0;
+    border-top: 1px solid #E5E7EB;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .module-nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .module-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+    background: #F9FAFB;
+    flex: 1;
+    max-width: 48%;
+  }
+  .module-nav-link:hover {
+    background: #EFF6FF;
+    border-color: #1a4e8a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(26,78,138,0.15);
+  }
+  .module-nav-link:focus {
+    outline: 2px solid #1a4e8a;
+    outline-offset: 2px;
+  }
+  .module-nav-prev {
+    justify-content: flex-start;
+  }
+  .module-nav-next {
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+  .module-nav-arrow {
+    font-size: 1.5rem;
+    color: #1a4e8a;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .module-nav-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .module-nav-next .module-nav-content {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .module-nav-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+    font-weight: 600;
+  }
+  .module-nav-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1a4e8a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .module-nav-spacer {
+    flex: 1;
+    max-width: 48%;
+  }
+
   /* Pathways band */
   .pathways-band {
     max-width: 1600px;
@@ -268,6 +617,18 @@
       text-align: center;
       width: 100%;
     }
+    /* Mobile prev/next navigation */
+    .module-nav-container {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .module-nav-link {
+      max-width: 100%;
+    }
+    .module-nav-title {
+      white-space: normal;
+      line-height: 1.4;
+    }
   }
 </style>
 
@@ -308,7 +669,15 @@
               {% endif %}
             </div>
 
-            {# Minimal pathway progress affordance (no auth) #}
+            {# Minimal pathway progress affordance (CSP-safe) #}
+            {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+            <div id="hhl-auth-context"
+                 data-email="{{ request_contact.email if request_contact.is_logged_in }}"
+                 data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
+                 data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+                 data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+                 style="display:none"></div>
+
             <div class="module-progress-cta" role="region" aria-label="Module progress" style="margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
               <button type="button" class="pathways-cta-button" id="hhl-mark-started" aria-label="Mark module as started" style="padding:8px 14px;">
                 Mark as started
@@ -318,37 +687,157 @@
               </button>
               <a id="hhl-back-to-pathway" href="#" style="display:none; color:#0066CC; text-decoration:none; font-weight:600;">← Back to pathway</a>
             </div>
-            <script>
-              document.addEventListener('DOMContentLoaded', function () {
-                function callProgress(started, completed) {
-                  try {
-                    if (typeof window !== 'undefined' && typeof window.hhUpdatePathwayProgress === 'function') {
-                      window.hhUpdatePathwayProgress(started, completed);
-                    }
-                  } catch (e) {
-                    // no-op
-                  }
-                }
-
-                var startBtn = document.getElementById('hhl-mark-started');
-                var completeBtn = document.getElementById('hhl-mark-complete');
-                var backLink = document.getElementById('hhl-back-to-pathway');
-
-                if (startBtn) startBtn.addEventListener('click', function(){ callProgress(1, 0); });
-                if (completeBtn) completeBtn.addEventListener('click', function(){ callProgress(1, 1); });
-
-                try {
-                  var ref = document.referrer || '';
-                  if (/\/learn\/pathways\//.test(ref) && backLink) {
-                    backLink.href = ref;
-                    backLink.style.display = 'inline-block';
-                  }
-                } catch (e) {
-                  // ignore
-                }
-              });
-            </script>
+            {# Load external JS to avoid inline script CSP issues #}
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
           </header>
+
+          {# Prerequisites Section #}
+          {% if dynamic_page_hubdb_row.prerequisites_json %}
+            {% set prerequisites = dynamic_page_hubdb_row.prerequisites_json|fromjson %}
+
+            {% if prerequisites and prerequisites|length > 0 %}
+              <section class="module-prerequisites" id="prerequisites" role="region" aria-label="Prerequisites">
+                <h2>Prerequisites</h2>
+                <ul>
+                  {% for prereq in prerequisites %}
+                    {% if prereq is string %}
+                      {# Internal module slug - resolve to link #}
+                      {% set prereq_slug = prereq %}
+                      {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else dynamic_page_hubdb_table_id %}
+                      {% if modules_table_id %}
+                        {% set prereq_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ prereq_slug ~ "&tags__not__icontains=archived") %}
+                        {% if prereq_rows and prereq_rows|length > 0 %}
+                          <li><a href="/learn/{{ prereq_rows[0].hs_path }}">{{ prereq_rows[0].hs_name }}</a></li>
+                        {% else %}
+                          {# Module not found - render as plain text with warning comment #}
+                          <li>{{ prereq_slug }}<!-- Warning: prerequisite module "{{ prereq_slug }}" not found in HubDB --></li>
+                        {% endif %}
+                      {% else %}
+                        {# No table ID available - render as plain text #}
+                        <li>{{ prereq_slug }}<!-- Warning: modules table ID not available --></li>
+                      {% endif %}
+                    {% elif prereq is mapping %}
+                      {# External resource with title and URL #}
+                      {% if prereq.url %}
+                        <li><a href="{{ prereq.url }}" rel="noopener" target="_blank">{{ prereq.title|default(prereq.url) }}</a></li>
+                      {% else %}
+                        {# Missing URL - render title as plain text #}
+                        <li>{{ prereq.title|default('Untitled prerequisite') }}</li>
+                      {% endif %}
+                    {% else %}
+                      {# Unexpected format - skip #}
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </section>
+            {% endif %}
+          {% endif %}
+
+          {#
+            Prev/Next Navigation
+            Resolution order:
+            1. If module belongs to a pathway (via pathways table's module_slugs_json), use pathway ordering
+            2. Otherwise, use fallback: all modules ordered by display_order, then hs_name
+
+            Hardening notes:
+            - Falls back to dynamic_page_hubdb_table_id when constants are missing
+            - Guards against JSON parse errors in pathway module_slugs_json
+            - Generates <link rel=prev/next> tags in head for SEO
+          #}
+          {% set prev_module = none %}
+          {% set next_module = none %}
+          {% set current_slug = dynamic_page_hubdb_row.hs_path %}
+
+          {# Try to find pathway context first - with fallback when constants missing #}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID if constants else none %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else dynamic_page_hubdb_table_id %}
+          {% set in_pathway = false %}
+
+          {% if pathways_table_id %}
+            {# Find pathways that contain this module #}
+            {% set all_pathways = hubdb_table_rows(pathways_table_id, "tags__not__icontains=archived") %}
+            {% for pathway in all_pathways %}
+              {% if pathway.module_slugs_json and not in_pathway %}
+                {% set module_slugs = pathway.module_slugs_json|fromjson %}
+
+                {% if module_slugs and current_slug in module_slugs %}
+                  {% set in_pathway = true %}
+                  {# Find current module index in pathway #}
+                  {% for slug in module_slugs %}
+                    {% if slug == current_slug %}
+                      {% set current_index = loop.index0 %}
+                      {# Get previous module #}
+                      {% if current_index > 0 %}
+                        {% set prev_slug = module_slugs[current_index - 1] %}
+                        {% set prev_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ prev_slug ~ "&tags__not__icontains=archived") %}
+                        {% if prev_rows and prev_rows|length > 0 %}
+                          {% set prev_module = prev_rows[0] %}
+                        {% endif %}
+                      {% endif %}
+                      {# Get next module #}
+                      {% if current_index < (module_slugs|length - 1) %}
+                        {% set next_slug = module_slugs[current_index + 1] %}
+                        {% set next_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ next_slug ~ "&tags__not__icontains=archived") %}
+                        {% if next_rows and next_rows|length > 0 %}
+                          {% set next_module = next_rows[0] %}
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+
+          {# Fallback: Use all modules ordered by display_order #}
+          {% if not in_pathway and modules_table_id %}
+            {% set all_modules = hubdb_table_rows(modules_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+            {% for module in all_modules %}
+              {% if module.hs_path == current_slug %}
+                {% set current_index = loop.index0 %}
+                {# Get previous module #}
+                {% if current_index > 0 %}
+                  {% set prev_module = all_modules[current_index - 1] %}
+                {% endif %}
+                {# Get next module #}
+                {% if current_index < (all_modules|length - 1) %}
+                  {% set next_module = all_modules[current_index + 1] %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+
+          <!-- Prev/Next Navigation Bar -->
+          {% if prev_module or next_module %}
+          <nav class="module-nav" role="navigation" aria-label="Module navigation">
+            <div class="module-nav-container">
+              {% if prev_module %}
+              <a href="/learn/{{ prev_module.hs_path }}" class="module-nav-link module-nav-prev">
+                <span class="module-nav-arrow" aria-hidden="true">←</span>
+                <div class="module-nav-content">
+                  <span class="module-nav-label">Previous</span>
+                  <span class="module-nav-title">{{ prev_module.hs_name }}</span>
+                </div>
+              </a>
+              {% else %}
+              <div class="module-nav-spacer"></div>
+              {% endif %}
+
+              {% if next_module %}
+              <a href="/learn/{{ next_module.hs_path }}" class="module-nav-link module-nav-next">
+                <div class="module-nav-content">
+                  <span class="module-nav-label">Next</span>
+                  <span class="module-nav-title">{{ next_module.hs_name }}</span>
+                </div>
+                <span class="module-nav-arrow" aria-hidden="true">→</span>
+              </a>
+              {% else %}
+              <div class="module-nav-spacer"></div>
+              {% endif %}
+            </div>
+          </nav>
+          {% endif %}
 
           <!-- Module Content -->
           {% set is_archived = false %}
@@ -378,6 +867,24 @@
       <div class="learn-header-content">
         <h1 class="learn-page-title">Learn Hedgehog AI Networking</h1>
         <p class="learn-page-subtitle">Build high-performance AI networks on open Ethernet and OCP hardware. Hedgehog's Kubernetes-based control plane abstracts SONiC complexity, delivering simple, automated fabrics without proprietary lock-in or runaway cost.</p>
+        <nav class="learn-header-nav" aria-label="Learning sections">
+          <a href="/learn">Modules</a>
+          <a href="/learn/courses">Courses</a>
+          <a href="/learn/pathways">Pathways</a>
+          <a href="/learn/my-learning">My Learning</a>
+        </nav>
+        {# Auth controls #}
+        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+        {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
+        {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
+        <div class="auth-controls">
+          {% if request_contact.is_logged_in %}
+            <span class="user-greeting">Hi, {{ request_contact.firstname|default('there') }}!</span>
+            <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign Out</a>
+          {% else %}
+            <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign In</a>
+          {% endif %}
+        </div>
       </div>
     </section>
 

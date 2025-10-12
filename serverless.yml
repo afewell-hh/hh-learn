@@ -1,14 +1,19 @@
 service: hedgehog-learn
-frameworkVersion: "4"
+frameworkVersion: "3"
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${env:APP_STAGE, 'dev'}
   environment:
+    HUBSPOT_PROJECT_ACCESS_TOKEN: ${env:HUBSPOT_PROJECT_ACCESS_TOKEN, ''}
     HUBSPOT_PRIVATE_APP_TOKEN: ${env:HUBSPOT_PRIVATE_APP_TOKEN}
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
+    ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
+    PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
+  httpApi:
+    cors: true
 
 functions:
   api:
@@ -20,13 +25,56 @@ functions:
       - httpApi:
           path: /quiz/grade
           method: POST
+      - httpApi:
+          path: /progress/read
+          method: GET
 
 package:
+  individually: true
   patterns:
+    # Exclude unnecessary files and directories
     - '!**/*.test.*'
+    - '!**/*.spec.*'
     - '!tests/**'
     - '!infra/**'
     - '!docs/**'
+    - '!reference/**'
     - '!hubdb-schemas/**'
     - '!src/**'
-    - 'dist/**'
+    - '!content/**'
+    - '!scripts/**'
+    - '!clean-x-hedgehog-templates/**'
+    - '!verification-output/**'
+    - '!aws/**'
+    - '!*.zip'
+    - '!.git/**'
+    - '!.github/**'
+    - '!.serverless/**'
+    - '!.playwright/**'
+    - '!playwright-report/**'
+    - '!test-results/**'
+    # Exclude dev dependencies from node_modules
+    - '!node_modules/@types/**'
+    - '!node_modules/@playwright/**'
+    - '!node_modules/playwright*/**'
+    - '!node_modules/eslint*/**'
+    - '!node_modules/prettier/**'
+    - '!node_modules/serverless/**'
+    - '!node_modules/@serverless/**'
+    - '!node_modules/ts-node/**'
+    - '!node_modules/typescript/**'
+    - '!node_modules/marked/**'
+    - '!node_modules/gray-matter/**'
+    - '!node_modules/dotenv/**'
+    # Exclude large dependencies not needed in Lambda runtime
+    - '!node_modules/aws-sdk/**'  # Lambda runtime provides AWS SDK
+    - '!node_modules/rxjs/**'  # Not used in Lambda handler
+    - '!node_modules/lodash/**'  # Not directly used
+    - '!node_modules/json-refs/**'  # Build-time only
+    - '!node_modules/ajv-formats/**'  # Build-time validation
+    - '!node_modules/playwright-core/**'  # Testing only
+    - '!node_modules/playwright/**'  # Testing only
+    # Include compiled code and runtime deps
+    - 'dist/src/api/**'
+    - 'dist/src/shared/**'
+    - 'node_modules/**'

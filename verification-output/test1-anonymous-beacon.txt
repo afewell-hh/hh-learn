@@ -1,0 +1,19 @@
+Request 1: Anonymous Beacon (No contactIdentifier)
+====================================================
+Timestamp: Fri Oct 10 20:23:24 UTC 2025
+
+Request:
+{
+  "eventName": "learning_module_started",
+  "payload": {
+    "module_slug": "verification-test-anonymous",
+    "ts": "2025-10-10T20:23:24Z"
+  }
+}
+
+HTTP Status: 200
+Response:
+{
+  "status": "logged",
+  "mode": "anonymous"
+}

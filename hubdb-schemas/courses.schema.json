@@ -10,6 +10,7 @@
     {"name": "badge_image_url", "type": "TEXT"},
     {"name": "display_order", "type": "NUMBER"},
     {"name": "tags", "type": "TEXT"},
-    {"name": "content_blocks_json", "type": "RICHTEXT"}
+    {"name": "content_blocks_json", "type": "RICHTEXT"},
+    {"name": "social_image_url", "type": "TEXT"}
   ]
 }

@@ -5,25 +5,28 @@ _Owner: Platform team. Update whenever scopes, table schema, or automation logic
 ## Source of Truth
 - Markdown modules under `content/modules/**` define titles, metadata, and body copy.
 - `npm run sync:content` converts markdown to HTML and manages HubDB rows.
-- HubSpot dynamic pages render the `learning_modules` table via the Clean.Pro template `module-page.html`.
+- HubSpot dynamic pages render the `modules` table via the Clean.Pro template `module-page.html`.
 
 ## HubDB Table Schema
-Create a single table named `learning_modules` and publish it. HubSpot provides system columns we populate alongside custom metadata.
+Create a single table named `modules` and publish it. HubSpot provides system columns we populate alongside custom metadata.
 
 | Column | Internal name | Type | Notes |
 |--------|---------------|------|-------|
 | **Name** | `hs_name` | System | Module title used in listings and detail pages. Populated from front matter `title`.
 | **Page Path** | `hs_path` | System | URL slug. Populated from `slug` or folder name.
 | **Page Title** | varies | System | SEO/browser title. `sync:content` builds it from the module title.
+| `slug` | `slug` | Text | Normalized slug for cross-table references (stored in `hs_path` but also in column for consistency).
+| `title` | `title` | Text | Module title (also stored in `hs_name` but kept as column for HubL filtering).
 | `meta_description` | `meta_description` | Text | Short SEO description for metadata mapping.
-| `featured_image` | `featured_image` | Image | Optional social image URL.
-| `difficulty` | `difficulty` | Select | Values: `beginner`, `intermediate`, `advanced`.
+| `difficulty` | `difficulty` | Select | Values: `beginner` (id=1), `intermediate` (id=2), `advanced` (id=3).
 | `estimated_minutes` | `estimated_minutes` | Number | Estimated time to complete.
 | `tags` | `tags` | Text | Comma separated topics.
 | `full_content` | `full_content` | Rich Text | Rendered HTML body from markdown.
 | `display_order` | `display_order` | Number | Used for manual ordering in list views.
 
 Ensure the table uses `hs_path` for dynamic page routing when configuring the `/learn` page.
+
+**Schema File**: `hubdb-schemas/modules.schema.json`
 
 ## Local Workflow
 1. Copy `.env.example` → `.env` and provide:
@@ -52,7 +55,7 @@ After updating secrets, trigger the workflow manually from the Actions tab to va
 ## HubSpot Configuration Checklist
 1. **Create HubDB table** using the schema above and record its numeric ID.
 2. **Upload templates** from `clean-x-hedgehog-templates/learn/` to `Clean.Pro/templates/learn/` via HubSpot CLI or Design Manager.
-3. **Create a single page** at `/learn` using `module-page.html` and enable HubDB dynamic content with the `learning_modules` table. HubSpot will route detail pages using `hs_path`.
+3. **Create a single page** at `/learn` using `module-page.html` and enable HubDB dynamic content with the `modules` table. HubSpot will route detail pages using `hs_path`.
 4. **Publish** the page once list and detail views render as expected.
 
 ## Access Token & Scope Maintenance
@@ -416,7 +419,7 @@ npm run provision:pages
 
 #### `provision:tables` — HubDB Table Provisioning
 
-Creates or updates the `courses` and `pathways` HubDB tables.
+Creates or updates the `courses`, `pathways`, and `modules` HubDB tables.
 
 **Usage:**
 ```bash
@@ -428,7 +431,7 @@ npm run provision:tables
 ```
 
 **What it does:**
-- Reads table schemas from `hubdb-schemas/courses.schema.json` and `hubdb-schemas/pathways.schema.json`
+- Reads table schemas from `hubdb-schemas/courses.schema.json`, `hubdb-schemas/pathways.schema.json`, and `hubdb-schemas/modules.schema.json`
 - Creates new tables or updates existing ones (idempotent)
 - Sets `useForPages=true`, `allowChildTables=false`, `allowPublicApiAccess=false`
 - Publishes tables after creation/update
@@ -448,6 +451,11 @@ npm run provision:tables
 📤 Publishing table: pathways
    ✓ Table published
 
+📝 Creating table: modules
+   ✓ Table created with ID: 98765432
+📤 Publishing table: modules
+   ✓ Table published
+
 ============================================================
 📊 Provisioning Summary
 ============================================================
@@ -460,12 +468,17 @@ Table: pathways
   ID: 87654321
   Published: Yes
 
+Table: modules
+  ID: 98765432
+  Published: Yes
+
 ✅ Table provisioning complete!
 
 📋 Add these to your .env file:
 
 HUBDB_COURSES_TABLE_ID=12345678
 HUBDB_PATHWAYS_TABLE_ID=87654321
+HUBDB_MODULES_TABLE_ID=98765432
 ```
 
 #### `provision:constants` — Theme Constants Update
@@ -518,7 +531,7 @@ npm run provision:constants -- --publish
 
 #### `provision:pages` — Dynamic Page Creation
 
-Creates or updates the two dynamic pages for courses and pathways.
+Creates or updates the three dynamic pages for modules, courses, and pathways.
 
 **Usage:**
 ```bash
@@ -533,9 +546,10 @@ npm run provision:pages -- --publish
 ```
 
 **What it does:**
-- Creates or updates two site pages via CMS Pages API:
-  - **Courses**: slug `learn/courses`, template `CLEAN x HEDGEHOG/templates/learn/courses-page.html`
-  - **Pathways**: slug `learn/pathways`, template `CLEAN x HEDGEHOG/templates/learn/pathways-page.html`
+- Creates or updates three site pages via CMS Pages API:
+  - **Learn**: slug `learn`, template `CLEAN x HEDGEHOG/templates/learn/module-page.html`, bound to `modules` table
+  - **Courses**: slug `learn/courses`, template `CLEAN x HEDGEHOG/templates/learn/courses-page.html`, bound to `courses` table
+  - **Pathways**: slug `learn/pathways`, template `CLEAN x HEDGEHOG/templates/learn/pathways-page.html`, bound to `pathways` table
 - Binds pages to HubDB tables using `dynamicPageDataSourceType=HUBDB` and `dynamicPageDataSourceId`
 - Creates pages in DRAFT state by default
 - Idempotent: if page exists (by slug), updates the draft instead of creating duplicates
@@ -546,6 +560,8 @@ npm run provision:pages -- --publish
 ```
 🔄 Starting CMS page provisioning...
 
+📝 Creating page: Learn
+   ✓ Page created with ID: 11111111
 📝 Creating page: Courses
    ✓ Page created with ID: 98765432
 📝 Creating page: Pathways
@@ -554,6 +570,12 @@ npm run provision:pages -- --publish
 ============================================================
 📊 Page Provisioning Summary
 ============================================================
+
+Page: Learn
+  Slug: learn
+  ID: 11111111
+  State: DRAFT
+  URL: https://example.hubspotpagebuilder.com/...
 
 Page: Courses
   Slug: learn/courses

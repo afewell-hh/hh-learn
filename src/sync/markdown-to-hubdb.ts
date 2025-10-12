@@ -47,6 +47,7 @@ interface ModuleFrontmatter {
   description: string;
   order?: number;
   archived?: boolean;
+  social_image?: string;
 }
 
 // Helper: Sleep for specified milliseconds
@@ -160,6 +161,16 @@ async function syncModules() {
       const { data: frontmatter, content: markdown } = matter(fileContent);
       const fm = frontmatter as ModuleFrontmatter;
 
+      // Read optional meta.json for prerequisites and learning objectives
+      let metaData: any = null;
+      try {
+        const metaPath = join(modulesDir, moduleSlug, 'meta.json');
+        const metaContent = await readFile(metaPath, 'utf-8');
+        metaData = JSON.parse(metaContent);
+      } catch {
+        // meta.json is optional
+      }
+
       // Convert markdown to HTML
       let html = await marked(markdown);
       const stripH1 = (process.env.SYNC_STRIP_LEADING_H1 || 'true').toLowerCase() === 'true';
@@ -186,6 +197,12 @@ async function syncModules() {
         tagsCsv = Array.from(tagsSet).join(',');
       }
 
+      // Prepare prerequisites JSON
+      let prerequisitesJson = '';
+      if (metaData && metaData.prerequisites && Array.isArray(metaData.prerequisites)) {
+        prerequisitesJson = JSON.stringify(metaData.prerequisites);
+      }
+
       const row = {
         name: fm.title, // Maps to hs_name (Name column) - this is the display title!
         path: (fm.slug || moduleSlug).toLowerCase(), // Maps to hs_path (Page Path) - must be lowercase
@@ -197,7 +214,9 @@ async function syncModules() {
           estimated_minutes: fm.estimated_minutes || 30,
           tags: tagsCsv,
           full_content: html,
-          display_order: fm.order || 999
+          display_order: fm.order || 999,
+          social_image_url: fm.social_image || '',
+          prerequisites_json: prerequisitesJson
         }
       };
 

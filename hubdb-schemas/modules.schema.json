@@ -1,12 +1,23 @@
 {
   "name": "modules",
   "columns": [
-    {"name": "slug", "type": "TEXT", "required": true, "unique": true},
+    {"name": "slug", "type": "TEXT"},
     {"name": "title", "type": "TEXT"},
-    {"name": "lab_slug", "type": "TEXT"},
-    {"name": "concept_markdown", "type": "RICH_TEXT"},
-    {"name": "media_urls_json", "type": "RICH_TEXT"},
-    {"name": "quiz_schema_json", "type": "RICH_TEXT"},
-    {"name": "tags_csv", "type": "TEXT"}
+    {
+      "name": "difficulty",
+      "type": "SELECT",
+      "options": [
+        {"id": "1", "name": "beginner", "type": "option"},
+        {"id": "2", "name": "intermediate", "type": "option"},
+        {"id": "3", "name": "advanced", "type": "option"}
+      ]
+    },
+    {"name": "estimated_minutes", "type": "NUMBER"},
+    {"name": "tags", "type": "TEXT"},
+    {"name": "full_content", "type": "RICHTEXT"},
+    {"name": "display_order", "type": "NUMBER"},
+    {"name": "meta_description", "type": "TEXT"},
+    {"name": "social_image_url", "type": "TEXT"},
+    {"name": "prerequisites_json", "type": "TEXT"}
   ]
 }
