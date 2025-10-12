@@ -60,11 +60,20 @@ package:
     - '!node_modules/eslint*/**'
     - '!node_modules/prettier/**'
     - '!node_modules/serverless/**'
+    - '!node_modules/@serverless/**'
     - '!node_modules/ts-node/**'
     - '!node_modules/typescript/**'
     - '!node_modules/marked/**'
     - '!node_modules/gray-matter/**'
     - '!node_modules/dotenv/**'
+    # Exclude large dependencies not needed in Lambda runtime
+    - '!node_modules/aws-sdk/**'  # Lambda runtime provides AWS SDK
+    - '!node_modules/rxjs/**'  # Not used in Lambda handler
+    - '!node_modules/lodash/**'  # Not directly used
+    - '!node_modules/json-refs/**'  # Build-time only
+    - '!node_modules/ajv-formats/**'  # Build-time validation
+    - '!node_modules/playwright-core/**'  # Testing only
+    - '!node_modules/playwright/**'  # Testing only
     # Include compiled code and runtime deps
     - 'dist/src/api/**'
     - 'dist/src/shared/**'
