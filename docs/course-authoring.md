@@ -317,3 +317,7 @@ The progress UI is template-driven and requires no action from module authors. H
   - A: Compress to web‑friendly sizes; consider linking out for very large images or videos
 - Q: My module failed to sync due to WAF
   - A: Simplify suspicious strings (host headers, IP/CIDR literals), split content, or temporarily upload via HubSpot UI (document in PR)
+
+## Learner Progress (Info)
+
+As of Oct 12, 2025, learner progress syncs to CRM when the learner is signed in. The system writes to three contact properties (`hhl_progress_state`, `hhl_progress_updated_at`, `hhl_progress_summary`). When logged out, progress is tracked locally in the browser. No authoring changes are needed.

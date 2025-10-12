@@ -36,6 +36,9 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || '' }}
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -81,9 +84,9 @@ jobs:
           retention-days: 7
 
       - name: Slack notify on failure
-        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
           JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MODULE_NAME: ${{ matrix.module.name }}
         run: |
@@ -91,9 +94,9 @@ jobs:
           curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
 
       - name: Teams notify on failure
-        if: failure() && secrets.TEAMS_WEBHOOK_URL != ''
+        if: failure() && env.TEAMS_WEBHOOK_URL != ''
         env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          TEAMS_WEBHOOK_URL: ${{ env.TEAMS_WEBHOOK_URL }}
           JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MODULE_NAME: ${{ matrix.module.name }}
         run: |
