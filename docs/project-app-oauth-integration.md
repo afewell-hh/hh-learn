@@ -1,8 +1,10 @@
 # Project App OAuth Integration (Issue #60)
 
+> **⚠️ TERMINOLOGY CLARIFICATION**: This document uses "OAuth" terminology throughout, but **no OAuth flow is implemented**. HubSpot Projects Access Tokens are **static bearer tokens** (long-lived, no refresh flow). All references to "OAuth" in this document should be understood as "HubSpot Projects Access Token (static bearer token)". For accurate terminology, see [docs/auth-and-progress.md](./auth-and-progress.md) which has been updated with the correct Auth Model Summary.
+
 ## Overview
 
-This guide documents the migration from Private App tokens to HubSpot Project App with OAuth scopes, enabling proper scope management and eliminating legacy authentication methods.
+This guide documents the migration from Private App tokens to HubSpot Projects Access Token (static bearer token), enabling proper scope management and eliminating legacy authentication methods.
 
 ## Changes Made
 
@@ -14,11 +16,12 @@ This guide documents the migration from Private App tokens to HubSpot Project Ap
 - `analytics.behavioral_events.send` - Send custom behavioral events to HubSpot CRM
 
 **Existing Scopes** (retained):
-- `oauth` - OAuth authentication
 - `crm.objects.contacts.read` - Read contacts
 - `crm.objects.contacts.write` - Write contacts
+- `crm.schemas.contacts.write` - Manage contact property schemas
 - `hubdb` - Access HubDB tables
 - `content` - Access CMS content (templates, pages, source code)
+- `behavioral_events.event_definitions.read_write` - Manage custom event definitions
 
 ### 2. Project Deployment
 
@@ -50,18 +53,18 @@ hs project upload --account hh
 4. Click **Update** button
 5. Review and accept new scopes
 
-## OAuth Integration Options
+## Project Access Token Integration Options
 
-### Option A: Access Token from Project Context (Recommended for CI/CD)
+### Option A: Static Bearer Token from Project Context (Recommended for CI/CD)
 
 **For serverless functions that need to call HubSpot APIs**:
 
-The project app generates access tokens that can be retrieved and used programmatically.
+The project app generates long-lived static bearer tokens that can be retrieved and used programmatically.
 
-**HubSpot provides access tokens via**:
+**HubSpot provides static bearer tokens via**:
 1. **Environment variables** (when running in HubSpot's serverless environment)
 2. **CLI context** (when running `hs` commands)
-3. **Installation API** (for external services like AWS Lambda)
+3. **Project Settings UI** (manual extraction for external services like AWS Lambda)
 
 ### Option B: Private App Token (Temporary Fallback)
 
@@ -84,31 +87,34 @@ const token = process.env.HUBSPOT_PROJECT_ACCESS_TOKEN
 **Pros**:
 - Simple to implement
 - Works immediately
+- No token expiration (long-lived static bearer token)
 
 **Cons**:
-- Manual token rotation required
-- Token expiration management needed
+- Manual token rotation if revoked
+- Token stored in environment variables
 
-### Approach 2: Automated Token Refresh (Future Enhancement)
+### Approach 2: AWS Secrets Manager (Future Enhancement)
 
-1. Store refresh token in AWS Secrets Manager
-2. Lambda function refreshes access token on each invocation if expired
-3. No manual intervention required
+1. Store static bearer token in AWS Secrets Manager
+2. Lambda function retrieves token from Secrets Manager on cold start
+3. Better security posture (secrets not in environment variables)
 
 **Pros**:
-- Automatic token management
-- Better security (short-lived tokens)
+- Centralized secret management
+- Better security (secrets rotation support)
+- Audit logging
 
 **Cons**:
 - More complex implementation
 - Additional AWS services required
+- Slight cold start latency increase
 
 ### Approach 3: HubSpot Serverless Functions (Alternative)
 
 Move Lambda logic to HubSpot serverless functions within the project.
 
 **Pros**:
-- Native OAuth integration
+- Native HubSpot authentication context
 - Automatic token management
 - No external services needed
 
