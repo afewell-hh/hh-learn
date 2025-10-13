@@ -592,8 +592,8 @@
 
           <!-- Pathway Content: Prefer course_slugs_json if present, otherwise fallback to module_slugs_json -->
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
-          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
+          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants else hubdb_table_id("courses") %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else hubdb_table_id("modules") %}
 
           {% if dynamic_page_hubdb_row.course_slugs_json and courses_table_id %}
             {# Prefer courses when available #}
