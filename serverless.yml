@@ -18,7 +18,7 @@ provider:
 
 functions:
   api:
-    handler: dist/src/api/lambda/index.handler
+    handler: dist-lambda/src/api/lambda/index.handler
     events:
       - httpApi:
           path: /events/track
@@ -34,8 +34,8 @@ package:
   individually: true
   patterns:
     # Include only compiled lambda code
-    - 'dist/src/api/**'
-    - 'dist/src/shared/**'
+    - 'dist-lambda/src/api/**'
+    - 'dist-lambda/src/shared/**'
     # Include only the minimal runtime dependencies used by the lambda
     - 'node_modules/@hubspot/api-client/**'
     - 'node_modules/bottleneck/**'

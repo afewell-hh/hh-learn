@@ -2,9 +2,8 @@
   "name": "hedgehog-learn",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.lambda.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "echo \"(add tests in /tests)\" && exit 0",
