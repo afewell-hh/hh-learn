@@ -46,13 +46,13 @@
       "numberOfItems": {{ dynamic_page_hubdb_row.module_count }},
       {% endif %}
       "itemListElement": [
-        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-        {% if dynamic_page_hubdb_row.course_slugs_json and constants.HUBDB_COURSES_TABLE_ID %}
-          {# Pathway contains courses #}
-          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
-          {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
-          {% for slug in course_slugs %}
-            {% set course_rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% if dynamic_page_hubdb_row.course_slugs_json and constants.HUBDB_COURSES_TABLE_ID %}
+            {# Pathway contains courses #}
+            {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
+            {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+            {% for slug in course_slugs %}
+            {% set course_rows = hubdb_table_rows(courses_table_id, "slug__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
             {% if course_rows and course_rows|length > 0 %}
               {% set course = course_rows[0] %}
         {
@@ -71,7 +71,7 @@
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
           {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
           {% for slug in module_slugs %}
-            {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% set module_rows = hubdb_table_rows(modules_table_id, "slug__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
             {% if module_rows and module_rows|length > 0 %}
               {% set module = module_rows[0] %}
         {
@@ -592,8 +592,8 @@
 
           <!-- Pathway Content: Prefer course_slugs_json if present, otherwise fallback to module_slugs_json -->
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else "135381433" %}
-          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else "135621904" %}
+          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 135381433 %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
 
           {% if dynamic_page_hubdb_row.course_slugs_json and courses_table_id %}
             {# Prefer courses when available #}
@@ -602,7 +602,7 @@
               {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
               <div class="modules-grid">
                 {% for slug in course_slugs %}
-                  {% set course_rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                  {% set course_rows = hubdb_table_rows(courses_table_id, "slug__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
                   {% if course_rows and course_rows|length > 0 %}
                     {% set course = course_rows[0] %}
                     <a href="/learn/courses/{{ course.hs_path }}" class="module-card">
@@ -638,7 +638,7 @@
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
               <div class="modules-grid">
                 {% for slug in module_slugs %}
-                  {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                  {% set module_rows = hubdb_table_rows(modules_table_id, "slug__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
                   {% if module_rows and module_rows|length > 0 %}
                     {% set module = module_rows[0] %}
                     <a href="{{ modules_base_path }}/{{ module.hs_path }}" class="module-card">

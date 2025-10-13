@@ -55,7 +55,7 @@
           {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
       "hasPart": [
           {% for slug in module_slugs %}
-            {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% set module_rows = hubdb_table_rows(modules_table_id, "slug__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
             {% if module_rows and module_rows|length > 0 %}
               {% set module = module_rows[0] %}
         {
@@ -493,7 +493,8 @@
 
           <!-- Course Content: Prefer content_blocks_json if present, otherwise fallback to module_slugs_json -->
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else "135621904" %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
+          <!-- DEBUG: constants={{ constants }}, modules_table_id={{ modules_table_id }} -->
 
           {% if dynamic_page_hubdb_row.content_blocks_json %}
             {# Render content blocks (narrative-driven course) #}
@@ -520,9 +521,11 @@
                     {% endif %}
                   </div>
                 {% elif block.type == 'module_ref' and block.module_slug and modules_table_id %}
+                  <!-- DEBUG module_ref: block.type={{ block.type }}, block.module_slug={{ block.module_slug }}, modules_table_id={{ modules_table_id }} -->
                   {% set module_index = module_index + 1 %}
                   {# Fetch the referenced module from HubDB #}
-                  {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ block.module_slug ~ "&tags__not__icontains=archived") %}
+                  {% set module_rows = hubdb_table_rows(modules_table_id, "slug__eq=" ~ block.module_slug ~ "&tags__not__icontains=archived") %}
+                  <!-- DEBUG module_rows length={{ module_rows|length if module_rows else 0 }} -->
                   {% if module_rows and module_rows|length > 0 %}
                     {% set module = module_rows[0] %}
                     <div class="content-block">
@@ -555,7 +558,7 @@
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
               <div class="modules-grid">
                 {% for slug in module_slugs %}
-                  {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                  {% set module_rows = hubdb_table_rows(modules_table_id, "slug__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
                   {% if module_rows and module_rows|length > 0 %}
                     {% set module = module_rows[0] %}
                     <a href="/learn/{{ module.hs_path }}" class="module-card">
