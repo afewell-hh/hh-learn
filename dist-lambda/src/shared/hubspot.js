@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getHubSpotClient = getHubSpotClient;
 const api_client_1 = require("@hubspot/api-client");
 function getHubSpotClient() {
-    // Prefer Project App (OAuth) token, then API token (static), then Private App token
+    // Prefer HubSpot Projects token (static bearer), then API token (static), then Private App token
     const token = process.env.HUBSPOT_PROJECT_ACCESS_TOKEN ||
         process.env.HUBSPOT_API_TOKEN ||
         process.env.HUBSPOT_PRIVATE_APP_TOKEN;

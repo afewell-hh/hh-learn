@@ -41,11 +41,16 @@ async function publishConstants() {
       throw new Error(`HTTP ${res.status}: ${errorText}`);
     }
 
-    console.log('✅ Successfully uploaded constants.json to PUBLISHED environment.');
-    console.log(`   Published at: ${result.updatedAt || new Date().toISOString()}`);
-    console.log(`   Path: ${result.path || CONSTANTS_PATH}\n`);
+    const result = await res.json().catch(() => ({} as any));
 
-    return result;
+    console.log('✅ Successfully uploaded constants.json to PUBLISHED environment.');
+    // Optional metadata from API, fallback to defaults if not present
+    const updatedAt = (result as any).updatedAt || new Date().toISOString();
+    const path = (result as any).path || CONSTANTS_PATH;
+    console.log(`   Published at: ${updatedAt}`);
+    console.log(`   Path: ${path}\n`);
+
+    return result as any;
   } catch (err: any) {
     console.error('❌ Failed to publish constants.json:', err.message);
     if (err.body) {
