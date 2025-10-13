@@ -227,6 +227,32 @@ POST https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
 
 ---
 
+## Enable Auth Progress
+
+**Purpose:** Enable authenticated progress tracking so Contact Properties update for logged-in users.
+
+**Workflow:** Deploy AWS (manual) via GitHub Actions
+
+**Steps:**
+1. Navigate to **Actions** → **Deploy AWS (manual)**
+2. Click **Run workflow**
+3. Set inputs:
+   - `stage`: `dev` (or target stage)
+   - `region`: `us-west-2`
+   - `enable_crm_progress`: ✓ **checked** (true)
+4. Click **Run workflow** and monitor deployment
+
+**Post-Deployment Verification:**
+- [ ] Deployment completes successfully
+- [ ] POST `/events/track` returns `mode: "authenticated"` (when user logged in)
+- [ ] Contact Properties update in HubSpot CRM within 2-3 minutes
+- [ ] No CloudWatch alarms triggered
+
+**Rollback:**
+If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
+
+---
+
 ## Contact Properties Verification
 
 ### Spot-Check Process

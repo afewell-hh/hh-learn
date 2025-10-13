@@ -10,6 +10,11 @@ on:
         description: "AWS region (e.g., us-west-2)"
         required: true
         default: "${{ secrets.AWS_REGION }}"
+      enable_crm_progress:
+        description: "Enable authenticated CRM progress tracking"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -30,6 +35,7 @@ jobs:
           HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
           AWS_REGION: ${{ github.event.inputs.region || secrets.AWS_REGION }}
           APP_STAGE: ${{ github.event.inputs.stage }}
+          ENABLE_CRM_PROGRESS: ${{ github.event.inputs.enable_crm_progress && 'true' || 'false' }}
 
       - name: Verify package size
         run: |
@@ -90,3 +96,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           APP_STAGE: ${{ github.event.inputs.stage }}
+          ENABLE_CRM_PROGRESS: ${{ github.event.inputs.enable_crm_progress && 'true' || 'false' }}
