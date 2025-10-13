@@ -238,5 +238,4 @@ resources:
       Properties:
         AlarmName: ${self:service}-${sls:stage}-api-red
         AlarmRule:
-          Fn::Sub: |
-            ALARM('${ApiLambdaErrorsAlarm}') OR ALARM('${ApiGateway5xxAlarm}') OR ALARM('${ApiLambdaThrottlesAlarm}') OR ALARM('${ApiGatewayLatencyAlarm}')
+          Fn::Sub: "ALARM('${ApiLambdaErrorsAlarm}') OR ALARM('${ApiGateway5xxAlarm}') OR ALARM('${ApiLambdaThrottlesAlarm}') OR ALARM('${ApiGatewayLatencyAlarm}')"
