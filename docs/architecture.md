@@ -33,6 +33,19 @@ _Last updated: keep in sync when major platform or integration changes land._
 - HubSpot Private App token with required scopes
 - Serverless Framework installed (`npm install` includes it as dev dependency)
 
+### Observability & Alarms (added Oct 13, 2025)
+- CloudWatch alarms are provisioned via CloudFormation in `serverless.yml`:
+  - `hedgehog-learn-${APP_STAGE}-lambda-errors` (AWS/Lambda Errors ≥ 5 over 1 min)
+  - `hedgehog-learn-${APP_STAGE}-lambda-throttles` (AWS/Lambda Throttles ≥ 1 within 5 min)
+  - `hedgehog-learn-${APP_STAGE}-httpapi-5xx` (AWS/ApiGateway 5XXError ≥ 5 over 1 min; Stage `$default`)
+  - `hedgehog-learn-${APP_STAGE}-httpapi-latency` (AWS/ApiGateway Latency avg ≥ 1000 ms over 5 min; Stage `$default`)
+  - Composite: `hedgehog-learn-${APP_STAGE}-api-red` (OR of the four alarms above)
+
+Notes
+- HTTP API uses the `$default` stage in this project; CloudWatch metrics use `Stage=$default` as the dimension value.
+- Alarm actions (SNS) are intentionally not wired yet. Add an SNS topic ARN and hook via `AlarmActions` if paging is required.
+- Costs are minimal at current scale (<< $25/mo); see CloudWatch pricing.
+
 ### Environment Variables Required
 
 #### For Local Deployment
