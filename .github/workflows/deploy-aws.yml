@@ -12,7 +12,66 @@ jobs:
         with: { node-version: 22 }
       - run: npm ci
       - run: npm run build
-      - run: npm run deploy:aws
+
+      # Package and verify size before deploying
+      - name: Package Lambda
+        run: npx serverless package
+        env:
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          APP_STAGE: prod
+
+      - name: Verify package size
+        run: |
+          echo "=== Package Size Check ==="
+
+          # Check zipped size
+          ZIPPED_SIZE=$(du -b .serverless/api.zip | cut -f1)
+          ZIPPED_MB=$(echo "scale=2; $ZIPPED_SIZE / 1024 / 1024" | bc)
+          echo "Zipped size: ${ZIPPED_MB} MB"
+
+          # Check unzipped size
+          UNZIPPED_SIZE=$(unzip -l .serverless/api.zip | tail -n 1 | awk '{print $1}')
+          UNZIPPED_MB=$(echo "scale=2; $UNZIPPED_SIZE / 1024 / 1024" | bc)
+          echo "Unzipped size: ${UNZIPPED_MB} MB"
+
+          # Count files
+          FILE_COUNT=$(unzip -l .serverless/api.zip | tail -n 1 | awk '{print $2}')
+          echo "File count: ${FILE_COUNT}"
+
+          # Check for unwanted files
+          echo ""
+          echo "=== Checking for unwanted files ==="
+          UNWANTED=$(unzip -l .serverless/api.zip | grep -E "(dist/src|eslint\.config\.js|scratch\.txt|\.package-lock\.json)" || echo "None found")
+          if [ "$UNWANTED" != "None found" ]; then
+            echo "WARNING: Found unwanted files in package:"
+            echo "$UNWANTED"
+          else
+            echo "✓ No unwanted files detected"
+          fi
+
+          # Fail if size exceeds limits
+          if (( $(echo "$ZIPPED_SIZE > 52428800" | bc -l) )); then
+            echo "ERROR: Zipped size exceeds 50 MB limit"
+            exit 1
+          fi
+
+          if (( $(echo "$UNZIPPED_SIZE > 262144000" | bc -l) )); then
+            echo "ERROR: Unzipped size exceeds 250 MB AWS limit"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ Package size checks passed"
+
+      - name: Verify deployment configuration
+        run: |
+          echo "=== Deployment Configuration ==="
+          npx serverless print --stage prod --region ${{ secrets.AWS_REGION }} | grep -E "(region|stage|runtime)" || true
+
+      - name: Deploy to AWS
+        run: npm run deploy:aws
         env:
           # Prefer Project App token; fall back to Private App during migration
           HUBSPOT_PROJECT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_PROJECT_ACCESS_TOKEN }}
