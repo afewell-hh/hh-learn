@@ -1,0 +1,12 @@
+--- /tmp/issue-60-verification-20251013-033024/contact-before.json	2025-10-13 03:30:25.179301469 +0000
++++ /tmp/issue-60-verification-20251013-033024/contact-after.json	2025-10-13 03:30:37.495757841 +0000
+@@ -1,7 +1,7 @@
+ {
+   "id": "59090639178",
+   "email": "afewell@gmail.com",
+-  "hhl_progress_state": "{\"kubernetes-foundations\":{\"modules\":{\"k8s-networking-fundamentals\":{\"started\":true,\"started_at\":\"2025-10-12T05:06:40.136Z\",\"completed\":true,\"completed_at\":\"2025-10-12T05:06:50.703Z\"}}},\"test-pathway-oauth\":{\"modules\":{\"test-module-oauth-1760315231\":{\"started\":true,\"started_at\":\"2025-10-13T00:27:12.814Z\"},\"test-module-oauth-1760326177\":{\"started\":true,\"started_at\":\"2025-10-13T03:29:38.600Z\"}}}}",
++  "hhl_progress_state": "{\"kubernetes-foundations\":{\"modules\":{\"k8s-networking-fundamentals\":{\"started\":true,\"started_at\":\"2025-10-12T05:06:40.136Z\",\"completed\":true,\"completed_at\":\"2025-10-12T05:06:50.703Z\"}}},\"test-pathway-oauth\":{\"modules\":{\"test-module-oauth-1760315231\":{\"started\":true,\"started_at\":\"2025-10-13T00:27:12.814Z\"},\"test-module-oauth-1760326177\":{\"started\":true,\"started_at\":\"2025-10-13T03:29:38.600Z\"},\"test-module-oauth-1760326225\":{\"started\":true,\"started_at\":\"2025-10-13T03:30:25.909Z\"}}}}",
+   "hhl_progress_updated_at": "2025-10-13",
+-  "hhl_progress_summary": "kubernetes-foundations: 1/1 modules; test-pathway-oauth: 0/2 modules"
++  "hhl_progress_summary": "kubernetes-foundations: 1/1 modules; test-pathway-oauth: 0/3 modules"
+ }

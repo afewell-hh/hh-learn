@@ -13,8 +13,6 @@ provider:
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
     PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
-  httpApi:
-    cors: true
 
 functions:
   api:
@@ -23,12 +21,42 @@ functions:
       - httpApi:
           path: /events/track
           method: POST
+          cors:
+            allowedOrigins:
+              - 'https://hedgehog.cloud'
+              - 'https://www.hedgehog.cloud'
+            allowedHeaders:
+              - Content-Type
+              - Authorization
+            allowedMethods:
+              - POST
+              - OPTIONS
       - httpApi:
           path: /quiz/grade
           method: POST
+          cors:
+            allowedOrigins:
+              - 'https://hedgehog.cloud'
+              - 'https://www.hedgehog.cloud'
+            allowedHeaders:
+              - Content-Type
+              - Authorization
+            allowedMethods:
+              - POST
+              - OPTIONS
       - httpApi:
           path: /progress/read
           method: GET
+          cors:
+            allowedOrigins:
+              - 'https://hedgehog.cloud'
+              - 'https://www.hedgehog.cloud'
+            allowedHeaders:
+              - Content-Type
+              - Authorization
+            allowedMethods:
+              - GET
+              - OPTIONS
 
 package:
   individually: true
@@ -38,6 +66,8 @@ package:
     - 'dist-lambda/src/shared/**'
     # Include only the minimal runtime dependencies used by the lambda
     - 'node_modules/@hubspot/api-client/**'
+    - '!node_modules/@hubspot/api-client/**/*.d.ts'
+    - '!node_modules/@hubspot/api-client/**/*.map'
     - 'node_modules/bottleneck/**'
     - 'node_modules/es6-promise/**'
     - 'node_modules/form-data/**'

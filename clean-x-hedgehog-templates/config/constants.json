@@ -6,6 +6,6 @@
   "TRACK_EVENTS_ENABLED": true,
   "TRACK_EVENTS_URL": "https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track",
   "ENABLE_CRM_PROGRESS": true,
-  "LOGIN_URL": "/_hcms/mem/login",
-  "LOGOUT_URL": "/_hcms/mem/logout"
+  "LOGOUT_URL": "/_hcms/mem/logout",
+  "LOGIN_URL": "/_hcms/mem/login"
 }
