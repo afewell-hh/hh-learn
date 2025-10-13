@@ -1,4 +1,4 @@
-import HubSpot from '@hubspot/api-client';
+import { Client } from '@hubspot/api-client';
 
 export function getHubSpotClient() {
   // Prefer Project App (OAuth) token, then API token (static), then Private App token
@@ -13,5 +13,5 @@ export function getHubSpotClient() {
     );
   }
 
-  return new HubSpot.Client({ accessToken: token });
+  return new Client({ accessToken: token });
 }
