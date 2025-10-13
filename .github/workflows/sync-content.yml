@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: HubSpot Preflight Check
+        run: node scripts/hubspot/preflight.js
+
       - name: Sync modules to HubDB
         run: npm run sync:content
 
