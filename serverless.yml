@@ -243,4 +243,4 @@ resources:
       Properties:
         AlarmName: ${self:service}-${sls:stage}-api-red
         AlarmRule:
-          Fn::Sub: "ALARM('${ApiLambdaErrorsAlarm}') OR ALARM('${ApiGateway5xxAlarm}') OR ALARM('${ApiLambdaThrottlesAlarm}') OR ALARM('${ApiGatewayLatencyAlarm}')"
+          Fn::Sub: "ALARM(arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${self:service}-${sls:stage}-lambda-errors) OR ALARM(arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${self:service}-${sls:stage}-httpapi-5xx) OR ALARM(arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${self:service}-${sls:stage}-lambda-throttles) OR ALARM(arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${self:service}-${sls:stage}-httpapi-latency)"
