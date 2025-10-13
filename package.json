@@ -16,6 +16,7 @@
     "upload:templates": "npm run build && node dist/scripts/hubspot/upload-templates.js",
     "provision:tables": "npm run build && node dist/scripts/hubspot/provision-tables.js",
     "provision:constants": "npm run build && node dist/scripts/hubspot/update-constants.js",
+    "publish:constants": "npm run build && node dist/scripts/hubspot/publish-constants.js",
     "provision:pages": "npm run build && node dist/scripts/hubspot/provision-pages.js",
     "publish:pages": "npm run build && node dist/scripts/hubspot/publish-pages.js",
     "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants",
