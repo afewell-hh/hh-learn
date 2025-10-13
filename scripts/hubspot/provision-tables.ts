@@ -15,9 +15,10 @@ import 'dotenv/config';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { Client } from '@hubspot/api-client';
+import { getHubSpotToken } from './get-hubspot-token.js';
 
 const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
+  accessToken: getHubSpotToken()
 });
 
 interface ColumnOption {
@@ -173,7 +174,7 @@ async function createOrUpdateTable(
 
   try {
     let table: any;
-    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+    const token = getHubSpotToken();
 
     if (existingTable) {
       // Update existing table via raw HTTP API
@@ -271,8 +272,12 @@ async function provisionTables(dryRun: boolean = false) {
     console.log('📝 DRY RUN MODE - no changes will be made\n');
   }
 
-  if (!dryRun && !process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
-    throw new Error('HUBSPOT_PRIVATE_APP_TOKEN environment variable not set');
+  if (!dryRun) {
+    try {
+      getHubSpotToken(); // This will throw if no token is available
+    } catch (err: any) {
+      throw new Error(err.message);
+    }
   }
 
   const tableSchemas = ['courses', 'pathways', 'modules'];

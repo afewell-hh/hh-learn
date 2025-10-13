@@ -14,6 +14,8 @@ jobs:
       - run: npm run build
       - run: npm run deploy:aws
         env:
+          # Prefer Project App token; fall back to Private App during migration
+          HUBSPOT_PROJECT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_PROJECT_ACCESS_TOKEN }}
           HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
           HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
           AWS_REGION: ${{ secrets.AWS_REGION }}

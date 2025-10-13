@@ -4,6 +4,9 @@
  */
 
 import 'dotenv/config';
+import { getHubSpotToken } from './get-hubspot-token.js';
+
+const TOKEN = getHubSpotToken();
 
 const pageIds = [
   { id: '197280289288', name: 'Courses' },
@@ -17,7 +20,7 @@ async function publishPage(pageId: string, pageName: string) {
       {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`,
+          'Authorization': `Bearer ${TOKEN}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

@@ -4,6 +4,9 @@
  */
 
 import 'dotenv/config';
+import { getHubSpotToken } from './get-hubspot-token.js';
+
+const TOKEN = getHubSpotToken();
 
 const nestedPaths = [
   'CLEAN x HEDGEHOG/templates/learn/courses/courses-page.html',
@@ -16,7 +19,7 @@ async function checkTemplate(path: string) {
       `https://api.hubapi.com/cms/v3/source-code/draft/metadata/${encodeURIComponent(path)}`,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`
+          'Authorization': `Bearer ${TOKEN}`
         }
       }
     );
@@ -53,7 +56,7 @@ async function checkAllPages() {
         `https://api.hubapi.com/cms/v3/pages/site-pages/${page.id}`,
         {
           headers: {
-            'Authorization': `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`
+            'Authorization': `Bearer ${TOKEN}`
           }
         }
       );

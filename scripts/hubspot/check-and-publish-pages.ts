@@ -5,9 +5,12 @@
 
 import 'dotenv/config';
 import { Client } from '@hubspot/api-client';
+import { getHubSpotToken } from './get-hubspot-token.js';
+
+const TOKEN = getHubSpotToken();
 
 const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
+  accessToken: TOKEN
 });
 
 const pageIds = [
@@ -39,7 +42,7 @@ async function main() {
             {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`,
+                'Authorization': `Bearer ${TOKEN}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({})

@@ -19,7 +19,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import matter from 'gray-matter';
-import { Client } from '@hubspot/api-client';
+import { getHubSpotClient } from '../shared/hubspot.js';
 
 // ES module compatibility: get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -31,9 +31,7 @@ marked.setOptions({
   breaks: false,
 });
 
-const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
-});
+const hubspot = getHubSpotClient();
 
 const TABLE_ID = process.env.HUBDB_COURSES_TABLE_ID;
 
