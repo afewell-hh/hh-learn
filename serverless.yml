@@ -160,6 +160,13 @@ package:
 
 resources:
   Resources:
+    # CloudWatch Logs - 30 day retention for MVP launch
+    ApiLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/${self:service}-${sls:stage}-api
+        RetentionInDays: 30
+
     # Lambda error alarm (sum of Errors in 1-minute periods)
     ApiLambdaErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
