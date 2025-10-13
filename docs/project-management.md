@@ -100,6 +100,14 @@ CI gates:
 ## Incident Handling
 - For production-impacting issues, use the bug template with `priority/P0` and `blocked` as needed. Add a brief postmortem comment once resolved.
 
+## Release Notes
+
+### 2025-10-13: CRM Persistence Enabled
+- Enabled CRM progress persistence by setting `ENABLE_CRM_PROGRESS: true` in `clean-x-hedgehog-templates/config/constants.json`.
+- Authenticated users (via CMS Membership) now persist learning progress to HubSpot Contact Properties (`hhl_progress_state`, `hhl_progress_summary`, `hhl_progress_updated_at`).
+- Persistence backend: Contact Properties; requires identity via `contactIdentifier.email` in event payloads.
+- See [Issue #59](https://github.com/afewell-hh/hh-learn/issues/59) and [PR #72](https://github.com/afewell-hh/hh-learn/pull/72) for verification artifacts and acceptance criteria.
+
 ## Ownership
 - Project Lead maintains this doc and the Project automations.
 - Area Owners maintain labels and acceptance criteria quality in their areas.
