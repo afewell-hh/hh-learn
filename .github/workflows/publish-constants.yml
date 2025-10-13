@@ -1,0 +1,77 @@
+name: Publish constants.json to HubSpot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'clean-x-hedgehog-templates/config/constants.json'
+  pull_request:
+    paths:
+      - 'clean-x-hedgehog-templates/config/constants.json'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    env:
+      # Prefer Project App token; fall back to Private App during migration
+      HUBSPOT_PROJECT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_PROJECT_ACCESS_TOKEN }}
+      HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build scripts
+        run: npm run build
+
+      - name: Dry-run publish (on pull requests)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "🔍 Dry-run mode: Validating constants.json file exists and is valid JSON"
+          echo "📄 File path: clean-x-hedgehog-templates/config/constants.json"
+
+          if [ ! -f "clean-x-hedgehog-templates/config/constants.json" ]; then
+            echo "❌ File not found!"
+            exit 1
+          fi
+
+          if ! jq empty clean-x-hedgehog-templates/config/constants.json 2>/dev/null; then
+            echo "❌ Invalid JSON format!"
+            exit 1
+          fi
+
+          echo "✅ constants.json is valid"
+          echo ""
+          echo "📦 Contents:"
+          cat clean-x-hedgehog-templates/config/constants.json
+          echo ""
+          echo "ℹ️  On merge to main, this file will be published to HubSpot Design Manager"
+
+      - name: Publish constants.json (on push to main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node dist/scripts/hubspot/publish-constants.js
+
+      - name: Report publish status
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "✅ constants.json published successfully to HubSpot Design Manager!"
+          echo "📄 File: CLEAN x HEDGEHOG/templates/config/constants.json"
+          echo "🌐 Environment: PUBLISHED"
+
+      - name: Report publish failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "❌ constants.json publish failed!"
+          echo "Check the logs above for error details"
+          exit 1
