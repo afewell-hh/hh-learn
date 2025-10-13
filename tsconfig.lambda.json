@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist-lambda"
+  },
+  "include": [
+    "src/api/**/*.ts",
+    "src/shared/**/*.ts"
+  ]
+}

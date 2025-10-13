@@ -1,0 +1,314 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.handler = void 0;
+const zod_1 = require("zod");
+const hubspot_js_1 = require("../../shared/hubspot.js");
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+    'https://hedgehog.cloud',
+    'https://www.hedgehog.cloud',
+];
+// Check if origin matches HubSpot CDN patterns
+function isAllowedOrigin(origin) {
+    if (!origin)
+        return false;
+    // Check exact matches
+    if (ALLOWED_ORIGINS.includes(origin))
+        return true;
+    // Check HubSpot CDN patterns
+    const hubspotPatterns = [
+        /^https:\/\/.*\.hubspotusercontent-na1\.net$/,
+        /^https:\/\/.*\.hubspotusercontent00\.net$/,
+        /^https:\/\/.*\.hubspotusercontent20\.net$/,
+        /^https:\/\/.*\.hubspotusercontent30\.net$/,
+        /^https:\/\/.*\.hubspotusercontent40\.net$/,
+    ];
+    return hubspotPatterns.some(pattern => pattern.test(origin));
+}
+const ok = (body = {}, origin) => ({
+    statusCode: 200,
+    body: JSON.stringify(body),
+    headers: {
+        'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin : 'https://hedgehog.cloud',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    },
+});
+const bad = (code, msg, origin) => ({
+    statusCode: code,
+    body: JSON.stringify({ error: msg }),
+    headers: {
+        'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin : 'https://hedgehog.cloud',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    },
+});
+const handler = async (event) => {
+    try {
+        const origin = event.headers?.origin || event.headers?.Origin;
+        const path = (event.rawPath || '').toLowerCase();
+        // Handle OPTIONS preflight
+        if (event.requestContext.http.method === 'OPTIONS') {
+            return {
+                statusCode: 200,
+                headers: {
+                    'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin : 'https://hedgehog.cloud',
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                },
+            };
+        }
+        if (path.endsWith('/progress/read') && event.requestContext.http.method === 'GET')
+            return await readProgress(event, origin);
+        if (event.requestContext.http.method !== 'POST')
+            return bad(405, 'POST only', origin);
+        if (path.endsWith('/events/track'))
+            return await track(event.body || '', origin);
+        if (path.endsWith('/quiz/grade'))
+            return await grade(event.body || '', origin);
+        return bad(404, 'Not found', origin);
+    }
+    catch (err) {
+        console.error('Handler error', err);
+        return bad(500, 'Internal error', event.headers?.origin || event.headers?.Origin);
+    }
+};
+exports.handler = handler;
+async function readProgress(event, origin) {
+    const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
+    if (!enableCrmProgress)
+        return ok({ mode: 'anonymous' }, origin);
+    try {
+        const hubspot = (0, hubspot_js_1.getHubSpotClient)();
+        const qs = event.queryStringParameters || {};
+        let contactId = qs.contactId;
+        const email = qs.email || undefined;
+        if (!contactId && !email)
+            return ok({ mode: 'anonymous' }, origin);
+        if (!contactId && email) {
+            const search = await hubspot.crm.contacts.searchApi.doSearch({
+                filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }],
+                properties: ['hhl_progress_state', 'hhl_progress_updated_at', 'hhl_progress_summary'],
+                limit: 1,
+            });
+            if (!search.results || search.results.length === 0)
+                return ok({ mode: 'anonymous' }, origin);
+            contactId = search.results[0].id;
+        }
+        const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
+            'hhl_progress_state',
+            'hhl_progress_updated_at',
+            'hhl_progress_summary',
+        ]);
+        let state = {};
+        try {
+            state = contact.properties.hhl_progress_state ? JSON.parse(contact.properties.hhl_progress_state) : {};
+        }
+        catch (e) {
+            state = {};
+        }
+        return ok({
+            mode: 'authenticated',
+            progress: state,
+            updated_at: contact.properties.hhl_progress_updated_at || null,
+            summary: contact.properties.hhl_progress_summary || null,
+        }, origin);
+    }
+    catch (e) {
+        console.error('readProgress error', e?.message || e);
+        return ok({ mode: 'fallback', error: 'Unable to read progress' }, origin);
+    }
+}
+async function track(raw, origin) {
+    const schema = zod_1.z.object({
+        eventName: zod_1.z.enum([
+            'learning_module_started',
+            'learning_module_completed',
+            'learning_pathway_enrolled',
+        ]),
+        contactIdentifier: zod_1.z
+            .object({
+            email: zod_1.z.string().email().optional(),
+            contactId: zod_1.z.string().optional(),
+        })
+            .optional(),
+        payload: zod_1.z.record(zod_1.z.any()).optional(),
+    });
+    const parse = schema.safeParse(JSON.parse(raw || '{}'));
+    if (!parse.success)
+        return bad(400, 'Invalid payload', origin);
+    const input = parse.data;
+    // Check if CRM persistence is enabled
+    const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
+    const progressBackend = process.env.PROGRESS_BACKEND || 'properties';
+    if (!enableCrmProgress) {
+        // Anonymous mode - just log
+        console.log('Track event (anonymous)', input.eventName, input.payload);
+        return ok({ status: 'logged', mode: 'anonymous' }, origin);
+    }
+    // CRM persistence enabled - require contact identifier
+    if (!input.contactIdentifier?.email && !input.contactIdentifier?.contactId) {
+        console.log('Track event (no identity)', input.eventName);
+        return ok({ status: 'logged', mode: 'anonymous' }, origin);
+    }
+    try {
+        const hubspot = (0, hubspot_js_1.getHubSpotClient)();
+        // Route to appropriate backend
+        if (progressBackend === 'properties') {
+            // Contact Properties backend (MVP default)
+            await persistViaContactProperties(hubspot, input);
+            console.log('Track event (persisted via properties)', input.eventName, input.contactIdentifier);
+            return ok({ status: 'persisted', mode: 'authenticated', backend: 'properties' }, origin);
+        }
+        else if (progressBackend === 'events') {
+            // Custom Behavioral Events backend (future enhancement)
+            await persistViaBehavioralEvents(hubspot, input);
+            console.log('Track event (persisted via events)', input.eventName, input.contactIdentifier);
+            return ok({ status: 'persisted', mode: 'authenticated', backend: 'events' }, origin);
+        }
+        else {
+            console.error('Invalid PROGRESS_BACKEND:', progressBackend);
+            return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' }, origin);
+        }
+    }
+    catch (err) {
+        console.error('Failed to persist event to CRM:', err.message || err);
+        // Return success even if CRM persistence fails - don't break user experience
+        return ok({ status: 'logged', mode: 'fallback', error: err.message }, origin);
+    }
+}
+/**
+ * Persist progress via Contact Properties (MVP default)
+ * Uses hhl_progress_state property to store JSON progress data
+ */
+async function persistViaContactProperties(hubspot, input) {
+    // Find contact by email or ID
+    let contactId;
+    if (input.contactIdentifier?.contactId) {
+        contactId = input.contactIdentifier.contactId;
+    }
+    else if (input.contactIdentifier?.email) {
+        // Look up contact by email
+        const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+            filterGroups: [{
+                    filters: [{
+                            propertyName: 'email',
+                            operator: 'EQ',
+                            value: input.contactIdentifier.email,
+                        }],
+                }],
+            properties: ['hhl_progress_state'],
+            limit: 1,
+        });
+        if (!searchResponse.results || searchResponse.results.length === 0) {
+            throw new Error(`Contact not found for email: ${input.contactIdentifier.email}`);
+        }
+        contactId = searchResponse.results[0].id;
+    }
+    else {
+        throw new Error('No contact identifier provided');
+    }
+    // Read current progress state
+    const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['hhl_progress_state']);
+    let progressState = {};
+    try {
+        if (contact.properties.hhl_progress_state) {
+            progressState = JSON.parse(contact.properties.hhl_progress_state);
+        }
+    }
+    catch (err) {
+        console.warn('Failed to parse existing progress state, starting fresh:', err);
+        progressState = {};
+    }
+    // Extract pathway and module info from payload
+    const pathwaySlug = input.payload?.pathway_slug || 'unknown';
+    const moduleSlug = input.payload?.module_slug || null;
+    // Initialize pathway if needed
+    if (!progressState[pathwaySlug]) {
+        progressState[pathwaySlug] = { modules: {} };
+    }
+    // Update progress based on event type
+    const timestamp = new Date().toISOString();
+    const dateOnly = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format for HubSpot date property
+    if (input.eventName === 'learning_pathway_enrolled') {
+        progressState[pathwaySlug].enrolled = true;
+        progressState[pathwaySlug].enrolled_at = timestamp;
+    }
+    else if (moduleSlug) {
+        if (!progressState[pathwaySlug].modules[moduleSlug]) {
+            progressState[pathwaySlug].modules[moduleSlug] = {};
+        }
+        if (input.eventName === 'learning_module_started') {
+            progressState[pathwaySlug].modules[moduleSlug].started = true;
+            progressState[pathwaySlug].modules[moduleSlug].started_at = timestamp;
+        }
+        else if (input.eventName === 'learning_module_completed') {
+            progressState[pathwaySlug].modules[moduleSlug].completed = true;
+            progressState[pathwaySlug].modules[moduleSlug].completed_at = timestamp;
+        }
+    }
+    // Update contact properties
+    await hubspot.crm.contacts.basicApi.update(contactId, {
+        properties: {
+            hhl_progress_state: JSON.stringify(progressState),
+            hhl_progress_updated_at: dateOnly, // Date-only format (YYYY-MM-DD) for HubSpot date property
+            hhl_progress_summary: generateProgressSummary(progressState),
+        },
+    });
+}
+/**
+ * Persist progress via Custom Behavioral Events (future enhancement)
+ * Requires Custom Behavioral Events in HubSpot license
+ */
+async function persistViaBehavioralEvents(hubspot, input) {
+    const eventData = {
+        eventName: input.eventName,
+        occurredAt: new Date(), // Use Date object, not ISO string
+        properties: {
+            ...(input.payload || {}),
+        },
+    };
+    // Identify contact by email or contactId
+    if (input.contactIdentifier?.email) {
+        eventData.email = input.contactIdentifier.email;
+    }
+    else if (input.contactIdentifier?.contactId) {
+        eventData.objectId = input.contactIdentifier.contactId;
+    }
+    // Send event to HubSpot (v11 client)
+    await hubspot.events.send.behavioralEventsTrackingApi.send(eventData);
+}
+/**
+ * Generate a human-readable summary of progress state
+ */
+function generateProgressSummary(progressState) {
+    const pathways = Object.keys(progressState);
+    if (pathways.length === 0)
+        return 'No progress yet';
+    const summaries = [];
+    for (const pathway of pathways) {
+        const modules = Object.keys(progressState[pathway].modules || {});
+        const completed = modules.filter(m => progressState[pathway].modules[m].completed).length;
+        const total = modules.length;
+        if (total > 0) {
+            summaries.push(`${pathway}: ${completed}/${total} modules`);
+        }
+    }
+    return summaries.join('; ') || 'In progress';
+}
+async function grade(raw, origin) {
+    const schema = zod_1.z.object({
+        module_slug: zod_1.z.string().min(1),
+        answers: zod_1.z.array(zod_1.z.object({ id: zod_1.z.string(), value: zod_1.z.any() })),
+    });
+    const parse = schema.safeParse(JSON.parse(raw || '{}'));
+    if (!parse.success)
+        return bad(400, 'Invalid payload', origin);
+    const input = parse.data;
+    // TODO: fetch quiz schema from HubDB (modules.quiz_schema_json) and compute score.
+    // Placeholder logic:
+    const result = { score: 100, pass: true };
+    console.log('Graded module', input.module_slug, '=>', result);
+    // Optionally emit completion event
+    return ok(result, origin);
+}

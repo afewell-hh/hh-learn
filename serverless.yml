@@ -8,6 +8,7 @@ provider:
   stage: ${env:APP_STAGE, 'dev'}
   environment:
     HUBSPOT_PROJECT_ACCESS_TOKEN: ${env:HUBSPOT_PROJECT_ACCESS_TOKEN, ''}
+    HUBSPOT_API_TOKEN: ${env:HUBSPOT_API_TOKEN, ''}
     HUBSPOT_PRIVATE_APP_TOKEN: ${env:HUBSPOT_PRIVATE_APP_TOKEN}
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
@@ -17,7 +18,7 @@ provider:
 
 functions:
   api:
-    handler: dist/src/api/lambda/index.handler
+    handler: dist-lambda/src/api/lambda/index.handler
     events:
       - httpApi:
           path: /events/track
@@ -33,8 +34,8 @@ package:
   individually: true
   patterns:
     # Include only compiled lambda code
-    - 'dist/src/api/**'
-    - 'dist/src/shared/**'
+    - 'dist-lambda/src/api/**'
+    - 'dist-lambda/src/shared/**'
     # Include only the minimal runtime dependencies used by the lambda
     - 'node_modules/@hubspot/api-client/**'
     - 'node_modules/bottleneck/**'

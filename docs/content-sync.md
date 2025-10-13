@@ -87,8 +87,9 @@ After updating secrets, trigger the workflow manually from the Actions tab to va
 # Check local env configuration
 rg 'HUBDB_MODULES_TABLE_ID' .env
 
-# Test API connectivity
-TOKEN=$(grep HUBSPOT_PRIVATE_APP_TOKEN .env | cut -d'=' -f2)
+# Test API connectivity (prefer Project token, fall back to Private App)
+TOKEN=${HUBSPOT_PROJECT_ACCESS_TOKEN:-$(grep -m1 HUBSPOT_PROJECT_ACCESS_TOKEN .env | cut -d'=' -f2)}
+TOKEN=${TOKEN:-$(grep -m1 HUBSPOT_PRIVATE_APP_TOKEN .env | cut -d'=' -f2)}
 TABLE_ID=$(grep HUBDB_MODULES_TABLE_ID .env | cut -d'=' -f2)
 curl -H "Authorization: Bearer $TOKEN" \
   "https://api.hubapi.com/cms/v3/hubdb/tables/${TABLE_ID}"

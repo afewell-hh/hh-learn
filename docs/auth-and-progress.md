@@ -4,6 +4,14 @@
 
 This document describes the authentication and CRM progress persistence system implemented in v0.3. The system enables learners to sign in and have their learning progress automatically saved to HubSpot CRM, syncing across devices.
 
+### Token Precedence & Secrets
+Runtime and scripts look for HubSpot tokens in this order:
+
+1. `HUBSPOT_PROJECT_ACCESS_TOKEN` (preferred – OAuth Project App token)
+2. `HUBSPOT_PRIVATE_APP_TOKEN` (fallback during migration only)
+
+CI workflows are configured to prefer the Project token when present. Keep the Private App token only as a safety net until rollout is complete, then remove it.
+
 ## Architecture Decision: HubSpot CMS Membership
 
 ### Chosen Approach
