@@ -1,6 +1,15 @@
 name: Deploy AWS (manual)
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Serverless stage (e.g., dev, staging, prod)"
+        required: true
+        default: "dev"
+      region:
+        description: "AWS region (e.g., us-west-2)"
+        required: true
+        default: "${{ secrets.AWS_REGION }}"
 
 jobs:
   deploy:
@@ -19,8 +28,8 @@ jobs:
         env:
           HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
           HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          APP_STAGE: prod
+          AWS_REGION: ${{ github.event.inputs.region || secrets.AWS_REGION }}
+          APP_STAGE: ${{ github.event.inputs.stage }}
 
       - name: Verify package size
         run: |
@@ -68,7 +77,7 @@ jobs:
       - name: Verify deployment configuration
         run: |
           echo "=== Deployment Configuration ==="
-          npx serverless print --stage prod --region ${{ secrets.AWS_REGION }} | grep -E "(region|stage|runtime)" || true
+          npx serverless print --stage ${{ github.event.inputs.stage }} --region ${{ github.event.inputs.region || secrets.AWS_REGION }} | grep -E "(region|stage|runtime)" || true
 
       - name: Deploy to AWS
         run: npm run deploy:aws
@@ -77,7 +86,7 @@ jobs:
           HUBSPOT_PROJECT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_PROJECT_ACCESS_TOKEN }}
           HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
           HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_REGION: ${{ github.event.inputs.region || secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          APP_STAGE: prod
+          APP_STAGE: ${{ github.event.inputs.stage }}

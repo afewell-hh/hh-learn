@@ -157,3 +157,86 @@ package:
     - '!*.html'
     - '!*.csv'
     - '!scratch.txt'
+
+resources:
+  Resources:
+    # Lambda error alarm (sum of Errors in 1-minute periods)
+    ApiLambdaErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-lambda-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value: { Ref: ApiLambdaFunction }
+        Statistic: Sum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 5
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    # Lambda throttles alarm (any throttle within 5 minutes)
+    ApiLambdaThrottlesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-lambda-throttles
+        Namespace: AWS/Lambda
+        MetricName: Throttles
+        Dimensions:
+          - Name: FunctionName
+            Value: { Ref: ApiLambdaFunction }
+        Statistic: Sum
+        Period: 60
+        EvaluationPeriods: 5
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    # API Gateway 5XX errors (HTTP API)
+    ApiGateway5xxAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-httpapi-5xx
+        Namespace: AWS/ApiGateway
+        MetricName: 5XXError
+        Dimensions:
+          - Name: ApiId
+            Value: { Ref: HttpApi }
+          - Name: Stage
+            Value: "$default"
+        Statistic: Sum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 5
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    # API Gateway latency (average > 1s over 5 minutes)
+    ApiGatewayLatencyAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-httpapi-latency
+        Namespace: AWS/ApiGateway
+        MetricName: Latency
+        Dimensions:
+          - Name: ApiId
+            Value: { Ref: HttpApi }
+          - Name: Stage
+            Value: "$default"
+        Statistic: Average
+        Period: 60
+        EvaluationPeriods: 5
+        Threshold: 1000
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    # Composite alarm: page when any of the above are ALARM
+    ApiErrorCompositeAlarm:
+      Type: AWS::CloudWatch::CompositeAlarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-api-red
+        AlarmRule:
+          Fn::Sub: |
+            ALARM('${ApiLambdaErrorsAlarm}') OR ALARM('${ApiGateway5xxAlarm}') OR ALARM('${ApiLambdaThrottlesAlarm}') OR ALARM('${ApiGatewayLatencyAlarm}')
