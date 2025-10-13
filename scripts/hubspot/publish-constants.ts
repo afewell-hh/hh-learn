@@ -8,6 +8,7 @@
  */
 
 import 'dotenv/config';
+import { readFileSync } from 'fs';
 import { getHubSpotToken, maskToken } from './get-hubspot-token.js';
 
 const HUBSPOT_TOKEN = getHubSpotToken();
@@ -19,27 +20,28 @@ async function publishConstants() {
   console.log(`📄 File path: ${CONSTANTS_PATH}\n`);
 
   try {
-    // Publish via Source Code API v3
-    // POST /cms/v3/source-code/{environment}/validate-and-publish/{path}
-    const response = await fetch(
-      `https://api.hubapi.com/cms/v3/source-code/draft/validate-and-publish/${encodeURIComponent(CONSTANTS_PATH)}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${HUBSPOT_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // Strategy: push local constants.json directly to PUBLISHED environment.
+    // This avoids 404 when DRAFT asset is missing and mirrors the manual validated step we used.
+    const localPath = 'clean-x-hedgehog-templates/config/constants.json';
+    const fileBuf = readFileSync(localPath);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    const uploadUrl = `https://api.hubapi.com/cms/v3/source-code/published/content/${encodeURIComponent(CONSTANTS_PATH)}`;
+
+    const form = new FormData();
+    form.append('file', new Blob([fileBuf], { type: 'application/json' }), 'constants.json');
+
+    const res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${HUBSPOT_TOKEN}` },
+      body: form
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
     }
 
-    const result = await response.json();
-
-    console.log('✅ Successfully published constants.json!');
+    console.log('✅ Successfully uploaded constants.json to PUBLISHED environment.');
     console.log(`   Published at: ${result.updatedAt || new Date().toISOString()}`);
     console.log(`   Path: ${result.path || CONSTANTS_PATH}\n`);
 
