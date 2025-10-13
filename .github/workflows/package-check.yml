@@ -1,0 +1,124 @@
+name: Lambda Package Size Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'serverless.yml'
+      - 'tsconfig*.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/package-check.yml'
+
+jobs:
+  check-package-size:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Package Lambda
+        run: npx serverless package
+        env:
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
+          AWS_REGION: us-west-2
+          APP_STAGE: dev
+          ENABLE_CRM_PROGRESS: false
+
+      - name: Check package size
+        id: size-check
+        run: |
+          echo "=== Lambda Package Size Check ===" | tee -a $GITHUB_STEP_SUMMARY
+          echo "" | tee -a $GITHUB_STEP_SUMMARY
+
+          # Check zipped size
+          ZIPPED_SIZE=$(du -b .serverless/api.zip | cut -f1)
+          ZIPPED_MB=$(echo "scale=2; $ZIPPED_SIZE / 1024 / 1024" | bc)
+          echo "**Zipped size:** ${ZIPPED_MB} MB" | tee -a $GITHUB_STEP_SUMMARY
+
+          # Check unzipped size
+          UNZIPPED_SIZE=$(unzip -l .serverless/api.zip | tail -n 1 | awk '{print $1}')
+          UNZIPPED_MB=$(echo "scale=2; $UNZIPPED_SIZE / 1024 / 1024" | bc)
+          echo "**Unzipped size:** ${UNZIPPED_MB} MB" | tee -a $GITHUB_STEP_SUMMARY
+
+          # Count files
+          FILE_COUNT=$(unzip -l .serverless/api.zip | tail -n 1 | awk '{print $2}')
+          echo "**File count:** ${FILE_COUNT}" | tee -a $GITHUB_STEP_SUMMARY
+          echo "" | tee -a $GITHUB_STEP_SUMMARY
+
+          # Set outputs for limits check
+          echo "zipped_size=$ZIPPED_SIZE" >> $GITHUB_OUTPUT
+          echo "unzipped_size=$UNZIPPED_SIZE" >> $GITHUB_OUTPUT
+          echo "zipped_mb=$ZIPPED_MB" >> $GITHUB_OUTPUT
+          echo "unzipped_mb=$UNZIPPED_MB" >> $GITHUB_OUTPUT
+
+          # Check for unwanted files
+          echo "### Checking for unwanted files..." | tee -a $GITHUB_STEP_SUMMARY
+          UNWANTED=$(unzip -l .serverless/api.zip | grep -E "(dist/src|eslint\.config\.js|scratch\.txt|\.package-lock\.json)" || echo "")
+          if [ -n "$UNWANTED" ]; then
+            echo "⚠️ **WARNING**: Found unwanted files in package:" | tee -a $GITHUB_STEP_SUMMARY
+            echo '```' | tee -a $GITHUB_STEP_SUMMARY
+            echo "$UNWANTED" | tee -a $GITHUB_STEP_SUMMARY
+            echo '```' | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No unwanted files detected" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+          echo "" | tee -a $GITHUB_STEP_SUMMARY
+
+      - name: Verify size limits
+        run: |
+          ZIPPED_SIZE=${{ steps.size-check.outputs.zipped_size }}
+          UNZIPPED_SIZE=${{ steps.size-check.outputs.unzipped_size }}
+          ZIPPED_MB=${{ steps.size-check.outputs.zipped_mb }}
+          UNZIPPED_MB=${{ steps.size-check.outputs.unzipped_mb }}
+
+          echo "### Size Limit Validation" | tee -a $GITHUB_STEP_SUMMARY
+          echo "" | tee -a $GITHUB_STEP_SUMMARY
+
+          FAILED=0
+
+          # Check zipped size (ideal: 10 MB, acceptable: 50 MB)
+          if (( $(echo "$ZIPPED_SIZE > 52428800" | bc -l) )); then
+            echo "❌ **FAILED**: Zipped size ${ZIPPED_MB} MB exceeds 50 MB limit" | tee -a $GITHUB_STEP_SUMMARY
+            FAILED=1
+          elif (( $(echo "$ZIPPED_SIZE > 10485760" | bc -l) )); then
+            echo "⚠️ **WARNING**: Zipped size ${ZIPPED_MB} MB exceeds 10 MB ideal limit (but under 50 MB acceptable limit)" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Zipped size ${ZIPPED_MB} MB is under 10 MB ideal limit" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check unzipped size (ideal: 50 MB, AWS limit: 250 MB)
+          if (( $(echo "$UNZIPPED_SIZE > 262144000" | bc -l) )); then
+            echo "❌ **FAILED**: Unzipped size ${UNZIPPED_MB} MB exceeds 250 MB AWS limit" | tee -a $GITHUB_STEP_SUMMARY
+            FAILED=1
+          elif (( $(echo "$UNZIPPED_SIZE > 52428800" | bc -l) )); then
+            echo "⚠️ **WARNING**: Unzipped size ${UNZIPPED_MB} MB exceeds 50 MB ideal limit (but under 250 MB AWS limit)" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Unzipped size ${UNZIPPED_MB} MB is under 50 MB ideal limit" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" | tee -a $GITHUB_STEP_SUMMARY
+
+          if [ $FAILED -eq 1 ]; then
+            echo "### ❌ Package size check FAILED" | tee -a $GITHUB_STEP_SUMMARY
+            echo "" | tee -a $GITHUB_STEP_SUMMARY
+            echo "The Lambda package exceeds AWS or repository limits. Review the serverless.yml package patterns or refactor dependencies." | tee -a $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "### ✅ Package size check passed" | tee -a $GITHUB_STEP_SUMMARY
+          fi
