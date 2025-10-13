@@ -235,6 +235,11 @@ resources:
     # Composite alarm: page when any of the above are ALARM
     ApiErrorCompositeAlarm:
       Type: AWS::CloudWatch::CompositeAlarm
+      DependsOn:
+        - ApiLambdaErrorsAlarm
+        - ApiLambdaThrottlesAlarm
+        - ApiGateway5xxAlarm
+        - ApiGatewayLatencyAlarm
       Properties:
         AlarmName: ${self:service}-${sls:stage}-api-red
         AlarmRule:
