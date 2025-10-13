@@ -1,6 +1,8 @@
-# Issue #60 Verification Guide: Projects App OAuth Migration
+# Issue #60 Verification Guide: HubSpot Projects Access Token Migration
 
-This guide provides step-by-step instructions to complete the migration from Private App token to Projects App OAuth token.
+> **Terminology Note**: "Projects Access Token" is a **static bearer token** issued by HubSpot Projects. No OAuth flow (authorization code, refresh tokens, etc.) is implemented. All server-to-server API calls use long-lived static bearer tokens passed as `Authorization: Bearer <token>` headers.
+
+This guide provides step-by-step instructions to complete the migration from Private App token to HubSpot Projects Access Token (static bearer token).
 
 ## Prerequisites
 
@@ -104,7 +106,7 @@ endpoints:
 
 Save this for Part 4.
 
-## Part 4: Verify OAuth-Powered Endpoints (No Browser Required)
+## Part 4: Verify Project Token Authentication Endpoints (No Browser Required)
 
 ### Step 4.1: Prepare Test Contact Email
 
@@ -145,7 +147,7 @@ curl -X POST "${API_URL}/events/track" \
       "email": "'"${TEST_EMAIL}"'"
     },
     "payload": {
-      "module_slug": "test-module-oauth",
+      "module_slug": "test-module-project-token",
       "pathway_slug": "test-pathway",
       "ts": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
     }
@@ -177,7 +179,7 @@ curl -X GET "${API_URL}/progress/read?email=${TEST_EMAIL}" \
   "backend": "properties",
   "progress": {
     "modules": {
-      "test-module-oauth": {
+      "test-module-project-token": {
         "status": "started",
         "lastActivity": "2025-10-12T23:45:00Z"
       }
@@ -310,7 +312,7 @@ Create a comment on Issue #60 with all artifacts:
 ✅ Deployed with `ENABLE_CRM_PROGRESS=true` and `PROGRESS_BACKEND=properties`
 ✅ Function uses `HUBSPOT_PROJECT_ACCESS_TOKEN` (code in `src/shared/hubspot.ts:5`)
 
-#### 3. Endpoint Verification (OAuth-Powered, No Browser)
+#### 3. Endpoint Verification (Project Token Authentication, No Browser)
 
 **POST /events/track (Authenticated)**:
 \`\`\`json
@@ -348,7 +350,7 @@ Create a comment on Issue #60 with all artifacts:
 {
   "id": "12345",
   "email": "t***@hedgehog.cloud",
-  "hhl_progress_state": "{\"modules\":{\"test-module-oauth\":{...}}}",
+  "hhl_progress_state": "{\"modules\":{\"test-module-project-token\":{...}}}",
   "hhl_progress_updated_at": "2025-10-12T23:45:00Z",
   "hhl_progress_summary": "1 module started, 1 pathway enrolled"
 }
@@ -438,6 +440,6 @@ Check:
 
 - **Issue #60**: https://github.com/afewell-hh/hh-learn/issues/60
 - **Issue #59**: https://github.com/afewell-hh/hh-learn/issues/59 (Phase 2 authenticated progress)
-- **PR #61**: https://github.com/afewell-hh/hh-learn/pull/61 (Initial OAuth support)
+- **PR #61**: https://github.com/afewell-hh/hh-learn/pull/61 (Initial Projects Access Token support)
 - **HubSpot Projects Docs**: https://developers.hubspot.com/docs/platform/build-and-deploy-using-hubspot-projects
 - **App Scopes Reference**: `src/app/app-hsmeta.json`

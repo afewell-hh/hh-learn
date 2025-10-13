@@ -32,7 +32,7 @@ Only evergreen documentation lives in this repository. Historical decisions and 
 - [`docs/theme-development.md`](docs/theme-development.md) – Guardrails for customizing the Clean.Pro theme.
 - [`docs/project-management.md`](docs/project-management.md) – GitHub Projects best practices used by this repo.
 - [`docs/course-authoring.md`](docs/course-authoring.md) – End-to-end guide for writing and shipping modules.
-- [`docs/issue-60-verification-guide.md`](docs/issue-60-verification-guide.md) – Issue #60: Projects App OAuth migration verification.
+- [`docs/issue-60-verification-guide.md`](docs/issue-60-verification-guide.md) – Issue #60: HubSpot Projects Access Token migration verification.
 - [`docs/README.md`](docs/README.md) – Index of canonical documents.
 
 ## Project Management
