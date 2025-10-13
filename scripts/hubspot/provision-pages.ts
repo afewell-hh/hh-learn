@@ -16,7 +16,7 @@ import { getHubSpotToken, allowlistOverrideEnabled } from './get-hubspot-token.j
 import { Client } from '@hubspot/api-client';
 
 const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
+  accessToken: getHubSpotToken()
 });
 
 interface PageConfig {
@@ -194,7 +194,7 @@ async function findPageBySlug(slug: string): Promise<any | null> {
 async function findPagesBySlugPrefix(slug: string): Promise<any[]> {
   const results: any[] = [];
   let after: string | undefined = undefined;
-  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN as string;
+  const token = getHubSpotToken();
   const baseUrl = 'https://api.hubapi.com/cms/v3/pages/site-pages';
   while (true) {
     const params = new URLSearchParams({ limit: '100', archived: 'false', 'slug__icontains': slug });
@@ -230,9 +230,11 @@ async function findPrimaryPageBySlug(slug: string): Promise<any | null> {
 
 // Helper: Validate template existence via Source Code API
 async function validateTemplateExists(templatePath: string): Promise<boolean> {
-  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
-  if (!token) {
-    console.log('   ⚠️  No HUBSPOT_PRIVATE_APP_TOKEN set; cannot validate template.');
+  let token: string;
+  try {
+    token = getHubSpotToken();
+  } catch (err) {
+    console.log('   ⚠️  No HubSpot token available; cannot validate template.');
     return false;
   }
 
@@ -444,8 +446,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
     console.log('🚀 PUBLISH MODE - pages will be published immediately\n');
   }
 
-  if (!dryRun && !process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
-    throw new Error('HUBSPOT_PRIVATE_APP_TOKEN environment variable not set');
+  if (!dryRun) {
+    try {
+      getHubSpotToken(); // This will throw if no token is available
+    } catch (err: any) {
+      throw new Error(err.message);
+    }
   }
 
   // Check for common misnamed templates

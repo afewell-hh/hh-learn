@@ -5,9 +5,10 @@
 
 import 'dotenv/config';
 import { Client } from '@hubspot/api-client';
+import { getHubSpotToken } from './get-hubspot-token.js';
 
 const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
+  accessToken: getHubSpotToken()
 });
 
 interface PropertyConfig {

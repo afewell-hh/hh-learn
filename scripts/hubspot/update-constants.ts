@@ -13,9 +13,10 @@
 
 import 'dotenv/config';
 import { Client } from '@hubspot/api-client';
+import { getHubSpotToken } from './get-hubspot-token.js';
 
 const hubspot = new Client({
-  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN
+  accessToken: getHubSpotToken()
 });
 
 const CONSTANTS_PATH = 'CLEAN x HEDGEHOG/templates/config/constants.json';
@@ -91,7 +92,7 @@ async function readConstantsFile(): Promise<any> {
   try {
     console.log(`📥 Reading constants file: ${CONSTANTS_PATH}`);
 
-    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+    const token = getHubSpotToken();
     const encodedPath = encodeURIComponent(CONSTANTS_PATH);
 
     // Use raw HTTP API for Source Code
@@ -139,7 +140,7 @@ async function writeConstantsFile(constants: any, publish: boolean = false): Pro
 
     // Format JSON with proper indentation
     const content = JSON.stringify(constants, null, 2);
-    const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+    const token = getHubSpotToken();
     const encodedPath = encodeURIComponent(CONSTANTS_PATH);
 
     // Update draft version using raw HTTP API
@@ -219,8 +220,12 @@ async function updateConstants(dryRun: boolean = false, publish: boolean = false
     console.log('🚀 PUBLISH MODE - constants will be published\n');
   }
 
-  if (!dryRun && !process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
-    throw new Error('HUBSPOT_PRIVATE_APP_TOKEN environment variable not set');
+  if (!dryRun) {
+    try {
+      getHubSpotToken(); // This will throw if no token is available
+    } catch (err: any) {
+      throw new Error(err.message);
+    }
   }
 
   // Define updates to make
