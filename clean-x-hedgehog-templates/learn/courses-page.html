@@ -493,7 +493,7 @@
 
           <!-- Course Content: Prefer content_blocks_json if present, otherwise fallback to module_slugs_json -->
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else hubdb_table_id("modules") %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else "135621904" %}
 
           {% if dynamic_page_hubdb_row.content_blocks_json %}
             {# Render content blocks (narrative-driven course) #}
