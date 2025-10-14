@@ -280,7 +280,7 @@ async function provisionTables(dryRun: boolean = false) {
     }
   }
 
-  const tableSchemas = ['courses', 'pathways', 'modules'];
+  const tableSchemas = ['courses', 'pathways', 'modules', 'catalog'];
   const results: TableResult[] = [];
 
   for (const schemaName of tableSchemas) {

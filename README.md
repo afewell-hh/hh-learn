@@ -21,7 +21,7 @@ Learning platform for hedgehog.cloud built on HubSpot CMS with supporting AWS La
    npm run sync:content
    ```
 
-See [`docs/content-sync.md`](docs/content-sync.md) for the full operational runbook, including HubDB schema, token rotation, CI automation, and troubleshooting steps.
+See [`docs/content-sync.md`](docs/content-sync.md) for the full operational runbook, including HubDB schema, token rotation, CI automation, and troubleshooting steps. For Git practices specific to content, see [`docs/content-git-workflow.md`](docs/content-git-workflow.md).
 
 ## Documentation
 Only evergreen documentation lives in this repository. Historical decisions and sprint notes belong in GitHub issues or discussions.

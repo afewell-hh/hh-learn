@@ -3,6 +3,7 @@
   isAvailableForNewContent: true
 -->
 {% extends "../layouts/base.html" %}
+{% from "macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
   {{ super() }}
@@ -132,6 +133,10 @@
     {# SEO metadata for pathways list page #}
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
     {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+    {# Left nav CSS and JS for list pages #}
+    <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
 
     <title>Learning Pathways - Learn Hedgehog AI Networking</title>
     <meta name="description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
@@ -718,29 +723,15 @@
       <div class="learn-header-content">
         <h1 class="learn-page-title">Learning Pathways</h1>
         <p class="learn-page-subtitle">Follow structured learning paths to master Hedgehog AI networking concepts step-by-step.</p>
-        <nav class="learn-header-nav" aria-label="Learning sections">
-          <a href="/learn">Modules</a>
-          <a href="/learn/courses">Courses</a>
-          <a href="/learn/pathways">Pathways</a>
-          <a href="/learn/my-learning">My Learning</a>
-        </nav>
-        {# Auth controls #}
-        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-        {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
-        {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
-        <div class="auth-controls">
-          {% if request_contact.is_logged_in %}
-            <span class="user-greeting">Hi, {{ request_contact.firstname|default('there') }}!</span>
-            <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign Out</a>
-          {% else %}
-            <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign In</a>
-          {% endif %}
-        </div>
       </div>
     </section>
 
-    <section class="learn-main-section">
-      <div class="learn-container">
+    <div class="learn-layout-with-nav">
+      {# Left navigation with filters #}
+      {{ learning_left_nav('pathways', show_filters=true) }}
+
+      {# Main content area #}
+      <div class="learn-main-content">
         {# Prefer dynamic_page_hubdb_table_id, fallback to constants.json for backward compatibility #}
         {% set pathways_table_id = dynamic_page_hubdb_table_id %}
         {% if not pathways_table_id %}
@@ -803,7 +794,7 @@
           <p><em>Bind this page to the Pathways table in the HubSpot page settings.</em></p>
         {% endif %}
       </div>
-    </section>
+    </div>
   {% endif %}
 </main>
 {% endblock body %}
