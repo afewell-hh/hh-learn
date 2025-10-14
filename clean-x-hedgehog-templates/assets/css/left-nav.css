@@ -112,7 +112,14 @@
   gap: 8px;
 }
 
-.learn-filter-label {
+.learn-filter-group fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.learn-filter-label,
+.learn-filter-group legend {
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;

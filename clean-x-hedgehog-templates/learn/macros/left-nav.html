@@ -5,24 +5,24 @@
   {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
   {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
 
-  <aside class="learn-left-nav" id="learn-left-nav">
+  <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation">
     <div class="learn-left-nav-content">
       {# Navigation Links #}
       <nav class="learn-nav-links" aria-label="Learning sections">
-        <a href="/learn" class="learn-nav-link {% if current_page == 'modules' %}active{% endif %}">
-          <span class="learn-nav-icon">📚</span>
+        <a href="/learn" class="learn-nav-link {% if current_page == 'modules' %}active{% endif %}" {% if current_page == 'modules' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">📚</span>
           <span class="learn-nav-text">Modules</span>
         </a>
-        <a href="/learn/courses" class="learn-nav-link {% if current_page == 'courses' %}active{% endif %}">
-          <span class="learn-nav-icon">🎓</span>
+        <a href="/learn/courses" class="learn-nav-link {% if current_page == 'courses' %}active{% endif %}" {% if current_page == 'courses' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">🎓</span>
           <span class="learn-nav-text">Courses</span>
         </a>
-        <a href="/learn/pathways" class="learn-nav-link {% if current_page == 'pathways' %}active{% endif %}">
-          <span class="learn-nav-icon">🗺️</span>
+        <a href="/learn/pathways" class="learn-nav-link {% if current_page == 'pathways' %}active{% endif %}" {% if current_page == 'pathways' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">🗺️</span>
           <span class="learn-nav-text">Pathways</span>
         </a>
-        <a href="/learn/my-learning" class="learn-nav-link {% if current_page == 'my-learning' %}active{% endif %}">
-          <span class="learn-nav-icon">📊</span>
+        <a href="/learn/my-learning" class="learn-nav-link {% if current_page == 'my-learning' %}active{% endif %}" {% if current_page == 'my-learning' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">📊</span>
           <span class="learn-nav-text">My Learning</span>
         </a>
       </nav>
@@ -31,16 +31,16 @@
       <div class="learn-nav-divider"></div>
 
       {# Auth Links #}
-      <div class="learn-nav-auth">
+      <div class="learn-nav-auth" role="region" aria-label="User authentication">
         {% if request_contact.is_logged_in %}
-          <div class="learn-user-greeting">Hi, {{ request_contact.firstname|default('there') }}!</div>
-          <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link">
-            <span class="learn-nav-icon">🚪</span>
+          <div class="learn-user-greeting" aria-live="polite">Hi, {{ request_contact.firstname|default('there') }}!</div>
+          <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
+            <span class="learn-nav-icon" aria-hidden="true">🚪</span>
             <span class="learn-nav-text">Sign Out</span>
           </a>
         {% else %}
-          <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link">
-            <span class="learn-nav-icon">🔐</span>
+          <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
+            <span class="learn-nav-icon" aria-hidden="true">🔐</span>
             <span class="learn-nav-text">Sign In</span>
           </a>
         {% endif %}
@@ -48,56 +48,60 @@
 
       {# Filter Panel (optional) #}
       {% if show_filters %}
-        <div class="learn-nav-divider"></div>
+        <div class="learn-nav-divider" role="separator"></div>
 
-        <div class="learn-filters">
-          <h3 class="learn-filters-title">Filters</h3>
+        <div class="learn-filters" role="region" aria-label="Content filters">
+          <h3 class="learn-filters-title" id="filters-heading">Filters</h3>
 
           {# Search #}
           <div class="learn-filter-group">
-            <label class="learn-filter-label">Search</label>
-            <input type="text" class="learn-filter-search" placeholder="Search..." disabled>
+            <label class="learn-filter-label" for="filter-search">Search</label>
+            <input type="text" id="filter-search" class="learn-filter-search" placeholder="Search..." disabled aria-disabled="true" aria-describedby="filters-coming-soon">
           </div>
 
           {# Content Type #}
           <div class="learn-filter-group">
-            <label class="learn-filter-label">Content Type</label>
-            <div class="learn-filter-options">
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> All
-              </label>
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> Beginner
-              </label>
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> Intermediate
-              </label>
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> Advanced
-              </label>
-            </div>
+            <fieldset disabled aria-describedby="filters-coming-soon">
+              <legend class="learn-filter-label">Content Type</legend>
+              <div class="learn-filter-options">
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> All
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> Beginner
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> Intermediate
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> Advanced
+                </label>
+              </div>
+            </fieldset>
           </div>
 
           {# Tags #}
           <div class="learn-filter-group">
-            <label class="learn-filter-label">Tags</label>
-            <div class="learn-filter-options">
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> Networking
-              </label>
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> AI
-              </label>
-              <label class="learn-filter-checkbox">
-                <input type="checkbox" disabled> Cloud
-              </label>
-            </div>
+            <fieldset disabled aria-describedby="filters-coming-soon">
+              <legend class="learn-filter-label">Tags</legend>
+              <div class="learn-filter-options">
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> Networking
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> AI
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" disabled> Cloud
+                </label>
+              </div>
+            </fieldset>
           </div>
 
           {# Duration #}
           <div class="learn-filter-group">
-            <label class="learn-filter-label">Duration</label>
-            <select class="learn-filter-select" disabled>
+            <label class="learn-filter-label" for="filter-duration">Duration</label>
+            <select id="filter-duration" class="learn-filter-select" disabled aria-disabled="true" aria-describedby="filters-coming-soon">
               <option>Any duration</option>
               <option>Under 30 min</option>
               <option>30-60 min</option>
@@ -105,7 +109,7 @@
             </select>
           </div>
 
-          <p class="learn-filters-note">Filters coming soon!</p>
+          <p class="learn-filters-note" id="filters-coming-soon">Filters coming soon!</p>
         </div>
       {% endif %}
     </div>
