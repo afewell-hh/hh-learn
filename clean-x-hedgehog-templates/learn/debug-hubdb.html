@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HubDB Query Debug</title>
+</head>
+<body>
+    <h1>HubDB Query Debug</h1>
+
+    <h2>Test 1: Query modules by path__eq=</h2>
+    {% set modules_table_id = "135621904" %}
+    {% set test_slug = "authoring-basics" %}
+    {% set result_by_hs_path = hubdb_table_rows(modules_table_id, "path__eq=" ~ test_slug) %}
+    <p><strong>Query:</strong> hubdb_table_rows("135621904", "path__eq=authoring-basics")</p>
+    <p><strong>Results count:</strong> {{ result_by_hs_path|length }}</p>
+    {% if result_by_hs_path|length > 0 %}
+        <pre>{{ result_by_hs_path[0]|pprint }}</pre>
+    {% else %}
+        <p style="color: red;">NO RESULTS RETURNED</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Test 2: Query modules by path__in=</h2>
+    {% set result_by_hs_path_in = hubdb_table_rows(modules_table_id, "path__in=authoring-basics,authoring-media-and-metadata") %}
+    <p><strong>Query:</strong> hubdb_table_rows("135621904", "path__in=authoring-basics,authoring-media-and-metadata")</p>
+    <p><strong>Results count:</strong> {{ result_by_hs_path_in|length }}</p>
+    {% if result_by_hs_path_in|length > 0 %}
+        {% for item in result_by_hs_path_in %}
+            <p>{{ item.hs_name }} (hs_path={{ item.hs_path }})</p>
+        {% endfor %}
+    {% else %}
+        <p style="color: red;">NO RESULTS RETURNED</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Test 3: Get ALL modules (no filter)</h2>
+    {% set all_modules = hubdb_table_rows(modules_table_id) %}
+    <p><strong>Query:</strong> hubdb_table_rows("135621904")</p>
+    <p><strong>Results count:</strong> {{ all_modules|length }}</p>
+    {% if all_modules|length > 0 %}
+        <p>First module:</p>
+        <pre>{{ all_modules[0]|pprint }}</pre>
+        <p>Looking for "authoring-basics" in results...</p>
+        {% for module in all_modules %}
+            {% if "authoring-basics" in module.hs_path|lower or "authoring-basics" in module.path|lower %}
+                <p style="color: green;">FOUND: {{ module.hs_name }} - path={{ module.path }}, hs_path={{ module.hs_path }}</p>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+</body>
+</html>
