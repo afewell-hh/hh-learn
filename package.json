@@ -13,6 +13,7 @@
     "sync:content": "npm run build && node dist/src/sync/markdown-to-hubdb.js",
     "sync:pathways": "npm run build && node dist/src/sync/pathways-to-hubdb.js",
     "sync:courses": "npm run build && node dist/src/sync/courses-to-hubdb.js",
+    "sync:catalog": "npm run build && node dist/scripts/hubspot/sync-catalog.js",
     "upload:templates": "npm run build && node dist/scripts/hubspot/upload-templates.js",
     "provision:tables": "npm run build && node dist/scripts/hubspot/provision-tables.js",
     "provision:constants": "npm run build && node dist/scripts/hubspot/update-constants.js",

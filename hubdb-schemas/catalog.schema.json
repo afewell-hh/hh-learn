@@ -1,0 +1,80 @@
+{
+  "name": "catalog",
+  "label": "Learning Catalog",
+  "columns": [
+    {
+      "name": "type",
+      "label": "Content Type",
+      "type": "SELECT",
+      "options": [
+        {"id": "1", "name": "module", "type": "option"},
+        {"id": "2", "name": "course", "type": "option"},
+        {"id": "3", "name": "pathway", "type": "option"}
+      ]
+    },
+    {
+      "name": "hs_path",
+      "label": "URL Path",
+      "type": "TEXT"
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "TEXT"
+    },
+    {
+      "name": "summary",
+      "label": "Summary",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "image_url",
+      "label": "Card Image URL",
+      "type": "TEXT"
+    },
+    {
+      "name": "level",
+      "label": "Difficulty Level",
+      "type": "SELECT",
+      "options": [
+        {"id": "1", "name": "beginner", "type": "option"},
+        {"id": "2", "name": "intermediate", "type": "option"},
+        {"id": "3", "name": "advanced", "type": "option"}
+      ]
+    },
+    {
+      "name": "duration",
+      "label": "Duration (minutes)",
+      "type": "NUMBER"
+    },
+    {
+      "name": "tags",
+      "label": "Tags (comma-separated)",
+      "type": "TEXT"
+    },
+    {
+      "name": "published",
+      "label": "Published",
+      "type": "SELECT",
+      "options": [
+        {"id": "1", "name": "true", "type": "option"},
+        {"id": "2", "name": "false", "type": "option"}
+      ]
+    },
+    {
+      "name": "sort_order",
+      "label": "Sort Order",
+      "type": "NUMBER"
+    },
+    {
+      "name": "source_table",
+      "label": "Source Table",
+      "type": "TEXT"
+    },
+    {
+      "name": "source_row_id",
+      "label": "Source Row ID",
+      "type": "NUMBER"
+    }
+  ]
+}
