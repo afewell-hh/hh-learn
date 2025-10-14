@@ -3,6 +3,7 @@
   isAvailableForNewContent: true
 -->
 {% extends "../layouts/base.html" %}
+{% from "macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
   {{ super() }}
@@ -26,6 +27,10 @@
   <meta name="twitter:title" content="My Learning - Learn Hedgehog AI Networking">
   <meta name="twitter:description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
   <meta name="twitter:image" content="{{ social_image }}">
+
+  {# Left navigation styles and scripts #}
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
 {% endblock head %}
 
 {% block body %}
@@ -306,8 +311,10 @@
     </div>
   </section>
 
-  <section class="learn-main-section">
-    <div class="learn-container">
+  <div class="learn-layout-with-nav">
+    {{ learning_left_nav('my-learning', show_filters=false) }}
+    <div class="learn-main-content">
+      <div class="learn-container">
       <!-- Loading state (shown initially) -->
       <div id="loading-state" class="loading-state">
         <div class="loading-spinner"></div>
@@ -370,8 +377,9 @@
           <a href="/learn/pathways" class="empty-state-cta">Explore Pathways</a>
         </div>
       </div>
+      </div>
     </div>
-  </section>
+  </div>
 </main>
 
 {# Auth context for external JS and constants URL #}
