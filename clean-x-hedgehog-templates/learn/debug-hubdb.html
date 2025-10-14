@@ -6,11 +6,11 @@
 <body>
     <h1>HubDB Query Debug</h1>
 
-    <h2>Test 1: Query modules by hs_path__eq=</h2>
+    <h2>Test 1: Query modules by path__eq=</h2>
     {% set modules_table_id = "135621904" %}
     {% set test_slug = "authoring-basics" %}
-    {% set result_by_hs_path = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ test_slug) %}
-    <p><strong>Query:</strong> hubdb_table_rows("135621904", "hs_path__eq=authoring-basics")</p>
+    {% set result_by_hs_path = hubdb_table_rows(modules_table_id, "path__eq=" ~ test_slug) %}
+    <p><strong>Query:</strong> hubdb_table_rows("135621904", "path__eq=authoring-basics")</p>
     <p><strong>Results count:</strong> {{ result_by_hs_path|length }}</p>
     {% if result_by_hs_path|length > 0 %}
         <pre>{{ result_by_hs_path[0]|pprint }}</pre>
@@ -20,9 +20,9 @@
 
     <hr>
 
-    <h2>Test 2: Query modules by hs_path__in=</h2>
-    {% set result_by_hs_path_in = hubdb_table_rows(modules_table_id, "hs_path__in=authoring-basics,authoring-media-and-metadata") %}
-    <p><strong>Query:</strong> hubdb_table_rows("135621904", "hs_path__in=authoring-basics,authoring-media-and-metadata")</p>
+    <h2>Test 2: Query modules by path__in=</h2>
+    {% set result_by_hs_path_in = hubdb_table_rows(modules_table_id, "path__in=authoring-basics,authoring-media-and-metadata") %}
+    <p><strong>Query:</strong> hubdb_table_rows("135621904", "path__in=authoring-basics,authoring-media-and-metadata")</p>
     <p><strong>Results count:</strong> {{ result_by_hs_path_in|length }}</p>
     {% if result_by_hs_path_in|length > 0 %}
         {% for item in result_by_hs_path_in %}

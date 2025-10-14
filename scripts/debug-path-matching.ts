@@ -2,7 +2,7 @@
 /**
  * Debug path matching between courses/pathways and their referenced modules/courses
  *
- * The templates use queries like: hs_path__eq=<slug>
+ * The templates use queries like: path__eq=<slug>
  * This script checks if the 'path' (hs_path) field matches the slugs stored in JSON fields
  */
 
@@ -57,7 +57,7 @@ async function debugCourse() {
       console.log(`\n  Slug: "${slug}"`);
 
       // Try the exact query the template uses
-      const query = `hs_path__eq=${slug}&tags__not__icontains=archived`;
+      const query = `path__eq=${slug}&tags__not__icontains=archived`;
       console.log(`  Query: ${query}`);
 
       try {
@@ -130,7 +130,7 @@ async function debugPathway() {
       console.log(`\n  Slug: "${slug}"`);
 
       // Try the exact query the template uses
-      const query = `hs_path__eq=${slug}&tags__not__icontains=archived`;
+      const query = `path__eq=${slug}&tags__not__icontains=archived`;
       console.log(`  Query: ${query}`);
 
       try {
