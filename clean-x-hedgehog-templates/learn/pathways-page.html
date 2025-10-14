@@ -55,7 +55,8 @@
             {% for s in course_slugs_raw %}
               {% set _ = course_slugs.append(s|lower|trim) %}
             {% endfor %}
-            {% set all_courses = hubdb_table_rows(courses_table_id, "tags__not__icontains=archived") %}
+            {# Fetch ALL courses; filter archived in-template to avoid operator quirks #}
+            {% set all_courses = hubdb_table_rows(courses_table_id) %}
             {% set courses_by_key = {} %}
             {% for crs in all_courses %}
               {% if crs.hs_path %}
@@ -63,6 +64,9 @@
               {% endif %}
               {% if crs.path %}
                 {% set _ = courses_by_key.update({(crs.path|lower|trim): crs}) %}
+              {% endif %}
+              {% if crs.slug %}
+                {% set _ = courses_by_key.update({(crs.slug|lower|trim): crs}) %}
               {% endif %}
             {% endfor %}
             {% for slug in course_slugs %}
@@ -525,6 +529,23 @@
   }
 </style>
 
+  {# Global debug banner (list and detail) #}
+  {% if request.query_dict.debug == '1' %}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 'n/a' %}
+    {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 'n/a' %}
+    <div style="position:sticky; top:0; z-index:9999; background:#dbeafe; border:2px solid #60a5fa; padding:12px; border-radius:8px; margin:12px 0;">
+      <strong>Debug (Pathway)</strong>
+      <div>dynamic_page_hubdb_row present: {{ dynamic_page_hubdb_row is not none }}</div>
+      <div>courses_table_id: {{ courses_table_id }}</div>
+      <div>modules_table_id: {{ modules_table_id }}</div>
+      {% if dynamic_page_hubdb_row %}
+        <div>course_slugs_json present: {{ dynamic_page_hubdb_row.course_slugs_json is not none }}</div>
+        <div>module_slugs_json present: {{ dynamic_page_hubdb_row.module_slugs_json is not none }}</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
 <main id="main-content">
   {# Top-of-page debug banner: always render when ?debug=1 #}
   {% if request.query_dict.debug == '1' %}
@@ -657,7 +678,8 @@
                 {% set _ = course_slugs.append(s|lower|trim) %}
               {% endfor %}
               {# Fetch ALL courses and build normalized dictionary by hs_path or path #}
-              {% set all_courses = hubdb_table_rows(courses_table_id, "tags__not__icontains=archived") %}
+              {# Fetch ALL courses; filter archived in-template to avoid operator quirks #}
+              {% set all_courses = hubdb_table_rows(courses_table_id) %}
               {% set courses_by_key = {} %}
               {% for crs in all_courses %}
                 {% if crs.hs_path %}
@@ -665,6 +687,9 @@
                 {% endif %}
                 {% if crs.path %}
                   {% set _ = courses_by_key.update({(crs.path|lower|trim): crs}) %}
+                {% endif %}
+                {% if crs.slug %}
+                  {% set _ = courses_by_key.update({(crs.slug|lower|trim): crs}) %}
                 {% endif %}
               {% endfor %}
               {% if request.query_dict.debug == '1' %}
@@ -679,6 +704,16 @@
                 {% for slug in course_slugs %}
                   {# Lookup course from batch-fetched dictionary #}
                   {% set course = courses_by_key[slug] %}
+                  {% if not course %}
+                    {# Fallback: fetch single row by path__eq for this slug (small N) #}
+                    {% set fetched = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug) %}
+                    {% if not fetched or fetched|length == 0 %}
+                      {% set fetched = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug) %}
+                    {% endif %}
+                    {% if fetched and fetched|length > 0 %}
+                      {% set course = fetched[0] %}
+                    {% endif %}
+                  {% endif %}
                   {% if course %}
                     <a href="/learn/courses/{{ course.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
