@@ -11,6 +11,22 @@ This document defines the normative standard for module content on Hedgehog Lear
 
 For step-by-step instructions on authoring and publishing modules, see the [Contributor Guide](contributor-guide.md).
 
+## Table of Contents
+
+- [Purpose](#purpose)
+- [Module Structure](#module-structure)
+- [Front Matter Requirements](#front-matter-requirements)
+- [Content Guidelines](#content-guidelines)
+- [Formatting Standards](#formatting-standards)
+- [Metadata Standards](#metadata-standards)
+- [Quality Assurance Checklist](#quality-assurance-checklist)
+- [Sync and Publication](#sync-and-publication)
+- [Maintenance and Updates](#maintenance-and-updates)
+- [Examples and Templates](#examples-and-templates)
+- [Review and Approval](#review-and-approval)
+- [Feedback and Iteration](#feedback-and-iteration)
+- [Related Documentation](#related-documentation)
+
 ## Purpose
 
 This standard ensures:
