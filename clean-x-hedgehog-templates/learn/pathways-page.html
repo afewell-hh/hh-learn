@@ -48,15 +48,17 @@
       "itemListElement": [
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           {% if dynamic_page_hubdb_row.course_slugs_json and constants.HUBDB_COURSES_TABLE_ID %}
-            {# Pathway contains courses - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            {# Pathway contains courses - Fetch ALL and manually filter #}
+            {# HubDB API path filters don't work reliably #}
             {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
             {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
-            {% set slug_list = course_slugs|join(',') %}
-            {% set all_courses = hubdb_table_rows(courses_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-            {# Create lookup dictionary keyed by hs_path #}
+            {% set all_courses = hubdb_table_rows(courses_table_id, "tags__not__icontains=archived") %}
+            {# Create lookup dictionary keyed by path #}
             {% set courses_by_slug = {} %}
             {% for crs in all_courses %}
-              {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
+              {% if crs.hs_path %}
+                {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
+              {% endif %}
             {% endfor %}
             {% for slug in course_slugs %}
               {% set course = courses_by_slug[slug] %}
@@ -73,15 +75,17 @@
               {% endif %}
             {% endfor %}
         {% elif dynamic_page_hubdb_row.module_slugs_json and constants.HUBDB_MODULES_TABLE_ID %}
-          {# Pathway contains modules - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+          {# Pathway contains modules - Fetch ALL and manually filter #}
+          {# HubDB API path filters don't work reliably #}
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
           {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
-          {% set slug_list = module_slugs|join(',') %}
-          {% set all_modules = hubdb_table_rows(modules_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-          {# Create lookup dictionary keyed by hs_path #}
+          {% set all_modules = hubdb_table_rows(modules_table_id, "tags__not__icontains=archived") %}
+          {# Create lookup dictionary keyed by path #}
           {% set modules_by_slug = {} %}
           {% for mod in all_modules %}
-            {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
+            {% if mod.hs_path %}
+              {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
+            {% endif %}
           {% endfor %}
           {% for slug in module_slugs %}
             {% set module = modules_by_slug[slug] %}
@@ -608,17 +612,21 @@
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
 
           {% if dynamic_page_hubdb_row.course_slugs_json and courses_table_id %}
-            {# Prefer courses when available - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            {# Prefer courses when available - Fetch ALL and manually filter #}
+            {# HubDB API path filters don't work reliably #}
             <section class="pathway-modules-section">
               <h2>Courses</h2>
               {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
-              {# Fetch all courses in ONE query using hs_path__in operator #}
-              {% set slug_list = course_slugs|join(',') %}
-              {% set all_courses = hubdb_table_rows(courses_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-              {# Create lookup dictionary keyed by hs_path #}
+              {# Fetch ALL courses from the table #}
+              {% set all_courses = hubdb_table_rows(courses_table_id, "tags__not__icontains=archived") %}
+              {# Create lookup dictionary by matching hs_path to slugs #}
               {% set courses_by_slug = {} %}
               {% for crs in all_courses %}
-                {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
+                {% for slug in course_slugs %}
+                  {% if crs.hs_path == slug %}
+                    {% set _ = courses_by_slug.update({slug: crs}) %}
+                  {% endif %}
+                {% endfor %}
               {% endfor %}
               <div class="modules-grid">
                 {% for slug in course_slugs %}
@@ -651,18 +659,22 @@
             </section>
 
           {% elif dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
-            {# Fallback: Render modules list - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            {# Fallback: Render modules list - Fetch ALL and manually filter #}
+            {# HubDB API path filters don't work reliably #}
             <section class="pathway-modules-section">
               <h2>Learning Modules</h2>
               {% set modules_base_path = '/learn' %}
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
-              {# Fetch all modules in ONE query using hs_path__in operator #}
-              {% set slug_list = module_slugs|join(',') %}
-              {% set all_modules = hubdb_table_rows(modules_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-              {# Create lookup dictionary keyed by hs_path #}
+              {# Fetch ALL modules from the table #}
+              {% set all_modules = hubdb_table_rows(modules_table_id, "tags__not__icontains=archived") %}
+              {# Create lookup dictionary by matching hs_path to slugs #}
               {% set modules_by_slug = {} %}
               {% for mod in all_modules %}
-                {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
+                {% for slug in module_slugs %}
+                  {% if mod.hs_path == slug %}
+                    {% set _ = modules_by_slug.update({slug: mod}) %}
+                  {% endif %}
+                {% endfor %}
               {% endfor %}
               <div class="modules-grid">
                 {% for slug in module_slugs %}
