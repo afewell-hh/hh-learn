@@ -728,7 +728,7 @@
         {% set pathways_table_id = dynamic_page_hubdb_table_id %}
         {% if not pathways_table_id %}
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+          {% set pathways_table_id = (constants.HUBDB_PATHWAYS_TABLE_ID if constants else none) or 135381504 %}
         {% endif %}
         {% if pathways_table_id %}
           {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}

@@ -713,11 +713,11 @@
 
     <section class="learn-main-section">
       <div class="learn-container">
-        {# Prefer dynamic_page_hubdb_table_id, fallback to constants.json for backward compatibility #}
+        {# Prefer dynamic table binding; fallback to constants and finally hardcoded ID #}
         {% set courses_table_id = dynamic_page_hubdb_table_id %}
         {% if not courses_table_id %}
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
+          {% set courses_table_id = (constants.HUBDB_COURSES_TABLE_ID if constants else none) or 135381433 %}
         {% endif %}
         {% if courses_table_id %}
           {% set courses = hubdb_table_rows(courses_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
