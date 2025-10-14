@@ -1,0 +1,12 @@
+{
+  "slug": "course-authoring-expert",
+  "title": "Hedgehog Learn: Course Authoring Pathway",
+  "summary_markdown": "<p>Become a Hedgehog Learn content authoring expert through this comprehensive pathway.</p>\n<p><strong>Journey Overview:</strong></p>\n<ul>\n<li>Master module creation with markdown and front matter</li>\n<li>Learn media, metadata, and SEO optimization</li>\n<li>Assemble modules into structured courses</li>\n<li>Create comprehensive learning pathways with content blocks</li>\n<li>Implement quality assurance and troubleshooting practices</li>\n</ul>\n<p>This pathway takes you from beginner to expert content creator, ready to build complete learning experiences.</p>\n",
+  "courses": [
+    "course-authoring-101",
+    "pathway-assembly-and-layouts"
+  ],
+  "display_order": 1,
+  "tags": "authoring,expert,pathways",
+  "estimated_minutes": 0
+}

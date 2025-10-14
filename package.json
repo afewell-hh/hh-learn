@@ -20,6 +20,7 @@
     "publish:constants": "npm run build && node dist/scripts/hubspot/publish-constants.js",
     "provision:pages": "npm run build && node dist/scripts/hubspot/provision-pages.js",
     "publish:pages": "npm run build && node dist/scripts/hubspot/publish-pages.js",
+    "export:authoring": "npm run build && node dist/scripts/hubspot/export-course-authoring.js",
     "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants",
     "validate:cms": "npm run build && npm run provision:tables -- --dry-run && npm run provision:constants -- --dry-run && npm run provision:pages -- --dry-run",
     "test:e2e": "npx playwright test --reporter=list"
