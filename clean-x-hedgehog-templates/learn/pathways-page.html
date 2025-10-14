@@ -48,20 +48,25 @@
       "itemListElement": [
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           {% if dynamic_page_hubdb_row.course_slugs_json and constants.HUBDB_COURSES_TABLE_ID %}
-            {# Pathway contains courses - Fetch ALL and manually filter #}
-            {# HubDB API path filters don't work reliably #}
+            {# Pathway contains courses - Fetch ALL once and key by normalized hs_path/path #}
             {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
-            {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+            {% set course_slugs_raw = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+            {% set course_slugs = [] %}
+            {% for s in course_slugs_raw %}
+              {% set _ = course_slugs.append(s|lower|trim) %}
+            {% endfor %}
             {% set all_courses = hubdb_table_rows(courses_table_id, "tags__not__icontains=archived") %}
-            {# Create lookup dictionary keyed by path #}
-            {% set courses_by_slug = {} %}
+            {% set courses_by_key = {} %}
             {% for crs in all_courses %}
               {% if crs.hs_path %}
-                {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
+                {% set _ = courses_by_key.update({(crs.hs_path|lower|trim): crs}) %}
+              {% endif %}
+              {% if crs.path %}
+                {% set _ = courses_by_key.update({(crs.path|lower|trim): crs}) %}
               {% endif %}
             {% endfor %}
             {% for slug in course_slugs %}
-              {% set course = courses_by_slug[slug] %}
+              {% set course = courses_by_key[slug] %}
               {% if course %}
         {
           "@type": "ListItem",
@@ -75,20 +80,25 @@
               {% endif %}
             {% endfor %}
         {% elif dynamic_page_hubdb_row.module_slugs_json and constants.HUBDB_MODULES_TABLE_ID %}
-          {# Pathway contains modules - Fetch ALL and manually filter #}
-          {# HubDB API path filters don't work reliably #}
+          {# Pathway contains modules - Fetch ALL once and key by normalized hs_path/path #}
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
-          {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+          {% set module_slugs_raw = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+          {% set module_slugs = [] %}
+          {% for s in module_slugs_raw %}
+            {% set _ = module_slugs.append(s|lower|trim) %}
+          {% endfor %}
           {% set all_modules = hubdb_table_rows(modules_table_id, "tags__not__icontains=archived") %}
-          {# Create lookup dictionary keyed by path #}
-          {% set modules_by_slug = {} %}
+          {% set modules_by_key = {} %}
           {% for mod in all_modules %}
             {% if mod.hs_path %}
-              {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
+              {% set _ = modules_by_key.update({(mod.hs_path|lower|trim): mod}) %}
+            {% endif %}
+            {% if mod.path %}
+              {% set _ = modules_by_key.update({(mod.path|lower|trim): mod}) %}
             {% endif %}
           {% endfor %}
           {% for slug in module_slugs %}
-            {% set module = modules_by_slug[slug] %}
+            {% set module = modules_by_key[slug] %}
             {% if module %}
         {
           "@type": "ListItem",
@@ -516,6 +526,21 @@
 </style>
 
 <main id="main-content">
+  {# Top-of-page debug banner: always render when ?debug=1 #}
+  {% if request.query_dict.debug == '1' %}
+    {% set constants = get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json')|request_json %}
+    {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 'n/a' %}
+    {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 'n/a' %}
+    {% set course_slugs_dbg = dynamic_page_hubdb_row.course_slugs_json|fromjson if dynamic_page_hubdb_row and dynamic_page_hubdb_row.course_slugs_json else [] %}
+    {% set module_slugs_dbg = dynamic_page_hubdb_row.module_slugs_json|fromjson if dynamic_page_hubdb_row and dynamic_page_hubdb_row.module_slugs_json else [] %}
+    <div style="position:sticky;top:0;z-index:9999;background:#fff7ed;border-bottom:1px solid #fdba74;padding:10px 16px;font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;font-size:13px;">
+      <strong>Debug</strong>
+      <span style="margin-left:8px;color:#9a3412">pathways-page</span>
+      <div>courses_table_id: {{ courses_table_id }} | modules_table_id: {{ modules_table_id }}</div>
+      {% if course_slugs_dbg|length > 0 %}<div>course_slugs_raw: {{ course_slugs_dbg|tojson }}</div>{% endif %}
+      {% if module_slugs_dbg|length > 0 %}<div>module_slugs_raw: {{ module_slugs_dbg|tojson }}</div>{% endif %}
+    </div>
+  {% endif %}
   {% if dynamic_page_hubdb_row %}
     {# Detail mode - showing a single pathway #}
     <section class="learn-header-section">
@@ -616,30 +641,34 @@
             {# HubDB API path filters don't work reliably #}
             <section class="pathway-modules-section">
               <h2>Courses</h2>
-              {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
-              {# Fetch ALL courses from the table #}
+              {% set course_slugs_raw = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+              {% set course_slugs = [] %}
+              {% for s in course_slugs_raw %}
+                {% set _ = course_slugs.append(s|lower|trim) %}
+              {% endfor %}
+              {# Fetch ALL courses and build normalized dictionary by hs_path or path #}
               {% set all_courses = hubdb_table_rows(courses_table_id, "tags__not__icontains=archived") %}
-              {# Create lookup dictionary by matching hs_path to slugs #}
-              {% set courses_by_slug = {} %}
+              {% set courses_by_key = {} %}
               {% for crs in all_courses %}
-                {% for slug in course_slugs %}
-                  {% if crs.hs_path == slug %}
-                    {% set _ = courses_by_slug.update({slug: crs}) %}
-                  {% endif %}
-                {% endfor %}
+                {% if crs.hs_path %}
+                  {% set _ = courses_by_key.update({(crs.hs_path|lower|trim): crs}) %}
+                {% endif %}
+                {% if crs.path %}
+                  {% set _ = courses_by_key.update({(crs.path|lower|trim): crs}) %}
+                {% endif %}
               {% endfor %}
               {% if request.query_dict.debug == '1' %}
                 <div style="background:#eef6ff; border:1px solid #93c5fd; padding:12px; border-radius:8px; margin:16px 0;">
                   <strong>Debug</strong>
-                  <div>course_slugs: {{ course_slugs|tojson }}</div>
+                  <div>course_slugs(norm): {{ course_slugs|tojson }}</div>
                   <div>courses_table_id: {{ courses_table_id }}</div>
-                  <div>courses_by_slug keys: {{ courses_by_slug.keys()|list|tojson }}</div>
+                  <div>courses_by_key keys: {{ courses_by_key.keys()|list|tojson }}</div>
                 </div>
               {% endif %}
               <div class="modules-grid">
                 {% for slug in course_slugs %}
                   {# Lookup course from batch-fetched dictionary #}
-                  {% set course = courses_by_slug[slug] %}
+                  {% set course = courses_by_key[slug] %}
                   {% if course %}
                     <a href="/learn/courses/{{ course.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
@@ -672,30 +701,34 @@
             <section class="pathway-modules-section">
               <h2>Learning Modules</h2>
               {% set modules_base_path = '/learn' %}
-              {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
-              {# Fetch ALL modules from the table #}
+              {% set module_slugs_raw = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+              {% set module_slugs = [] %}
+              {% for s in module_slugs_raw %}
+                {% set _ = module_slugs.append(s|lower|trim) %}
+              {% endfor %}
+              {# Fetch ALL modules and build normalized dictionary by hs_path or path #}
               {% set all_modules = hubdb_table_rows(modules_table_id, "tags__not__icontains=archived") %}
-              {# Create lookup dictionary by matching hs_path to slugs #}
-              {% set modules_by_slug = {} %}
+              {% set modules_by_key = {} %}
               {% for mod in all_modules %}
-                {% for slug in module_slugs %}
-                  {% if mod.hs_path == slug %}
-                    {% set _ = modules_by_slug.update({slug: mod}) %}
-                  {% endif %}
-                {% endfor %}
+                {% if mod.hs_path %}
+                  {% set _ = modules_by_key.update({(mod.hs_path|lower|trim): mod}) %}
+                {% endif %}
+                {% if mod.path %}
+                  {% set _ = modules_by_key.update({(mod.path|lower|trim): mod}) %}
+                {% endif %}
               {% endfor %}
               {% if request.query_dict.debug == '1' %}
                 <div style="background:#eef6ff; border:1px solid #93c5fd; padding:12px; border-radius:8px; margin:16px 0;">
                   <strong>Debug</strong>
-                  <div>module_slugs: {{ module_slugs|tojson }}</div>
+                  <div>module_slugs(norm): {{ module_slugs|tojson }}</div>
                   <div>modules_table_id: {{ modules_table_id }}</div>
-                  <div>modules_by_slug keys: {{ modules_by_slug.keys()|list|tojson }}</div>
+                  <div>modules_by_key keys: {{ modules_by_key.keys()|list|tojson }}</div>
                 </div>
               {% endif %}
               <div class="modules-grid">
                 {% for slug in module_slugs %}
                   {# Lookup module from batch-fetched dictionary #}
-                  {% set module = modules_by_slug[slug] %}
+                  {% set module = modules_by_key[slug] %}
                   {% if module %}
                     <a href="{{ modules_base_path }}/{{ module.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>

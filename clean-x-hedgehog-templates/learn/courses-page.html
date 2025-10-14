@@ -52,13 +52,15 @@
         {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
         {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else none %}
         {% if modules_table_id %}
-          {# Fetch ALL modules ONCE for JSON-LD, then manually filter #}
-          {# HubDB API path filters don't work reliably #}
+          {# Fetch ALL modules ONCE for JSON-LD, then manually filter (normalized hs_path/path) #}
           {% set all_modules_jsonld = hubdb_table_rows(modules_table_id, "tags__not__icontains=archived") %}
-          {% set modules_by_slug_jsonld = {} %}
+          {% set modules_by_key_jsonld = {} %}
           {% for module in all_modules_jsonld %}
+            {% if module.hs_path %}
+              {% set _ = modules_by_key_jsonld.update({(module.hs_path|lower|trim): module}) %}
+            {% endif %}
             {% if module.path %}
-              {% set _ = modules_by_slug_jsonld.update({module.path: module}) %}
+              {% set _ = modules_by_key_jsonld.update({(module.path|lower|trim): module}) %}
             {% endif %}
           {% endfor %}
 
@@ -76,8 +78,12 @@
           {% endif %}
 
       "hasPart": [
-          {% for slug in all_module_slugs %}
-            {% set module = modules_by_slug_jsonld[slug] %}
+          {% set all_module_slugs_norm = [] %}
+          {% for s in all_module_slugs %}
+            {% set _ = all_module_slugs_norm.append(s|lower|trim) %}
+          {% endfor %}
+          {% for slug in all_module_slugs_norm %}
+            {% set module = modules_by_key_jsonld[slug] %}
             {% if module %}
         {
           "@type": "LearningResource",
@@ -455,6 +461,29 @@
 </style>
 
 <main id="main-content">
+  {# Top-of-page debug banner: always render when ?debug=1 #}
+  {% if request.query_dict.debug == '1' %}
+    {% set constants = get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json')|request_json %}
+    {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 'n/a' %}
+    {% set blocks_dbg = dynamic_page_hubdb_row.content_blocks_json|fromjson if dynamic_page_hubdb_row and dynamic_page_hubdb_row.content_blocks_json else [] %}
+    {% set slugs_dbg = [] %}
+    {% for b in blocks_dbg %}
+      {% if b.type == 'module_ref' and b.module_slug %}
+        {% set _ = slugs_dbg.append(b.module_slug) %}
+      {% endif %}
+    {% endfor %}
+    {% if dynamic_page_hubdb_row and dynamic_page_hubdb_row.module_slugs_json %}
+      {% for s in (dynamic_page_hubdb_row.module_slugs_json|fromjson) %}
+        {% set _ = slugs_dbg.append(s) %}
+      {% endfor %}
+    {% endif %}
+    <div style="position:sticky;top:0;z-index:9999;background:#fff7ed;border-bottom:1px solid #fdba74;padding:10px 16px;font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;font-size:13px;">
+      <strong>Debug</strong>
+      <span style="margin-left:8px;color:#9a3412">courses-page</span>
+      <div>modules_table_id: {{ modules_table_id }}</div>
+      {% if slugs_dbg|length > 0 %}<div>module_slugs_raw: {{ slugs_dbg|tojson }}</div>{% endif %}
+    </div>
+  {% endif %}
   {% if dynamic_page_hubdb_row %}
     {# Detail mode - showing a single course #}
     <section class="learn-header-section">
@@ -516,15 +545,16 @@
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
 
-          {# OPTIMIZATION: Fetch ALL modules ONCE, then manually filter by matching hs_path to slugs #}
+          {# OPTIMIZATION: Fetch ALL modules ONCE, then manually filter by matching normalized hs_path/path to slugs #}
           {# Collect all slugs first #}
           {% set all_slugs = [] %}
           {% if dynamic_page_hubdb_row.content_blocks_json %}
             {% set blocks_temp = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
             {% for block in blocks_temp %}
               {% if block.type == 'module_ref' and block.module_slug %}
-                {% if block.module_slug not in all_slugs %}
-                  {% set _ = all_slugs.append(block.module_slug) %}
+                {% set norm = block.module_slug|lower|trim %}
+                {% if norm not in all_slugs %}
+                  {% set _ = all_slugs.append(norm) %}
                 {% endif %}
               {% endif %}
             {% endfor %}
@@ -532,24 +562,26 @@
           {% if dynamic_page_hubdb_row.module_slugs_json %}
             {% set module_slugs_temp = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
             {% for slug in module_slugs_temp %}
-              {% if slug not in all_slugs %}
-                {% set _ = all_slugs.append(slug) %}
+              {% set norm = slug|lower|trim %}
+              {% if norm not in all_slugs %}
+                {% set _ = all_slugs.append(norm) %}
               {% endif %}
             {% endfor %}
           {% endif %}
 
           {# Now fetch ALL modules and build lookup dictionary #}
-          {% set modules_by_slug = {} %}
+          {% set modules_by_key = {} %}
           {% if modules_table_id and all_slugs|length > 0 %}
             {# Fetch ALL modules from the table (excluding archived) #}
             {% set all_modules = hubdb_table_rows(modules_table_id, "tags__not__icontains=archived") %}
-            {# Build dictionary by matching module.hs_path to our slug list #}
+            {# Build dictionary keyed by normalized module.hs_path and module.path #}
             {% for module in all_modules %}
-              {% for slug in all_slugs %}
-                {% if (module.hs_path and module.hs_path == slug) or (module.path and module.path == slug) %}
-                  {% set _ = modules_by_slug.update({slug: module}) %}
-                {% endif %}
-              {% endfor %}
+              {% if module.hs_path %}
+                {% set _ = modules_by_key.update({(module.hs_path|lower|trim): module}) %}
+              {% endif %}
+              {% if module.path %}
+                {% set _ = modules_by_key.update({(module.path|lower|trim): module}) %}
+              {% endif %}
             {% endfor %}
           {% endif %}
 
@@ -557,9 +589,9 @@
           {% if request.query_dict.debug == '1' %}
             <div style="background:#eef6ff; border:1px solid #93c5fd; padding:12px; border-radius:8px; margin:16px 0;">
               <strong>Debug</strong>
-              <div>all_slugs: {{ all_slugs|tojson }}</div>
+              <div>all_slugs(norm): {{ all_slugs|tojson }}</div>
               <div>modules_table_id: {{ modules_table_id }}</div>
-              <div>modules_by_slug keys: {{ modules_by_slug.keys()|list|tojson }}</div>
+              <div>modules_by_key keys: {{ modules_by_key.keys()|list|tojson }}</div>
             </div>
           {% endif %}
 
@@ -595,7 +627,7 @@
                   {# Track this slug as rendered to avoid duplicates in fallback section #}
                   {% set _ = rendered_module_slugs.append(block.module_slug) %}
                   {# Lookup module from batch-fetched dictionary #}
-                  {% set module = modules_by_slug[block.module_slug] %}
+                  {% set module = modules_by_key[block.module_slug|lower|trim] %}
                   {% if module %}
                     <div class="content-block">
                       <a href="/learn/{{ module.hs_path }}" class="module-card">
@@ -635,7 +667,7 @@
                   <h2>Course Modules</h2>
                   <div class="modules-grid">
                     {% for slug in unrendered_modules %}
-                      {% set module = modules_by_slug[slug] %}
+                    {% set module = modules_by_key[slug|lower|trim] %}
                       {% if module %}
                         {% set module_index = module_index + 1 %}
                         <a href="/learn/{{ module.hs_path }}" class="module-card">
@@ -670,7 +702,7 @@
               <h2>Course Modules</h2>
               <div class="modules-grid">
                 {% for slug in module_slugs %}
-                  {% set module = modules_by_slug[slug] %}
+                  {% set module = modules_by_key[slug|lower|trim] %}
                   {% if module %}
                     <a href="/learn/{{ module.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
