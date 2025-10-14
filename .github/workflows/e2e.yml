@@ -8,13 +8,15 @@ on:
         required: false
         default: ""
   push:
-    branches: [ main, pr61 ]
+    branches: [ main ]
     paths:
       - "tests/e2e/**"
       - "playwright.config.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/e2e.yml"
+      - "clean-x-hedgehog-templates/**"
+      - "src/**"
   pull_request:
     branches: [ main ]
     paths:
@@ -23,6 +25,10 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/e2e.yml"
+      - "clean-x-hedgehog-templates/**"
+      - "src/**"
+    paths-ignore:
+      - "content/**"
   schedule:
     - cron: '0 9 * * *'
 

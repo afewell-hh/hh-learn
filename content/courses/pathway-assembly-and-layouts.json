@@ -6,6 +6,7 @@
     "authoring-assembly-courses",
     "authoring-pathways-and-content-blocks"
   ],
+  "badge_image_url": "",
   "content_blocks": [
     {
       "id": "intro",

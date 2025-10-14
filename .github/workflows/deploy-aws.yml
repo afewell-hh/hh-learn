@@ -1,5 +1,9 @@
-name: Deploy AWS (manual)
+name: Deploy AWS
 on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       stage:
