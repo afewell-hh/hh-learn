@@ -514,7 +514,7 @@
 
           <!-- Course Content: Prefer content_blocks_json if present, otherwise fallback to module_slugs_json -->
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else "135621904" %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
 
           {# OPTIMIZATION: Fetch all modules needed for this course ONCE, then reuse the cache #}
           {# This prevents hitting HubSpot's 10-call limit per page #}
@@ -540,7 +540,7 @@
               {% endfor %}
             {% endif %}
             {# Now fetch each module once and cache it #}
-            {# NOTE: Query by 'hs_path__eq=' which filters on hs_path column (Page Path) in HubDB #}
+            {# NOTE: Query by 'hs_path__eq=' which filters on Page Path in HubDB #}
             {% for slug in all_slugs %}
               {% set module_rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
               {% if module_rows and module_rows|length > 0 %}
@@ -556,6 +556,7 @@
 
             <section class="content-blocks-section">
               {% set module_index = 0 %}
+              {% set rendered_module_slugs = [] %}
               {% for block in blocks %}
                 {% if block.type == 'text' %}
                   <div class="content-block content-block-text">
@@ -577,6 +578,8 @@
                   </div>
                 {% elif block.type == 'module_ref' and block.module_slug %}
                   {% set module_index = module_index + 1 %}
+                  {# Track this slug as rendered to avoid duplicates in fallback section #}
+                  {% set _ = rendered_module_slugs.append(block.module_slug) %}
                   {# Lookup module from batch-fetched dictionary #}
                   {% set module = modules_by_slug[block.module_slug] %}
                   {% if module %}
@@ -602,6 +605,47 @@
                 {% endif %}
               {% endfor %}
             </section>
+
+            {# GUARANTEED FALLBACK: Show any modules from module_slugs_json that weren't rendered in content_blocks #}
+            {% if dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
+              {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+              {% set unrendered_modules = [] %}
+              {% for slug in module_slugs %}
+                {% if slug not in rendered_module_slugs %}
+                  {% set _ = unrendered_modules.append(slug) %}
+                {% endif %}
+              {% endfor %}
+
+              {% if unrendered_modules|length > 0 %}
+                <section class="content-blocks-section" style="margin-top: 48px;">
+                  <h2>Course Modules</h2>
+                  <div class="modules-grid">
+                    {% for slug in unrendered_modules %}
+                      {% set module = modules_by_slug[slug] %}
+                      {% if module %}
+                        {% set module_index = module_index + 1 %}
+                        <a href="/learn/{{ module.hs_path }}" class="module-card">
+                          <div class="module-card-number">{{ module_index }}</div>
+                          <h3>{{ module.hs_name }}</h3>
+
+                          {% if module.meta_description %}
+                            <p>{{ module.meta_description|striptags|truncate(150) }}</p>
+                          {% endif %}
+
+                          <div class="module-time">
+                            {{ module.estimated_minutes }} minutes
+                          </div>
+
+                          <div style="margin-top: 16px;">
+                            <span class="module-cta">Start Module →</span>
+                          </div>
+                        </a>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                </section>
+              {% endif %}
+            {% endif %}
 
           {% elif dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
             {# Fallback: Render modules list #}
