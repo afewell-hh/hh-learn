@@ -7,6 +7,7 @@ version: "v1.30"
 validated_on: "2025-10-01"
 pathway_slug: "kubernetes-fundamentals"
 pathway_name: "Kubernetes Fundamentals"
+description: "Learn Kubernetes fundamentals by deploying your first application and exploring pods, services, and core cluster operations with kubectl."
 tags:
   - kubernetes
   - containers

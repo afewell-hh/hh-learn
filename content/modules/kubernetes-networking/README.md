@@ -7,6 +7,7 @@ version: "v1.30"
 validated_on: "2025-10-01"
 pathway_slug: "kubernetes-fundamentals"
 pathway_name: "Kubernetes Fundamentals"
+description: "Master Kubernetes networking: expose services, configure Ingress, and enforce Network Policies to secure and route traffic between pods."
 tags:
   - kubernetes
   - networking

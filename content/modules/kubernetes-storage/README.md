@@ -7,6 +7,7 @@ version: "v1.30"
 validated_on: "2025-10-01"
 pathway_slug: "kubernetes-fundamentals"
 pathway_name: "Kubernetes Fundamentals"
+description: "Learn persistent storage in Kubernetes using Persistent Volumes, Persistent Volume Claims, and StorageClasses with a hands-on lab."
 tags:
   - kubernetes
   - storage
