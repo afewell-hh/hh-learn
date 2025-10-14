@@ -636,6 +636,16 @@
           {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 135381433 %}
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
 
+          {% if request.query_dict.debug == '1' %}
+            <div style="position:sticky; top:0; z-index:9999; background:#dbeafe; border:2px solid #60a5fa; padding:12px; border-radius:8px; margin:12px 0;">
+              <strong>Debug (Pathway)</strong>
+              <div>courses_table_id: {{ courses_table_id }}</div>
+              <div>modules_table_id: {{ modules_table_id }}</div>
+              <div>course_slugs_json present? {{ dynamic_page_hubdb_row.course_slugs_json is not none }}</div>
+              <div>module_slugs_json present? {{ dynamic_page_hubdb_row.module_slugs_json is not none }}</div>
+            </div>
+          {% endif %}
+
           {% if dynamic_page_hubdb_row.course_slugs_json and courses_table_id %}
             {# Prefer courses when available - Fetch ALL and manually filter #}
             {# HubDB API path filters don't work reliably #}
