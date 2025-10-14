@@ -26,12 +26,18 @@ See [`docs/content-sync.md`](docs/content-sync.md) for the full operational runb
 ## Documentation
 Only evergreen documentation lives in this repository. Historical decisions and sprint notes belong in GitHub issues or discussions.
 
+### Content Authoring
+- [`docs/content-standard.md`](docs/content-standard.md) – **Normative standard** for module content (required reading for authors).
+- [`docs/contributor-guide.md`](docs/contributor-guide.md) – **Step-by-step workflow** for authoring and publishing modules.
+- [`docs/course-authoring.md`](docs/course-authoring.md) – Comprehensive reference for modules, courses, and pathways.
+- [`docs/templates/module-README-template.md`](docs/templates/module-README-template.md) – Module template.
+
+### Platform & Operations
 - [`docs/architecture.md`](docs/architecture.md) – System boundaries and upcoming integrations.
 - [`docs/content-sync.md`](docs/content-sync.md) – Day-to-day operational guide for the sync script.
 - [`docs/auth-and-progress.md`](docs/auth-and-progress.md) – Authentication and progress persistence (v0.3).
 - [`docs/theme-development.md`](docs/theme-development.md) – Guardrails for customizing the Clean.Pro theme.
 - [`docs/project-management.md`](docs/project-management.md) – GitHub Projects best practices used by this repo.
-- [`docs/course-authoring.md`](docs/course-authoring.md) – End-to-end guide for writing and shipping modules.
 - [`docs/issue-60-verification-guide.md`](docs/issue-60-verification-guide.md) – Issue #60: HubSpot Projects Access Token migration verification.
 - [`docs/README.md`](docs/README.md) – Index of canonical documents.
 

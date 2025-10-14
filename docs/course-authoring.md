@@ -2,12 +2,16 @@
 title: Course Authoring Guide
 owner: hh-learn content lead
 status: living
-last-reviewed: 2025-10-08
+last-reviewed: 2025-10-14
 ---
 
 # Hedgehog Learn – Course Authoring Guide
 
-This is the single source of truth for creating and publishing learning modules. It includes a quickstart for SMEs, detailed front matter specs, lab/scenario patterns, media guidance, validation tips, and publishing steps.
+This is the comprehensive reference guide for creating and publishing learning content on Hedgehog Learn, including modules, courses, and pathways.
+
+**For new contributors:**
+- Start with the [Contributor Guide](contributor-guide.md) for a step-by-step walkthrough
+- Review the [Content Standard](content-standard.md) for normative requirements
 
 Note: Any feature impacting authors (fields, media, quizzes, workflow) must update this guide as part of the PR checklist.
 
