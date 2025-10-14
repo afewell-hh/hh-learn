@@ -546,11 +546,21 @@
             {# Build dictionary by matching module.hs_path to our slug list #}
             {% for module in all_modules %}
               {% for slug in all_slugs %}
-                {% if module.hs_path == slug %}
+                {% if (module.hs_path and module.hs_path == slug) or (module.path and module.path == slug) %}
                   {% set _ = modules_by_slug.update({slug: module}) %}
                 {% endif %}
               {% endfor %}
             {% endfor %}
+          {% endif %}
+
+          {# Optional diagnostics: enable with ?debug=1 #}
+          {% if request.query_dict.debug == '1' %}
+            <div style="background:#eef6ff; border:1px solid #93c5fd; padding:12px; border-radius:8px; margin:16px 0;">
+              <strong>Debug</strong>
+              <div>all_slugs: {{ all_slugs|tojson }}</div>
+              <div>modules_table_id: {{ modules_table_id }}</div>
+              <div>modules_by_slug keys: {{ modules_by_slug.keys()|list|tojson }}</div>
+            </div>
           {% endif %}
 
           {% if dynamic_page_hubdb_row.content_blocks_json %}

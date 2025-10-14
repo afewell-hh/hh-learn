@@ -628,6 +628,14 @@
                   {% endif %}
                 {% endfor %}
               {% endfor %}
+              {% if request.query_dict.debug == '1' %}
+                <div style="background:#eef6ff; border:1px solid #93c5fd; padding:12px; border-radius:8px; margin:16px 0;">
+                  <strong>Debug</strong>
+                  <div>course_slugs: {{ course_slugs|tojson }}</div>
+                  <div>courses_table_id: {{ courses_table_id }}</div>
+                  <div>courses_by_slug keys: {{ courses_by_slug.keys()|list|tojson }}</div>
+                </div>
+              {% endif %}
               <div class="modules-grid">
                 {% for slug in course_slugs %}
                   {# Lookup course from batch-fetched dictionary #}
@@ -676,6 +684,14 @@
                   {% endif %}
                 {% endfor %}
               {% endfor %}
+              {% if request.query_dict.debug == '1' %}
+                <div style="background:#eef6ff; border:1px solid #93c5fd; padding:12px; border-radius:8px; margin:16px 0;">
+                  <strong>Debug</strong>
+                  <div>module_slugs: {{ module_slugs|tojson }}</div>
+                  <div>modules_table_id: {{ modules_table_id }}</div>
+                  <div>modules_by_slug keys: {{ modules_by_slug.keys()|list|tojson }}</div>
+                </div>
+              {% endif %}
               <div class="modules-grid">
                 {% for slug in module_slugs %}
                   {# Lookup module from batch-fetched dictionary #}
