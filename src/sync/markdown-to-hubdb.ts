@@ -207,8 +207,7 @@ async function syncModules() {
         childTableId: 0, // Required for API compatibility
         values: {
           // NO 'title' here - it's in 'name' at row level!
-          // Populate explicit slug column so templates can filter reliably (slug__eq)
-          slug: (fm.slug || moduleSlug).toLowerCase(),
+          // Removed slug column - use row.path (hs_path) instead
           meta_description: fm.description || '', // SEO meta description (for metadata mapping)
           difficulty: difficultyValue, // Use option object for SELECT field
           estimated_minutes: fm.estimated_minutes || 30,

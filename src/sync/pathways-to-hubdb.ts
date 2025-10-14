@@ -252,12 +252,11 @@ async function syncPathways(dryRun: boolean = false) {
 
       // Prepare HubDB row
       const row = {
-        path: pathway.slug.toLowerCase(), // Use slug as path for consistency
-        name: pathway.title, // Display name
+        path: pathway.slug.toLowerCase(), // Maps to hs_path (Page Path)
+        name: pathway.title, // Maps to hs_name (Name/display title)
         childTableId: 0, // Required for API compatibility
         values: {
-          slug: pathway.slug,
-          title: pathway.title,
+          // Removed slug column - use row.path (hs_path) instead
           meta_description: metaDescription,
           summary_markdown: summaryHtml, // Store as HTML for RICH_TEXT column
           module_slugs_json: pathway.modules ? JSON.stringify(pathway.modules) : '',

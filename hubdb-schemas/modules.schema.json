@@ -1,8 +1,6 @@
 {
   "name": "modules",
   "columns": [
-    {"name": "slug", "type": "TEXT"},
-    {"name": "title", "type": "TEXT"},
     {
       "name": "difficulty",
       "type": "SELECT",

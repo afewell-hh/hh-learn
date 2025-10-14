@@ -52,11 +52,11 @@
             {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
             {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
             {% set slug_list = course_slugs|join(',') %}
-            {% set all_courses = hubdb_table_rows(courses_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-            {# Create lookup dictionary #}
+            {% set all_courses = hubdb_table_rows(courses_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+            {# Create lookup dictionary keyed by hs_path #}
             {% set courses_by_slug = {} %}
             {% for crs in all_courses %}
-              {% set _ = courses_by_slug.update({crs.slug: crs}) %}
+              {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
             {% endfor %}
             {% for slug in course_slugs %}
               {% set course = courses_by_slug[slug] %}
@@ -77,11 +77,11 @@
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
           {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
           {% set slug_list = module_slugs|join(',') %}
-          {% set all_modules = hubdb_table_rows(modules_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-          {# Create lookup dictionary #}
+          {% set all_modules = hubdb_table_rows(modules_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+          {# Create lookup dictionary keyed by hs_path #}
           {% set modules_by_slug = {} %}
           {% for mod in all_modules %}
-            {% set _ = modules_by_slug.update({mod.slug: mod}) %}
+            {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
           {% endfor %}
           {% for slug in module_slugs %}
             {% set module = modules_by_slug[slug] %}
@@ -612,13 +612,13 @@
             <section class="pathway-modules-section">
               <h2>Courses</h2>
               {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
-              {# Fetch all courses in ONE query using slug__in operator #}
+              {# Fetch all courses in ONE query using hs_path__in operator #}
               {% set slug_list = course_slugs|join(',') %}
-              {% set all_courses = hubdb_table_rows(courses_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-              {# Create lookup dictionary #}
+              {% set all_courses = hubdb_table_rows(courses_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+              {# Create lookup dictionary keyed by hs_path #}
               {% set courses_by_slug = {} %}
               {% for crs in all_courses %}
-                {% set _ = courses_by_slug.update({crs.slug: crs}) %}
+                {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
               {% endfor %}
               <div class="modules-grid">
                 {% for slug in course_slugs %}
@@ -656,13 +656,13 @@
               <h2>Learning Modules</h2>
               {% set modules_base_path = '/learn' %}
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
-              {# Fetch all modules in ONE query using slug__in operator #}
+              {# Fetch all modules in ONE query using hs_path__in operator #}
               {% set slug_list = module_slugs|join(',') %}
-              {% set all_modules = hubdb_table_rows(modules_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-              {# Create lookup dictionary #}
+              {% set all_modules = hubdb_table_rows(modules_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+              {# Create lookup dictionary keyed by hs_path #}
               {% set modules_by_slug = {} %}
               {% for mod in all_modules %}
-                {% set _ = modules_by_slug.update({mod.slug: mod}) %}
+                {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
               {% endfor %}
               <div class="modules-grid">
                 {% for slug in module_slugs %}

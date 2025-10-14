@@ -104,7 +104,7 @@
           }
         }
         if (!MODULES_TABLE_ID || slugs.length===0){ return done([]); }
-        var filter = slugs.map(function(s){ return 'path__eq='+encodeURIComponent(s); }).join('&');
+        var filter = slugs.map(function(s){ return 'hs_path__eq='+encodeURIComponent(s); }).join('&');
         fetchJSON('/hs/api/hubdb/v3/tables/'+MODULES_TABLE_ID+'/rows?'+filter+'&tags__not__icontains=archived')
           .then(function(data){ done((data && data.results)||[]); })
           .catch(function(){ done([]); });

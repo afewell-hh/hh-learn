@@ -236,12 +236,11 @@ async function syncCourses(dryRun: boolean = false) {
 
       // Prepare HubDB row
       const row = {
-        path: course.slug.toLowerCase(), // Use slug as path for consistency
-        name: course.title, // Display name
+        path: course.slug.toLowerCase(), // Maps to hs_path (Page Path)
+        name: course.title, // Maps to hs_name (Name/display title)
         childTableId: 0, // Required for API compatibility
         values: {
-          slug: course.slug,
-          title: course.title,
+          // Removed slug column - use row.path (hs_path) instead
           meta_description: metaDescription,
           summary_markdown: summaryHtml, // Store as HTML for RICH_TEXT column
           module_slugs_json: JSON.stringify(course.modules),

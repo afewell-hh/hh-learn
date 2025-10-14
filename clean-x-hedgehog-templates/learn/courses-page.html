@@ -48,21 +48,36 @@
         "@type": "Organization",
         "name": "Hedgehog"
       },
-      {% if dynamic_page_hubdb_row.module_slugs_json %}
+      {% if dynamic_page_hubdb_row.module_slugs_json or dynamic_page_hubdb_row.content_blocks_json %}
         {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
         {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else none %}
         {% if modules_table_id %}
-          {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
-          {# OPTIMIZATION: Batch-fetch all modules in ONE query #}
-          {% set slug_list = module_slugs|join(',') %}
-          {% set all_modules = hubdb_table_rows(modules_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-          {% set modules_by_slug = {} %}
-          {% for mod in all_modules %}
-            {% set _ = modules_by_slug.update({mod.slug: mod}) %}
+          {# Collect all module slugs for JSON-LD #}
+          {% set all_module_slugs = [] %}
+          {% if dynamic_page_hubdb_row.content_blocks_json %}
+            {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
+            {% for block in blocks %}
+              {% if block.type == 'module_ref' and block.module_slug %}
+                {% set _ = all_module_slugs.append(block.module_slug) %}
+              {% endif %}
+            {% endfor %}
+          {% elif dynamic_page_hubdb_row.module_slugs_json %}
+            {% set all_module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+          {% endif %}
+
+          {# Fetch each module individually since HubL doesn't support hs_path__in #}
+          {# NOTE: Query by 'hs_path__eq=' which filters on hs_path column (Page Path) in HubDB #}
+          {% set modules_by_slug_jsonld = {} %}
+          {% for slug in all_module_slugs %}
+            {% set module_rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if module_rows and module_rows|length > 0 %}
+              {% set _ = modules_by_slug_jsonld.update({slug: module_rows[0]}) %}
+            {% endif %}
           {% endfor %}
+
       "hasPart": [
-          {% for slug in module_slugs %}
-            {% set module = modules_by_slug[slug] %}
+          {% for slug in all_module_slugs %}
+            {% set module = modules_by_slug_jsonld[slug] %}
             {% if module %}
         {
           "@type": "LearningResource",
@@ -500,28 +515,44 @@
           <!-- Course Content: Prefer content_blocks_json if present, otherwise fallback to module_slugs_json -->
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else "135621904" %}
-          <!-- DEBUG: constants={{ constants }}, modules_table_id={{ modules_table_id }} -->
+
+          {# OPTIMIZATION: Fetch all modules needed for this course ONCE, then reuse the cache #}
+          {# This prevents hitting HubSpot's 10-call limit per page #}
+          {% set modules_by_slug = {} %}
+          {% if modules_table_id %}
+            {% set all_slugs = [] %}
+            {# Collect slugs from content_blocks if present #}
+            {% if dynamic_page_hubdb_row.content_blocks_json %}
+              {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
+              {% for block in blocks %}
+                {% if block.type == 'module_ref' and block.module_slug %}
+                  {% set _ = all_slugs.append(block.module_slug) %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {# Also collect from module_slugs_json as fallback #}
+            {% if dynamic_page_hubdb_row.module_slugs_json %}
+              {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+              {% for slug in module_slugs %}
+                {% if slug not in all_slugs %}
+                  {% set _ = all_slugs.append(slug) %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {# Now fetch each module once and cache it #}
+            {# NOTE: Query by 'hs_path__eq=' which filters on hs_path column (Page Path) in HubDB #}
+            {% for slug in all_slugs %}
+              {% set module_rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% if module_rows and module_rows|length > 0 %}
+                {% set _ = modules_by_slug.update({slug: module_rows[0]}) %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
 
           {% if dynamic_page_hubdb_row.content_blocks_json %}
             {# Render content blocks (narrative-driven course) #}
-            {# OPTIMIZATION: Batch-fetch all modules to avoid hitting 10-call limit #}
+            {# Modules are already cached in modules_by_slug from above #}
             {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
-            {% set module_slugs_to_fetch = [] %}
-            {% for block in blocks %}
-              {% if block.type == 'module_ref' and block.module_slug %}
-                {% set _ = module_slugs_to_fetch.append(block.module_slug) %}
-              {% endif %}
-            {% endfor %}
-
-            {# Fetch all modules in ONE query using slug__in operator #}
-            {% set modules_by_slug = {} %}
-            {% if module_slugs_to_fetch|length > 0 and modules_table_id %}
-              {% set slug_list = module_slugs_to_fetch|join(',') %}
-              {% set all_modules = hubdb_table_rows(modules_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-              {% for mod in all_modules %}
-                {% set _ = modules_by_slug.update({mod.slug: mod}) %}
-              {% endfor %}
-            {% endif %}
 
             <section class="content-blocks-section">
               {% set module_index = 0 %}
@@ -574,16 +605,8 @@
 
           {% elif dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
             {# Fallback: Render modules list #}
-            {# OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            {# Modules are already cached in modules_by_slug from above #}
             {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
-            {% set slug_list = module_slugs|join(',') %}
-            {% set all_modules = hubdb_table_rows(modules_table_id, "slug__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
-
-            {# Create lookup dictionary #}
-            {% set modules_by_slug = {} %}
-            {% for mod in all_modules %}
-              {% set _ = modules_by_slug.update({mod.slug: mod}) %}
-            {% endfor %}
 
             <section class="content-blocks-section">
               <h2>Course Modules</h2>
