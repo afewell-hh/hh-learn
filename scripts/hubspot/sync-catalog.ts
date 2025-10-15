@@ -21,7 +21,7 @@ const hubspot = new Client({
 
 interface CatalogEntry {
   type: 'module' | 'course' | 'pathway';
-  hs_path: string;
+  url_path: string;
   title: string;
   summary: string;
   image_url: string;
@@ -109,7 +109,7 @@ async function fetchTableRows(tableId: string): Promise<any[]> {
 function normalizeModule(row: any): CatalogEntry {
   return {
     type: 'module',
-    hs_path: row.path || row.hs_path || '',
+    url_path: row.path || row.hs_path || '',
     title: row.name || row.hs_name || 'Untitled Module',
     summary: row.values?.meta_description || row.values?.full_content || '',
     image_url: row.values?.social_image_url || '',
@@ -127,7 +127,7 @@ function normalizeModule(row: any): CatalogEntry {
 function normalizeCourse(row: any): CatalogEntry {
   return {
     type: 'course',
-    hs_path: row.path || row.hs_path || '',
+    url_path: row.path || row.hs_path || '',
     title: row.name || row.hs_name || 'Untitled Course',
     summary: row.values?.meta_description || row.values?.summary_markdown || '',
     image_url: row.values?.badge_image_url || row.values?.social_image_url || '',
@@ -145,7 +145,7 @@ function normalizeCourse(row: any): CatalogEntry {
 function normalizePathway(row: any): CatalogEntry {
   return {
     type: 'pathway',
-    hs_path: row.path || row.hs_path || '',
+    url_path: row.path || row.hs_path || '',
     title: row.name || row.hs_name || 'Untitled Pathway',
     summary: row.values?.meta_description || row.values?.summary_markdown || '',
     image_url: row.values?.badge_image_url || row.values?.social_image_url || '',
@@ -198,11 +198,11 @@ async function insertCatalogEntry(
   try {
     await retryWithBackoff(() =>
       hubspot.cms.hubdb.rowsApi.createTableRow(tableId, {
-        path: entry.hs_path,
+        path: entry.url_path,
         name: entry.title,
         values: {
           type: entry.type,
-          hs_path: entry.hs_path,
+          url_path: entry.url_path,
           title: entry.title,
           summary: entry.summary,
           image_url: entry.image_url,

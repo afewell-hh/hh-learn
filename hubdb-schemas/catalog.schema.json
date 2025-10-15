@@ -13,7 +13,7 @@
       ]
     },
     {
-      "name": "hs_path",
+      "name": "url_path",
       "label": "URL Path",
       "type": "TEXT"
     },
