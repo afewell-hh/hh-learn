@@ -48,11 +48,34 @@ async function uploadPublished(path: string, content: Uint8Array, token: string)
   }
 }
 
+async function uploadDraft(path: string, content: Uint8Array, token: string): Promise<void> {
+  const url = `https://api.hubapi.com/cms/v3/source-code/draft/content/${encodeURIComponent(path)}`;
+  const form = new FormData();
+  form.append('file', new Blob([content as BlobPart], { type: 'application/octet-stream' }), path.split('/').pop() || 'file');
+  const res = await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: form });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Draft upload failed for ${path}: HTTP ${res.status} ${text}`);
+  }
+}
+
+async function validateAsset(path: string, content: Uint8Array, token: string, env: 'draft'|'published' = 'published'): Promise<void> {
+  const url = `https://api.hubapi.com/cms/v3/source-code/${env}/validate/${encodeURIComponent(path)}`;
+  const form = new FormData();
+  form.append('file', new Blob([content as BlobPart], { type: 'application/octet-stream' }), path.split('/').pop() || 'file');
+  const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Validation failed for ${path} (${env}): HTTP ${res.status} ${text}`);
+  }
+}
+
 async function main() {
   const path = getArg('--path');
   const local = getArg('--local');
+  const validateEnv = (getArg('--validate-env') as 'draft'|'published') || 'published';
   if (!path) {
-    console.error('Usage: publish-template --path "CLEAN x HEDGEHOG/templates/..." [--local clean-x-hedgehog-templates/...]');
+    console.error('Usage: publish-template --path "CLEAN x HEDGEHOG/templates/..." [--local clean-x-hedgehog-templates/...] [--validate-env draft|published]');
     process.exit(2);
   }
 
@@ -63,8 +86,12 @@ async function main() {
   if (local) {
     const buf = readFileSync(local);
     content = new Uint8Array(buf);
+    // Validate against the chosen environment (default: published), then sync draft and publish
+    await validateAsset(path, content, token, validateEnv);
+    await uploadDraft(path, content, token);
   } else {
     content = await fetchDraftFile(path, token);
+    await validateAsset(path, content, token, validateEnv);
   }
 
   await uploadPublished(path, content, token);

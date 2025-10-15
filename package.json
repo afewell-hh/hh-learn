@@ -21,6 +21,7 @@
     "provision:pages": "npm run build && node dist/scripts/hubspot/provision-pages.js",
     "publish:pages": "npm run build && node dist/scripts/hubspot/publish-pages.js",
     "publish:template": "npm run build && node dist/scripts/hubspot/publish-template.js",
+    "validate:template": "npm run build && node dist/scripts/hubspot/validate-template.js",
     "redirect:add": "npm run build && node dist/scripts/hubspot/add-url-redirect.js",
     "export:authoring": "npm run build && node dist/scripts/hubspot/export-course-authoring.js",
     "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants",

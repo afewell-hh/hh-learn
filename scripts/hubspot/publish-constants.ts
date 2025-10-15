@@ -25,20 +25,36 @@ async function publishConstants() {
     const localPath = 'clean-x-hedgehog-templates/config/constants.json';
     const fileBuf = readFileSync(localPath);
 
-    const uploadUrl = `https://api.hubapi.com/cms/v3/source-code/published/content/${encodeURIComponent(CONSTANTS_PATH)}`;
+    const validateUrl = `https://api.hubapi.com/cms/v3/source-code/published/validate/${encodeURIComponent(CONSTANTS_PATH)}`;
+    const draftUrl = `https://api.hubapi.com/cms/v3/source-code/draft/content/${encodeURIComponent(CONSTANTS_PATH)}`;
+    const pubUrl = `https://api.hubapi.com/cms/v3/source-code/published/content/${encodeURIComponent(CONSTANTS_PATH)}`;
 
     const form = new FormData();
     form.append('file', new Blob([fileBuf], { type: 'application/json' }), 'constants.json');
 
-    const res = await fetch(uploadUrl, {
-      method: 'PUT',
+    // 0) Validate (against published by default to resolve live deps)
+    let res = await fetch(validateUrl, {
+      method: 'POST',
       headers: { 'Authorization': `Bearer ${HUBSPOT_TOKEN}` },
       body: form
     });
-
     if (!res.ok) {
       const errorText = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errorText}`);
+      throw new Error(`Validation failed HTTP ${res.status}: ${errorText}`);
+    }
+
+    // 1) Upload to DRAFT to keep DM in sync so get_asset_url can resolve
+    res = await fetch(draftUrl, { method: 'PUT', headers: { 'Authorization': `Bearer ${HUBSPOT_TOKEN}` }, body: form });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Draft upload failed HTTP ${res.status}: ${errorText}`);
+    }
+
+    // 2) Upload to PUBLISHED (equivalent to clicking Publish)
+    res = await fetch(pubUrl, { method: 'PUT', headers: { 'Authorization': `Bearer ${HUBSPOT_TOKEN}` }, body: form });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Published upload failed HTTP ${res.status}: ${errorText}`);
     }
 
     const result = await res.json().catch(() => ({} as any));

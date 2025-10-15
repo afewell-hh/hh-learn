@@ -2,8 +2,8 @@
 {% macro learning_left_nav(current_page, show_filters=true) %}
   {# Get constants for auth URLs #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-  {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
-  {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
+  {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+  {% set logout_url = constants.LOGOUT_URL|default('/_hcms/mem/logout') if constants else '/_hcms/mem/logout' %}
 
   <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation">
     <div class="learn-left-nav-content">
