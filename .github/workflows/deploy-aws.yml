@@ -2,6 +2,14 @@ name: Deploy AWS
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'serverless.yml'
+      - 'src/**'
+      - 'dist/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-aws.yml'
+      - 'aws/**'
     tags:
       - 'v*'
   workflow_dispatch:
