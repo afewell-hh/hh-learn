@@ -2,6 +2,7 @@
   "HUBDB_MODULES_TABLE_ID": "135621904",
   "HUBDB_PATHWAYS_TABLE_ID": "135381504",
   "HUBDB_COURSES_TABLE_ID": "135381433",
+  "HUBDB_CATALOG_TABLE_ID": "136199186",
   "DEFAULT_SOCIAL_IMAGE_URL": "https://hedgehog.cloud/hubfs/social-share-default.png",
   "ENABLE_CRM_PROGRESS": true,
   "LOGOUT_URL": "/_hcms/mem/logout",

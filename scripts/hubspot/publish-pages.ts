@@ -13,9 +13,10 @@ import { getHubSpotToken, allowlistOverrideEnabled, maskToken } from './get-hubs
 const ACCESS_TOKEN = getHubSpotToken();
 const hubspot = new Client({ accessToken: ACCESS_TOKEN });
 
-// Page IDs from provisioning output (Issue #59, #133)
+// Page IDs from provisioning output (Issues #59, #142, #133)
 const PAGES_TO_PUBLISH = [
   { slug: 'learn', id: '197177162603' },
+  { slug: 'learn/modules', id: '197624622201' },
   { slug: 'learn/courses', id: '197280289288' },
   { slug: 'learn/pathways', id: '197280289546' },
   { slug: 'learn/my-learning', id: '197399202740' },
@@ -203,6 +204,7 @@ async function publishPages(dryRun: boolean = false) {
     console.log('✅ Publishing complete!\n');
     console.log('💡 Pages are now live. Visit URLs to verify:\n');
     console.log('   - https://hedgehog.cloud/learn');
+    console.log('   - https://hedgehog.cloud/learn/modules');
     console.log('   - https://hedgehog.cloud/learn/courses');
     console.log('   - https://hedgehog.cloud/learn/pathways');
     console.log('   - https://hedgehog.cloud/learn/my-learning');

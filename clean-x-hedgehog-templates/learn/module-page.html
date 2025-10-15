@@ -3,9 +3,15 @@
   isAvailableForNewContent: true
 -->
 {% extends "../layouts/base.html" %}
+{% from "macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
   {{ super() }}
+
+  {# Left nav CSS and JS for list pages #}
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
+
   {% if dynamic_page_hubdb_row %}
     {# SEO metadata for detail pages #}
     {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Learn Hedgehog" %}
@@ -35,21 +41,21 @@
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
     {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
 
-    <title>Learn Hedgehog AI Networking</title>
-    <meta name="description" content="Build high-performance AI networks on open Ethernet and OCP hardware. Learn Hedgehog's Kubernetes-based control plane and automated fabric management.">
-    <link rel="canonical" href="https://{{ request.domain }}/learn">
+    <title>Learning Modules - Learn Hedgehog</title>
+    <meta name="description" content="Browse all learning modules. Build high-performance AI networks on open Ethernet and OCP hardware with hands-on learning content.">
+    <link rel="canonical" href="https://{{ request.domain }}/learn/modules">
 
     {# Open Graph tags #}
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Learn Hedgehog AI Networking">
-    <meta property="og:description" content="Build high-performance AI networks on open Ethernet and OCP hardware. Learn Hedgehog's Kubernetes-based control plane and automated fabric management.">
-    <meta property="og:url" content="https://{{ request.domain }}/learn">
+    <meta property="og:title" content="Learning Modules - Learn Hedgehog">
+    <meta property="og:description" content="Browse all learning modules. Build high-performance AI networks on open Ethernet and OCP hardware with hands-on learning content.">
+    <meta property="og:url" content="https://{{ request.domain }}/learn/modules">
     <meta property="og:image" content="{{ social_image }}">
 
     {# Twitter Card tags #}
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Learn Hedgehog AI Networking">
-    <meta name="twitter:description" content="Build high-performance AI networks on open Ethernet and OCP hardware. Learn Hedgehog's Kubernetes-based control plane and automated fabric management.">
+    <meta name="twitter:title" content="Learning Modules - Learn Hedgehog">
+    <meta name="twitter:description" content="Browse all learning modules. Build high-performance AI networks on open Ethernet and OCP hardware with hands-on learning content.">
     <meta name="twitter:image" content="{{ social_image }}">
   {% endif %}
 
@@ -865,57 +871,17 @@
     {# List view - showing all modules #}
     <section class="learn-header-section">
       <div class="learn-header-content">
-        <h1 class="learn-page-title">Learn Hedgehog AI Networking</h1>
-        <p class="learn-page-subtitle">Build high-performance AI networks on open Ethernet and OCP hardware. Hedgehog's Kubernetes-based control plane abstracts SONiC complexity, delivering simple, automated fabrics without proprietary lock-in or runaway cost.</p>
-        <nav class="learn-header-nav" aria-label="Learning sections">
-          <a href="/learn">Modules</a>
-          <a href="/learn/courses">Courses</a>
-          <a href="/learn/pathways">Pathways</a>
-          <a href="/learn/my-learning">My Learning</a>
-        </nav>
-        {# Auth controls #}
-        {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-        {% set login_url = constants.LOGIN_URL|default('/hs-login') if constants else '/hs-login' %}
-        {% set logout_url = constants.LOGOUT_URL|default('/hs-logout') if constants else '/hs-logout' %}
-        <div class="auth-controls">
-          {% if request_contact.is_logged_in %}
-            <span class="user-greeting">Hi, {{ request_contact.firstname|default('there') }}!</span>
-            <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign Out</a>
-          {% else %}
-            <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="auth-link">Sign In</a>
-          {% endif %}
-        </div>
+        <h1 class="learn-page-title">Learning Modules</h1>
+        <p class="learn-page-subtitle">Browse all available learning modules to build your skills in AI networking</p>
       </div>
     </section>
 
-    {# Courses band #}
-    <section class="pathways-band">
-      <div class="pathways-band-content">
-        <div class="pathways-band-text">
-          <h2>Explore Structured Courses</h2>
-          <p>Take comprehensive courses that combine multiple modules into cohesive learning experiences with narrative guidance.</p>
-        </div>
-        <div class="pathways-band-cta">
-          <a href="/learn/courses" class="pathways-cta-button">View Courses</a>
-        </div>
-      </div>
-    </section>
+    <div class="learn-layout-with-nav">
+      {# Left navigation #}
+      {{ learning_left_nav('modules', show_filters=false) }}
 
-    {# Pathways band #}
-    <section class="pathways-band">
-      <div class="pathways-band-content">
-        <div class="pathways-band-text">
-          <h2>Explore Learning Pathways</h2>
-          <p>Follow curated learning paths that guide you through progressively complex topics with hands-on labs and real-world scenarios.</p>
-        </div>
-        <div class="pathways-band-cta">
-          <a href="/learn/pathways" class="pathways-cta-button">View Pathways</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="learn-main-section">
-      <div class="learn-container">
+      {# Main content area #}
+      <div class="learn-main-content">
         {% if dynamic_page_hubdb_table_id %}
           {% set modules = hubdb_table_rows(dynamic_page_hubdb_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
           {% if modules %}
@@ -931,7 +897,7 @@
                   {% endfor %}
                 {% endif %}
                 {% if not is_archived %}
-                <a href="{{ request.path }}/{{ module.hs_path }}" class="module-card">
+                <a href="/learn/{{ module.hs_path }}" class="module-card">
                   <div class="module-card-header">
                     <span class="difficulty-badge">
                       {{ module.difficulty.label }}
@@ -970,7 +936,7 @@
           <p><em>This is a preview. Content will populate once this template is used on a dynamic page connected to a HubDB table.</em></p>
         {% endif %}
       </div>
-    </section>
+    </div>
   {% endif %}
 </main>
 {% endblock body %}

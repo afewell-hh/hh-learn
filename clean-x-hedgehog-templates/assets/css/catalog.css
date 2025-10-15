@@ -1,0 +1,241 @@
+/* Catalog Page Specific Styles */
+
+.learn-header-section {
+  width: 100vw;
+  background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+  color: #fff;
+  padding: 96px 0 64px 0;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+}
+
+.learn-header-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.learn-page-title {
+  font-size: 2.8rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.learn-page-subtitle {
+  font-size: 1.2rem;
+  font-weight: 400;
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Catalog grid layout */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+  margin-top: 32px;
+}
+
+/* Catalog card */
+.catalog-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 24px;
+  background: #fff;
+  transition: box-shadow 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.catalog-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+/* Hidden cards (filtered out) */
+.catalog-card.hidden {
+  display: none;
+}
+
+.catalog-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Type badges */
+.catalog-type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.catalog-type-module {
+  background: #EFF6FF;
+  color: #1E40AF;
+}
+
+.catalog-type-course {
+  background: #F0FDF4;
+  color: #15803D;
+}
+
+.catalog-type-pathway {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+/* Level badge */
+.catalog-level-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.catalog-card-title {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.catalog-card-title a {
+  color: #1a4e8a;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.catalog-card-title a:hover {
+  color: #0066CC;
+}
+
+.catalog-card-summary {
+  color: #666;
+  line-height: 1.6;
+  font-size: 0.9375rem;
+  flex-grow: 1;
+}
+
+.catalog-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: #666;
+  font-size: 0.875rem;
+  padding-top: 8px;
+  border-top: 1px solid #F3F4F6;
+}
+
+.catalog-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.catalog-card-cta {
+  color: #0066CC;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  transition: color 0.2s;
+}
+
+.catalog-card-cta:hover {
+  color: #004C99;
+}
+
+/* Filter controls */
+.learn-filter-clear {
+  width: 100%;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 16px;
+}
+
+.learn-filter-clear:hover {
+  background: #F9FAFB;
+  border-color: #9CA3AF;
+}
+
+.learn-filter-clear:active {
+  background: #F3F4F6;
+}
+
+.learn-filter-results {
+  margin-top: 16px;
+  padding: 12px;
+  background: #F0F9FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #1E40AF;
+  text-align: center;
+}
+
+.learn-filter-results strong {
+  font-weight: 700;
+}
+
+/* No results message */
+.no-results {
+  text-align: center;
+  padding: 64px 32px;
+  color: #6B7280;
+}
+
+.no-results p {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 900px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .learn-page-title {
+    font-size: 2rem;
+  }
+
+  .learn-page-subtitle {
+    font-size: 1rem;
+  }
+}
