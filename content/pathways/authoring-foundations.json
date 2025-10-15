@@ -1,0 +1,12 @@
+{
+  "slug": "authoring-foundations",
+  "title": "Authoring Foundations",
+  "summary_markdown": "Learn how to author modules, assemble courses, and structure pathways. This pathway introduces core authoring skills and shows how individual pieces roll up into complete learning experiences.",
+  "courses": [
+    "course-authoring-101",
+    "pathway-assembly-and-layouts"
+  ],
+  "tags": "authoring, foundations",
+  "display_order": 20
+}
+
