@@ -184,6 +184,34 @@ async function clearCatalogTable(tableId: string, dryRun: boolean): Promise<void
   console.log(`   ✓ Cleared ${existingRows.length} existing entries`);
 }
 
+// Map SELECT column values to option objects based on schema
+function mapTypeToOption(type: string) {
+  const typeMap: Record<string, any> = {
+    'module': { id: '1', name: 'module', type: 'option' },
+    'course': { id: '2', name: 'course', type: 'option' },
+    'pathway': { id: '3', name: 'pathway', type: 'option' }
+  };
+  return typeMap[type];
+}
+
+function mapLevelToOption(level?: string) {
+  if (!level) return undefined;
+  const levelMap: Record<string, any> = {
+    'beginner': { id: '1', name: 'beginner', type: 'option' },
+    'intermediate': { id: '2', name: 'intermediate', type: 'option' },
+    'advanced': { id: '3', name: 'advanced', type: 'option' }
+  };
+  return levelMap[level];
+}
+
+function mapPublishedToOption(published: string) {
+  const publishedMap: Record<string, any> = {
+    'true': { id: '1', name: 'true', type: 'option' },
+    'false': { id: '2', name: 'false', type: 'option' }
+  };
+  return publishedMap[published];
+}
+
 // Insert catalog entry into table
 async function insertCatalogEntry(
   tableId: string,
@@ -201,18 +229,18 @@ async function insertCatalogEntry(
         path: entry.url_path,
         name: entry.title,
         values: {
-          type: entry.type,
+          type: mapTypeToOption(entry.type),
           url_path: entry.url_path,
           title: entry.title,
           summary: entry.summary,
           image_url: entry.image_url,
-          level: entry.level,
-          duration: entry.duration,
+          level: mapLevelToOption(entry.level),
+          duration: entry.duration ? Number(entry.duration) : undefined,
           tags: entry.tags,
-          published: entry.published,
-          sort_order: entry.sort_order,
+          published: mapPublishedToOption(entry.published),
+          sort_order: entry.sort_order ? Number(entry.sort_order) : undefined,
           source_table: entry.source_table,
-          source_row_id: entry.source_row_id
+          source_row_id: Number(entry.source_row_id)
         }
       })
     );

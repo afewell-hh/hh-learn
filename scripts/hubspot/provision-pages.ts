@@ -304,7 +304,7 @@ async function createOrUpdatePage(
 ): Promise<PageResult | null> {
   // Guardrails: allow only expected templates/slugs unless override is enabled
   const override = allowlistOverrideEnabled();
-  const ALLOWED_SLUGS = new Set(['learn','learn/courses','learn/pathways','learn/my-learning']);
+  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning']);
   const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
 
   if (!override) {
@@ -463,6 +463,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
     {
       name: 'Learn',
       slug: 'learn',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/catalog.html',
+      tableEnvVar: 'HUBDB_CATALOG_TABLE_ID'
+    },
+    {
+      name: 'Modules',
+      slug: 'learn/modules',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/module-page.html',
       tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
     },
