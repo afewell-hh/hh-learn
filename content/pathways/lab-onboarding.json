@@ -1,0 +1,12 @@
+{
+  "slug": "lab-onboarding",
+  "title": "Lab Onboarding",
+  "summary_markdown": "Access your Hedgehog VLAB and learn core environment setup. This pathway guides you from first login through essential configuration so you’re ready to start learning.",
+  "courses": [
+    "getting-started-virtual-lab",
+    "hedgehog-lab-foundations"
+  ],
+  "tags": "lab, onboarding",
+  "display_order": 30
+}
+

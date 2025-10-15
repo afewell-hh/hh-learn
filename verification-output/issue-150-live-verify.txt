@@ -1,0 +1,65 @@
+Live checks (UTC 2025-10-15:15:02:08)
+
+URL: https://hedgehog.cloud/learn
+status=200 bytes=124676
+2840:      <h1 class="learn-page-title">Learning Catalog</h1>
+2857:            <span class="learn-nav-text">Courses</span>
+2915:                  <input type="checkbox" name="type" value="course" id="type-course" checked> Courses
+2987:            <div class="catalog-grid" id="catalog-grid">
+3070:                    <a href="authoring-assembly-courses?hsLang=en-us">Assembling Courses from Modules</a>
+3142:                    <a href="authoring-pathways-and-content-blocks?hsLang=en-us">Pathways &amp; Content Blocks</a>
+3152:                  <a href="authoring-pathways-and-content-blocks?hsLang=en-us" class="catalog-card-cta">
+3214:                    <a href="getting-started-with-courses?hsLang=en-us">Getting Started (Courses Demo)</a>
+
+URL: https://hedgehog.cloud/learn/courses/course-authoring-101
+status=200 bytes=108763
+5:    <meta name="description" content="Courses">
+14:    <meta property="og:description" content="Courses">
+16:    <meta name="twitter:description" content="Courses">
+3013:  .content-blocks-section {
+3016:  .content-block {
+3019:  .content-block-text,
+3020:  .content-block-callout {
+3025:  .content-block-text {
+3028:  .content-block-text h2,
+3029:  .content-block-callout h2 {
+3034:  .content-block-callout {
+3047:  .module-card {
+
+URL: https://hedgehog.cloud/learn/courses/pathway-assembly-and-layouts
+status=200 bytes=108649
+5:    <meta name="description" content="Courses">
+14:    <meta property="og:description" content="Courses">
+16:    <meta name="twitter:description" content="Courses">
+3013:  .content-blocks-section {
+3016:  .content-block {
+3019:  .content-block-text,
+3020:  .content-block-callout {
+3025:  .content-block-text {
+3028:  .content-block-text h2,
+3029:  .content-block-callout h2 {
+3034:  .content-block-callout {
+3047:  .module-card {
+
+URL: https://hedgehog.cloud/learn/pathways/course-authoring-101
+status=404 bytes=49514
+2043:      <div id="hs_cos_wrapper_content" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-rich_text" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><span id="hs_cos_wrapper_content_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_rich_text" style="" data-hs-cos-general-type="widget" data-hs-cos-type="rich_text"><h1>Page not found.</h1></span></div>
+
+URL: https://hedgehog.cloud/learn/pathways/kubernetes-fundamentals
+status=404 bytes=49514
+2043:      <div id="hs_cos_wrapper_content" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-rich_text" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><span id="hs_cos_wrapper_content_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_rich_text" style="" data-hs-cos-general-type="widget" data-hs-cos-type="rich_text"><h1>Page not found.</h1></span></div>
+
+URL: https://hedgehog.cloud/learn/modules
+status=200 bytes=115947
+2938:  .module-card {
+2947:  .module-card:hover {
+2951:  .module-card-header {
+2969:  .module-card h3 {
+2974:  .module-card p {
+3274:        <h1 class="learn-page-title">Learn Hedgehog AI Networking</h1>
+3278:          <a href="/learn/courses?hsLang=en-us">Courses</a>
+3298:          <h2>Explore Structured Courses</h2>
+3302:          <a href="/learn/courses?hsLang=en-us" class="pathways-cta-button">View Courses</a>
+3330:                <a href="/learn/modules/accessing-the-hedgehog-virtual-lab-with-google-cloud?hsLang=en-us" class="module-card">
+3331:                  <div class="module-card-header">
+3353:                <a href="/learn/modules/accessing-the-hedgehog-virtual-lab-with-microsoft-azure?hsLang=en-us" class="module-card">
