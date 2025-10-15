@@ -40,7 +40,7 @@ async function fetchDraftFile(path: string, token: string): Promise<Uint8Array> 
 async function uploadPublished(path: string, content: Uint8Array, token: string): Promise<void> {
   const url = `https://api.hubapi.com/cms/v3/source-code/published/content/${encodeURIComponent(path)}`;
   const form = new FormData();
-  form.append('file', new Blob([content], { type: 'application/octet-stream' }), path.split('/').pop() || 'file');
+  form.append('file', new Blob([content as BlobPart], { type: 'application/octet-stream' }), path.split('/').pop() || 'file');
   const res = await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: form });
   if (!res.ok) {
     const text = await res.text();
