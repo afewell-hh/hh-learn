@@ -15,6 +15,8 @@ This is the comprehensive reference guide for creating and publishing learning c
 
 Note: Any feature impacting authors (fields, media, quizzes, workflow) must update this guide as part of the PR checklist.
 
+> Routing note (Oct 15, 2025): `/learn` now serves the unified Catalog and a dedicated Modules list is available at `/learn/modules`. No authoring changes are required; this is a template/routing update. See `docs/catalog-routing.md` for operational details.
+
 ## Who This Is For
 - Subject-matter experts (SMEs) contributing new modules
 - Editors and reviewers validating and publishing content
