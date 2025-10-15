@@ -39,6 +39,10 @@
             <span class="learn-nav-text">Sign Out</span>
           </a>
         {% else %}
+          <a href="/learn/register" class="learn-auth-link" aria-label="Create a Hedgehog Learn account">
+            <span class="learn-nav-icon" aria-hidden="true">📝</span>
+            <span class="learn-nav-text">Register</span>
+          </a>
           <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
             <span class="learn-nav-icon" aria-hidden="true">🔐</span>
             <span class="learn-nav-text">Sign In</span>

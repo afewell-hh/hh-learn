@@ -89,6 +89,15 @@ Note: Ensure your Project contains a single-select field named `Status` with opt
 - For any change impacting authors or content structure: update `docs/course-authoring.md` and link the commit in the PR.
 - For any process/tooling change: update this file and `docs/content-sync.md` if relevant.
 
+### Template Publishing Utility (HubSpot CMS)
+- When updating templates or CSS/JS in `clean-x-hedgehog-templates/**`, publish the asset to the PUBLISHED environment using the utility added in this iteration.
+- Usage:
+  - Publish a template (register page):
+    - `npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/learn/register.html" --local "clean-x-hedgehog-templates/learn/register.html"`
+  - Publish CSS:
+    - `npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/assets/css/registration.css" --local "clean-x-hedgehog-templates/assets/css/registration.css"`
+- This mirrors clicking “Publish” in the Design Manager UI and ensures VCS is the source of truth. See `scripts/hubspot/publish-template.ts` for details.
+
 CI gates:
 - Front matter validation runs on PRs touching content or sync code.
 - Docs gate requires a docs update when content-affecting changes occur (override via `[skip-docs-check]` in the PR title/body or `docs-exempt` label when justified).
