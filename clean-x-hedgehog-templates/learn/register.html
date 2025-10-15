@@ -10,6 +10,9 @@
   {# Registration form specific styles #}
   <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/registration.css') }}">
 
+  {# HubSpot Forms JavaScript #}
+  <script charset="utf-8" type="text/javascript" src="//js.hsforms.net/forms/embed/v2.js"></script>
+
   {# SEO metadata #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
@@ -83,96 +86,25 @@
         <div class="registration-form-container">
           <h2>Create Your Account</h2>
 
-          {# HubSpot Form Embed - Replace with actual form ID #}
+          {# HubSpot Form Embed #}
           <div id="registration-form">
-            {# Placeholder for HubSpot form - will be replaced with actual embed #}
-            <form class="membership-form" action="#" method="post">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="first-name" class="form-label">
-                    First Name <span class="required">*</span>
-                  </label>
-                  <input type="text" id="first-name" name="firstName" class="form-input" required
-                         placeholder="John" aria-required="true">
-                </div>
-
-                <div class="form-group">
-                  <label for="last-name" class="form-label">
-                    Last Name <span class="required">*</span>
-                  </label>
-                  <input type="text" id="last-name" name="lastName" class="form-input" required
-                         placeholder="Doe" aria-required="true">
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="email" class="form-label">
-                  Email Address <span class="required">*</span>
-                </label>
-                <input type="email" id="email" name="email" class="form-input" required
-                       placeholder="john.doe@example.com" aria-required="true">
-              </div>
-
-              <div class="form-group">
-                <label for="company" class="form-label">
-                  Company <span class="optional">(optional)</span>
-                </label>
-                <input type="text" id="company" name="company" class="form-input"
-                       placeholder="Your Company">
-              </div>
-
-              <div class="form-group">
-                <label for="job-role" class="form-label">
-                  Job Role <span class="optional">(optional)</span>
-                </label>
-                <select id="job-role" name="jobRole" class="form-select">
-                  <option value="">Select your role...</option>
-                  <option value="network-engineer">Network Engineer</option>
-                  <option value="network-architect">Network Architect</option>
-                  <option value="system-administrator">System Administrator</option>
-                  <option value="devops-engineer">DevOps Engineer</option>
-                  <option value="software-engineer">Software Engineer</option>
-                  <option value="student">Student</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="experience-level" class="form-label">
-                  Experience Level <span class="optional">(optional)</span>
-                </label>
-                <select id="experience-level" name="experienceLevel" class="form-select">
-                  <option value="">Select your level...</option>
-                  <option value="beginner">Beginner (0-2 years)</option>
-                  <option value="intermediate">Intermediate (3-5 years)</option>
-                  <option value="advanced">Advanced (5+ years)</option>
-                </select>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="newsletter" name="newsletter" class="form-checkbox">
-                  <span>Send me updates about new courses and features</span>
-                </label>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="terms" name="terms" class="form-checkbox" required aria-required="true">
-                  <span>I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a> <span class="required">*</span></span>
-                </label>
-              </div>
-
-              <button type="submit" class="form-submit">
-                Create Account
-              </button>
-            </form>
-
-            {# Note about replacing with HubSpot form #}
-            <div class="form-note">
-              <p><strong>Note for Implementation:</strong> Replace this HTML form with a HubSpot form embed using <code>{% form "form-guid" %}</code> or the HubSpot forms API.</p>
-            </div>
+            {# Form will be injected here by HubSpot #}
           </div>
+
+          <script>
+            hbspt.forms.create({
+              region: "na1",
+              portalId: "21430285",
+              formId: "b2fd98ff-2055-41b2-85a0-0f497e798087",
+              target: "#registration-form",
+              onFormSubmit: function($form) {
+                console.log('Registration form submitted successfully');
+              },
+              onFormReady: function($form) {
+                console.log('Registration form loaded and ready');
+              }
+            });
+          </script>
 
           <div class="registration-footer">
             <p>Already have an account?
