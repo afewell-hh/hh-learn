@@ -3,13 +3,14 @@
   isAvailableForNewContent: true
 -->
 {% extends "../layouts/base.html" %}
-{% from "macros/left-nav.html" import learning_left_nav %}
+{% from "/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
   {{ super() }}
   {# SEO metadata for My Learning dashboard #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+  {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
 
   <title>My Learning - Learn Hedgehog AI Networking</title>
   <meta name="description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
@@ -34,6 +35,10 @@
 {% endblock head %}
 
 {% block body %}
+{# If user is not logged in, redirect to LOGIN_URL preserving return URL #}
+{% if not request_contact.is_logged_in %}
+  <meta http-equiv="refresh" content="0; url={{ login_url }}?redirect_url={{ request.url|urlencode }}">
+{% endif %}
 <style>
   /* Header section styling */
   .learn-header-section {
@@ -336,7 +341,6 @@
             </div>
           </div>
           {# Show synced indicator when authenticated and CRM progress enabled #}
-          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           {% if request_contact.is_logged_in and constants.ENABLE_CRM_PROGRESS %}
           <div class="synced-indicator" style="display: flex;">
             <span class="synced-indicator-icon">✓</span>
@@ -347,7 +351,7 @@
             {% if request_contact.is_logged_in %}
               ℹ️ Progress is saved locally in your browser. Enable CRM sync in settings to sync across devices.
             {% else %}
-              ℹ️ Progress is saved locally in your browser. <a href="/hs-login?redirect_url={{ request.url|urlencode }}">Sign in</a> to sync across devices.
+              ℹ️ Progress is saved locally in your browser. <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}">Sign in</a> to sync across devices.
             {% endif %}
           </div>
           {% endif %}
