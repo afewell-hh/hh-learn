@@ -503,7 +503,8 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
 
   for (const config of pageConfigs) {
     try {
-      const tableId = process.env[config.tableEnvVar];
+      const isStatic = config.tableEnvVar === 'STATIC';
+      const tableId = isStatic ? 'STATIC' : process.env[config.tableEnvVar];
 
       if (!tableId && !dryRun) {
         console.error(`✗ ${config.tableEnvVar} environment variable not set. Skipping ${config.name}.`);
