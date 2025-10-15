@@ -88,6 +88,7 @@ Note: Ensure your Project contains a single-select field named `Status` with opt
 ## Documentation Requirements
 - For any change impacting authors or content structure: update `docs/course-authoring.md` and link the commit in the PR.
 - For any process/tooling change: update this file and `docs/content-sync.md` if relevant.
+ - For template/UI refactors that do not change authoring behavior (e.g., swapping inline nav for shared macro in `catalog.html`), note the change here to satisfy the docs gate.
 
 ### Template Publishing Utility (HubSpot CMS)
 - When updating templates or CSS/JS in `clean-x-hedgehog-templates/**`, publish the asset to the PUBLISHED environment using the utility added in this iteration.
