@@ -16,5 +16,6 @@ This folder only contains long-lived references that should stay accurate as the
 - [`theme-development.md`](theme-development.md) – how we extend the Clean.Pro theme safely.
 - [`project-management.md`](project-management.md) – GitHub Projects best practices, labels, cadence, and automation.
 - [`roadmap.md`](roadmap.md) – phase-based milestones and acceptance criteria.
+- [`catalog-routing.md`](catalog-routing.md) – `/learn` catalog and `/learn/modules` list routing details and provisioning.
 
 When adding a new document, update this index and include an “owner” in the front matter or intro so we know who keeps it fresh.

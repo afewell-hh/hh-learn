@@ -43,6 +43,13 @@ export default [
         sessionStorage: 'readonly',
         Blob: 'readonly',
         fetch: 'readonly',
+        // Timers & animation (browser)
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
       },
     },
   },
