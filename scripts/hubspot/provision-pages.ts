@@ -23,6 +23,9 @@ interface PageConfig {
   name: string;
   slug: string;
   templatePath: string;
+  /**
+   * Name of env var that holds the HubDB table ID. Use 'STATIC' for pages with no HubDB binding.
+   */
   tableEnvVar: string;
 }
 
@@ -304,7 +307,7 @@ async function createOrUpdatePage(
 ): Promise<PageResult | null> {
   // Guardrails: allow only expected templates/slugs unless override is enabled
   const override = allowlistOverrideEnabled();
-  const ALLOWED_SLUGS = new Set(['learn','learn/courses','learn/pathways','learn/my-learning']);
+  const ALLOWED_SLUGS = new Set(['learn','learn/courses','learn/pathways','learn/my-learning','learn/register','learn/modules']);
   const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
 
   if (!override) {
@@ -339,19 +342,23 @@ async function createOrUpdatePage(
 
   const existingPage = await findPrimaryPageBySlug(config.slug);
 
-  // Dynamic page data source type enum: HUBDB = 1
-  const pagePayload = {
+  // Build payload; add HubDB binding only for non-STATIC pages
+  const pagePayload: any = {
     name: config.name,
     slug: config.slug,
     templatePath: config.templatePath,
-    dynamicPageDataSourceType: 1, // HUBDB
-    dynamicPageDataSourceId: parseInt(tableId, 10),
     state: 'DRAFT',
     ...(publish && {
       publishImmediately: true,
       publicAccessRulesEnabled: false
     })
   };
+
+  const isStatic = config.tableEnvVar === 'STATIC';
+  if (!isStatic) {
+    pagePayload.dynamicPageDataSourceType = 1; // HUBDB
+    pagePayload.dynamicPageDataSourceId = parseInt(tableId, 10);
+  }
 
   if (dryRun) {
     console.log(`\n📄 Page: ${config.name}`);
@@ -463,8 +470,8 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
     {
       name: 'Learn',
       slug: 'learn',
-      templatePath: 'CLEAN x HEDGEHOG/templates/learn/module-page.html',
-      tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/catalog.html',
+      tableEnvVar: 'HUBDB_CATALOG_TABLE_ID'
     },
     {
       name: 'Courses',
@@ -483,6 +490,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       slug: 'learn/my-learning',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/my-learning.html',
       tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
+    },
+    {
+      name: 'Register',
+      slug: 'learn/register',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/register.html',
+      tableEnvVar: 'STATIC'
     }
   ];
 
