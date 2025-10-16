@@ -88,7 +88,20 @@ Note: Ensure your Project contains a single-select field named `Status` with opt
 ## Documentation Requirements
 - For any change impacting authors or content structure: update `docs/course-authoring.md` and link the commit in the PR.
 - For any process/tooling change: update this file and `docs/content-sync.md` if relevant.
- - For template/UI refactors that do not change authoring behavior (e.g., swapping inline nav for shared macro in `catalog.html`), note the change here to satisfy the docs gate.
+- For template/UI refactors that do not change authoring behavior (e.g., swapping inline nav for shared macro in `catalog.html`), note the change here to satisfy the docs gate.
+
+## Publish Flow (v3)
+
+- Validate → Draft → Publish is the required order for Design Manager assets.
+- Use the “published” validator by default so HubL dependencies (macros, CSS/JS) resolve against live assets.
+- Commands (examples):
+  - Validate only: `npm run validate:template -- --path "CLEAN x HEDGEHOG/templates/learn/catalog.html" --local "clean-x-hedgehog-templates/learn/catalog.html" --env published`
+  - Publish template: `npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/learn/courses-page.html" --local "clean-x-hedgehog-templates/learn/courses-page.html" --validate-env published`
+  - Publish constants: `npm run publish:constants`
+
+Notes
+- Validator warnings: we proceed when results contain only `DEPRECATED_HUBL_PROPERTY` warnings and fail-fast otherwise.
+- Always prefer absolute macro imports (e.g., `/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html`).
 
 ### Template Publishing Utility (HubSpot CMS)
 - When updating templates or CSS/JS in `clean-x-hedgehog-templates/**`, publish the asset to the PUBLISHED environment using the utility added in this iteration.
