@@ -565,6 +565,10 @@
             {# NOTE: Query by 'hs_path__eq=' which filters on Page Path in HubDB #}
             {% for slug in all_slugs %}
               {% set module_rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% if (not module_rows or module_rows|length == 0) %}
+                {# Fallback for hubs that expose 'path' instead of 'hs_path' in filters #}
+                {% set module_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% endif %}
               {% if module_rows and module_rows|length > 0 %}
                 {% set _ = modules_by_slug.update({slug: module_rows[0]}) %}
               {% endif %}
@@ -679,7 +683,10 @@
               <div class="modules-grid">
                 {% for slug in module_slugs %}
                   {% set module = modules_by_slug[slug] %}
-                  {% if module %}
+                  {% if not module %}
+                    {# Defensive fallback: create a minimal object if lookup failed #}
+                    {% set module = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
+                  {% endif %}
                     <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
                       <h3>{{ module.hs_name }}</h3>
@@ -696,7 +703,6 @@
                         <span class="module-cta">Start Module →</span>
                       </div>
                     </a>
-                  {% endif %}
                 {% endfor %}
               </div>
             </section>
