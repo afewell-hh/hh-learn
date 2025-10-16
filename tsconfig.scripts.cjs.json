@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "outDir": "dist-cjs",
+    "rootDir": "scripts",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "lib": ["es2020", "dom"],
+    "strict": true
+  },
+  "include": ["scripts/**/*.ts"]
+}
+

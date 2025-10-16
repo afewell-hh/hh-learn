@@ -35,8 +35,8 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Build scripts
-        run: npm run build
+      - name: Build CJS scripts
+        run: npm run build:scripts-cjs
 
       - name: Detect changed template files
         id: changed
@@ -60,11 +60,10 @@ jobs:
                 dm_path="${file#clean-x-hedgehog-templates/}"
                 dm_path="CLEAN x HEDGEHOG/templates/${dm_path}"
                 echo "\nValidating: $file -> $dm_path"
-                node dist/scripts/hubspot/validate-template.js --path "$dm_path" --local "$file" --env published || status=$?
+                npm run -s validate:template -- --path "$dm_path" --local "$file" --env published || status=$?
                 ;;
               *)
                 ;; # ignore other files
             esac
           done <<< "$FILES"
           exit $status
-
