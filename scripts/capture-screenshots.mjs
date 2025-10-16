@@ -1,7 +1,7 @@
 #!/usr/bin/env node
+/* global document, URL */
 import { chromium, devices } from 'playwright';
 import { mkdirSync, writeFileSync } from 'fs';
-import { dirname } from 'path';
 
 const BASE = process.env.E2E_BASE_URL || 'https://hedgehog.cloud';
 
@@ -64,4 +64,3 @@ async function capture() {
 }
 
 capture().catch(err => { console.error(err); process.exit(1); });
-

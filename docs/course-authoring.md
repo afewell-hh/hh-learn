@@ -48,6 +48,21 @@ docs/templates/
   module-meta-template.json
 ```
 
+## Course Inventory (Updated 2025-10-16)
+
+- **Course 1: Foundations & Interfaces** (`network-like-hyperscaler-foundations`)
+  - Modules: `fabric-operations-welcome`, `fabric-operations-how-it-works`, `fabric-operations-mastering-interfaces`, `fabric-operations-foundations-recap`
+- **Hedgehog Lab Foundations** (`hedgehog-lab-foundations`)
+  - Modules: `accessing-the-hedgehog-virtual-lab-with-google-cloud`, `accessing-the-hedgehog-virtual-lab-with-amazon-web-services`, `accessing-the-hedgehog-virtual-lab-with-microsoft-azure`, `intro-to-kubernetes`
+- **Getting Started: Virtual Lab** (`getting-started-virtual-lab`)
+  - Modules: `accessing-the-hedgehog-virtual-lab-with-google-cloud`, `accessing-the-hedgehog-virtual-lab-with-amazon-web-services`, `accessing-the-hedgehog-virtual-lab-with-microsoft-azure`
+- **Accessing the Hedgehog Virtual Lab** (`accessing-the-hedgehog-virtual-lab`)
+  - Modules: `accessing-the-hedgehog-virtual-lab-with-amazon-web-services`, `accessing-the-hedgehog-virtual-lab-with-microsoft-azure`, `accessing-the-hedgehog-virtual-lab-with-google-cloud`
+- **Course Authoring 101** (`course-authoring-101`)
+  - Modules: `authoring-basics`, `authoring-media-and-metadata`, `authoring-qa-and-troubleshooting`
+- **Pathway Assembly & Layouts** (`pathway-assembly-and-layouts`)
+  - Modules: `authoring-assembly-courses`, `authoring-pathways-and-content-blocks`
+
 ## Prerequisites
 
 Prerequisites allow you to guide learners by indicating what knowledge or resources they need before starting a module. The system supports smart linking for internal modules and external resources.
