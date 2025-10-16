@@ -653,6 +653,10 @@
               {% set all_courses = [] %}
               {% for slug in course_slugs %}
                 {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                {% if not rows or rows|length == 0 %}
+                  {# Fallback for hubs that expose 'path' instead of 'hs_path' in filters #}
+                  {% set rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                {% endif %}
                 {% if rows %}
                   {% set all_courses = all_courses + rows %}
                 {% endif %}
@@ -666,7 +670,10 @@
                 {% for slug in course_slugs %}
                   {# Lookup course from batch-fetched dictionary #}
                   {% set course = courses_by_slug[slug] %}
-                  {% if course %}
+                  {% if not course %}
+                    {# Defensive fallback: create a minimal object if lookup failed #}
+                    {% set course = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
+                  {% endif %}
                     <a href="/learn/courses/{{ course.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
                       <h3>{{ course.hs_name }}</h3>
@@ -687,7 +694,6 @@
 
                       <span class="module-cta">View Course →</span>
                     </a>
-                  {% endif %}
                 {% endfor %}
               </div>
             </section>
@@ -696,17 +702,21 @@
             {# Fallback: Render modules list - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
             <section class="pathway-modules-section">
               <h2>Learning Modules</h2>
-              {% set modules_base_path = '/learn' %}
+              {% set modules_base_path = '/learn/modules' %}
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
               {# Fetch all modules in ONE query using hs_path__in operator #}
               {% set slug_list = module_slugs|join(',') %}
               {% set all_modules = [] %}
-              {% for slug in module_slugs %}
-                {% set rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
-                {% if rows %}
-                  {% set all_modules = all_modules + rows %}
-                {% endif %}
-              {% endfor %}
+          {% for slug in module_slugs %}
+            {% set rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if not rows or rows|length == 0 %}
+              {# Fallback for hubs that expose 'path' instead of 'hs_path' in filters #}
+              {% set rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% endif %}
+            {% if rows %}
+              {% set all_modules = all_modules + rows %}
+            {% endif %}
+          {% endfor %}
               {# Create lookup dictionary keyed by hs_path #}
               {% set modules_by_slug = {} %}
               {% for mod in all_modules %}

@@ -142,6 +142,12 @@ Completed
 - Bug: Module detail page dynamic content and routing (#175)
   - Ensured prev/next links, list cards, and head rel links route to `/learn/modules/<slug>`.
   - Verified dynamic content renders from `dynamic_page_hubdb_row.full_content`.
+- Bug: Course detail page missing modules list (#176)
+  - Added robust HubDB lookups with `hs_path__eq` and `path__eq` fallbacks and a defensive render path when lookups return empty.
+  - Guarantees a “Course Modules” section renders with working links to `/learn/modules/<slug>`.
+- Bug: Pathway detail page missing associated course cards (#177)
+  - Added robust HubDB lookups and a defensive fallback to always render course cards from `course_slugs_json`.
+  - Corrected modules base href in module fallback section to `/learn/modules/<slug>`.
 - Live verification
   - /learn/modules bound to HubDB Modules table `135621904` (via provision:pages dry-run output).
   - Pages published: learn, modules, courses, pathways, my-learning, register.
