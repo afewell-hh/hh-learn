@@ -85,7 +85,7 @@
         {
           "@type": "LearningResource",
           "name": {{ module.hs_name|tojson }},
-          "url": "https://{{ request.domain }}/learn/{{ module.hs_path }}",
+      "url": "https://{{ request.domain }}/learn/modules/{{ module.hs_path }}",
           "position": {{ loop.index }}
         }{% if not loop.last %},{% endif %}
             {% endif %}
@@ -606,7 +606,7 @@
                   {% set module = modules_by_slug[block.module_slug] %}
                   {% if module %}
                     <div class="content-block">
-                      <a href="/learn/{{ module.hs_path }}" class="module-card">
+                      <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
                         <div class="module-card-number">{{ module_index }}</div>
                         <h3>{{ module.hs_name }}</h3>
 
@@ -646,7 +646,7 @@
                       {% set module = modules_by_slug[slug] %}
                       {% if module %}
                         {% set module_index = module_index + 1 %}
-                        <a href="/learn/{{ module.hs_path }}" class="module-card">
+                        <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
                           <div class="module-card-number">{{ module_index }}</div>
                           <h3>{{ module.hs_name }}</h3>
 
@@ -680,7 +680,7 @@
                 {% for slug in module_slugs %}
                   {% set module = modules_by_slug[slug] %}
                   {% if module %}
-                    <a href="/learn/{{ module.hs_path }}" class="module-card">
+                    <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
                       <h3>{{ module.hs_name }}</h3>
 

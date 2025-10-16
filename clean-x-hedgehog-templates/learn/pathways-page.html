@@ -106,7 +106,7 @@
           "item": {
             "@type": "LearningResource",
             "name": {{ module.hs_name|tojson }},
-            "url": "https://{{ request.domain }}/learn/{{ module.hs_path }}"
+            "url": "https://{{ request.domain }}/learn/modules/{{ module.hs_path }}"
           }
         }{% if not loop.last %},{% endif %}
             {% endif %}
