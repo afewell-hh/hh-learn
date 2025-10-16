@@ -22,11 +22,13 @@ jobs:
           sudo apt-get install -y ripgrep
       - name: Check for relative macro imports
         run: |
-          set -e
+          set -euo pipefail
           echo "Scanning for relative HubL macro imports in templates…"
-          # Matches {% from "something/macros/…" %} or {% import "something/macros/…" %} where path does not start with /
-          if rg -n "\{\%\s*(from|import)\s+\"(?!/)[^\"]*macros/[^\"]*\"" clean-x-hedgehog-templates | tee /tmp/hubl-macro-lint.txt; then
+          # Use PCRE2 lookahead to detect paths not starting with '/'
+          rg --pcre2 -n "\{\%\s*(from|import)\s+\"(?!/)\S*macros/\S*\"" clean-x-hedgehog-templates > /tmp/hubl-macro-lint.txt || true
+          if [ -s /tmp/hubl-macro-lint.txt ]; then
             echo "❌ Relative macro import(s) found. Use absolute path like: /CLEAN x HEDGEHOG/templates/…/macros/…" >&2
+            cat /tmp/hubl-macro-lint.txt >&2
             exit 1
           else
             echo "✅ No relative macro imports detected."
