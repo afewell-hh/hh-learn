@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const { writeFileSync } = require('fs');
+const { URL } = require('url');
 
 async function get(url){
   const res = await fetch(url);
@@ -21,14 +22,14 @@ async function getNoFollow(url){
   async function checkLeftNavAuth(url) {
     const html = await get(url);
     // Expect Register link in left-nav auth section
-    const hasRegister = /<a[^>]+href=\"\/learn\/register(?:\?[^\"]*)?\"[^>]*class=\"[^\"]*learn-auth-link/.test(html);
+    const hasRegister = /<a[^>]+href="\/learn\/register(?:\?[^"]*)?"[^>]*class="[^"]*learn-auth-link/.test(html);
     // Expect Sign In with membership login + redirect_url back to the same path (including query)
     const u = new URL(url);
     const pathAndQuery = u.pathname + (u.search || '');
     const encoded = encodeURIComponent(pathAndQuery);
     const encSafe = encoded.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const signInRegex = new RegExp(
-      String.raw`<a[^>]+href=\"\/_hcms\/mem\/login\?redirect_url=${encSafe}(?:(?:&|&amp;)[^\"]*)?\"[^>]*class=\"[^\"]*learn-auth-link`,
+      String.raw`<a[^>]+href="\/_hcms\/mem\/login\?redirect_url=${encSafe}(?:(?:&|&amp;)[^"]*)?"[^>]*class="[^"]*learn-auth-link`,
       'i'
     );
     const hasSignIn = signInRegex.test(html);
@@ -37,11 +38,11 @@ async function getNoFollow(url){
 
   // 1) Active state checks for Courses and Pathways
   const coursesHtml = await get('https://hedgehog.cloud/learn/courses');
-  const coursesOK = /<a\s+href=\"\/learn\/courses[^\"]*\"[^>]*aria-current=\"page\"/.test(coursesHtml);
+  const coursesOK = /<a\s+href="\/learn\/courses[^"]*"[^>]*aria-current="page"/.test(coursesHtml);
   log(`Courses active aria-current present: ${coursesOK}`);
 
   const pathwaysHtml = await get('https://hedgehog.cloud/learn/pathways');
-  const pathwaysOK = /<a\s+href=\"\/learn\/pathways[^\"]*\"[^>]*aria-current=\"page\"/.test(pathwaysHtml);
+  const pathwaysOK = /<a\s+href="\/learn\/pathways[^"]*"[^>]*aria-current="page"/.test(pathwaysHtml);
   log(`Pathways active aria-current present: ${pathwaysOK}`);
 
   // 2) Left-nav auth links render for anonymous users and preserve return URL (including query)
@@ -60,7 +61,7 @@ async function getNoFollow(url){
 
   // 4) My Learning: either meta refresh present OR 302 to membership login with redirect_url
   const myHtml = await get('https://hedgehog.cloud/learn/my-learning');
-  const myMetaOK = /http-equiv=\"refresh\"[^>]*\/_hcms\/mem\/login\?redirect_url=/.test(myHtml);
+  const myMetaOK = /http-equiv="refresh"[^>]*\/_hcms\/mem\/login\?redirect_url=/.test(myHtml);
   let myRedirectOK = false;
   try {
     const myRes = await getNoFollow('https://hedgehog.cloud/learn/my-learning');
