@@ -53,7 +53,14 @@
             {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
             {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
             {% set slug_list = course_slugs|join(',') %}
-            {% set all_courses = hubdb_table_rows(courses_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+            {# HubL does not support __in on TEXT columns reliably; build list via per-slug hs_path__eq #}
+            {% set all_courses = [] %}
+            {% for slug in course_slugs %}
+              {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% if rows %}
+                {% set all_courses = all_courses + rows %}
+              {% endif %}
+            {% endfor %}
             {# Create lookup dictionary keyed by hs_path #}
             {% set courses_by_slug = {} %}
             {% for crs in all_courses %}
@@ -78,7 +85,13 @@
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
           {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
           {% set slug_list = module_slugs|join(',') %}
-          {% set all_modules = hubdb_table_rows(modules_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+          {% set all_modules = [] %}
+          {% for slug in module_slugs %}
+            {% set rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if rows %}
+              {% set all_modules = all_modules + rows %}
+            {% endif %}
+          {% endfor %}
           {# Create lookup dictionary keyed by hs_path #}
           {% set modules_by_slug = {} %}
           {% for mod in all_modules %}
@@ -637,7 +650,13 @@
               {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
               {# Fetch all courses in ONE query using hs_path__in operator #}
               {% set slug_list = course_slugs|join(',') %}
-              {% set all_courses = hubdb_table_rows(courses_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+              {% set all_courses = [] %}
+              {% for slug in course_slugs %}
+                {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                {% if rows %}
+                  {% set all_courses = all_courses + rows %}
+                {% endif %}
+              {% endfor %}
               {# Create lookup dictionary keyed by hs_path #}
               {% set courses_by_slug = {} %}
               {% for crs in all_courses %}
@@ -681,7 +700,13 @@
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
               {# Fetch all modules in ONE query using hs_path__in operator #}
               {% set slug_list = module_slugs|join(',') %}
-              {% set all_modules = hubdb_table_rows(modules_table_id, "hs_path__in=" ~ slug_list ~ "&tags__not__icontains=archived") %}
+              {% set all_modules = [] %}
+              {% for slug in module_slugs %}
+                {% set rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                {% if rows %}
+                  {% set all_modules = all_modules + rows %}
+                {% endif %}
+              {% endfor %}
               {# Create lookup dictionary keyed by hs_path #}
               {% set modules_by_slug = {} %}
               {% for mod in all_modules %}
