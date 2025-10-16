@@ -8,3 +8,4 @@ Pathways left-nav Register link present: true
 Pathways left-nav Sign In preserves redirect_url: true
 Catalog Sign In uses membership URL: true
 My Learning anonymous redirect present: true
+Tracking PR for progress MVP and E2E – 2025-10-16T04:14:47Z
