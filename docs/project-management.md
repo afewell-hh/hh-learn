@@ -2,7 +2,7 @@
 title: GitHub Projects – Best Practices
 owner: hh-learn project lead
 status: living
-last-reviewed: 2025-10-08
+last-reviewed: 2025-10-16
 ---
 
 # GitHub Projects – Best Practices
@@ -124,6 +124,16 @@ CI gates:
 - For production-impacting issues, use the bug template with `priority/P0` and `blocked` as needed. Add a brief postmortem comment once resolved.
 
 ## Release Notes
+
+### 2025-10-16: Visible UX Priorities (P1)
+- Created P1 issues to address highly visible UX regressions and polish:
+  - UI: Polish Catalog page layout/typography (#173)
+  - Routes: Ensure module links point to /learn/modules/<slug> (verify & close) (#174)
+  - Bug: Module detail page missing dynamic content (#175)
+  - Bug: Course detail page missing modules list (#176)
+  - Bug: Pathway detail page missing associated course cards (#177)
+- Implemented a direct fix for module link routes and published templates.
+- All PRs will auto-trigger independent code review; use `@codex review` for subsequent passes.
 
 ### 2025-10-13: CRM Persistence Enabled
 - Enabled CRM progress persistence by setting `ENABLE_CRM_PROGRESS: true` in `clean-x-hedgehog-templates/config/constants.json`.
