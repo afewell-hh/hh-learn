@@ -133,6 +133,18 @@ CI gates:
   - Bug: Course detail page missing modules list (#176)
   - Bug: Pathway detail page missing associated course cards (#177)
 - Implemented a direct fix for module link routes and published templates.
+
+Completed
+- UI: Polish Catalog page layout/typography (#173)
+  - Typography: title 2.25rem/700; subtitle 1.125rem/400; card title 1.125rem/600; summary 0.95rem with 1.65 line-height.
+  - Layout: grid gap 20px; card padding 20px; left nav width 260px for a wider content column.
+  - Meta: toned down meta color and divider (#E5E7EB), improved CTA hover state.
+- Bug: Module detail page dynamic content and routing (#175)
+  - Ensured prev/next links, list cards, and head rel links route to `/learn/modules/<slug>`.
+  - Verified dynamic content renders from `dynamic_page_hubdb_row.full_content`.
+- Live verification
+  - /learn/modules bound to HubDB Modules table `135621904` (via provision:pages dry-run output).
+  - Pages published: learn, modules, courses, pathways, my-learning, register.
 - All PRs will auto-trigger independent code review; use `@codex review` for subsequent passes.
 
 ### 2025-10-13: CRM Persistence Enabled

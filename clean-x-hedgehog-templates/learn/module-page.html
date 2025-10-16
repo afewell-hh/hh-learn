@@ -119,10 +119,10 @@
 
     {# Add SEO/browser hint rel links #}
     {% if head_prev_module %}
-  <link rel="prev" href="/learn/{{ head_prev_module.hs_path }}">
+  <link rel="prev" href="/learn/modules/{{ head_prev_module.hs_path }}">
     {% endif %}
     {% if head_next_module %}
-  <link rel="next" href="/learn/{{ head_next_module.hs_path }}">
+  <link rel="next" href="/learn/modules/{{ head_next_module.hs_path }}">
     {% endif %}
 
     {# JSON-LD structured data for detail pages #}
@@ -822,7 +822,7 @@
           <nav class="module-nav" role="navigation" aria-label="Module navigation">
             <div class="module-nav-container">
               {% if prev_module %}
-              <a href="/learn/{{ prev_module.hs_path }}" class="module-nav-link module-nav-prev">
+              <a href="/learn/modules/{{ prev_module.hs_path }}" class="module-nav-link module-nav-prev">
                 <span class="module-nav-arrow" aria-hidden="true">←</span>
                 <div class="module-nav-content">
                   <span class="module-nav-label">Previous</span>
@@ -834,7 +834,7 @@
               {% endif %}
 
               {% if next_module %}
-              <a href="/learn/{{ next_module.hs_path }}" class="module-nav-link module-nav-next">
+              <a href="/learn/modules/{{ next_module.hs_path }}" class="module-nav-link module-nav-next">
                 <div class="module-nav-content">
                   <span class="module-nav-label">Next</span>
                   <span class="module-nav-title">{{ next_module.hs_name }}</span>
@@ -900,7 +900,7 @@
                   {% endfor %}
                 {% endif %}
                 {% if not is_archived %}
-                <a href="/learn/{{ module.hs_path }}" class="module-card">
+                <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
                   <div class="module-card-header">
                     <span class="difficulty-badge">
                       {{ module.difficulty.label }}
