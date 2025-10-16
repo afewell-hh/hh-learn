@@ -36,6 +36,8 @@
     <meta name="twitter:title" content="{{ page_title }}">
     <meta name="twitter:description" content="{{ meta_desc }}">
     <meta name="twitter:image" content="{{ social_image }}">
+    {# HHL pageview meta for JS beacon #}
+    <meta name="hhl:module_slug" content="{{ dynamic_page_hubdb_row.hs_path }}">
   {% else %}
     {# SEO metadata for list pages #}
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
@@ -695,6 +697,7 @@
             </div>
             {# Load external JS to avoid inline script CSP issues #}
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
           </header>
 
           {# Prerequisites Section #}

@@ -31,6 +31,8 @@
     <meta name="twitter:title" content="{{ page_title }}">
     <meta name="twitter:description" content="{{ meta_desc }}">
     <meta name="twitter:image" content="{{ social_image }}">
+    {# HHL pageview meta for JS beacon #}
+    <meta name="hhl:course_slug" content="{{ dynamic_page_hubdb_row.hs_path }}">
 
     {# JSON-LD structured data for course detail #}
     <script type="application/ld+json">
@@ -471,7 +473,7 @@
 
     <section class="learn-main-section">
       <div class="learn-container">
-        <div class="course-detail">
+      <div class="course-detail">
           <!-- Breadcrumbs -->
           <nav class="course-breadcrumbs">
             <a href="/learn/courses">← Back to Courses</a>
@@ -702,6 +704,15 @@
         </div>
       </div>
     </section>
+    {# Auth context for pageview beacon; only relevant when logged in #}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    <div id="hhl-auth-context"
+         data-email="{{ request_contact.email if request_contact.is_logged_in }}"
+         data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
+         data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+         data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+         style="display:none"></div>
+    <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
 
   {% else %}
     {# List mode - showing all courses #}

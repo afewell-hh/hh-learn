@@ -74,6 +74,19 @@
     return a;
   }
   function q(id){ return document.getElementById(id); }
+  function showResume(last){
+    try{
+      if (!last || !last.type || !last.slug) return;
+      var panel = q('last-viewed-panel');
+      var link = q('last-viewed-link');
+      var meta = q('last-viewed-meta');
+      var href = last.type === 'course' ? ('/learn/courses/' + last.slug) : ('/learn/' + last.slug);
+      link.href = href;
+      link.textContent = (last.type==='course'?'Course: ':'Module: ') + last.slug;
+      if (last.at) meta.textContent = '· viewed ' + last.at;
+      panel.style.display = 'block';
+    }catch(e){}
+  }
 
   ready(function(){
     Promise.resolve(getConstants()).then(function(constants){
@@ -116,6 +129,8 @@
         fetchJSON(readUrl + q)
           .then(function(json){
             if (json && json.mode === 'authenticated' && json.progress){
+              // Resume panel (CRM only for MVP)
+              showResume(json.last_viewed);
               return renderFromSets(setsFromCrm(json.progress));
             }
             renderFromSets(localSets);

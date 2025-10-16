@@ -1,0 +1,27 @@
+name: E2E Smoke
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E smoke tests
+        env:
+          E2E_BASE_URL: https://hedgehog.cloud
+        run: npx playwright test tests/e2e/*.spec.ts --reporter=list

@@ -67,7 +67,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
     if (path.endsWith('/progress/read') && event.requestContext.http.method === 'GET') return await readProgress(event, origin);
     if (event.requestContext.http.method !== 'POST') return bad(405, 'POST only', origin);
-    if (path.endsWith('/events/track')) return await track(event.body || '', origin);
+  if (path.endsWith('/events/track')) return await track(event.body || '', origin);
     if (path.endsWith('/quiz/grade')) return await grade(event.body || '', origin);
 
     return bad(404, 'Not found', origin);
@@ -103,6 +103,9 @@ async function readProgress(event: any, origin?: string) {
       'hhl_progress_state',
       'hhl_progress_updated_at',
       'hhl_progress_summary',
+      'hhl_last_viewed_type',
+      'hhl_last_viewed_slug',
+      'hhl_last_viewed_at',
     ]);
     let state: any = {};
     try { state = contact.properties.hhl_progress_state ? JSON.parse(contact.properties.hhl_progress_state) : {}; } catch (e) { state = {}; }
@@ -112,6 +115,11 @@ async function readProgress(event: any, origin?: string) {
       progress: state,
       updated_at: contact.properties.hhl_progress_updated_at || null,
       summary: contact.properties.hhl_progress_summary || null,
+      last_viewed: {
+        type: contact.properties.hhl_last_viewed_type || null,
+        slug: contact.properties.hhl_last_viewed_slug || null,
+        at: contact.properties.hhl_last_viewed_at || null,
+      },
     }, origin);
   } catch (e: any) {
     console.error('readProgress error', e?.message || e);
@@ -125,6 +133,7 @@ async function track(raw: string, origin?: string) {
       'learning_module_started',
       'learning_module_completed',
       'learning_pathway_enrolled',
+      'learning_page_viewed',
     ]),
     contactIdentifier: z
       .object({
@@ -228,8 +237,8 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
   }
 
   // Extract pathway and module info from payload
-  const pathwaySlug = input.payload?.pathway_slug as string || 'unknown';
-  const moduleSlug = input.payload?.module_slug as string || null;
+  const pathwaySlug = (input.payload?.pathway_slug as string) || 'unknown';
+  const moduleSlug = (input.payload?.module_slug as string) || null;
 
   // Initialize pathway if needed
   if (!progressState[pathwaySlug]) {
@@ -257,14 +266,27 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
     }
   }
 
+  // Base properties to update
+  const props: Record<string, any> = {
+    hhl_progress_state: JSON.stringify(progressState),
+    hhl_progress_updated_at: dateOnly, // Date-only format (YYYY-MM-DD) for HubSpot date property
+    hhl_progress_summary: generateProgressSummary(progressState),
+  };
+
+  // Handle page view → last viewed properties
+  if (input.eventName === 'learning_page_viewed') {
+    const contentType = (input.payload?.content_type as string) || '';
+    const slug = (input.payload?.slug as string) || '';
+    if (contentType && slug) {
+      props.hhl_last_viewed_type = contentType;
+      props.hhl_last_viewed_slug = slug;
+      // For datetime property we write ISO timestamp; HubSpot will coerce if configured as datetime
+      props.hhl_last_viewed_at = timestamp;
+    }
+  }
+
   // Update contact properties
-  await hubspot.crm.contacts.basicApi.update(contactId, {
-    properties: {
-      hhl_progress_state: JSON.stringify(progressState),
-      hhl_progress_updated_at: dateOnly, // Date-only format (YYYY-MM-DD) for HubSpot date property
-      hhl_progress_summary: generateProgressSummary(progressState),
-    },
-  });
+  await hubspot.crm.contacts.basicApi.update(contactId, { properties: props });
 }
 
 /**
