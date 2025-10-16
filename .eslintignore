@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-cjs/
+dist-lambda/
+verification-output/
+*.min.js

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const { writeFileSync } = require('fs');
+const { URL } = require('url');
 
 async function get(url){
   const res = await fetch(url);
@@ -17,14 +18,43 @@ async function getNoFollow(url){
   log('Auth MVP Live Verification');
   log(`Timestamp: ${new Date().toISOString()}`);
 
-  const courses = await get('https://hedgehog.cloud/learn/courses');
-  const coursesOK = /<a\s+href="\/learn\/courses[^"]*"[^>]*aria-current="page"/.test(courses);
+  // Helper to validate left-nav auth links for a given URL
+  async function checkLeftNavAuth(url) {
+    const html = await get(url);
+    // Expect Register link in left-nav auth section
+    const hasRegister = /<a[^>]+href="\/learn\/register(?:\?[^"]*)?"[^>]*class="[^"]*learn-auth-link/.test(html);
+    // Expect Sign In with membership login + redirect_url back to the same path (including query)
+    const u = new URL(url);
+    const pathAndQuery = u.pathname + (u.search || '');
+    const encoded = encodeURIComponent(pathAndQuery);
+    const encSafe = encoded.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const signInRegex = new RegExp(
+      String.raw`<a[^>]+href="\/_hcms\/mem\/login\?redirect_url=${encSafe}(?:(?:&|&amp;)[^"]*)?"[^>]*class="[^"]*learn-auth-link`,
+      'i'
+    );
+    const hasSignIn = signInRegex.test(html);
+    return { hasRegister, hasSignIn };
+  }
+
+  // 1) Active state checks for Courses and Pathways
+  const coursesHtml = await get('https://hedgehog.cloud/learn/courses');
+  const coursesOK = /<a\s+href="\/learn\/courses[^"]*"[^>]*aria-current="page"/.test(coursesHtml);
   log(`Courses active aria-current present: ${coursesOK}`);
 
-  const pathways = await get('https://hedgehog.cloud/learn/pathways');
-  const pathwaysOK = /<a\s+href="\/learn\/pathways[^"]*"[^>]*aria-current="page"/.test(pathways);
+  const pathwaysHtml = await get('https://hedgehog.cloud/learn/pathways');
+  const pathwaysOK = /<a\s+href="\/learn\/pathways[^"]*"[^>]*aria-current="page"/.test(pathwaysHtml);
   log(`Pathways active aria-current present: ${pathwaysOK}`);
 
+  // 2) Left-nav auth links render for anonymous users and preserve return URL (including query)
+  const { hasRegister: regCourses, hasSignIn: signInCourses } = await checkLeftNavAuth('https://hedgehog.cloud/learn/courses?debug=1');
+  log(`Courses left-nav Register link present: ${regCourses}`);
+  log(`Courses left-nav Sign In preserves redirect_url: ${signInCourses}`);
+
+  const { hasRegister: regPathways, hasSignIn: signInPathways } = await checkLeftNavAuth('https://hedgehog.cloud/learn/pathways?debug=1');
+  log(`Pathways left-nav Register link present: ${regPathways}`);
+  log(`Pathways left-nav Sign In preserves redirect_url: ${signInPathways}`);
+
+  // 3) Catalog page should include a membership Sign In link somewhere (left-nav or header)
   const catalog = await get('https://hedgehog.cloud/learn');
   const loginCatalogOK = /\/_hcms\/mem\/login\?redirect_url=/.test(catalog);
   log(`Catalog Sign In uses membership URL: ${loginCatalogOK}`);

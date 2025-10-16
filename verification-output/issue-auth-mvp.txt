@@ -1,6 +1,10 @@
 Auth MVP Live Verification
-Timestamp: 2025-10-16T02:02:52.343Z
+Timestamp: 2025-10-16T02:59:10.521Z
 Courses active aria-current present: true
 Pathways active aria-current present: true
+Courses left-nav Register link present: true
+Courses left-nav Sign In preserves redirect_url: true
+Pathways left-nav Register link present: true
+Pathways left-nav Sign In preserves redirect_url: true
 Catalog Sign In uses membership URL: true
 My Learning anonymous redirect present: true
