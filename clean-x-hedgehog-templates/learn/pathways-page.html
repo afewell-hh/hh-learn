@@ -570,7 +570,7 @@
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
             {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
             <div class="progress-auth-prompt" style="display: none;" id="auth-prompt">
-              ℹ️ Progress is saved locally. <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}">Sign in</a> to sync across devices.
+              ℹ️ Progress is saved locally. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
             </div>
           </div>
 
