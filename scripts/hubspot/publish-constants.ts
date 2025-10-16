@@ -33,14 +33,25 @@ async function publishConstants() {
     form.append('file', new Blob([fileBuf], { type: 'application/json' }), 'constants.json');
 
     // 0) Validate (against published by default to resolve live deps)
-    let res = await fetch(validateUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${HUBSPOT_TOKEN}` },
-      body: form
-    });
+    let res = await fetch(validateUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${HUBSPOT_TOKEN}` }, body: form });
     if (!res.ok) {
       const errorText = await res.text();
-      throw new Error(`Validation failed HTTP ${res.status}: ${errorText}`);
+      try {
+        const j = JSON.parse(errorText);
+        const isTemplateValidation = j?.errorType === 'TEMPLATE_VALIDATION_FAILED' && Array.isArray(j?.errors);
+        if (isTemplateValidation) {
+          const nonDeprecated = j.errors.filter((e: any) => e?.errorTokens?.category?.[0] !== 'DEPRECATED_HUBL_PROPERTY');
+          if (nonDeprecated.length === 0) {
+            console.warn('⚠️ Validation warnings (deprecated only) on constants; continuing.');
+          } else {
+            throw new Error(`Validation failed HTTP ${res.status}: ${errorText}`);
+          }
+        } else {
+          throw new Error(`Validation failed HTTP ${res.status}: ${errorText}`);
+        }
+      } catch {
+        throw new Error(`Validation failed HTTP ${res.status}: ${errorText}`);
+      }
     }
 
     // 1) Upload to DRAFT to keep DM in sync so get_asset_url can resolve

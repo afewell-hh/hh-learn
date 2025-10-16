@@ -38,7 +38,7 @@
       <div class="learn-nav-auth" role="region" aria-label="User authentication">
         {% if request_contact.is_logged_in %}
           <div class="learn-user-greeting" aria-live="polite">Hi, {{ request_contact.firstname|default('there') }}!</div>
-          <a href="{{ logout_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
+          <a href="{{ logout_url }}?redirect_url={{ request.path_and_query|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
             <span class="learn-nav-icon" aria-hidden="true">🚪</span>
             <span class="learn-nav-text">Sign Out</span>
           </a>
@@ -47,7 +47,7 @@
             <span class="learn-nav-icon" aria-hidden="true">📝</span>
             <span class="learn-nav-text">Register</span>
           </a>
-          <a href="{{ login_url }}?redirect_url={{ request.url|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
+          <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
             <span class="learn-nav-icon" aria-hidden="true">🔐</span>
             <span class="learn-nav-text">Sign In</span>
           </a>

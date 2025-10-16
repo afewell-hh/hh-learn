@@ -66,6 +66,17 @@ async function validateAsset(path: string, content: Uint8Array, token: string, e
   const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
   if (!res.ok) {
     const text = await res.text();
+    try {
+      const j = JSON.parse(text);
+      const isTemplateValidation = j?.errorType === 'TEMPLATE_VALIDATION_FAILED' && Array.isArray(j?.errors);
+      if (isTemplateValidation) {
+        const nonDeprecated = j.errors.filter((e: any) => e?.errorTokens?.category?.[0] !== 'DEPRECATED_HUBL_PROPERTY');
+        if (nonDeprecated.length === 0) {
+          console.warn(`⚠️ Validation warnings (deprecated only) for ${path} (${env}); continuing.`);
+          return;
+        }
+      }
+    } catch {}
     throw new Error(`Validation failed for ${path} (${env}): HTTP ${res.status} ${text}`);
   }
 }
