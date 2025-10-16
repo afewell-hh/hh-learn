@@ -1,0 +1,38 @@
+name: Nightly Auth MVP Verification
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci
+      - name: Run public verification script
+        run: node scripts/verify-auth-mvp.js
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run membership redirect spot check
+        run: npx playwright test tests/e2e/auth-redirect.spec.ts --reporter=list
+      - name: Upload verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-auth-mvp-${{ github.run_id }}
+          path: |
+            verification-output/issue-auth-mvp.txt
+            playwright-report/
+          retention-days: 7
+
