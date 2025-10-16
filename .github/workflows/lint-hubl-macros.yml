@@ -1,0 +1,35 @@
+name: Lint HubL Macro Imports
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'clean-x-hedgehog-templates/**/*.html'
+      - '.github/workflows/lint-hubl-macros.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'clean-x-hedgehog-templates/**/*.html'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+      - name: Check for relative macro imports
+        run: |
+          set -euo pipefail
+          echo "Scanning for relative HubL macro imports in templates…"
+          # Use PCRE2 lookahead to detect paths not starting with '/'
+          rg --pcre2 -n "\{\%\s*(from|import)\s+\"(?!/)\S*macros/\S*\"" clean-x-hedgehog-templates > /tmp/hubl-macro-lint.txt || true
+          if [ -s /tmp/hubl-macro-lint.txt ]; then
+            echo "❌ Relative macro import(s) found. Use absolute path like: /CLEAN x HEDGEHOG/templates/…/macros/…" >&2
+            cat /tmp/hubl-macro-lint.txt >&2
+            exit 1
+          else
+            echo "✅ No relative macro imports detected."
+          fi
