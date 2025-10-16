@@ -14,7 +14,7 @@ async function fetchText(url, opts={}) {
 }
 
 function firstHref(html, pattern) {
-  const re = new RegExp(`href=\\"(${pattern}[^\\"]+)\\"`, 'i');
+  const re = new RegExp(`href="(${pattern}[^"]+)"`, 'i');
   const m = html.match(re);
   return m ? m[1] : null;
 }
@@ -29,17 +29,17 @@ async function main() {
   try {
     // 1) Course detail should list modules (use smoke URL)
     const courseHtml = await fetchText(SMOKE_COURSE);
-    const hasModuleCard = /href=\"\/learn\/modules\//i.test(courseHtml);
+    const hasModuleCard = /href="\/learn\/modules\//i.test(courseHtml);
     if (!hasModuleCard) errors.push(`Course detail missing module links: ${SMOKE_COURSE}`);
 
     // 2) Pathway detail should show course cards (use smoke URL)
     const pathwayHtml = await fetchText(SMOKE_PATHWAY);
-    const hasCourseCard = /href=\"\/learn\/courses\//i.test(pathwayHtml);
+    const hasCourseCard = /href="\/learn\/courses\//i.test(pathwayHtml);
     if (!hasCourseCard) errors.push(`Pathway detail missing course links: ${SMOKE_PATHWAY}`);
 
     // 3) Module detail should render body content (use smoke URL)
     const moduleHtml = await fetchText(SMOKE_MODULE);
-    const m = moduleHtml.match(/<div class=\"module-content\">([\s\S]*?)<\/div>/i);
+    const m = moduleHtml.match(/<div class="module-content">([\s\S]*?)<\/div>/i);
     const body = m ? m[1].replace(/<[^>]+>/g, '').trim() : '';
     if (body.length < 20) errors.push(`Module detail has too little content (${body.length} chars): ${SMOKE_MODULE}`);
   } catch (e) {
