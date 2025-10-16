@@ -2,7 +2,7 @@
   templateType: "page"
   isAvailableForNewContent: true
 -->
-{% extends "../layouts/base.html" %}
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
 {% from "/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
@@ -129,8 +129,8 @@
     {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
 
     {# Left nav CSS and JS for list pages #}
-    <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
-    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
+    {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css')) }}
+    {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js'), { position: 'footer', defer: true }) }}
 
     <title>Courses - Learn Hedgehog AI Networking</title>
     <meta name="description" content="Structured learning courses that combine multiple modules into comprehensive, narrative-driven experiences for mastering Hedgehog AI networking.">
@@ -627,6 +627,17 @@
                         </div>
                       </a>
                     </div>
+                  {% else %}
+                    {# Defensive: render minimal card using the slug #}
+                    <div class="content-block">
+                      <a href="/learn/modules/{{ block.module_slug }}" class="module-card">
+                        <div class="module-card-number">{{ module_index }}</div>
+                        <h3>{{ block.module_slug|replace('-',' ')|title }}</h3>
+                        <div style="margin-top: 16px;">
+                          <span class="module-cta">Start Module →</span>
+                        </div>
+                      </a>
+                    </div>
                   {% endif %}
                 {% endif %}
               {% endfor %}
@@ -648,25 +659,25 @@
                   <div class="modules-grid">
                     {% for slug in unrendered_modules %}
                       {% set module = modules_by_slug[slug] %}
-                      {% if module %}
-                        {% set module_index = module_index + 1 %}
-                        <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
-                          <div class="module-card-number">{{ module_index }}</div>
-                          <h3>{{ module.hs_name }}</h3>
-
-                          {% if module.meta_description %}
-                            <p>{{ module.meta_description|striptags|truncate(150) }}</p>
-                          {% endif %}
-
-                          <div class="module-time">
-                            {{ module.estimated_minutes }} minutes
-                          </div>
-
-                          <div style="margin-top: 16px;">
-                            <span class="module-cta">Start Module →</span>
-                          </div>
-                        </a>
+                      {% set module_index = module_index + 1 %}
+                      {% if not module %}
+                        {% set module = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
                       {% endif %}
+                      <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
+                        <div class="module-card-number">{{ module_index }}</div>
+                        <h3>{{ module.hs_name }}</h3>
+                        {% if module.meta_description %}
+                          <p>{{ module.meta_description|striptags|truncate(150) }}</p>
+                        {% endif %}
+                        {% if module.estimated_minutes %}
+                        <div class="module-time">
+                          {{ module.estimated_minutes }} minutes
+                        </div>
+                        {% endif %}
+                        <div style="margin-top: 16px;">
+                          <span class="module-cta">Start Module →</span>
+                        </div>
+                      </a>
                     {% endfor %}
                   </div>
                 </section>

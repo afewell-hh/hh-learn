@@ -2,17 +2,17 @@
   templateType: "page"
   isAvailableForNewContent: true
 -->
-{% extends "../layouts/base.html" %}
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
 {% from "/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
   {{ super() }}
 
-  {# Left nav CSS and JS for list pages #}
-  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
-  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/catalog.css') }}">
-  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
-  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/catalog-filters.js') }}" defer></script>
+  {# Left nav + Catalog CSS/JS via require_* to ensure correct hub_generated paths #}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css')) }}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/catalog.css')) }}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js'), { position: 'footer', defer: true }) }}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/catalog-filters.js'), { position: 'footer', defer: true }) }}
 
   {# SEO metadata #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
@@ -73,23 +73,33 @@
           {% if catalog_items %}
             <div class="catalog-grid" id="catalog-grid">
               {% for item in catalog_items %}
+                {% set type_name = (item.type.name if item.type and item.type.name else item.type)|default('') %}
+                {% set level_name = (item.level.name if item.level and item.level.name else item.level)|default('') %}
+                {# Build dynamic URL based on type + slug extracted from url_path #}
+                {% set base_path = 
+                  ( '/learn/modules' if type_name == 'module' else 
+                    ( '/learn/courses' if type_name == 'course' else '/learn/pathways' ) ) %}
+                {% set raw = item.url_path|default('') %}
+                {% set segments = raw|split('/') %}
+                {% set slug = segments[segments|length - 1] if raw else '' %}
+                {% set href = '/learn/' ~ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) ~ '/' ~ slug %}
                 <article class="catalog-card"
-                         data-type="{{ item.type }}"
-                         data-level="{{ item.level|lower }}"
+                         data-type="{{ type_name }}"
+                         data-level="{{ level_name|lower }}"
                          data-duration="{{ item.duration|int }}"
                          data-tags="{{ item.tags|lower }}"
                          data-title="{{ item.title|lower }}">
                   <div class="catalog-card-header">
-                    <span class="catalog-type-badge catalog-type-{{ item.type }}">
-                      {{ item.type|capitalize }}
+                    <span class="catalog-type-badge catalog-type-{{ type_name }}">
+                      {{ type_name|capitalize }}
                     </span>
-                    {% if item.level %}
-                      <span class="catalog-level-badge">{{ item.level|capitalize }}</span>
+                    {% if level_name %}
+                      <span class="catalog-level-badge">{{ level_name|capitalize }}</span>
                     {% endif %}
                   </div>
 
                   <h2 class="catalog-card-title">
-                    <a href="{{ item.url_path }}">{{ item.title }}</a>
+                    <a href="https://{{ request.domain }}/learn/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}">{{ item.title }}</a>
                   </h2>
 
                   {% if item.summary %}
@@ -111,7 +121,7 @@
                     {% endif %}
                   </div>
 
-                  <a href="{{ item.url_path }}" class="catalog-card-cta">
+                  <a href="https://{{ request.domain }}/learn/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}" class="catalog-card-cta">
                     Start Learning →
                   </a>
                 </article>

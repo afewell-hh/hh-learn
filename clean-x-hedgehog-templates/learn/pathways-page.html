@@ -2,7 +2,7 @@
   templateType: "page"
   isAvailableForNewContent: true
 -->
-{% extends "../layouts/base.html" %}
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
 {% from "/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
@@ -68,17 +68,15 @@
             {% endfor %}
             {% for slug in course_slugs %}
               {% set course = courses_by_slug[slug] %}
-              {% if course %}
         {
           "@type": "ListItem",
           "position": {{ loop.index }},
           "item": {
             "@type": "Course",
-            "name": {{ course.hs_name|tojson }},
-            "url": "https://{{ request.domain }}/learn/courses/{{ course.hs_path }}"
+            "name": {{ (course.hs_name if course else slug|replace('-',' ')|title)|tojson }},
+            "url": "https://{{ request.domain }}/learn/courses/{{ (course.hs_path if course else slug) }}"
           }
         }{% if not loop.last %},{% endif %}
-              {% endif %}
             {% endfor %}
         {% elif dynamic_page_hubdb_row.module_slugs_json and constants.HUBDB_MODULES_TABLE_ID %}
           {# Pathway contains modules - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
@@ -148,8 +146,8 @@
     {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
 
     {# Left nav CSS and JS for list pages #}
-    <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
-    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
+    {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css')) }}
+    {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js'), { position: 'footer', defer: true }) }}
 
     <title>Learning Pathways - Learn Hedgehog AI Networking</title>
     <meta name="description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
@@ -674,11 +672,11 @@
                     {# Defensive fallback: create a minimal object if lookup failed #}
                     {% set course = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
                   {% endif %}
-                    <a href="/learn/courses/{{ course.hs_path }}" class="module-card">
+                    <a href="/learn/courses/{{ (course.hs_path if course else slug) }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
-                      <h3>{{ course.hs_name }}</h3>
+                      <h3>{{ course.hs_name if course else (slug|replace('-',' ')|title) }}</h3>
 
-                      {% if course.summary_markdown %}
+                      {% if course and course.summary_markdown %}
                         <p>{{ course.summary_markdown|striptags|truncate(150) }}</p>
                       {% endif %}
 

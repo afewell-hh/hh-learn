@@ -2,7 +2,7 @@
   templateType: "page"
   isAvailableForNewContent: true
 -->
-{% extends "../layouts/base.html" %}
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
 {% from "/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html" import learning_left_nav %}
 
 {% block head %}
@@ -864,7 +864,28 @@
             </div>
           {% endif %}
           <div class="module-content">
-            {{ dynamic_page_hubdb_row.full_content|safe }}
+            {# Prefer full_content when present #}
+            {% if dynamic_page_hubdb_row.full_content %}
+              {{ dynamic_page_hubdb_row.full_content|safe }}
+            {% elif dynamic_page_hubdb_row.content_blocks_json %}
+              {# Render simple content blocks fallback (text/callout) if provided #}
+              {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
+              {% for block in blocks %}
+                {% if block.type == 'text' %}
+                  {% if block.title %}<h2>{{ block.title }}</h2>{% endif %}
+                  {% if block.body_markdown %}{{ block.body_markdown|safe }}{% endif %}
+                {% elif block.type == 'callout' %}
+                  <div class="content-block content-block-callout">
+                    {% if block.title %}<h2>{{ block.title }}</h2>{% endif %}
+                    {% if block.body_markdown %}{{ block.body_markdown|safe }}{% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% elif dynamic_page_hubdb_row.summary_markdown %}
+              {{ dynamic_page_hubdb_row.summary_markdown|safe }}
+            {% else %}
+              <p><em>Module content coming soon.</em></p>
+            {% endif %}
           </div>
         </div>
       </div>
