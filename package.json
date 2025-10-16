@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.lambda.json",
     "build:scripts-cjs": "tsc -p tsconfig.scripts.cjs.json",
-    "lint": "eslint .",
+    "lint": "eslint . --ignore-path .eslintignore",
     "format": "prettier --write .",
     "test": "echo \"(add tests in /tests)\" && exit 0",
     "deploy:aws": "serverless deploy",
