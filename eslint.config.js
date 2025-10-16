@@ -29,7 +29,7 @@ export default [
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', '.serverless/', 'aws/'],
+    ignores: ['dist/', 'dist-cjs/', 'dist-lambda/', 'node_modules/', '.serverless/', 'aws/'],
   },
   // Browser asset overrides (Design Manager JS)
   {
