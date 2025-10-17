@@ -1,0 +1,15 @@
+
+> hedgehog-learn@0.1.0 publish:template
+> npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/publish-template.js --path CLEAN x HEDGEHOG/templates/learn/module-page.html --local clean-x-hedgehog-templates/learn/module-page.html --validate-env published
+
+
+> hedgehog-learn@0.1.0 build:scripts-cjs
+> tsc -p tsconfig.scripts.cjs.json
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+🚀 Publishing asset to PUBLISHED:
+  Path: CLEAN x HEDGEHOG/templates/learn/module-page.html
+  Local: clean-x-hedgehog-templates/learn/module-page.html
+  Token: pat-…346d
+
+✅ Publish complete. Live asset updated.

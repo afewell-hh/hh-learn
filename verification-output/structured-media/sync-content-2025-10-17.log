@@ -1,0 +1,36 @@
+
+> hedgehog-learn@0.1.0 sync:content
+> npm run build && node dist/src/sync/markdown-to-hubdb.js
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+🔄 Starting module sync to HubDB...
+
+Found 15 modules to sync:
+
+📥 Fetching existing HubDB rows...
+   Found 11 existing rows
+
+  ✓ Updated: Accessing the Hedgehog Virtual Lab with Amazon Web Services
+  ✓ Updated: Accessing the Hedgehog Virtual Lab with Google Cloud
+  ✓ Updated: Accessing the Hedgehog Virtual Lab with Microsoft Azure
+  ✓ Updated: Assembling Courses from Modules
+  ✓ Updated: Authoring Basics: Modules, Front Matter, and Sync
+  ✓ Updated: Media & Metadata: Images, Social Previews, and Tags
+  ✓ Updated: Pathways & Content Blocks
+  ✓ Updated: QA & Troubleshooting: Sync, Beacons, and Verification
+  ✓ Created: Course 1 Recap & Forward Map
+  ✓ Created: How Hedgehog Works: The Control Model
+  ✓ Created: Mastering the Three Interfaces
+  ✓ Created: Welcome to Fabric Operations
+  ✓ Updated: Introduction to Kubernetes
+  ✓ Updated: Kubernetes Networking: Services, Ingress, and Network Policies
+  ✓ Updated: Kubernetes Storage: Persistent Volumes and Claims
+
+📤 Publishing HubDB table...
+✅ Sync complete! Table published.
+
+Summary: 15 succeeded, 0 failed
+

@@ -16,6 +16,7 @@
     {"name": "display_order", "type": "NUMBER"},
     {"name": "meta_description", "type": "TEXT"},
     {"name": "social_image_url", "type": "TEXT"},
-    {"name": "prerequisites_json", "type": "TEXT"}
+    {"name": "prerequisites_json", "type": "TEXT"},
+    {"name": "media_json", "type": "JSON"}
   ]
 }

@@ -1,0 +1,44 @@
+
+> hedgehog-learn@0.1.0 sync:catalog
+> npm run build && node dist/scripts/hubspot/sync-catalog.js
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+🔄 Starting catalog sync...
+
+🔍 Finding HubDB tables...
+   ✓ Catalog table: 136199186
+   ✓ Modules table: 135621904
+   ✓ Courses table: 135381433
+   ✓ Pathways table: 135381504
+
+📥 Fetching source data...
+   ✓ Modules: 15 rows
+   ✓ Courses: 6 rows
+   ✓ Pathways: 7 rows
+
+📦 Normalized 28 catalog entries
+
+🗑️  Clearing existing catalog entries...
+   ✓ Cleared 29 existing entries
+📝 Inserting catalog entries...
+   ✓ Inserted: 28
+
+📤 Publishing catalog table...
+   ✓ Catalog published
+
+============================================================
+📊 Sync Summary
+============================================================
+
+Modules: 15
+Courses: 6
+Pathways: 7
+Total catalog entries: 28
+Failed: 0
+
+✅ Catalog sync complete!
+

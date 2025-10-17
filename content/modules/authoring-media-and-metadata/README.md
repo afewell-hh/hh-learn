@@ -11,6 +11,18 @@ tags:
   - metadata
   - seo
   - social-sharing
+media:
+  - type: "image"
+    url: "https://hedgehog.cloud/hubfs/learn/k8s-service-types.png"
+    alt: "Diagram comparing Kubernetes service types"
+    caption: "Figure 1. Visual reference for Kubernetes service types."
+    credit: "Hedgehog Technical Marketing"
+  - type: "video"
+    url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+    alt: "Screen recording that demonstrates configuring structured media"
+    caption: "Workflow walkthrough for adding media entries in module front matter."
+    credit: "CC0 video courtesy of Mozilla"
+    thumbnail_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.jpg"
 description: "Learn how to enhance your learning content with images, social share previews, and effective tagging strategies for the Hedgehog Learn platform."
 order: 150
 ---
@@ -39,6 +51,31 @@ Enhance your learning content with rich media and effective metadata. This modul
 ## Scenario: Enriching Your Module with Media and Metadata
 
 You've created a module about Kubernetes networking and want to make it more engaging and shareable. You'll add diagrams, create a social share image, optimize your tags, and verify everything renders correctly across platforms.
+
+## Structured Media Front Matter
+
+The module front matter now supports a `media` array that feeds the gallery on `/learn/modules/<slug>`. Add an entry for every image or video you want rendered near the module introduction.
+
+```yaml
+media:
+  - type: "image"
+    url: "https://hedgehog.cloud/hubfs/learn/k8s-service-types.png"
+    alt: "Diagram comparing Kubernetes service types"
+    caption: "Figure 1. Visual reference for Kubernetes service types."
+    credit: "Hedgehog Technical Marketing"
+  - type: "video"
+    url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+    alt: "Screen recording that demonstrates configuring structured media"
+    caption: "Workflow walkthrough for adding media entries in module front matter."
+    thumbnail_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.jpg"
+```
+
+**Guardrails**
+
+- Alt text is mandatory—describe the key idea, not "image of..." redundantly.
+- Use HTTPS URLs hosted on HubSpot or an approved CDN; avoid data URIs.
+- Keep videos short (<2 minutes), provide a poster thumbnail, and rely on the built-in controls (no autoplay scripts).
+- Omit the `media` field entirely when no assets are needed; empty arrays are ignored during sync.
 
 ### Step 1: Understand Image Hosting Options
 

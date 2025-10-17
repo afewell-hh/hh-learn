@@ -1,4 +1,13 @@
+---
+title: Issue #60 Verification Guide
+owner: hh-learn project lead
+status: in-progress
+last-reviewed: 2025-10-17
+---
+
 # Issue #60 Verification Guide: HubSpot Projects Access Token Migration
+
+> **Status Snapshot (2025-10-17):** Issue #60 remains open for **manual verification**. No production change should assume the Projects Access Token migration is complete until the validation steps in this guide produce green results and are posted back to the issue.
 
 > **Terminology Note**: "Projects Access Token" is a **static bearer token** issued by HubSpot Projects. No OAuth flow (authorization code, refresh tokens, etc.) is implemented. All server-to-server API calls use long-lived static bearer tokens passed as `Authorization: Bearer <token>` headers.
 
@@ -117,9 +126,17 @@ TEST_EMAIL="test@hedgehog.cloud"  # Replace with your test email
 
 ### Step 4.2: Get BEFORE State of Contact Properties
 
+> Prefer the Projects Access Token. The snippet below falls back to `HUBSPOT_PRIVATE_APP_TOKEN` only if the project token is unavailable (for troubleshooting only).
+
 ```bash
-# Using Private App token temporarily to read current state
-curl -s -H "Authorization: Bearer pat-na1-5f4b3f6c-f3d6-4e45-a919-b960da3b3f37" \
+AUTH_TOKEN="${HUBSPOT_PROJECT_ACCESS_TOKEN:-$HUBSPOT_PRIVATE_APP_TOKEN}"
+
+if [ -z "${AUTH_TOKEN}" ]; then
+  echo "Missing HUBSPOT_PROJECT_ACCESS_TOKEN (preferred) or HUBSPOT_PRIVATE_APP_TOKEN (fallback)." >&2
+  exit 1
+fi
+
+curl -s -H "Authorization: Bearer ${AUTH_TOKEN}" \
   "https://api.hubapi.com/crm/v3/objects/contacts/${TEST_EMAIL}?idProperty=email&properties=hhl_progress_state,hhl_progress_updated_at,hhl_progress_summary" \
   | jq '{
       id: .id,
@@ -202,7 +219,9 @@ Save this output as **Artifact 3: GET /progress/read Response**.
 # Wait 5-10 seconds for Lambda to finish processing
 sleep 10
 
-curl -s -H "Authorization: Bearer pat-na1-5f4b3f6c-f3d6-4e45-a919-b960da3b3f37" \
+AUTH_TOKEN="${HUBSPOT_PROJECT_ACCESS_TOKEN:-$HUBSPOT_PRIVATE_APP_TOKEN}"
+
+curl -s -H "Authorization: Bearer ${AUTH_TOKEN}" \
   "https://api.hubapi.com/crm/v3/objects/contacts/${TEST_EMAIL}?idProperty=email&properties=hhl_progress_state,hhl_progress_updated_at,hhl_progress_summary" \
   | jq '{
       id: .id,

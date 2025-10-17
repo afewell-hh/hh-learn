@@ -1,3 +1,10 @@
+---
+title: Phase 2 – Contact Properties Backend
+owner: hh-learn project lead
+status: reference
+last-reviewed: 2025-10-17
+---
+
 # Phase 2: Contact Properties Backend (MVP)
 
 **Status**: Implemented (Issue #62)

@@ -1,3 +1,10 @@
+---
+title: Phase 2 – Authenticated Beacons
+owner: hh-learn project lead
+status: reference
+last-reviewed: 2025-10-17
+---
+
 # Phase 2: Authenticated Beacons with CRM Persistence (Issue #59)
 
 ## Overview

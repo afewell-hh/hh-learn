@@ -1,0 +1,27 @@
+
+> hedgehog-learn@0.1.0 sync:pathways
+> npm run build && node dist/src/sync/pathways-to-hubdb.js
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+🔄 Starting pathways sync to HubDB...
+
+Found 6 pathway(s) to sync:
+
+📥 Fetching existing HubDB rows...
+   Found 7 existing rows
+
+  ✓ Updated: Authoring Foundations
+  ✓ Updated: Hedgehog Learn: Course Authoring Pathway
+  ✓ Updated: Getting Started (Courses Demo)
+  ✓ Updated: Getting Started with Hedgehog Lab
+  ✓ Updated: Getting Started
+  ✓ Updated: Lab Onboarding
+
+📤 Publishing HubDB table...
+✅ Sync complete! Table published.
+
+Summary: 6 succeeded, 0 failed
+

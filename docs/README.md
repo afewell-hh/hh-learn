@@ -1,4 +1,21 @@
+---
+title: Hedgehog Learn Documentation Index
+owner: hh-learn project lead
+status: living
+last-reviewed: 2025-10-17
+---
+
 # Documentation Index
+
+> Hedgehog Learn keeps day-to-day status in GitHub. Use this index to discover durable reference material and the canonical planning sources.
+
+## Planning Sources of Truth
+- **GitHub Project (Hedgehog Learn):** Repo → *Projects* tab → *Hedgehog Learn* board (Kanban + Iterations views).
+- **Active Epics:** [#15 – Epic: v0.4 Structured Media](https://github.com/afewell-hh/hh-learn/issues/15), [#18 – Epic: v0.5 Analytics, A11y, Perf](https://github.com/afewell-hh/hh-learn/issues/18).
+- **Open Milestones:** `v0.1 – Authoring & Dynamic Pages` (#1), `v0.2 – Structured Media` (#2), `v0.3 – Quizzes & Progress` (#3), `v0.4 – Pathways & Labs` (#4), `v0.5 – Analytics, A11y, Perf` (#5), `v0.4 – Structured Media (backlog experiments)` (#8).
+- **Outstanding Work:** [Issue #60](https://github.com/afewell-hh/hh-learn/issues/60) still requires manual verification; follow `docs/issue-60-verification-guide.md` before declaring the migration complete.
+
+## Living Documents
 
 This folder only contains long-lived references that should stay accurate as the product evolves. Anything tied to a single sprint or a historical decision belongs in GitHub issues, discussions, or pull requests instead.
 
@@ -18,3 +35,6 @@ This folder only contains long-lived references that should stay accurate as the
 - [`roadmap.md`](roadmap.md) – phase-based milestones and acceptance criteria.
 
 When adding a new document, update this index and include an “owner” in the front matter or intro so we know who keeps it fresh.
+
+## Archive
+- Historical planning snapshots live in `docs/archive/`. See `docs/archive/2025-10/` for the Issue #187 clean-up moves.

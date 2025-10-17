@@ -2,7 +2,7 @@
 title: GitHub Projects – Best Practices
 owner: hh-learn project lead
 status: living
-last-reviewed: 2025-10-16
+last-reviewed: 2025-10-17
 ---
 
 # GitHub Projects – Best Practices
