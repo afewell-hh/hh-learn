@@ -1,0 +1,26 @@
+
+> hedgehog-learn@0.1.0 sync:courses
+> npm run build && node dist/src/sync/courses-to-hubdb.js
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+🔄 Starting courses sync to HubDB...
+
+Found 5 course(s) to sync:
+
+📥 Fetching existing HubDB rows...
+   Found 6 existing rows
+
+  ✓ Updated: Accessing the Hedgehog Virtual Lab
+  ✓ Updated: Course Authoring 101
+  ✓ Updated: Getting Started: Virtual Lab
+  ✓ Updated: Hedgehog Lab Foundations
+  ✓ Updated: Pathway Assembly & Layouts
+
+📤 Publishing HubDB table...
+✅ Sync complete! Table published.
+
+Summary: 5 succeeded, 0 failed
+

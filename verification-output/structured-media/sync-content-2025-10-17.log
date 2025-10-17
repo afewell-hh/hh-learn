@@ -8,7 +8,7 @@
 
 🔄 Starting module sync to HubDB...
 
-Found 11 modules to sync:
+Found 15 modules to sync:
 
 📥 Fetching existing HubDB rows...
    Found 11 existing rows
@@ -21,6 +21,10 @@ Found 11 modules to sync:
   ✓ Updated: Media & Metadata: Images, Social Previews, and Tags
   ✓ Updated: Pathways & Content Blocks
   ✓ Updated: QA & Troubleshooting: Sync, Beacons, and Verification
+  ✓ Created: Course 1 Recap & Forward Map
+  ✓ Created: How Hedgehog Works: The Control Model
+  ✓ Created: Mastering the Three Interfaces
+  ✓ Created: Welcome to Fabric Operations
   ✓ Updated: Introduction to Kubernetes
   ✓ Updated: Kubernetes Networking: Services, Ingress, and Network Policies
   ✓ Updated: Kubernetes Storage: Persistent Volumes and Claims
@@ -28,5 +32,5 @@ Found 11 modules to sync:
 📤 Publishing HubDB table...
 ✅ Sync complete! Table published.
 
-Summary: 11 succeeded, 0 failed
+Summary: 15 succeeded, 0 failed
 
