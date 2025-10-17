@@ -1,3 +1,10 @@
+---
+title: Project App Access Token Integration
+owner: hh-learn project lead
+status: reference
+last-reviewed: 2025-10-17
+---
+
 # Project App OAuth Integration (Issue #60)
 
 > **⚠️ TERMINOLOGY CLARIFICATION**: This document uses "OAuth" terminology throughout, but **no OAuth flow is implemented**. HubSpot Projects Access Tokens are **static bearer tokens** (long-lived, no refresh flow). All references to "OAuth" in this document should be understood as "HubSpot Projects Access Token (static bearer token)". For accurate terminology, see [docs/auth-and-progress.md](./auth-and-progress.md) which has been updated with the correct Auth Model Summary.

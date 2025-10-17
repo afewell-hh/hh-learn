@@ -2,14 +2,23 @@
 title: HHL Roadmap
 owner: hh-learn project lead
 status: living
-last-reviewed: 2025-10-08
+last-reviewed: 2025-10-17
 ---
 
 # Hedgehog Learn – Roadmap
 
 This is the long-term plan at a glance. Each phase maps to a Milestone and one or more Epics (Issues) on the GitHub Project.
 
+> Source of truth: Use the *Hedgehog Learn* GitHub Project board for day-to-day status. Milestone numbers referenced below correspond to the open milestones in GitHub (`#1`, `#2`, `#3`, `#4`, `#5`, `#8`). Epics are tracked as labelled issues (`epic`).
+
+### Current Signals (2025-10-17)
+- **v0.1 – Authoring & Dynamic Pages (Milestone #1):** Build work merged; Issue [#60](https://github.com/afewell-hh/hh-learn/issues/60) still requires manual verification before closing.
+- **v0.4 Structured Media Backlog (Milestone #8) & v0.5 Analytics/A11y/Perf (Milestone #5):** Only milestones with open issues today; review the board for detailed status.
+- **Epics:** [#15](https://github.com/afewell-hh/hh-learn/issues/15) focuses on structured media foundations, [#18](https://github.com/afewell-hh/hh-learn/issues/18) covers analytics/accessibility/performance polish.
+
 ## v0.1 – Stabilize Authoring & Dynamic Pages
+> Status (2025-10-17): Build work merged; Issue #60 verification pending. Do not close the milestone until the manual checks in `docs/issue-60-verification-guide.md` succeed.
+
 Outcomes
 - Single `/learn` page using `module-page.html` for list + detail
 - Authoring guide live and enforced by CI
@@ -20,60 +29,55 @@ Acceptance Criteria
 - Prev/next navigation on detail pages
 - CI green on front-matter validation
 
-## v0.2 – Learning Pathways (High Priority)
+## v0.2 – Structured Media
 Outcomes
-- Define and ship “Pathways” to group modules into guided sequences
-- Render pathway list/detail pages and per-pathway progress summary
-- Support ordering, prerequisites, and basic completion logic
+- Support `media` blocks (video, imagery) in front matter → HubDB JSON → rendered components.
+- Provide reusable author snippets for YouTube, Vimeo, and HubSpot-hosted video assets.
+- Ensure templates gracefully handle missing or legacy inline embeds.
 
 Acceptance Criteria
-- Pathway HubDB schema + sync support (relationships and ordering)
-- Pathway list and detail pages render with associated modules
-- Per-learner progress summary placeholder (UI only) on pathway pages
+- Media JSON synced and rendered on module detail pages.
+- Backwards compatible rendering for existing Markdown embeds.
+- Linting/validation catches unsupported media configurations.
 
-## v0.3 – Auth & Progress (Login + CRM) (Next Priority)
+## v0.3 – Quizzes & Progress
 Outcomes
-- Enable learner login (HubSpot membership or OAuth via app project)
-- Track module/pathway progress to CRM (custom objects or events)
-- Basic learner dashboard (what’s started, in-progress, completed)
+- Enable authenticated learners via HubSpot CMS Membership with progress stored in HubSpot CRM (contact properties backend).
+- Harden `/events/track` + `/progress/read` endpoints using the Projects Access Token (Issue #60) so authenticated beacons persist reliably.
+- Deliver quiz authoring schema, rendering, and Lambda grading pipeline.
 
 Acceptance Criteria
-- Authenticated session on module/pathway pages
-- Progress events stored in CRM (contact or custom object)
-- Minimal dashboard showing learner progress
+- Authenticated session confirmed on module/pathway pages with CRM-backed progress responses.
+- Manual verification for Issue #60 completed and artifacts posted.
+- At least one module ships with a working quiz and score surfaced to the learner UI.
 
-## v0.4 – Structured Media (Video & Assets)
+## v0.4 – Pathways & Labs
 Outcomes
-- Support `media` (video/image) in front matter → HubDB JSON → rendered block
-- Author snippets for YouTube, Vimeo, HubSpot-hosted video
+- Define and ship “Pathways” experiences (list/detail, per-pathway progress summaries).
+- Expand HubDB schemas to cover labs / hands-on experiences tied to pathways.
+- Support ordering, prerequisites, and completion logic across modules and labs.
 
 Acceptance Criteria
-- Media JSON synced and rendered on detail pages
-- Backwards compatible with inline Markdown embeds
+- Pathway and lab HubDB schemas synced (relationships + ordering) with authoring tooling.
+- Pathway list and detail pages render associated modules/labs with progress context.
+- Per-learner progress summary placeholder (UI only) on pathway and lab detail pages.
 
-## v0.5 – Quizzes (Schema + Grading)
+## v0.5 – Analytics, Accessibility, Performance
 Outcomes
-- Define quiz schema and storage in HubDB
-- Client UI for quizzes on module pages
-- Lambda `/quiz/grade` computes score
+- Behavioral events wired into HubSpot analytics/CRM for completed/started modules and pathway enrolment.
+- Accessibility sweep across templates (headings, contrast, focus, keyboard order).
+- Performance improvements: lazy-load media, optimize code blocks, tighten bundle size.
 
 Acceptance Criteria
-- One module with a working quiz and score displayed to learner
-
-## v0.6 – Analytics, Accessibility, Performance
-Outcomes
-- Behavioral events wired into HubSpot analytics/CRM
-- Accessibility sweep on templates (headings, contrast, focus)
-- Lazy-load images; code block copy UX
-
-Acceptance Criteria
-- A11y checks pass on key pages; Core Web Vitals acceptable
+- Analytics dashboards confirm event ingestion matches beacons.
+- Accessibility checks pass on key pages; remediations documented.
+- Core Web Vitals meet internal targets on `/learn` and module detail pages.
 
 ## Governance
-- Track phases as Milestones: `v0.1 Authoring`, `v0.2 Media`, `v0.3 Quizzes`, `v0.4 Pathways`, `v0.5 A11y/Perf`.
+- Track phases as Milestones: `v0.1 Authoring & Dynamic Pages`, `v0.2 Structured Media`, `v0.3 Quizzes & Progress`, `v0.4 Pathways & Labs`, `v0.5 Analytics/A11y/Perf`.
 - Each phase has Epics (Issues) with acceptance criteria; work is split into smaller Issues linked to the Milestone and Project.
 - Update this roadmap when scope changes. Keep dates in GitHub Milestones; keep outcomes here.
--
+ 
 ## v0.6 – AI Maintenance Pipeline (GitOps)
 Outcomes
 - Repository‑dispatch/schedule triggers create validation tasks when product releases publish
