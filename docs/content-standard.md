@@ -133,6 +133,14 @@ order: 10                     # Sorting weight for lists
 Modules MAY include these fields for advanced use cases:
 
 ```yaml
+media:
+  - type: "image"        # Required: "image" or "video"
+    url: "https://..."   # Required: HTTPS asset URL
+    alt: "Descriptive alternative text"   # Required for accessibility
+    caption: "Optional learner-facing caption."
+    credit: "Optional source or photographer credit."
+    thumbnail_url: "https://..."          # Optional poster image for video
+
 # Agent-ready maintenance metadata
 products:
   - name: hedgehog-platform
@@ -156,6 +164,16 @@ ai_hints:
   environment: "kind"
   retries: 1
 ```
+
+#### Structured Media Guidelines
+
+- **Media entries** power the module gallery rendered on `/learn/modules/<slug>`. Supply at least one image or video when demonstrative assets exist.
+- **Alt text is required** and must describe the essential content or purpose of the media. Do not repeat surrounding body text verbatim.
+- **Caption** should reinforce learning context (what the learner should notice). Keep it under ~140 characters.
+- **Credit** is optional but recommended when reusing third-party assets.
+- **Video requirements:** provide an MP4 (or browser-compatible format) URL. `thumbnail_url` is strongly encouraged for faster poster rendering.
+- **Playback controls:** videos must include native controls and must not auto-play; keep clips short (<2 minutes) or provide chaptering in captions.
+- Leave `media` undefined when no assets are available—empty arrays are ignored during sync.
 
 See [AI Content Maintenance Guide](ai-content-maintenance.md) for details on agent-ready metadata.
 

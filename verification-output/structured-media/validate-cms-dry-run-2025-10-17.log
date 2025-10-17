@@ -1,0 +1,562 @@
+
+> hedgehog-learn@0.1.0 validate:cms
+> npm run build && npm run provision:tables -- --dry-run && npm run provision:constants -- --dry-run && npm run provision:pages -- --dry-run --dry-run
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+
+> hedgehog-learn@0.1.0 provision:tables
+> npm run build && node dist/scripts/hubspot/provision-tables.js --dry-run
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+🔄 Starting HubDB table provisioning...
+
+📝 DRY RUN MODE - no changes will be made
+
+
+📄 Table: courses
+   Action: UPDATE (table exists)
+   Payload:
+{
+  "name": "courses",
+  "label": "Courses",
+  "useForPages": true,
+  "allowChildTables": false,
+  "enableChildTablePages": false,
+  "columns": [
+    {
+      "name": "meta_description",
+      "label": "Meta Description",
+      "type": "TEXT"
+    },
+    {
+      "name": "summary_markdown",
+      "label": "Summary Markdown",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "module_slugs_json",
+      "label": "Module Slugs Json",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "estimated_minutes",
+      "label": "Estimated Minutes",
+      "type": "NUMBER"
+    },
+    {
+      "name": "badge_image_url",
+      "label": "Badge Image Url",
+      "type": "TEXT"
+    },
+    {
+      "name": "display_order",
+      "label": "Display Order",
+      "type": "NUMBER"
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "TEXT"
+    },
+    {
+      "name": "content_blocks_json",
+      "label": "Content Blocks Json",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "social_image_url",
+      "label": "Social Image Url",
+      "type": "TEXT"
+    }
+  ],
+  "allowPublicApiAccess": false
+}
+
+📄 Table: pathways
+   Action: UPDATE (table exists)
+   Payload:
+{
+  "name": "pathways",
+  "label": "Pathways",
+  "useForPages": true,
+  "allowChildTables": false,
+  "enableChildTablePages": false,
+  "columns": [
+    {
+      "name": "meta_description",
+      "label": "Meta Description",
+      "type": "TEXT"
+    },
+    {
+      "name": "summary_markdown",
+      "label": "Summary Markdown",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "module_slugs_json",
+      "label": "Module Slugs Json",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "course_slugs_json",
+      "label": "Course Slugs Json",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "module_count",
+      "label": "Module Count",
+      "type": "NUMBER"
+    },
+    {
+      "name": "total_estimated_minutes",
+      "label": "Total Estimated Minutes",
+      "type": "NUMBER"
+    },
+    {
+      "name": "estimated_minutes",
+      "label": "Estimated Minutes",
+      "type": "NUMBER"
+    },
+    {
+      "name": "badge_image_url",
+      "label": "Badge Image Url",
+      "type": "TEXT"
+    },
+    {
+      "name": "display_order",
+      "label": "Display Order",
+      "type": "NUMBER"
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "TEXT"
+    },
+    {
+      "name": "content_blocks_json",
+      "label": "Content Blocks Json",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "social_image_url",
+      "label": "Social Image Url",
+      "type": "TEXT"
+    }
+  ],
+  "allowPublicApiAccess": false
+}
+
+📄 Table: modules
+   Action: UPDATE (table exists)
+   Payload:
+{
+  "name": "modules",
+  "label": "Modules",
+  "useForPages": true,
+  "allowChildTables": false,
+  "enableChildTablePages": false,
+  "columns": [
+    {
+      "name": "difficulty",
+      "label": "Difficulty",
+      "type": "SELECT",
+      "options": [
+        {
+          "id": "1",
+          "name": "beginner",
+          "type": "option"
+        },
+        {
+          "id": "2",
+          "name": "intermediate",
+          "type": "option"
+        },
+        {
+          "id": "3",
+          "name": "advanced",
+          "type": "option"
+        }
+      ]
+    },
+    {
+      "name": "estimated_minutes",
+      "label": "Estimated Minutes",
+      "type": "NUMBER"
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "TEXT"
+    },
+    {
+      "name": "full_content",
+      "label": "Full Content",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "display_order",
+      "label": "Display Order",
+      "type": "NUMBER"
+    },
+    {
+      "name": "meta_description",
+      "label": "Meta Description",
+      "type": "TEXT"
+    },
+    {
+      "name": "social_image_url",
+      "label": "Social Image Url",
+      "type": "TEXT"
+    },
+    {
+      "name": "prerequisites_json",
+      "label": "Prerequisites Json",
+      "type": "TEXT"
+    },
+    {
+      "name": "media_json",
+      "label": "Media Json",
+      "type": "JSON"
+    }
+  ],
+  "allowPublicApiAccess": false
+}
+
+📄 Table: catalog
+   Action: UPDATE (table exists)
+   Payload:
+{
+  "name": "catalog",
+  "label": "Catalog",
+  "useForPages": true,
+  "allowChildTables": false,
+  "enableChildTablePages": false,
+  "columns": [
+    {
+      "name": "type",
+      "label": "Type",
+      "type": "SELECT",
+      "options": [
+        {
+          "id": "1",
+          "name": "module",
+          "type": "option"
+        },
+        {
+          "id": "2",
+          "name": "course",
+          "type": "option"
+        },
+        {
+          "id": "3",
+          "name": "pathway",
+          "type": "option"
+        }
+      ]
+    },
+    {
+      "name": "url_path",
+      "label": "Url Path",
+      "type": "TEXT"
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "TEXT"
+    },
+    {
+      "name": "summary",
+      "label": "Summary",
+      "type": "RICHTEXT"
+    },
+    {
+      "name": "image_url",
+      "label": "Image Url",
+      "type": "TEXT"
+    },
+    {
+      "name": "level",
+      "label": "Level",
+      "type": "SELECT",
+      "options": [
+        {
+          "id": "1",
+          "name": "beginner",
+          "type": "option"
+        },
+        {
+          "id": "2",
+          "name": "intermediate",
+          "type": "option"
+        },
+        {
+          "id": "3",
+          "name": "advanced",
+          "type": "option"
+        }
+      ]
+    },
+    {
+      "name": "duration",
+      "label": "Duration",
+      "type": "NUMBER"
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "TEXT"
+    },
+    {
+      "name": "published",
+      "label": "Published",
+      "type": "SELECT",
+      "options": [
+        {
+          "id": "1",
+          "name": "true",
+          "type": "option"
+        },
+        {
+          "id": "2",
+          "name": "false",
+          "type": "option"
+        }
+      ]
+    },
+    {
+      "name": "sort_order",
+      "label": "Sort Order",
+      "type": "NUMBER"
+    },
+    {
+      "name": "source_table",
+      "label": "Source Table",
+      "type": "TEXT"
+    },
+    {
+      "name": "source_row_id",
+      "label": "Source Row Id",
+      "type": "NUMBER"
+    }
+  ],
+  "allowPublicApiAccess": false
+}
+
+============================================================
+📊 Provisioning Summary
+============================================================
+
+Table: courses
+  ID: 135381433
+  Published: No (dry-run)
+
+Table: pathways
+  ID: 135381504
+  Published: No (dry-run)
+
+Table: modules
+  ID: 135621904
+  Published: No (dry-run)
+
+Table: catalog
+  ID: 136199186
+  Published: No (dry-run)
+
+✅ Table provisioning complete!
+
+
+> hedgehog-learn@0.1.0 provision:constants
+> npm run build && node dist/scripts/hubspot/update-constants.js --dry-run
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+🔄 Starting constants.json update...
+
+📝 DRY RUN MODE - no changes will be made
+
+📥 (Dry-run) Would read constants from: CLEAN x HEDGEHOG/templates/config/constants.json
+
+
+============================================================
+📊 Constants Update Diff
+============================================================
+  HUBDB_MODULES_TABLE_ID:
+    - 12345678
+    + 135621904
+  HUBDB_COURSES_TABLE_ID:
+    - <not set>
+    + 135381433
+  HUBDB_PATHWAYS_TABLE_ID:
+    - <not set>
+    + 135381504
+
+✅ Dry run complete!
+
+Updated constants.json would be:
+{
+  "HUBDB_MODULES_TABLE_ID": "135621904",
+  "HUBDB_COURSES_TABLE_ID": "135381433",
+  "HUBDB_PATHWAYS_TABLE_ID": "135381504"
+}
+
+
+> hedgehog-learn@0.1.0 provision:pages
+> npm run build && node dist/scripts/hubspot/provision-pages.js --dry-run --dry-run
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+🔄 Starting CMS page provisioning...
+
+📝 DRY RUN MODE - no changes will be made
+
+🔍 Checking for common template path issues...
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+   Validating template: CLEAN x HEDGEHOG/templates/learn/courses/courses-page.html
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+   Validating template: CLEAN x HEDGEHOG/templates/learn/pathways/pathways-page.html
+
+   Searching for existing page(s) with slug prefix: learn
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+
+📄 Page: Learn
+   Slug: learn
+   Action: UPDATE (page exists)
+   Target ID: 197177162603 (slug: learn)
+   Payload:
+{
+  "name": "Learn",
+  "slug": "learn",
+  "templatePath": "CLEAN x HEDGEHOG/templates/learn/catalog.html",
+  "state": "DRAFT",
+  "dynamicPageDataSourceType": 1,
+  "dynamicPageDataSourceId": 136199186
+}
+   Searching for existing page(s) with slug prefix: learn/modules
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+
+📄 Page: Modules
+   Slug: learn/modules
+   Action: UPDATE (page exists)
+   Target ID: 197624622201 (slug: learn/modules)
+   Payload:
+{
+  "name": "Modules",
+  "slug": "learn/modules",
+  "templatePath": "CLEAN x HEDGEHOG/templates/learn/module-page.html",
+  "state": "DRAFT",
+  "dynamicPageDataSourceType": 1,
+  "dynamicPageDataSourceId": 135621904
+}
+   Searching for existing page(s) with slug prefix: learn/courses
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+
+📄 Page: Courses
+   Slug: learn/courses
+   Action: UPDATE (page exists)
+   Target ID: 197280289288 (slug: learn/courses)
+   Payload:
+{
+  "name": "Courses",
+  "slug": "learn/courses",
+  "templatePath": "CLEAN x HEDGEHOG/templates/learn/courses-page.html",
+  "state": "DRAFT",
+  "dynamicPageDataSourceType": 1,
+  "dynamicPageDataSourceId": 135381433
+}
+   Searching for existing page(s) with slug prefix: learn/pathways
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+
+📄 Page: Pathways
+   Slug: learn/pathways
+   Action: UPDATE (page exists)
+   Target ID: 197280289546 (slug: learn/pathways)
+   Payload:
+{
+  "name": "Pathways",
+  "slug": "learn/pathways",
+  "templatePath": "CLEAN x HEDGEHOG/templates/learn/pathways-page.html",
+  "state": "DRAFT",
+  "dynamicPageDataSourceType": 1,
+  "dynamicPageDataSourceId": 135381504
+}
+   Searching for existing page(s) with slug prefix: learn/my-learning
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+
+📄 Page: My Learning
+   Slug: learn/my-learning
+   Action: UPDATE (page exists)
+   Target ID: 197399202740 (slug: learn/my-learning)
+   Payload:
+{
+  "name": "My Learning",
+  "slug": "learn/my-learning",
+  "templatePath": "CLEAN x HEDGEHOG/templates/learn/my-learning.html",
+  "state": "DRAFT",
+  "dynamicPageDataSourceType": 1,
+  "dynamicPageDataSourceId": 135621904
+}
+   Searching for existing page(s) with slug prefix: learn/register
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+
+📄 Page: Register
+   Slug: learn/register
+   Action: UPDATE (page exists)
+   Target ID: 197625141413 (slug: learn/register)
+   Payload:
+{
+  "name": "Register",
+  "slug": "learn/register",
+  "templatePath": "CLEAN x HEDGEHOG/templates/learn/register.html",
+  "state": "DRAFT"
+}
+
+============================================================
+📊 Page Provisioning Summary
+============================================================
+
+Page: Learn
+  Slug: learn
+  ID: 197177162603
+  State: DRAFT
+
+Page: Modules
+  Slug: learn/modules
+  ID: 197624622201
+  State: DRAFT
+
+Page: Courses
+  Slug: learn/courses
+  ID: 197280289288
+  State: DRAFT
+
+Page: Pathways
+  Slug: learn/pathways
+  ID: 197280289546
+  State: DRAFT
+
+Page: My Learning
+  Slug: learn/my-learning
+  ID: 197399202740
+  State: DRAFT
+
+Page: Register
+  Slug: learn/register
+  ID: 197625141413
+  State: DRAFT
+
+✅ Page provisioning complete!
+

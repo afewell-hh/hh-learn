@@ -1,0 +1,62 @@
+
+> hedgehog-learn@0.1.0 provision:tables
+> npm run build && node dist/scripts/hubspot/provision-tables.js
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+🔄 Starting HubDB table provisioning...
+
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+📝 Updating table: courses (ID: 135381433)
+   ✓ Table updated
+📤 Publishing table: courses
+   ✓ Table published
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+📝 Updating table: pathways (ID: 135381504)
+   ✓ Table updated
+📤 Publishing table: pathways
+   ✓ Table published
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+📝 Updating table: modules (ID: 135621904)
+   ✓ Table updated
+📤 Publishing table: modules
+   ✓ Table published
+   Using HUBSPOT_PROJECT_ACCESS_TOKEN (HubSpot Projects static token)
+📝 Updating table: catalog (ID: 136199186)
+   ✓ Table updated
+📤 Publishing table: catalog
+   ✓ Table published
+
+============================================================
+📊 Provisioning Summary
+============================================================
+
+Table: courses
+  ID: 135381433
+  Published: Yes
+
+Table: pathways
+  ID: 135381504
+  Published: Yes
+
+Table: modules
+  ID: 135621904
+  Published: Yes
+
+Table: catalog
+  ID: 136199186
+  Published: Yes
+
+✅ Table provisioning complete!
+
+📋 Add these to your .env file:
+
+HUBDB_COURSES_TABLE_ID=135381433
+HUBDB_PATHWAYS_TABLE_ID=135381504
+HUBDB_MODULES_TABLE_ID=135621904
+HUBDB_CATALOG_TABLE_ID=136199186
+

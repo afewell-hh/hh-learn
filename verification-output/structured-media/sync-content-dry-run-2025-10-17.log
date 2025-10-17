@@ -1,0 +1,36 @@
+
+> hedgehog-learn@0.1.0 sync:content
+> npm run build && node dist/src/sync/markdown-to-hubdb.js --dry-run
+
+
+> hedgehog-learn@0.1.0 build
+> tsc -p tsconfig.json && tsc -p tsconfig.lambda.json
+
+🔄 Starting module sync to HubDB...
+
+🧪 Dry run enabled — HubDB updates will be skipped.
+
+Found 16 modules to sync:
+
+  • [dry-run] Accessing the Hedgehog Virtual Lab with Amazon Web Services
+  • [dry-run] Accessing the Hedgehog Virtual Lab with Google Cloud
+  • [dry-run] Accessing the Hedgehog Virtual Lab with Microsoft Azure
+  • [dry-run] Assembling Courses from Modules
+  • [dry-run] Authoring Basics: Modules, Front Matter, and Sync
+  • [dry-run] Media & Metadata: Images, Social Previews, and Tags
+  • [dry-run] Pathways & Content Blocks
+  • [dry-run] QA & Troubleshooting: Sync, Beacons, and Verification
+  • [dry-run] Course 1 Recap & Forward Map
+  • [dry-run] How Hedgehog Works: The Control Model
+  • [dry-run] Mastering the Three Interfaces
+  • [dry-run] Define VPC Network
+  • [dry-run] Welcome to Fabric Operations
+  • [dry-run] Introduction to Kubernetes
+  • [dry-run] Kubernetes Networking: Services, Ingress, and Network Policies
+  • [dry-run] Kubernetes Storage: Persistent Volumes and Claims
+
+ℹ️  Dry run: skipped delete/archive checks.
+
+✅ Dry run complete!
+Summary: 16 succeeded, 0 failed
+

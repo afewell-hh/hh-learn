@@ -9,7 +9,7 @@
  * 4. Upserts to HubDB table
  * 5. Publishes table
  *
- * Usage: npm run sync:content
+ * Usage: npm run sync:content [-- --dry-run]
  */
 
 import 'dotenv/config'; // Load .env file
@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import matter from 'gray-matter';
 import { getHubSpotClient } from '../shared/hubspot.js';
+import type { ModuleMedia } from '../shared/types.js';
 
 // ES module compatibility: get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +47,7 @@ interface ModuleFrontmatter {
   order?: number;
   archived?: boolean;
   social_image?: string;
+  media?: ModuleMedia[];
 }
 
 // Helper: Sleep for specified milliseconds
@@ -109,10 +111,12 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-async function syncModules() {
+async function syncModules(dryRun: boolean = false) {
   console.log('🔄 Starting module sync to HubDB...\n');
 
-  if (!TABLE_ID) {
+  if (dryRun) {
+    console.log('🧪 Dry run enabled — HubDB updates will be skipped.\n');
+  } else if (!TABLE_ID) {
     throw new Error('HUBDB_MODULES_TABLE_ID environment variable not set');
   }
 
@@ -136,12 +140,15 @@ async function syncModules() {
   console.log(`Found ${modules.length} modules to sync:\n`);
 
   // Fetch all existing rows once at the start
-  console.log('📥 Fetching existing HubDB rows...');
-  const existingRowsResponse = await retryWithBackoff(() =>
-    hubspot.cms.hubdb.rowsApi.getTableRows(TABLE_ID, undefined, undefined, undefined)
-  );
-  const existingRows = existingRowsResponse.results || [];
-  console.log(`   Found ${existingRows.length} existing rows\n`);
+  let existingRows: any[] = [];
+  if (!dryRun) {
+    console.log('📥 Fetching existing HubDB rows...');
+    const existingRowsResponse = await retryWithBackoff(() =>
+      hubspot.cms.hubdb.rowsApi.getTableRows(TABLE_ID!, undefined, undefined, undefined)
+    );
+    existingRows = existingRowsResponse.results || [];
+    console.log(`   Found ${existingRows.length} existing rows\n`);
+  }
 
 
   let successCount = 0;
@@ -158,6 +165,7 @@ async function syncModules() {
       // Parse frontmatter + markdown content
       const { data: frontmatter, content: markdown } = matter(fileContent);
       const fm = frontmatter as ModuleFrontmatter;
+      const mediaItems = normalizeMedia((frontmatter as any).media);
 
       // Read optional meta.json for prerequisites and learning objectives
       let metaData: any = null;
@@ -201,25 +209,40 @@ async function syncModules() {
         prerequisitesJson = JSON.stringify(metaData.prerequisites);
       }
 
+      const values: Record<string, any> = {
+        // NO 'title' here - it's in 'name' at row level!
+        // Removed slug column - use row.path (hs_path) instead
+        meta_description: fm.description || '', // SEO meta description (for metadata mapping)
+        difficulty: difficultyValue, // Use option object for SELECT field
+        estimated_minutes: fm.estimated_minutes || 30,
+        tags: tagsCsv,
+        full_content: html,
+        display_order: fm.order || 999,
+        social_image_url: fm.social_image || '',
+        prerequisites_json: prerequisitesJson
+      };
+
+      if (mediaItems.length) {
+        values.media_json = {
+          items: mediaItems,
+          version: '1.0.0'
+        };
+      }
+
       const row = {
         name: fm.title, // Maps to hs_name (Name column) - this is the display title!
         path: (fm.slug || moduleSlug).toLowerCase(), // Maps to hs_path (Page Path) - must be lowercase
         childTableId: 0, // Required for API compatibility
-        values: {
-          // NO 'title' here - it's in 'name' at row level!
-          // Removed slug column - use row.path (hs_path) instead
-          meta_description: fm.description || '', // SEO meta description (for metadata mapping)
-          difficulty: difficultyValue, // Use option object for SELECT field
-          estimated_minutes: fm.estimated_minutes || 30,
-          tags: tagsCsv,
-          full_content: html,
-          display_order: fm.order || 999,
-          social_image_url: fm.social_image || '',
-          prerequisites_json: prerequisitesJson
-        }
+        values
       };
 
       // Find existing row by path (hs_path field)
+      if (dryRun) {
+        console.log(`  • [dry-run] ${fm.title}`);
+        successCount++;
+        continue;
+      }
+
       const existingRow = existingRows.find((r: any) => r.path === row.path);
 
       // Try to update existing row, create if doesn't exist (with retry)
@@ -227,7 +250,7 @@ async function syncModules() {
         if (existingRow) {
           // Update existing row using its numeric ID
           await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(
-            TABLE_ID,
+            TABLE_ID!,
             String(existingRow.id), // numeric id -> string
             row as any
           );
@@ -235,7 +258,7 @@ async function syncModules() {
         } else {
           // Row doesn't exist, create it
           await hubspot.cms.hubdb.rowsApi.createTableRow(
-            TABLE_ID,
+            TABLE_ID!,
             row as any
           );
           console.log(`  ✓ Created: ${fm.title}`);
@@ -274,7 +297,7 @@ async function syncModules() {
 
   // Optionally delete or archive HubDB rows that no longer exist in content/modules
   const deleteMissing = (process.env.SYNC_DELETE_MISSING || 'true').toLowerCase() === 'true';
-  if (deleteMissing) {
+  if (!dryRun && deleteMissing) {
     const contentSlugs = new Set(modules.map((m) => m.toLowerCase()));
     const toDelete = existingRows.filter((r: any) => !contentSlugs.has((r.path || '').toLowerCase()));
     if (toDelete.length) {
@@ -288,7 +311,7 @@ async function syncModules() {
           for (const r of wantsArchive) {
             try {
               await retryWithBackoff(async () => {
-                await hubspot.cms.hubdb.rowsApi.purgeDraftTableRow(TABLE_ID, String(r.id));
+                await hubspot.cms.hubdb.rowsApi.purgeDraftTableRow(TABLE_ID!, String(r.id));
               });
               console.log(`  • Deleted (archived dir): ${r.path}`);
             } catch (err: any) {
@@ -308,7 +331,7 @@ async function syncModules() {
                 values: { ...(r.values || {}), tags: currentTags.join(',') }
               } as any;
               await retryWithBackoff(async () => {
-                await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(TABLE_ID, String(r.id), update);
+              await hubspot.cms.hubdb.rowsApi.updateDraftTableRow(TABLE_ID!, String(r.id), update);
               });
               console.log(`  • Archived (tagged): ${r.path}`);
             } catch (err: any) {
@@ -323,7 +346,7 @@ async function syncModules() {
         for (const r of realDeletes) {
           try {
             await retryWithBackoff(async () => {
-              await hubspot.cms.hubdb.rowsApi.purgeDraftTableRow(TABLE_ID, String(r.id));
+              await hubspot.cms.hubdb.rowsApi.purgeDraftTableRow(TABLE_ID!, String(r.id));
             });
             console.log(`  • Deleted: ${r.path || r.id}`);
           } catch (err: any) {
@@ -335,25 +358,70 @@ async function syncModules() {
       // Publish after updates/deletions
       console.log('📤 Publishing HubDB table after updates...');
       await retryWithBackoff(async () => {
-        await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID);
+    await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID!);
       });
     }
+  } else if (dryRun) {
+    console.log('\nℹ️  Dry run: skipped delete/archive checks.');
   } else {
     console.log('\nℹ️  SYNC_DELETE_MISSING=false – skipped deleting removed modules from HubDB.');
   }
 
-  // Publish table (with retry)
-  console.log('\n📤 Publishing HubDB table...');
-  await retryWithBackoff(async () => {
-    await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID);
-  });
+  if (!dryRun) {
+    // Publish table (with retry)
+    console.log('\n📤 Publishing HubDB table...');
+    await retryWithBackoff(async () => {
+      await hubspot.cms.hubdb.tablesApi.publishDraftTable(TABLE_ID!);
+    });
 
-  console.log('✅ Sync complete! Table published.\n');
+    console.log('✅ Sync complete! Table published.\n');
+  } else {
+    console.log('\n✅ Dry run complete!');
+  }
   console.log(`Summary: ${successCount} succeeded, ${failCount} failed\n`);
 }
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+
 // Run sync
-syncModules().catch(err => {
+syncModules(dryRun).catch(err => {
   console.error('❌ Sync failed:', err);
   process.exit(1);
 });
+function normalizeMedia(value: unknown): ModuleMedia[] {
+  if (!Array.isArray(value)) return [];
+
+  const media: ModuleMedia[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const raw = entry as Record<string, unknown>;
+    const type = typeof raw.type === 'string' ? raw.type.toLowerCase() : '';
+    const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+    const alt = typeof raw.alt === 'string' ? raw.alt.trim() : '';
+    if ((type !== 'image' && type !== 'video') || !url || !alt) continue;
+
+    const mediaItem: ModuleMedia = {
+      type: type as ModuleMedia['type'],
+      url,
+      alt,
+    };
+
+    if (typeof raw.caption === 'string' && raw.caption.trim()) {
+      mediaItem.caption = raw.caption.trim();
+    }
+
+    if (typeof raw.credit === 'string' && raw.credit.trim()) {
+      mediaItem.credit = raw.credit.trim();
+    }
+
+    if (typeof raw.thumbnail_url === 'string' && raw.thumbnail_url.trim()) {
+      mediaItem.thumbnail_url = raw.thumbnail_url.trim();
+    }
+
+    media.push(mediaItem);
+  }
+
+  return media;
+}

@@ -8,6 +8,16 @@ validated_on: "2025-10-08"
 pathway_slug: "<optional-pathway-slug>"
 pathway_name: "<Optional Pathway Name>"
 tags: [tag1, tag2, tag3]
+media:
+  - type: "image"
+    url: "https://hedgehog.cloud/hubfs/path/to-diagram.png"
+    alt: "Describe what the learner should notice in the diagram."
+    caption: "Optional short caption that reinforces the learning point."
+    credit: "Photo credit or source if required."
+  - type: "video"
+    url: "https://cdn.example.com/workflow-demo.mp4"
+    alt: "Summarize what the video demonstrates."
+    thumbnail_url: "https://cdn.example.com/workflow-demo-poster.jpg"
 description: "120–160 chars. What learners will achieve and why it matters."
 order: 100
 
@@ -81,4 +91,3 @@ Provide supporting explanations, diagrams, and links. Keep this section separate
 
 ## Resources
 - Link to authoritative docs and references
-

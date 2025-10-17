@@ -14,3 +14,12 @@ export type QuizGradeInput = {
 };
 
 export type QuizGradeResult = { score: number; pass: boolean; details?: unknown };
+
+export type ModuleMedia = {
+  type: 'image' | 'video';
+  url: string;
+  alt: string;
+  caption?: string;
+  credit?: string;
+  thumbnail_url?: string;
+};

@@ -10,6 +10,7 @@
 
   {# Left nav CSS and JS for list pages #}
   <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/module-media.css') }}">
   <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
 
   {% if dynamic_page_hubdb_row %}
@@ -699,6 +700,56 @@
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
           </header>
+
+          {% set module_media = [] %}
+          {% set raw_media = dynamic_page_hubdb_row.media_json %}
+          {% if raw_media %}
+            {% if raw_media is string %}
+              {% set parsed_media = raw_media|fromjson %}
+            {% else %}
+              {% set parsed_media = raw_media %}
+            {% endif %}
+            {% if parsed_media %}
+              {% if parsed_media.items is defined %}
+                {% set module_media = parsed_media.items %}
+              {% else %}
+                {% set module_media = parsed_media %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+
+          {% if module_media and module_media|length > 0 %}
+            <section class="module-media-gallery" aria-label="Module media">
+              <div class="module-media-grid">
+                {% for item in module_media %}
+                  {% if item.type == 'image' %}
+                    <figure class="module-media-card">
+                      <img src="{{ item.url }}" alt="{{ item.alt }}" loading="lazy">
+                      {% if item.caption or item.credit %}
+                        <figcaption>
+                          {% if item.caption %}<span class="module-media-caption">{{ item.caption }}</span>{% endif %}
+                          {% if item.credit %}<span class="module-media-credit">{{ item.credit }}</span>{% endif %}
+                        </figcaption>
+                      {% endif %}
+                    </figure>
+                  {% elif item.type == 'video' %}
+                    <figure class="module-media-card module-media-card--video">
+                      <video controls preload="metadata" {% if item.thumbnail_url %}poster="{{ item.thumbnail_url }}"{% endif %} aria-label="{{ item.alt }}">
+                        <source src="{{ item.url }}">
+                        Your browser does not support the video tag. <a href="{{ item.url }}" target="_blank" rel="noopener">Download the video</a>.
+                      </video>
+                      {% if item.caption or item.credit %}
+                        <figcaption>
+                          {% if item.caption %}<span class="module-media-caption">{{ item.caption }}</span>{% endif %}
+                          {% if item.credit %}<span class="module-media-credit">{{ item.credit }}</span>{% endif %}
+                        </figcaption>
+                      {% endif %}
+                    </figure>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
 
           {# Prerequisites Section #}
           {% if dynamic_page_hubdb_row.prerequisites_json %}
