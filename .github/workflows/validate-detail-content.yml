@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  detail:
-    name: Validate Detail Content / detail-content
+  detail-content:
+    name: Validate Detail Content
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
