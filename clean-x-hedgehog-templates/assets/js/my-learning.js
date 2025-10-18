@@ -125,8 +125,8 @@
 
       if (auth.enableCrm && (auth.email || auth.contactId)){
         var readUrl = getReadUrl(constants);
-        var q = auth.contactId ? ('?contactId='+encodeURIComponent(auth.contactId)) : ('?email='+encodeURIComponent(auth.email));
-        fetchJSON(readUrl + q)
+        var query = auth.contactId ? ('?contactId='+encodeURIComponent(auth.contactId)) : ('?email='+encodeURIComponent(auth.email));
+        fetchJSON(readUrl + query)
           .then(function(json){
             if (json && json.mode === 'authenticated' && json.progress){
               // Resume panel (CRM only for MVP)
