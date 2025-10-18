@@ -12,8 +12,8 @@ on:
         default: "dev"
       region:
         description: "AWS region (e.g., us-west-2)"
-        required: true
-        default: "${{ secrets.AWS_REGION }}"
+        required: false
+        default: "us-west-2"
       enable_crm_progress:
         description: "Enable authenticated CRM progress tracking"
         required: false
