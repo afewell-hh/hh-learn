@@ -1,16 +1,18 @@
 # Learn Platform MVP Launch Runbook
 
-> Last reviewed: 2025-10-17 (verified 2025-10-17T17:17Z)
+> Last reviewed: 2025-10-18 (final verification completed 2025-10-18T17:45Z)
 
-**Date:** October 17, 2025
-**Version:** 1.0
+**Date:** October 17, 2025 (Updated: October 18, 2025)
+**Version:** 1.1
 **Stage:** MVP Go-Live
 
 ## Overview
 
 This runbook outlines the steps to launch the Hedgehog Learn platform MVP, including content pipeline operations, verification procedures, and beacon tracking validation.
 
-**Evidence folder:** `verification-output/issue-188/` (artifact snapshots captured 2025-10-17 for checklist references).
+**Evidence folder:** `verification-output/issue-188/` (artifact snapshots captured 2025-10-17, final verification 2025-10-18).
+
+**Status:** ✅ Technical verification complete. See `verification-output/issue-188/ISSUE-188-FINAL-STATUS.md` for comprehensive final status report.
 
 ---
 
@@ -269,6 +271,12 @@ POST https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
 - [x] Contact Properties update in HubSpot CRM within 2-3 minutes _(HubSpot contact snapshot `verification-output/issue-188/hubspot-contact-progress-after.json` updated with new module slug at 2025-10-17T17:49Z.)_
 - [x] No CloudWatch alarms triggered _(All relevant alarms report `OK` in `verification-output/issue-188/aws-cloudwatch-alarms.json`.)_
 
+**Workflow Dispatch Resolution:**
+- ✅ **Issue #193 RESOLVED** (2025-10-18): workflow_dispatch was silently failing due to invalid secret reference in input defaults. Fixed via PR #194 (merged 2025-10-18T16:47Z).
+- ✅ **Verification:** Multiple successful workflow_dispatch runs confirmed (see `verification-output/issue-188/workflow-dispatch-verification-2025-10-18.json`)
+  - Run 18618723907: workflow_dispatch, success, 2025-10-18T17:25Z
+  - Run 18618585385: workflow_dispatch, success, 2025-10-18T17:13Z
+
 **Rollback:**
 If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
 
@@ -388,5 +396,23 @@ _(Owner: Ops/Product—create schedule post-launch.)_
 
 ---
 
-**Last Updated:** October 17, 2025
+**Last Updated:** October 18, 2025
 **Next Review:** Post-MVP (1 week after launch)
+
+---
+
+## Verification History
+
+**2025-10-18 Final Verification (Issue #188):**
+- ✅ Technical infrastructure verification complete
+- ✅ All API endpoints operational
+- ✅ Content publishing verified (15 modules, 6 courses, 7 pathways)
+- ✅ Performance measurements completed
+- ✅ Workflow dispatch bug resolved (Issue #193, PR #194)
+- 📄 Comprehensive final report: `verification-output/issue-188/ISSUE-188-FINAL-STATUS.md`
+
+**2025-10-17 Initial Verification:**
+- ✅ Infrastructure checks completed
+- ✅ Beacon tracking verified (anonymous + authenticated)
+- ✅ Contact property updates confirmed
+- 📄 Summary: `verification-output/issue-188/runbook-verification-summary.md`
