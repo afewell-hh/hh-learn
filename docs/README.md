@@ -34,6 +34,7 @@ This folder only contains long-lived references that should stay accurate as the
 - [`learn-launch-runbook.md`](learn-launch-runbook.md) – current MVP go-live checklist with evidence links (last verified 2025-10-17).
 
 ### Verification & Access Tokens
+- **[`hubspot-project-apps-agent-guide.md`](hubspot-project-apps-agent-guide.md)** – **AI agent training guide** for HubSpot Project Apps (2025.2) platform, authentication patterns, and common pitfalls (read this first if you're an AI agent).
 - [`auth-and-progress.md`](auth-and-progress.md) – overview of authenticated beacons, CRM persistence, and feature flags.
 - [`issue-60-verification-guide.md`](issue-60-verification-guide.md) – step-by-step instructions to complete the Projects Access Token migration.
 - [`phase2-authenticated-beacons.md`](phase2-authenticated-beacons.md) – membership and event-definition prerequisites for Phase 2.
