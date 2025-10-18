@@ -1,0 +1,7 @@
+{
+  "id": "1",
+  "email": "emailmaria@hubspot.com",
+  "hhl_progress_state": "{\"test-pathway-oauth\":{\"modules\":{\"test-module-oauth-1760744203\":{\"started\":true,\"started_at\":\"2025-10-17T23:36:45.140Z\"}}}}",
+  "hhl_progress_updated_at": "2025-10-17",
+  "hhl_progress_summary": "test-pathway-oauth: 0/1 modules"
+}

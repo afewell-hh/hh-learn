@@ -1,0 +1,12 @@
+--- /tmp/issue-60-verification-20251017-233952/contact-before.json	2025-10-17 23:39:52.915510797 +0000
++++ /tmp/issue-60-verification-20251017-233952/contact-after.json	2025-10-17 23:40:05.319968511 +0000
+@@ -1,7 +1,7 @@
+ {
+   "id": "1",
+   "email": "emailmaria@hubspot.com",
+-  "hhl_progress_state": "{\"test-pathway-oauth\":{\"modules\":{\"test-module-oauth-1760744203\":{\"started\":true,\"started_at\":\"2025-10-17T23:36:45.140Z\"}}}}",
++  "hhl_progress_state": "{\"test-pathway-oauth\":{\"modules\":{\"test-module-oauth-1760744203\":{\"started\":true,\"started_at\":\"2025-10-17T23:36:45.140Z\"},\"test-module-oauth-1760744392\":{\"started\":true,\"started_at\":\"2025-10-17T23:39:53.767Z\"}}}}",
+   "hhl_progress_updated_at": "2025-10-17",
+-  "hhl_progress_summary": "test-pathway-oauth: 0/1 modules"
++  "hhl_progress_summary": "test-pathway-oauth: 0/2 modules"
+ }

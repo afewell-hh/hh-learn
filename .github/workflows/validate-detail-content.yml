@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   detail:
-    name: detail-content
+    name: Validate Detail Content / detail-content
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
