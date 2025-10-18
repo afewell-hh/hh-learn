@@ -264,7 +264,7 @@ POST https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
 4. Click **Run workflow** and monitor deployment
 
 **Post-Deployment Verification:**
-- [ ] Deployment completes successfully _(API dispatch using reviewer token returned 204 on 2025-10-17, but no new workflow run appeared—needs owner follow-up to confirm GitHub token scopes or trigger from UI.)_
+- [x] Deployment completes successfully _(Manual workflow_dispatch run 18618585385 completed successfully on 2025-10-18T17:13Z; see `verification-output/issue-188/github-deploy-dispatch-success-2025-10-18T171311Z.log` and `issue-197-resolution-summary.md`.)_
 - [x] POST `/events/track` returns `mode: "authenticated"` (when user logged in) _(See `verification-output/issue-188/events-track-auth-response.json`.)_
 - [x] Contact Properties update in HubSpot CRM within 2-3 minutes _(HubSpot contact snapshot `verification-output/issue-188/hubspot-contact-progress-after.json` updated with new module slug at 2025-10-17T17:49Z.)_
 - [x] No CloudWatch alarms triggered _(All relevant alarms report `OK` in `verification-output/issue-188/aws-cloudwatch-alarms.json`.)_
