@@ -1,0 +1,6 @@
+HTTP/2 200 
+date: Fri, 17 Oct 2025 17:12:37 GMT
+content-type: text/plain; charset=utf-8
+content-length: 25
+apigw-requestid: SmfY2iv3PHcEMUw=
+

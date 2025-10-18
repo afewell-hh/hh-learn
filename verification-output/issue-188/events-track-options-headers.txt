@@ -1,0 +1,8 @@
+HTTP/2 204 
+date: Fri, 17 Oct 2025 17:16:57 GMT
+access-control-allow-origin: https://hedgehog.cloud
+access-control-allow-methods: GET,OPTIONS,POST
+access-control-allow-headers: authorization,content-type,origin
+vary: origin
+apigw-requestid: SmgBgiR1vHcESrg=
+

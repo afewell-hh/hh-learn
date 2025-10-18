@@ -1,0 +1,21 @@
+=== Page Load Time Analysis ===
+Testing from: 2025-10-18T06:24:26Z
+
+Testing: https://hedgehog.cloud/learn
+  Total time: 588.492000 ms
+
+Testing: https://hedgehog.cloud/learn/modules
+  Total time: 343.656000 ms
+
+Testing: https://hedgehog.cloud/learn/courses
+  Total time: 462.773000 ms
+
+Testing: https://hedgehog.cloud/learn/pathways
+  Total time: 474.282000 ms
+
+Testing: https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
+  Total time: 761.642000 ms
+
+Testing: https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/progress/read
+  Total time: 135.047000 ms
+

@@ -1,0 +1,29 @@
+HTTP/2 103 
+link: <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320244865/1760656114597/template_main-head.min.css>; as=style; rel=preload, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320730982/1760656101688/template_main-foot.min.css>; as=style; rel=preload, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167812563573/1753248265043/template_child.min.css>; as=style; rel=preload, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/190802909470/1753248259747/template_global-footer.min.css>; as=style; rel=preload, <https://cdn2.hubspot.net>; rel=preconnect, <https://js.hs-analytics.net>; rel=preconnect, <https://js.hs-banner.com>; rel=preconnect, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/197617187339/1760595004704/template_left-nav.min.css>; as=style; rel=preload
+
+HTTP/2 200 
+date: Fri, 17 Oct 2025 17:10:11 GMT
+content-type: text/html; charset=UTF-8
+cf-ray: 990168719c9a2ac4-LAX
+cache-control: no-store, no-cache, must-revalidate
+last-modified: Fri, 17 Oct 2025 07:46:44 GMT
+link: <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320244865/1760656114597/template_main-head.min.css>; rel=preload; as=style,<https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320730982/1760656101688/template_main-foot.min.css>; rel=preload; as=style,<https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167812563573/1753248265043/template_child.min.css>; rel=preload; as=style,<https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/190802909470/1753248259747/template_global-footer.min.css>; rel=preload; as=style,<https://cdn2.hubspot.net>; rel=preconnect,<https://js.hs-analytics.net>; rel=preconnect,<https://js.hs-banner.com>; rel=preconnect,<https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/197617187339/1760595004704/template_left-nav.min.css>; rel=preload; as=style
+strict-transport-security: max-age=31536000
+content-security-policy: upgrade-insecure-requests
+edge-cache-tag: CT-197399202740,P-21430285,CW-167320245018,CW-167330047905,DB-135621904,E-167320244865,E-167320245001,E-167320730982,E-167330047891,E-167812563573,E-167813290922,E-167816434833,E-190802909470,E-197399202678,E-197439558054,E-197617187339,E-197617187343,E-197617187345,MENU-162368839269,RA-197284126780,PGS-ALL,SW-3,GC-167813611817,GC-167820683590,TS-167813433898
+referrer-policy: no-referrer-when-downgrade
+x-hs-cache-config: BrowserCache-5s-EdgeCache-180s
+x-hs-cache-control: s-maxage=36000, max-age=0
+x-hs-cf-cache-status: HIT
+x-hs-cfworker-meta: {"contentType":"SITE_PAGE"}
+x-hs-content-id: 197399202740
+x-hs-hub-id: 21430285
+x-hs-portal-id: 21430285
+x-hs-prerendered: Fri, 17 Oct 2025 07:46:44 GMT
+set-cookie: __cf_bm=F3Wr0lXTnJ2BR4FJximZxmTDG9Ma.kJCP.yPV_PbTHo-1760721011-1.0.1.1-dt4Is3.13xkH30aT5C0kw8f.uT0S4jVlrZrRJUnWGC1lhYSgX.vnxFkak.IRCxcUmCfSa8xF6YGcVk6X70lTCycXa0lD5igSLVqsfkBAf7A; path=/; expires=Fri, 17-Oct-25 17:40:11 GMT; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+set-cookie: _cfuvid=ZE3Sj0h6O_Ovx0fmM34B9voSKTdTEJlFaBHgF.2iuHg-1760721011629-0.0.1.1-604800000; path=/; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+report-to: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=%2FXeCsnoxy%2BVOm58F0YtoJRSW4YkKJ%2FH86y7Oe7ns1judQQyIj%2BsSkflX3cZMLxT2h7I3RC1BSdpz%2B1y7DtyL2JMr6nWuTq3yV%2BzxbuCzB2mEN%2Fk0QQCE8DHZEh1692Yw"}],"group":"cf-nel","max_age":604800}
+nel: {"success_fraction":0.01,"report_to":"cf-nel","max_age":604800}
+server: cloudflare
+alt-svc: h3=":443"; ma=86400
+

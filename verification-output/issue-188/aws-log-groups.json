@@ -1,0 +1,14 @@
+{
+    "logGroups": [
+        {
+            "logGroupName": "/aws/lambda/hedgehog-learn-dev-api",
+            "creationTime": 1760315153130,
+            "retentionInDays": 30,
+            "metricFilterCount": 0,
+            "arn": "arn:aws:logs:us-west-2:972067303195:log-group:/aws/lambda/hedgehog-learn-dev-api:*",
+            "storedBytes": 17151,
+            "logGroupClass": "STANDARD",
+            "logGroupArn": "arn:aws:logs:us-west-2:972067303195:log-group:/aws/lambda/hedgehog-learn-dev-api"
+        }
+    ]
+}

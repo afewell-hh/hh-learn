@@ -1,0 +1,39 @@
+HTTP/2 103 
+link: <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320244865/1760656114597/template_main-head.min.css>; as=style; rel=preload, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320730982/1760656101688/template_main-foot.min.css>; as=style; rel=preload, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167812563573/1753248265043/template_child.min.css>; as=style; rel=preload, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/190802909470/1753248259747/template_global-footer.min.css>; as=style; rel=preload, <https://cdn2.hubspot.net>; rel=preconnect, <https://js.hs-analytics.net>; rel=preconnect, <https://js.hs-banner.com>; rel=preconnect, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/197617187339/1760595004704/template_left-nav.min.css>; as=style; rel=preload
+
+HTTP/2 200 
+date: Fri, 17 Oct 2025 17:09:46 GMT
+content-type: text/html;charset=utf-8
+server: cloudflare
+cf-ray: 990167ceeb8b2b9c-LAX
+cf-cache-status: MISS
+cache-control: s-maxage=0,max-age=5
+last-modified: Fri, 17 Oct 2025 17:09:46 GMT
+link: <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320244865/1760656114597/template_main-head.min.css>; rel=preload; as=style, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167320730982/1760656101688/template_main-foot.min.css>; rel=preload; as=style, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/167812563573/1753248265043/template_child.min.css>; rel=preload; as=style, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/190802909470/1753248259747/template_global-footer.min.css>; rel=preload; as=style, <https://cdn2.hubspot.net>; rel=preconnect, <https://js.hs-analytics.net>; rel=preconnect, <https://js.hs-banner.com>; rel=preconnect, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/197617187339/1760595004704/template_left-nav.min.css>; rel=preload; as=style, <https://hedgehog.cloud/hubfs/hub_generated/template_assets/1/197738664885/1760683783220/template_module-media.min.css>; rel=preload; as=style
+strict-transport-security: max-age=31536000
+vary: origin, Accept-Encoding
+access-control-allow-credentials: false
+cache-tag: CT-197624622201,P-21430285,CW-167320245018,CW-167330047905,DB-135621904,E-167320244865,E-167320245001,E-167320730982,E-167330047891,E-167812563573,E-167813290922,E-167816434833,E-190802909470,E-197196912664,E-197434082449,E-197617187339,E-197617187343,E-197617187345,E-197671239751,E-197738664885,MENU-162368839269,RA-197284126780,PGS-ALL,SW-3,GC-167813611817,GC-167820683590
+content-security-policy: upgrade-insecure-requests
+edge-cache-tag: CT-197624622201,P-21430285,CW-167320245018,CW-167330047905,DB-135621904,E-167320244865,E-167320245001,E-167320730982,E-167330047891,E-167812563573,E-167813290922,E-167816434833,E-190802909470,E-197196912664,E-197434082449,E-197617187339,E-197617187343,E-197617187345,E-197671239751,E-197738664885,MENU-162368839269,RA-197284126780,PGS-ALL,SW-3,GC-167813611817,GC-167820683590
+referrer-policy: no-referrer-when-downgrade
+x-content-type-options: nosniff
+x-envoy-upstream-service-time: 540
+x-evy-trace-listener: listener_https
+x-evy-trace-route-configuration: listener_https/all
+x-evy-trace-route-service-name: envoyset-translator
+x-evy-trace-served-by-pod: iad02/cms-bots-td/envoy-proxy-7d94c87988-s2mld
+x-evy-trace-virtual-host: all
+x-hs-cache-config: BrowserCache-5s-EdgeCache-0s
+x-hs-cfworker-meta: {"contentType":"HUBDB_TABLE"}
+x-hs-content-id: 197624622201
+x-hs-hub-id: 21430285
+x-hs-portal-id: 21430285
+x-hubspot-correlation-id: 3472fb01-6aab-48d4-9138-757ec17b7e9d
+x-request-id: 3472fb01-6aab-48d4-9138-757ec17b7e9d
+set-cookie: __cf_bm=8WjAATEbvflDhnax4bgNKLH9vSGnGeC4MrvfAD_qbpQ-1760720986-1.0.1.1-nfkkHIonE2J5V.TUYYF5GAI.fWgwURPum6dd473xDTflaAPd2uRjvwAibQauUcM5nfAraU8BLeKNXZz2Et0GuL63RtOoidpE7IFqYAK.JcQ; path=/; expires=Fri, 17-Oct-25 17:39:46 GMT; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+set-cookie: _cfuvid=r1fXXI6OafWpmkyZaO_GogQj2.rRoGG_Gn3A3uCviWM-1760720986646-0.0.1.1-604800000; path=/; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+report-to: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=bxzE3EgpZBUYKILeoftTXmvR3ZTXvTfYuakGqEvtJV7kxaeOUkmSr2dYQrl7%2F3ktvToK2wlpyGcq2qsDffX1wj16OUIyaXObaupC3r1O5zW1YvmOC6WTQiv6Ak0p7Fme"}],"group":"cf-nel","max_age":604800}
+nel: {"success_fraction":0.01,"report_to":"cf-nel","max_age":604800}
+alt-svc: h3=":443"; ma=86400
+
