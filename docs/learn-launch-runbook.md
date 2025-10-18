@@ -1,6 +1,8 @@
 # Learn Platform MVP Launch Runbook
 
-**Date:** October 13, 2025
+> Last reviewed: 2025-10-17 (verified 2025-10-17T17:17Z)
+
+**Date:** October 17, 2025
 **Version:** 1.0
 **Stage:** MVP Go-Live
 
@@ -8,44 +10,63 @@
 
 This runbook outlines the steps to launch the Hedgehog Learn platform MVP, including content pipeline operations, verification procedures, and beacon tracking validation.
 
+**Evidence folder:** `verification-output/issue-188/` (artifact snapshots captured 2025-10-17 for checklist references).
+
 ---
 
 ## Pre-Launch Checklist
 
 ### Infrastructure
-- [x] CloudWatch alarms deployed (lambda-errors, httpapi-5xx, httpapi-latency, lambda-throttles, composite)
-- [x] API Gateway endpoints verified (`/events/track`, `/quiz/grade`, `/progress/read`)
-- [x] CloudWatch log retention set to 30 days
-- [x] constants.json published to HubSpot with correct `TRACK_EVENTS_URL`
+- [x] CloudWatch alarms deployed (lambda-errors, httpapi-5xx, httpapi-latency, lambda-throttles, composite) _(AWS CLI export `verification-output/issue-188/aws-cloudwatch-alarms.json` captured 2025-10-17 confirms composite alarm `hedgehog-learn-dev-api-red`.)_
+- [x] API Gateway endpoints verified (`/events/track`, `/quiz/grade`, `/progress/read`) _(curl checks captured 2025-10-17 in `verification-output/issue-188/events-track-anon-response.json`, `quiz-grade-response.json`, `progress-read-response.json`, and `progress-read-email-response.json`.)_
+- [x] CloudWatch log retention set to 30 days _(Verified via `verification-output/issue-188/aws-log-groups.json`, log group `/aws/lambda/hedgehog-learn-dev-api` reports 30-day retention.)_
+- [x] constants.json published to HubSpot with correct `TRACK_EVENTS_URL` _(Live asset snapshot stored at `verification-output/issue-188/constants-json-live.json`, fetched 2025-10-17.)_
 
 ### Configuration
-- [x] `ENABLE_CRM_PROGRESS` feature flag configured
-- [x] `PROGRESS_BACKEND` set to appropriate mode (properties/hubdb)
-- [x] CORS configured for hedgehog.cloud domain
+- [x] `ENABLE_CRM_PROGRESS` feature flag configured _(True in live constants and Lambda env; see `verification-output/issue-188/aws-lambda-config-sanitized.json` and authenticated progress read response.)_
+- [x] `PROGRESS_BACKEND` set to appropriate mode (properties/hubdb) _(Lambda env snapshot `verification-output/issue-188/aws-lambda-config-sanitized.json`.)_
+- [x] CORS configured for hedgehog.cloud domain _(OPTIONS preflight 2025-10-17 returned `access-control-allow-origin: https://hedgehog.cloud`; see `verification-output/issue-188/events-track-options-headers.txt`.)_
 
 ---
 
 ## MVP Content Scope
 
-### Modules (10)
-Target initial modules for MVP content sync to HubDB:
-1. Introduction to Hedgehog
-2. Getting Started with Hedgehog Cloud
-3. Core Concepts
-4. User Management
-5. Data Models
-6. API Fundamentals
-7. Authentication & Security
-8. Deployment Basics
-9. Monitoring & Observability
-10. Best Practices
+### Modules (15)
+Current HubDB-backed modules published to `/learn/modules` (JSON-LD snapshot 2025-10-17 stored in `verification-output/issue-188/modules.html`):
+1. Accessing the Hedgehog Virtual Lab with Google Cloud
+2. Accessing the Hedgehog Virtual Lab with Amazon Web Services
+3. Accessing the Hedgehog Virtual Lab with Microsoft Azure
+4. Authoring Basics: Modules, Front Matter, and Sync
+5. Welcome to Fabric Operations
+6. How Hedgehog Works: The Control Model
+7. Mastering the Three Interfaces
+8. Course 1 Recap & Forward Map
+9. Media & Metadata: Images, Social Previews, and Tags
+10. Assembling Courses from Modules
+11. QA & Troubleshooting: Sync, Beacons, and Verification
+12. Pathways & Content Blocks
+13. Kubernetes Storage: Persistent Volumes and Claims
+14. Introduction to Kubernetes
+15. Kubernetes Networking: Services, Ingress, and Network Policies
 
-### Courses (2)
-1. **Hedgehog Fundamentals** (modules 1-5)
-2. **Advanced Hedgehog** (modules 6-10)
+### Courses (6)
+Live courses observed on `/learn/courses` (JSON-LD snapshot in `verification-output/issue-188/courses.html`):
+1. Course 1: Foundations & Interfaces
+2. Getting Started: Virtual Lab
+3. Accessing the Hedgehog Virtual Lab
+4. Course Authoring 101
+5. Hedgehog Lab Foundations
+6. Pathway Assembly & Layouts
 
-### Pathways (1)
-1. **Hedgehog Learning Path** (both courses)
+### Pathways (7)
+Live pathways observed on `/learn/pathways` (JSON-LD snapshot in `verification-output/issue-188/pathways.html`):
+1. Network Like a Hyperscaler with Hedgehog
+2. Getting Started
+3. Getting Started with Hedgehog Lab
+4. Hedgehog Learn: Course Authoring Pathway
+5. Authoring Foundations
+6. Lab Onboarding
+7. Getting Started (Courses Demo)
 
 ---
 
@@ -54,13 +75,13 @@ Target initial modules for MVP content sync to HubDB:
 ### 1. Editorial Review
 **Owner:** Content Team
 **Checklist:**
-- [ ] All 10 modules reviewed for accuracy
-- [ ] Quiz questions validated
-- [ ] Learning objectives defined
-- [ ] Prerequisites documented
-- [ ] Estimated completion times set
-- [ ] Images/diagrams optimized
-- [ ] Links verified
+- [ ] All 15 modules reviewed for accuracy _(Awaiting Content team confirmation; no fresh sign-off logged 2025-10-17.)_
+- [ ] Quiz questions validated _(Blocked pending Content QA review.)_
+- [ ] Learning objectives defined _(Need updated documentation entry for expanded module set.)_
+- [ ] Prerequisites documented _(Pending Content updates.)_
+- [ ] Estimated completion times set _(Data absent from current HubDB rows—requires author input.)_
+- [ ] Images/diagrams optimized _(Needs visual QA pass.)_
+- [ ] Links verified _(Full editorial link check outstanding.)_
 
 ### 2. Content Sync to HubDB
 
@@ -74,10 +95,10 @@ npm run sync:modules
 ```
 
 **Verification:**
-- [ ] Check HubDB table `HUBDB_MODULES_TABLE_ID` (135621904)
-- [ ] Verify all fields populated correctly
-- [ ] Confirm `hs_id` and `hs_path` set
-- [ ] Check module status is "published"
+- [x] Check HubDB table `HUBDB_MODULES_TABLE_ID` (135621904) _(Verified indirectly via `/learn/modules` response headers showing `DB-135621904`; curl evidence stored in `modules-headers.txt`.)_
+- [ ] Verify all fields populated correctly _(Requires HubSpot HubDB view/export; only front-end spot-check completed.)_
+- [ ] Confirm `hs_id` and `hs_path` set _(Needs HubSpot portal access.)_
+- [ ] Check module status is "published" _(Pending HubSpot portal confirmation.)_
 
 #### Courses Sync
 ```bash
@@ -85,9 +106,9 @@ npm run sync:courses
 ```
 
 **Verification:**
-- [ ] Check HubDB table `HUBDB_COURSES_TABLE_ID` (135381433)
-- [ ] Verify course modules linked correctly
-- [ ] Confirm course metadata complete
+- [x] Check HubDB table `HUBDB_COURSES_TABLE_ID` (135381433) _(Course listing response headers include `DB-135381433`; curl stored in `courses-headers.txt`.)_
+- [ ] Verify course modules linked correctly _(Need HubSpot HubDB inspection beyond front-end JSON-LD.)_
+- [ ] Confirm course metadata complete _(Requires table review; spot-check pending.)_
 
 #### Pathways Sync
 ```bash
@@ -95,21 +116,21 @@ npm run sync:pathways
 ```
 
 **Verification:**
-- [ ] Check HubDB table `HUBDB_PATHWAYS_TABLE_ID` (135381504)
-- [ ] Verify pathway courses linked correctly
-- [ ] Confirm pathway ordering
+- [x] Check HubDB table `HUBDB_PATHWAYS_TABLE_ID` (135381504) _(Pathways list headers show `DB-135381504`; see `pathways-headers.txt`.)_
+- [ ] Verify pathway courses linked correctly _(Requires HubSpot table view; only live page spot-check performed.)_
+- [ ] Confirm pathway ordering _(Need HubDB admin confirmation; current front-end order matches JSON-LD but not independently verified.)_
 
 ### 3. Publish HubSpot Pages
 
 **Pages to Publish:**
-- [ ] Learn landing page (`/learn`)
-- [ ] Modules list page (`/learn/modules`)
-- [ ] Courses list page (`/learn/courses`)
-- [ ] Pathways list page (`/learn/pathways`)
-- [ ] Module detail pages (10 pages)
-- [ ] Course detail pages (2 pages)
-- [ ] Pathway detail page (1 page)
-- [ ] My Learning dashboard (`/learn/my-learning`)
+- [x] Learn landing page (`/learn`) _(200 OK via curl; see `verification-output/issue-188/learn-landing-headers.txt`.)_
+- [x] Modules list page (`/learn/modules`) _(200 OK; JSON-LD lists 15 modules; evidence in `modules-headers.txt`.)_
+- [x] Courses list page (`/learn/courses`) _(200 OK; JSON-LD lists 6 courses; evidence in `courses-headers.txt`.)_
+- [x] Pathways list page (`/learn/pathways`) _(200 OK with 7 pathways; evidence in `pathways-headers.txt`.)_
+- [x] Module detail pages (15 live slugs) _(HTTP 200 for all slugs per `module-status-codes.txt`; full UX/content QA still recommended.)_
+- [x] Course detail pages (6 live slugs) _(HTTP 200 per `course-status-codes.txt`; enrollment CTA behavior requires manual validation.)_
+- [x] Pathway detail pages (7 live slugs) _(HTTP 200 per `pathway-status-codes.txt`; confirm course linkage via UI review.)_
+- [x] My Learning dashboard (`/learn/my-learning`) _(200 OK for anonymous users; membership redirect flow not yet retested—needs credentialed pass.)_
 
 **Publishing Steps:**
 1. Navigate to CMS Hub → Website Pages
@@ -128,41 +149,41 @@ npm run sync:pathways
 **Test Case:** Modules list page
 **URL:** `https://hedgehog.cloud/learn/modules`
 **Expected:**
-- [ ] All 10 modules displayed in grid/list
-- [ ] Module cards show: title, description, duration
-- [ ] CTA buttons render correctly
-- [ ] Filtering/sorting works (if implemented)
+- [x] All 15 modules displayed in grid/list _(JSON-LD enumerates 15 items; manual visual QA outstanding.)_
+- [ ] Module cards show: title, description, duration _(Requires browser inspection for styling/content completeness.)_
+- [ ] CTA buttons render correctly _(Pending UI validation.)_
+- [ ] Filtering/sorting works (if implemented) _(No automated coverage; needs interactive QA.)_
 
 **Test Case:** Courses list page
 **URL:** `https://hedgehog.cloud/learn/courses`
 **Expected:**
-- [ ] 2 courses displayed
-- [ ] Course cards show module count
-- [ ] Progress indicators (if user logged in)
+- [x] 6 courses displayed _(Confirmed via JSON-LD; screenshot QA pending.)_
+- [ ] Course cards show module count _(Needs browser verification.)_
+- [ ] Progress indicators (if user logged in) _(Requires authenticated test account.)_
 
 **Test Case:** Pathways list page
 **URL:** `https://hedgehog.cloud/learn/pathways`
 **Expected:**
-- [ ] 1 pathway displayed
-- [ ] Pathway card shows course count
-- [ ] Visual hierarchy clear
+- [x] 7 pathways displayed _(JSON-LD enumerates 7; UI review pending.)_
+- [ ] Pathway card shows course count _(Requires UI validation.)_
+- [ ] Visual hierarchy clear _(Needs human review.)_
 
 #### Detail Pages
 **Test Case:** Module detail page
 **URL:** `https://hedgehog.cloud/learn/modules/intro-to-hedgehog`
 **Expected:**
-- [ ] Module content renders with proper formatting
-- [ ] Quiz section displays (if included)
-- [ ] Navigation (prev/next module) works
-- [ ] Progress tracking visible (logged in users)
+- [x] Module content renders with proper formatting _(HTML loads without errors; see `module-fabric-operations-welcome-headers.txt`.)_
+- [ ] Quiz section displays (if included) _(Needs browser validation.)_
+- [ ] Navigation (prev/next module) works _(Requires manual interaction.)_
+- [ ] Progress tracking visible (logged in users) _(Requires authenticated session.)_
 
 **Test Case:** Course detail page
 **URL:** `https://hedgehog.cloud/learn/courses/hedgehog-fundamentals`
 **Expected:**
-- [ ] Course overview renders
-- [ ] Module list displays correctly
-- [ ] Enrollment CTA present
-- [ ] Progress summary (logged in users)
+- [x] Course overview renders _(HTTP 200 for `network-like-hyperscaler-foundations`; see headers snapshot.)_
+- [ ] Module list displays correctly _(Requires UI review.)_
+- [ ] Enrollment CTA present _(Needs browser validation.)_
+- [ ] Progress summary (logged in users) _(Requires authenticated test account.)_
 
 ---
 
@@ -198,9 +219,9 @@ POST https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
 ```
 
 **Verification:**
-- [ ] Beacon fires on page load
-- [ ] Response returns 200 OK
-- [ ] `mode: "anonymous"` confirmed
+- [ ] Beacon fires on page load _(Needs browser network capture; manual API call performed only.)_
+- [x] Response returns 200 OK _(Curl evidence: `events-track-anon-headers.txt`.)_
+- [x] `mode: "anonymous"` confirmed _(Curl response stored in `events-track-anon-response.json`.)_
 
 ### Authenticated User Tests
 
@@ -221,9 +242,9 @@ POST https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
 ```
 
 **Verification:**
-- [ ] Beacon includes user identifier
-- [ ] Response shows `mode: "authenticated"`
-- [ ] `status: "persisted"` confirmed
+- [x] Beacon includes user identifier _(API call with contact ID returned persisted status; evidence in `verification-output/issue-188/events-track-auth-response.json`.)_
+- [x] Response shows `mode: "authenticated"` _(Same artifact as above.)_
+- [x] `status: "persisted"` confirmed _(Same artifact as above, plus HubSpot contact diff in `hubspot-contact-progress-after.json`.)_
 
 ---
 
@@ -243,10 +264,10 @@ POST https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
 4. Click **Run workflow** and monitor deployment
 
 **Post-Deployment Verification:**
-- [ ] Deployment completes successfully
-- [ ] POST `/events/track` returns `mode: "authenticated"` (when user logged in)
-- [ ] Contact Properties update in HubSpot CRM within 2-3 minutes
-- [ ] No CloudWatch alarms triggered
+- [ ] Deployment completes successfully _(API dispatch using reviewer token returned 204 on 2025-10-17, but no new workflow run appeared—needs owner follow-up to confirm GitHub token scopes or trigger from UI.)_
+- [x] POST `/events/track` returns `mode: "authenticated"` (when user logged in) _(See `verification-output/issue-188/events-track-auth-response.json`.)_
+- [x] Contact Properties update in HubSpot CRM within 2-3 minutes _(HubSpot contact snapshot `verification-output/issue-188/hubspot-contact-progress-after.json` updated with new module slug at 2025-10-17T17:49Z.)_
+- [x] No CloudWatch alarms triggered _(All relevant alarms report `OK` in `verification-output/issue-188/aws-cloudwatch-alarms.json`.)_
 
 **Rollback:**
 If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
@@ -267,15 +288,15 @@ If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
 6. Check custom properties
 
 **Properties to Verify:**
-- [ ] `learn_modules_started` (array/number)
-- [ ] `learn_modules_completed` (array/number)
-- [ ] `learn_last_activity_date` (date)
-- [ ] `learn_total_time_spent` (number, if tracked)
+- [x] `learn_modules_started` (array/number) _(Verified via HubSpot contact snapshot `verification-output/issue-188/hubspot-contact-progress-after.json`.)_
+- [x] `learn_modules_completed` (array/number) _(Same artifact.)_
+- [x] `learn_last_activity_date` (date) _(Property `hhl_progress_updated_at` updated to 2025-10-17.)_
+- [ ] `learn_total_time_spent` (number, if tracked) _(Property not currently populated; confirm whether metric is expected for MVP.)_
 
 **Validation:**
-- [ ] Properties update within 2-3 minutes of beacon
-- [ ] Values match expected interactions
-- [ ] No duplicates or data corruption
+- [x] Properties update within 2-3 minutes of beacon _(Webhook response and HubSpot snapshot show update at 2025-10-17T17:49Z.)_
+- [x] Values match expected interactions _(Progress JSON includes newly ingested module slug.)_
+- [x] No duplicates or data corruption _(Progress state shows unique module entries.)_
 
 ---
 
@@ -304,6 +325,7 @@ If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
 ## Post-Launch Monitoring
 
 ### First 24 Hours
+_(Owner: Ops—monitoring rota not yet assigned as of 2025-10-17.)_
 - [ ] Monitor CloudWatch alarms every 2 hours
 - [ ] Check beacon success rate (target: >95%)
 - [ ] Review Lambda error logs
@@ -311,6 +333,7 @@ If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
 - [ ] Collect user feedback
 
 ### First Week
+_(Owner: Ops/Product—create schedule post-launch.)_
 - [ ] Daily alarm review
 - [ ] Weekly content update sync
 - [ ] User engagement metrics review
@@ -321,22 +344,22 @@ If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
 ## Success Criteria
 
 ### Technical
-- [x] All API endpoints responding with <500ms latency
-- [ ] Zero Lambda errors for 24 hours
-- [ ] Beacon tracking >95% success rate
-- [ ] Contact Properties updating reliably
+- [ ] All API endpoints responding with <500ms latency _(Sample curl on 2025-10-17: `/events/track` ≈0.66s; need CloudWatch metrics to confirm SLA.)_
+- [ ] Zero Lambda errors for 24 hours _(Pending CloudWatch review.)_
+- [ ] Beacon tracking >95% success rate _(Requires analytics export.)_
+- [x] Contact Properties updating reliably _(Authenticated event write + HubSpot snapshot in `verification-output/issue-188/hubspot-contact-progress-after.json`.)_
 
 ### Content
-- [ ] All 10 modules accessible
-- [ ] All 2 courses functional
-- [ ] 1 pathway navigable
-- [ ] Zero broken links/images
+- [x] All 15 modules accessible _(HTTP 200 for all slugs; see `module-status-codes.txt`.)_
+- [x] All 6 courses functional _(HTTP 200 for live slugs; see `course-status-codes.txt`.)_
+- [x] 7 pathways navigable _(HTTP 200 for live slugs; see `pathway-status-codes.txt`.)_
+- [ ] Zero broken links/images _(Requires manual crawl/Screaming Frog run.)_
 
 ### User Experience
-- [ ] Pages load <3 seconds
-- [ ] Mobile responsive rendering
-- [ ] Cross-browser compatibility (Chrome, Firefox, Safari)
-- [ ] Accessibility standards met (WCAG AA)
+- [ ] Pages load <3 seconds _(Need WebPageTest/Lighthouse run.)_
+- [ ] Mobile responsive rendering _(Pending responsive QA.)_
+- [ ] Cross-browser compatibility (Chrome, Firefox, Safari) _(Regression suite not executed.)_
+- [ ] Accessibility standards met (WCAG AA) _(Needs axe or manual audit.)_
 
 ---
 
@@ -365,5 +388,5 @@ If issues arise, redeploy with `enable_crm_progress` **unchecked** (false).
 
 ---
 
-**Last Updated:** October 13, 2025
+**Last Updated:** October 17, 2025
 **Next Review:** Post-MVP (1 week after launch)

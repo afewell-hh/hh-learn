@@ -1,0 +1,22 @@
+=== Link Validation Check ===
+Testing from: 2025-10-18T06:24:39Z
+
+Checking: Learn Landing (https://hedgehog.cloud/learn)
+  ❌ BROKEN [403]: https://cdn2.hubspot.net
+  ❌ BROKEN [400]: https://js.hs-analytics.net
+  ❌ BROKEN [403]: https://js.hs-banner.com
+  ✓ Checked 20 links (sample), 3 broken
+
+Checking: Modules List (https://hedgehog.cloud/learn/modules)
+  ❌ BROKEN [403]: https://cdn2.hubspot.net
+  ❌ BROKEN [400]: https://js.hs-analytics.net
+  ❌ BROKEN [403]: https://js.hs-banner.com
+  ✓ Checked 20 links (sample), 3 broken
+
+Checking: Courses List (https://hedgehog.cloud/learn/courses)
+  ❌ BROKEN [403]: https://cdn2.hubspot.net
+  ❌ BROKEN [400]: https://js.hs-analytics.net
+  ❌ BROKEN [403]: https://js.hs-banner.com
+  ✓ Checked 20 links (sample), 3 broken
+
+=== Link Check Complete ===

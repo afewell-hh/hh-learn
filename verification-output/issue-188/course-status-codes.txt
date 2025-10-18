@@ -1,0 +1,6 @@
+200 network-like-hyperscaler-foundations
+200 getting-started-virtual-lab
+200 accessing-the-hedgehog-virtual-lab
+200 course-authoring-101
+200 hedgehog-lab-foundations
+200 pathway-assembly-and-layouts

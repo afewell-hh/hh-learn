@@ -1,0 +1,142 @@
+{
+    "MetricAlarms": [
+        {
+            "AlarmName": "hedgehog-learn-dev-httpapi-5xx",
+            "AlarmArn": "arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-httpapi-5xx",
+            "AlarmConfigurationUpdatedTimestamp": "2025-10-13T16:52:31.309000+00:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2025-10-13T16:52:52.377+0000\",\"statistic\":\"Sum\",\"period\":60,\"recentDatapoints\":[],\"threshold\":5.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2025-10-13T16:51:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2025-10-13T16:52:52.378000+00:00",
+            "MetricName": "5XXError",
+            "Namespace": "AWS/ApiGateway",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "ApiId",
+                    "Value": "hvoog2lnha"
+                },
+                {
+                    "Name": "Stage",
+                    "Value": "$default"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 1,
+            "Threshold": 5.0,
+            "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2025-10-13T16:52:52.378000+00:00"
+        },
+        {
+            "AlarmName": "hedgehog-learn-dev-httpapi-latency",
+            "AlarmArn": "arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-httpapi-latency",
+            "AlarmConfigurationUpdatedTimestamp": "2025-10-13T16:52:31.223000+00:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 5 periods and 5 missing datapoints were treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2025-10-13T16:53:07.659+0000\",\"statistic\":\"Average\",\"period\":60,\"recentDatapoints\":[],\"threshold\":1000.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2025-10-13T16:52:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2025-10-13T16:53:07.661000+00:00",
+            "MetricName": "Latency",
+            "Namespace": "AWS/ApiGateway",
+            "Statistic": "Average",
+            "Dimensions": [
+                {
+                    "Name": "ApiId",
+                    "Value": "hvoog2lnha"
+                },
+                {
+                    "Name": "Stage",
+                    "Value": "$default"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 5,
+            "Threshold": 1000.0,
+            "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2025-10-13T16:53:07.661000+00:00"
+        },
+        {
+            "AlarmName": "hedgehog-learn-dev-lambda-errors",
+            "AlarmArn": "arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-lambda-errors",
+            "AlarmConfigurationUpdatedTimestamp": "2025-10-13T16:52:41.071000+00:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2025-10-13T16:53:52.803+0000\",\"statistic\":\"Sum\",\"period\":60,\"recentDatapoints\":[],\"threshold\":5.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2025-10-13T16:52:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2025-10-13T16:53:52.805000+00:00",
+            "MetricName": "Errors",
+            "Namespace": "AWS/Lambda",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "FunctionName",
+                    "Value": "hedgehog-learn-dev-api"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 1,
+            "Threshold": 5.0,
+            "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2025-10-13T16:53:52.805000+00:00"
+        },
+        {
+            "AlarmName": "hedgehog-learn-dev-lambda-throttles",
+            "AlarmArn": "arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-lambda-throttles",
+            "AlarmConfigurationUpdatedTimestamp": "2025-10-13T16:52:40.789000+00:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (13/10/25 16:53:00)] was not greater than or equal to the threshold (1.0) and 4 missing datapoints were treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2025-10-13T16:54:01.720+0000\",\"startDate\":\"2025-10-13T16:53:00.000+0000\",\"statistic\":\"Sum\",\"period\":60,\"recentDatapoints\":[0.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2025-10-13T16:53:00.000+0000\",\"sampleCount\":1.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2025-10-13T16:54:01.721000+00:00",
+            "MetricName": "Throttles",
+            "Namespace": "AWS/Lambda",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "FunctionName",
+                    "Value": "hedgehog-learn-dev-api"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 5,
+            "Threshold": 1.0,
+            "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2025-10-13T16:54:01.721000+00:00"
+        }
+    ],
+    "CompositeAlarms": [
+        {
+            "ActionsEnabled": true,
+            "AlarmActions": [],
+            "AlarmArn": "arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-api-red",
+            "AlarmConfigurationUpdatedTimestamp": "2025-10-17T18:07:46.637000+00:00",
+            "AlarmDescription": "Composite alarm for API health (dev)",
+            "AlarmName": "hedgehog-learn-dev-api-red",
+            "AlarmRule": "ALARM(\"hedgehog-learn-dev-lambda-errors\") OR ALARM(\"hedgehog-learn-dev-httpapi-5xx\") OR ALARM(\"hedgehog-learn-dev-lambda-throttles\") OR ALARM(\"hedgehog-learn-dev-httpapi-latency\")",
+            "InsufficientDataActions": [],
+            "OKActions": [],
+            "StateReason": "arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-api-red was created and its alarm rule evaluates to OK",
+            "StateReasonData": "{\"triggeringAlarms\":[{\"arn\":\"arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-lambda-errors\",\"state\":{\"value\":\"INSUFFICIENT_DATA\",\"timestamp\":\"2025-10-13T16:52:41.071+0000\"}},{\"arn\":\"arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-lambda-throttles\",\"state\":{\"value\":\"INSUFFICIENT_DATA\",\"timestamp\":\"2025-10-13T16:52:40.789+0000\"}},{\"arn\":\"arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-httpapi-5xx\",\"state\":{\"value\":\"INSUFFICIENT_DATA\",\"timestamp\":\"2025-10-13T16:52:31.309+0000\"}},{\"arn\":\"arn:aws:cloudwatch:us-west-2:972067303195:alarm:hedgehog-learn-dev-httpapi-latency\",\"state\":{\"value\":\"INSUFFICIENT_DATA\",\"timestamp\":\"2025-10-13T16:52:31.223+0000\"}}]}",
+            "StateUpdatedTimestamp": "2025-10-13T16:52:43.291000+00:00",
+            "StateValue": "OK",
+            "StateTransitionedTimestamp": "2025-10-13T16:52:43.291000+00:00"
+        }
+    ]
+}
