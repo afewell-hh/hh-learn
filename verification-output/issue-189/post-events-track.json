@@ -1,0 +1,5 @@
+{
+  "status": "persisted",
+  "mode": "authenticated",
+  "backend": "properties"
+}
