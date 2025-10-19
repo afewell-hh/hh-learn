@@ -661,6 +661,21 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
         progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug] = {};
       }
 
+      // Auto-enroll course if not already enrolled (backward compatibility)
+      // Existing clients only send module events without explicit course enrollment
+      if (!progressState[pathwaySlug].courses[courseSlug].enrolled) {
+        progressState[pathwaySlug].courses[courseSlug].enrolled = true;
+        progressState[pathwaySlug].courses[courseSlug].enrolled_at = timestamp;
+        progressState[pathwaySlug].courses[courseSlug].enrollment_source = 'module_event';
+      }
+
+      // Auto-enroll pathway if not already enrolled
+      if (!progressState[pathwaySlug].enrolled) {
+        progressState[pathwaySlug].enrolled = true;
+        progressState[pathwaySlug].enrolled_at = timestamp;
+        progressState[pathwaySlug].enrollment_source = 'module_event';
+      }
+
       if (input.eventName === 'learning_module_started') {
         progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].started = true;
         progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].started_at = timestamp;
@@ -686,6 +701,13 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
         progressState[pathwaySlug].modules[moduleSlug] = {};
       }
 
+      // Auto-enroll pathway if not already enrolled (backward compatibility)
+      if (!progressState[pathwaySlug].enrolled) {
+        progressState[pathwaySlug].enrolled = true;
+        progressState[pathwaySlug].enrolled_at = timestamp;
+        progressState[pathwaySlug].enrollment_source = 'module_event';
+      }
+
       if (input.eventName === 'learning_module_started') {
         progressState[pathwaySlug].modules[moduleSlug].started = true;
         progressState[pathwaySlug].modules[moduleSlug].started_at = timestamp;
@@ -706,6 +728,13 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
       if (!progressState.courses[courseSlug].modules[moduleSlug]) {
         progressState.courses[courseSlug].modules[moduleSlug] = {};
+      }
+
+      // Auto-enroll course if not already enrolled (backward compatibility)
+      if (!progressState.courses[courseSlug].enrolled) {
+        progressState.courses[courseSlug].enrolled = true;
+        progressState.courses[courseSlug].enrolled_at = timestamp;
+        progressState.courses[courseSlug].enrollment_source = 'module_event';
       }
 
       if (input.eventName === 'learning_module_started') {
