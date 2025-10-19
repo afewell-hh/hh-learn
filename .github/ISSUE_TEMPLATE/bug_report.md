@@ -36,6 +36,14 @@ assignees: []
 
 ## Logs / Screenshots
 
+## Resolution Checklist
+- [ ] Fix implemented with test coverage
+- [ ] PR opened and linked to this issue
+- [ ] All CI checks passing (lint, build, tests)
+- [ ] Code review approval obtained
+- [ ] Documentation updated (if applicable)
+- [ ] Verification artifacts stored in `verification-output/issue-XXX/`
+
 ## Links
 - Related issues/PRs:
 - Project item:

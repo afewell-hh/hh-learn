@@ -1,0 +1,180 @@
+(node:1905329) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ubuntu/afewell-hh/hh-learn/dist/src/sync/pathways-to-hubdb.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ubuntu/afewell-hh/hh-learn/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+🔄 Starting pathways sync to HubDB...
+
+📝 DRY RUN MODE - no changes will be made to HubDB
+
+Found 6 pathway(s) to sync:
+
+🔍 Building catalog of available modules and courses for validation...
+   Found 15 available module(s)
+   Found 5 available course(s)
+
+📋 Phase 1: Validating pathway references...
+
+  ✓ authoring-foundations: All references valid
+  ✓ course-authoring-expert: All references valid
+  ✓ getting-started-with-courses: All references valid
+  ✓ getting-started-with-hedgehog-lab: All references valid
+  ✓ getting-started: All references valid
+  ✓ lab-onboarding: All references valid
+✅ All pathway references validated successfully!
+
+📤 Phase 2: Syncing pathways to HubDB...
+
+📄 Pathway: Authoring Foundations (authoring-foundations)
+   Courses: 2
+   Estimated minutes: 0
+   Content blocks: 0
+   Payload:
+{
+  "path": "authoring-foundations",
+  "name": "Authoring Foundations",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Learn how to author modules, assemble courses, and structure pathways. This pathway introduces core authoring skills and shows how individual pieces roll up int",
+    "summary_markdown": "<p>Learn how to author modules, assemble courses, and structure pathways. This pathway introduces core authoring skills and shows how individual pieces roll up into complete learning experiences.</p>\n",
+    "module_slugs_json": "",
+    "course_slugs_json": "[\"course-authoring-101\",\"pathway-assembly-and-layouts\"]",
+    "module_count": 0,
+    "total_estimated_minutes": 0,
+    "estimated_minutes": 0,
+    "badge_image_url": "",
+    "display_order": 20,
+    "tags": "authoring, foundations",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+📄 Pathway: Hedgehog Learn: Course Authoring Pathway (course-authoring-expert)
+   Courses: 2
+   Estimated minutes: 0
+   Content blocks: 0
+   Payload:
+{
+  "path": "course-authoring-expert",
+  "name": "Hedgehog Learn: Course Authoring Pathway",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Become a Hedgehog Learn content authoring expert through this comprehensive pathway.\nJourney Overview:\n\nMaster module creation with markdown and front matter\nLe",
+    "summary_markdown": "<p>Become a Hedgehog Learn content authoring expert through this comprehensive pathway.</p>\n<p><strong>Journey Overview:</strong></p>\n<ul>\n<li>Master module creation with markdown and front matter</li>\n<li>Learn media, metadata, and SEO optimization</li>\n<li>Assemble modules into structured courses</li>\n<li>Create comprehensive learning pathways with content blocks</li>\n<li>Implement quality assurance and troubleshooting practices</li>\n</ul>\n<p>This pathway takes you from beginner to expert content creator, ready to build complete learning experiences.</p>\n",
+    "module_slugs_json": "",
+    "course_slugs_json": "[\"course-authoring-101\",\"pathway-assembly-and-layouts\"]",
+    "module_count": 0,
+    "total_estimated_minutes": 0,
+    "estimated_minutes": 0,
+    "badge_image_url": "",
+    "display_order": 1,
+    "tags": "authoring,expert,pathways",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+📄 Pathway: Getting Started (Courses Demo) (getting-started-with-courses)
+   Courses: 1
+   Estimated minutes: 0
+   Content blocks: 0
+   Payload:
+{
+  "path": "getting-started-with-courses",
+  "name": "Getting Started (Courses Demo)",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "This is a demo pathway that references the Getting Started course instead of individual modules. This demonstrates the new Courses feature and how pathways can ",
+    "summary_markdown": "<p>This is a demo pathway that references the Getting Started course instead of individual modules. This demonstrates the new Courses feature and how pathways can now prefer courses over direct module references.</p>\n<p>This pathway is for testing and demonstration purposes, showing how course_slugs_json is populated when a pathway references courses.</p>\n",
+    "module_slugs_json": "",
+    "course_slugs_json": "[\"getting-started-virtual-lab\"]",
+    "module_count": 0,
+    "total_estimated_minutes": 0,
+    "estimated_minutes": 0,
+    "badge_image_url": "",
+    "display_order": 999,
+    "tags": "demo,getting-started,courses",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+📄 Pathway: Getting Started with Hedgehog Lab (getting-started-with-hedgehog-lab)
+   Courses: 1
+   Estimated minutes: 0
+   Content blocks: 0
+   Payload:
+{
+  "path": "getting-started-with-hedgehog-lab",
+  "name": "Getting Started with Hedgehog Lab",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Start here to get hands‑on in the Hedgehog Virtual Lab. Follow this guided pathway to access the lab in your preferred cloud and complete your introductory exer",
+    "summary_markdown": "<p>Start here to get hands‑on in the Hedgehog Virtual Lab. Follow this guided pathway to access the lab in your preferred cloud and complete your introductory exercises.</p>\n",
+    "module_slugs_json": "",
+    "course_slugs_json": "[\"accessing-the-hedgehog-virtual-lab\"]",
+    "module_count": 0,
+    "total_estimated_minutes": 0,
+    "estimated_minutes": 0,
+    "badge_image_url": "",
+    "display_order": 1,
+    "tags": "getting-started",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+📄 Pathway: Getting Started (getting-started)
+   Modules: 3
+   Estimated minutes: 45
+   Content blocks: 0
+   Payload:
+{
+  "path": "getting-started",
+  "name": "Getting Started",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Start your Hedgehog journey by setting up your virtual lab environment. This pathway guides you through creating a cloud-based virtual machine configured to run",
+    "summary_markdown": "<p>Start your Hedgehog journey by setting up your virtual lab environment. This pathway guides you through creating a cloud-based virtual machine configured to run the Hedgehog Virtual Lab, regardless of which cloud provider you prefer.</p>\n<p>You&#39;ll learn how to provision the right VM size, enable nested virtualization, and connect to your environment—all the essential prerequisites before installing and exploring Hedgehog Fabric in the VLAB.</p>\n",
+    "module_slugs_json": "[\"accessing-the-hedgehog-virtual-lab-with-google-cloud\",\"accessing-the-hedgehog-virtual-lab-with-amazon-web-services\",\"accessing-the-hedgehog-virtual-lab-with-microsoft-azure\"]",
+    "course_slugs_json": "",
+    "module_count": 3,
+    "total_estimated_minutes": 45,
+    "estimated_minutes": 45,
+    "badge_image_url": "",
+    "display_order": 1,
+    "tags": "getting-started,vlab,onboarding,cloud",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+📄 Pathway: Lab Onboarding (lab-onboarding)
+   Courses: 2
+   Estimated minutes: 0
+   Content blocks: 0
+   Payload:
+{
+  "path": "lab-onboarding",
+  "name": "Lab Onboarding",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Access your Hedgehog VLAB and learn core environment setup. This pathway guides you from first login through essential configuration so you’re ready to start le",
+    "summary_markdown": "<p>Access your Hedgehog VLAB and learn core environment setup. This pathway guides you from first login through essential configuration so you’re ready to start learning.</p>\n",
+    "module_slugs_json": "",
+    "course_slugs_json": "[\"getting-started-virtual-lab\",\"hedgehog-lab-foundations\"]",
+    "module_count": 0,
+    "total_estimated_minutes": 0,
+    "estimated_minutes": 0,
+    "badge_image_url": "",
+    "display_order": 30,
+    "tags": "lab, onboarding",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+✅ Dry run complete!
+
+Summary: 6 succeeded, 0 failed
+

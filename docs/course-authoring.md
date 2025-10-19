@@ -178,12 +178,85 @@ Full example: see `docs/templates/module-README-template.md`.
   - Keep single modules under ~10–12 KB of rendered HTML where possible
   - See `docs/content-sync.md` troubleshooting
 
+## Reference Validation & Orphan Detection
+
+**IMPORTANT**: As of Issue #213, sync scripts now validate all module and course references before publishing to prevent orphaned links.
+
+### What Gets Validated
+
+- **Courses**: All module slugs in the `modules` array and `content_blocks` must reference existing modules
+- **Pathways**: All slugs in the `modules` and `courses` arrays must reference existing content
+- **Content Blocks**: Any `module_ref` or `course_ref` types must point to valid slugs
+
+### Validation Workflow
+
+1. **Pre-sync validation** (automatic):
+   - When you run `npm run sync:courses` or `npm run sync:pathways`, the script:
+     - Builds a catalog of all available modules and courses from the filesystem
+     - Validates all references in Phase 1 before syncing anything
+     - **Fails fast** with clear error messages if orphaned references are found
+     - Only proceeds to Phase 2 (HubDB sync) if all references are valid
+
+2. **Error messages** look like this:
+   ```
+   ❌ VALIDATION FAILED: Found orphaned references
+
+     COURSE: course-authoring-101
+       ✗ Missing module "non-existent-module" in modules array
+       ✗ Missing module "another-missing" in content_blocks[2]
+
+   💡 Fix these issues before syncing:
+      1. Create the missing modules/courses, OR
+      2. Remove the invalid references from the JSON files
+   ```
+
+3. **Weekly orphan detection** (scheduled):
+   - Run `npm run detect-orphans` to scan HubDB for orphaned references
+   - Detects issues that may have been introduced by:
+     - Manual HubDB edits
+     - Module/course deletions
+     - Data inconsistencies
+   - Generates a report that can be saved: `npm run detect-orphans -- --output=verification-output/orphan-report.json`
+
+### Best Practices for Safe Deletion or Renaming
+
+**Before deleting a module:**
+1. Search for references: `grep -r "module-slug-to-delete" content/courses/ content/pathways/`
+2. Update or remove all references in course and pathway JSON files
+3. Run `npm run sync:courses -- --dry-run` and `npm run sync:pathways -- --dry-run` to validate
+4. Only then delete the module directory and sync
+
+**Before renaming a module:**
+1. Update the `slug` field in the module's front matter
+2. Search and replace the old slug in all course/pathway JSON files
+3. Run dry-run validation to confirm all references updated
+4. Sync all content types in order: modules → courses → pathways
+
+**Validation commands:**
+- `npm run sync:courses -- --dry-run` - Validate courses without publishing
+- `npm run sync:pathways -- --dry-run` - Validate pathways without publishing
+- `npm run detect-orphans` - Scan HubDB for existing orphans
+
+### CI Integration (Recommended)
+
+Consider adding validation to your CI pipeline:
+```yaml
+# .github/workflows/validate-content.yml
+- name: Validate content references
+  run: |
+    npm run sync:courses -- --dry-run
+    npm run sync:pathways -- --dry-run
+```
+
+This prevents merging PRs that introduce orphaned references.
+
 ## Sync to HubDB (Publish)
 - Local publish:
   - `cp .env.example .env` and add `HUBSPOT_PRIVATE_APP_TOKEN` and `HUBDB_MODULES_TABLE_ID`
   - `npm run sync:content`
 - What happens:
-  - Markdown + front matter → HTML
+  - **Phase 1**: References are validated (courses/pathways only)
+  - **Phase 2**: Markdown + front matter → HTML
   - Row is created/updated in HubDB by `hs_path` (slug)
   - Table is published
 

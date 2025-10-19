@@ -19,6 +19,13 @@ import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import matter from 'gray-matter';
 import { getHubSpotClient } from '../shared/hubspot.js';
+import {
+  getAvailableModuleSlugs,
+  getAvailableCourseSlugs,
+  validatePathwayReferences,
+  formatValidationErrors,
+  type ValidationError
+} from './validation.js';
 
 // ES module compatibility: get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -179,6 +186,13 @@ async function syncPathways(dryRun: boolean = false) {
 
   console.log(`Found ${pathwayFiles.length} pathway(s) to sync:\n`);
 
+  // Build catalog of available modules and courses for validation
+  console.log('🔍 Building catalog of available modules and courses for validation...');
+  const availableModules = await getAvailableModuleSlugs();
+  const availableCourses = await getAvailableCourseSlugs();
+  console.log(`   Found ${availableModules.size} available module(s)`);
+  console.log(`   Found ${availableCourses.size} available course(s)\n`);
+
   // Fetch existing rows if not in dry-run mode
   let existingRows: any[] = [];
   if (!dryRun && TABLE_ID) {
@@ -192,7 +206,57 @@ async function syncPathways(dryRun: boolean = false) {
 
   let successCount = 0;
   let failCount = 0;
+  const allValidationErrors: ValidationError[] = [];
 
+  // Phase 1: Validate all pathways for orphaned references
+  console.log('📋 Phase 1: Validating pathway references...\n');
+
+  for (const pathwayFile of pathwayFiles) {
+    try {
+      const pathwayPath = join(pathwaysDir, pathwayFile);
+      const fileContent = await readFile(pathwayPath, 'utf-8');
+      const pathway = JSON.parse(fileContent) as PathwayData;
+
+      // Validate required fields
+      if (!pathway.slug) {
+        console.error(`  ✗ ${pathwayFile}: Missing required field: slug`);
+        continue;
+      }
+      if (!pathway.modules && !pathway.courses) {
+        console.error(`  ✗ ${pathwayFile}: Missing required field: either modules or courses`);
+        continue;
+      }
+
+      // Validate module and course references
+      const errors = validatePathwayReferences(
+        pathway.slug,
+        pathway.modules,
+        pathway.courses,
+        pathway.content_blocks,
+        availableModules,
+        availableCourses
+      );
+
+      if (errors.length > 0) {
+        allValidationErrors.push(...errors);
+      } else {
+        console.log(`  ✓ ${pathway.slug}: All references valid`);
+      }
+    } catch (err: any) {
+      console.error(`  ✗ Failed to validate ${pathwayFile}: ${err.message}`);
+    }
+  }
+
+  // Fail fast if validation errors found
+  if (allValidationErrors.length > 0) {
+    console.error(formatValidationErrors(allValidationErrors));
+    throw new Error(`Validation failed: Found ${allValidationErrors.length} orphaned reference(s). Fix these issues before syncing.`);
+  }
+
+  console.log('✅ All pathway references validated successfully!\n');
+  console.log('📤 Phase 2: Syncing pathways to HubDB...\n');
+
+  // Phase 2: Proceed with sync now that validation passed
   for (let i = 0; i < pathwayFiles.length; i++) {
     const pathwayFile = pathwayFiles[i];
 

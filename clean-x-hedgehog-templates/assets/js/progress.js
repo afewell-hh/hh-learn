@@ -80,11 +80,28 @@
     }
   }
 
+  function updateButtonState(button, state, originalText) {
+    var states = {
+      loading: { text: 'Saving...', disabled: true, style: 'opacity: 0.6; cursor: wait;' },
+      success: { text: '✓ Saved', disabled: true, style: 'background: #D1FAE5; color: #065F46; border: 2px solid #6EE7B7;' },
+      default: { text: originalText, disabled: false, style: '' }
+    };
+
+    var config = states[state] || states.default;
+    button.textContent = config.text;
+    button.disabled = config.disabled;
+    button.style.cssText += config.style;
+  }
+
   ready(function () {
     var startBtn = document.getElementById('hhl-mark-started');
     var completeBtn = document.getElementById('hhl-mark-complete');
 
     if (!startBtn && !completeBtn) return;
+
+    // Store original button text
+    var startBtnText = startBtn ? startBtn.textContent : '';
+    var completeBtnText = completeBtn ? completeBtn.textContent : '';
 
     Promise.all([getConstants(), Promise.resolve(getAuthContext())]).then(function (res) {
       var constants = res[0];
@@ -92,22 +109,63 @@
       var debug = (localStorage.getItem('HHL_DEBUG') === 'true');
       if (debug) console.log('[hhl] progress.js attached', { constants, auth, hasStart: !!startBtn, hasComplete: !!completeBtn });
 
-      function track(started, completed) {
+      function track(button, started, completed, originalText) {
         // The module/page should expose these as meta tags or data attributes; if not available, we try to infer from URL
         var moduleSlug = (document.querySelector('meta[name="hhl:module_slug"]') || {}).content || window.location.pathname.split('/').filter(Boolean).pop();
         var pathwaySlug = (document.querySelector('meta[name="hhl:pathway_slug"]') || {}).content || null;
+        var courseSlug = (window.hhCourseContext && window.hhCourseContext.getContext()) ? window.hhCourseContext.getContext().courseSlug : null;
         var ts = new Date().toISOString();
 
-        if (started && !completed) {
-          sendBeacon(constants, auth, 'learning_module_started', { module_slug: moduleSlug, pathway_slug: pathwaySlug, ts: ts });
+        // Show loading state
+        updateButtonState(button, 'loading', originalText);
+
+        // Show loading toast if hhToast is available
+        var toast = null;
+        if (window.hhToast) {
+          var loadingMessage = completed ? 'Marking module complete...' : 'Marking module started...';
+          toast = window.hhToast.show(loadingMessage, 'loading', 0);
         }
-        if (completed) {
-          sendBeacon(constants, auth, 'learning_module_completed', { module_slug: moduleSlug, pathway_slug: pathwaySlug, ts: ts });
-        }
+
+        // Simulate network delay for better UX (beacons are fire-and-forget)
+        setTimeout(function() {
+          if (started && !completed) {
+            sendBeacon(constants, auth, 'learning_module_started', { module_slug: moduleSlug, pathway_slug: pathwaySlug, course_slug: courseSlug, ts: ts });
+          }
+          if (completed) {
+            sendBeacon(constants, auth, 'learning_module_completed', { module_slug: moduleSlug, pathway_slug: pathwaySlug, course_slug: courseSlug, ts: ts });
+          }
+
+          // Update button to success state
+          updateButtonState(button, 'success', originalText);
+
+          // Update toast to success
+          if (toast && window.hhToast) {
+            var successMessage = completed
+              ? 'Module marked complete!'
+              : 'Module marked as started!';
+            window.hhToast.update(toast, successMessage, 'success');
+          }
+
+          // Reset button after 2 seconds (but keep visual feedback)
+          setTimeout(function() {
+            // Keep the checkmark for completed, reset for started
+            if (!completed) {
+              updateButtonState(button, 'default', originalText);
+            }
+          }, 2000);
+        }, 500);
       }
 
-      if (startBtn) startBtn.addEventListener('click', function () { track(1, 0); });
-      if (completeBtn) completeBtn.addEventListener('click', function () { track(1, 1); });
+      if (startBtn) {
+        startBtn.addEventListener('click', function () {
+          track(startBtn, 1, 0, startBtnText);
+        });
+      }
+      if (completeBtn) {
+        completeBtn.addEventListener('click', function () {
+          track(completeBtn, 1, 1, completeBtnText);
+        });
+      }
     });
   });
 })();

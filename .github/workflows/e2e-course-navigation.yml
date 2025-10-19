@@ -1,0 +1,58 @@
+name: E2E Course Navigation Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "tests/test-course-navigation.spec.js"
+      - "clean-x-hedgehog-templates/assets/js/course-*.js"
+      - "clean-x-hedgehog-templates/learn/module-page.html"
+      - "clean-x-hedgehog-templates/learn/courses-page.html"
+      - ".github/workflows/e2e-course-navigation.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "tests/test-course-navigation.spec.js"
+      - "clean-x-hedgehog-templates/assets/js/course-*.js"
+      - "clean-x-hedgehog-templates/learn/module-page.html"
+      - "clean-x-hedgehog-templates/learn/courses-page.html"
+      - ".github/workflows/e2e-course-navigation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-course-nav-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  course-navigation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run course navigation E2E tests
+        run: npx playwright test tests/test-course-navigation.spec.js
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-course-nav-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7

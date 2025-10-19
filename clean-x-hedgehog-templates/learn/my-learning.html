@@ -172,6 +172,74 @@
     margin-left: 12px;
   }
 
+  /* Enrollment cards */
+  .enrolled-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .enrollment-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    background: #fff;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .enrollment-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .enrollment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+  .enrollment-card-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    flex: 1;
+  }
+  .enrollment-badge {
+    background: #DBEAFE;
+    color: #1E40AF;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .enrollment-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+    color: #666;
+  }
+  .enrollment-meta strong {
+    color: #374151;
+  }
+  .enrollment-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .enrollment-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s;
+  }
+  .enrollment-cta:hover {
+    color: #0052A3;
+  }
+
   /* Module cards */
   .modules-grid {
     display: grid;
@@ -295,7 +363,7 @@
     .learn-header-content, .learn-container {
       padding: 0 16px;
     }
-    .modules-grid {
+    .modules-grid, .enrolled-grid {
       grid-template-columns: 1fr;
     }
     .progress-summary {
@@ -363,6 +431,14 @@
           <a id="last-viewed-link" href="#" style="color:#0066CC; font-weight:600; text-decoration:none;"></a>
           <span id="last-viewed-meta" style="color:#6B7280; margin-left:8px;"></span>
         </div>
+
+        <!-- Enrolled Content Section (authenticated only) -->
+        <section id="enrolled-section" style="display: none;">
+          <div class="section-header">
+            <h2>My Enrollments <span class="section-count" id="enrolled-count">(0)</span></h2>
+          </div>
+          <div class="enrolled-grid" id="enrolled-grid"></div>
+        </section>
 
         <!-- In Progress Section -->
         <section id="in-progress-section" style="display: none;">

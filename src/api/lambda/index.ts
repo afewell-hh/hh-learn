@@ -2,6 +2,18 @@ import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 import { z } from 'zod';
 import { getHubSpotClient } from '../../shared/hubspot.js';
 import type { TrackEventInput, QuizGradeInput, QuizGradeResult } from '../../shared/types.js';
+import {
+  trackEventSchema,
+  quizGradeSchema,
+  progressReadQuerySchema,
+  progressAggregateQuerySchema,
+  enrollmentsListQuerySchema,
+  validatePayload,
+  checkPayloadSize,
+  ValidationErrorCode,
+  createValidationError,
+  type ValidationError,
+} from '../../shared/validation.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -38,15 +50,34 @@ const ok = (body: unknown = {}, origin?: string) => ({
   },
 });
 
-const bad = (code: number, msg: string, origin?: string) => ({
+const bad = (code: number, msg: string, origin?: string, details?: any) => ({
   statusCode: code,
-  body: JSON.stringify({ error: msg }),
+  body: JSON.stringify(details ? { error: msg, details } : { error: msg }),
   headers: {
     'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   },
 });
+
+/**
+ * Log validation failure with structured data for monitoring
+ */
+function logValidationFailure(validationError: ValidationError, endpoint: string, rawPayload?: string): void {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level: 'warn',
+    event: 'validation_failure',
+    endpoint,
+    error_code: validationError.code,
+    error_message: validationError.message,
+    details: validationError.details,
+    context: validationError.context,
+    payload_preview: rawPayload ? rawPayload.substring(0, 200) : undefined,
+  };
+
+  console.warn('[VALIDATION_FAILURE]', JSON.stringify(logEntry));
+}
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
@@ -66,6 +97,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     if (path.endsWith('/progress/read') && event.requestContext.http.method === 'GET') return await readProgress(event, origin);
+    if (path.endsWith('/progress/aggregate') && event.requestContext.http.method === 'GET') return await getAggregatedProgress(event, origin);
+    if (path.endsWith('/enrollments/list') && event.requestContext.http.method === 'GET') return await listEnrollments(event, origin);
     if (event.requestContext.http.method !== 'POST') return bad(405, 'POST only', origin);
   if (path.endsWith('/events/track')) return await track(event.body || '', origin);
     if (path.endsWith('/quiz/grade')) return await grade(event.body || '', origin);
@@ -77,6 +110,180 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   }
 };
 
+async function listEnrollments(event: any, origin?: string) {
+  const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
+  if (!enableCrmProgress) return bad(401, 'CRM progress not enabled', origin);
+
+  try {
+    const hubspot = getHubSpotClient();
+    const qs = event.queryStringParameters || {};
+
+    // Validate query parameters
+    const validation = validatePayload(enrollmentsListQuerySchema, qs, 'query parameters');
+    if (!validation.success) {
+      const error = createValidationError(
+        ValidationErrorCode.SCHEMA_VALIDATION_FAILED,
+        validation.error,
+        validation.details
+      );
+      logValidationFailure(error, '/enrollments/list');
+      return bad(400, error.message, origin, { code: error.code, details: error.details });
+    }
+
+    let contactId = validation.data.contactId;
+    const email = validation.data.email;
+
+    if (!contactId && email) {
+      const search = await (hubspot as any).crm.contacts.searchApi.doSearch({
+        filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }],
+        properties: ['hhl_progress_state'],
+        limit: 1,
+      });
+      if (!search.results || search.results.length === 0) return bad(404, 'Contact not found', origin);
+      contactId = search.results[0].id;
+    }
+
+    const contact = await hubspot.crm.contacts.basicApi.getById(contactId!, ['hhl_progress_state']);
+    let state: any = {};
+    try { state = contact.properties.hhl_progress_state ? JSON.parse(contact.properties.hhl_progress_state) : {}; } catch (e) { state = {}; }
+
+    // Extract enrollments from progress state
+    const enrollments: any = {
+      pathways: [],
+      courses: []
+    };
+
+    // Parse pathways
+    for (const [slug, data] of Object.entries(state)) {
+      if (slug === 'courses') continue; // Skip the courses object key
+      const pathwayData = data as any;
+      if (pathwayData.enrolled) {
+        enrollments.pathways.push({
+          slug,
+          enrolled_at: pathwayData.enrolled_at || null,
+          enrollment_source: pathwayData.enrollment_source || null
+        });
+      }
+    }
+
+    // Parse courses
+    if (state.courses) {
+      for (const [slug, data] of Object.entries(state.courses)) {
+        const courseData = data as any;
+        if (courseData.enrolled) {
+          enrollments.courses.push({
+            slug,
+            enrolled_at: courseData.enrolled_at || null,
+            enrollment_source: courseData.enrollment_source || null
+          });
+        }
+      }
+    }
+
+    return ok({
+      mode: 'authenticated',
+      enrollments
+    }, origin);
+  } catch (e: any) {
+    console.error('listEnrollments error', e?.message || e);
+    return bad(500, 'Unable to fetch enrollments', origin);
+  }
+}
+
+async function getAggregatedProgress(event: any, origin?: string) {
+  const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
+  if (!enableCrmProgress) return ok({ mode: 'anonymous' }, origin);
+
+  try {
+    const hubspot = getHubSpotClient();
+    const qs = event.queryStringParameters || {};
+
+    // Validate query parameters
+    const validation = validatePayload(progressAggregateQuerySchema, qs, 'query parameters');
+    if (!validation.success) {
+      const error = createValidationError(
+        ValidationErrorCode.SCHEMA_VALIDATION_FAILED,
+        validation.error,
+        validation.details
+      );
+      logValidationFailure(error, '/progress/aggregate');
+      return bad(400, error.message, origin, { code: error.code, details: error.details });
+    }
+
+    let contactId = validation.data.contactId;
+    const email = validation.data.email;
+    const contentType = validation.data.type;
+    const slug = validation.data.slug;
+
+    if (!contactId && !email) return ok({ mode: 'anonymous' }, origin);
+
+    // Look up contact if needed
+    if (!contactId && email) {
+      const search = await (hubspot as any).crm.contacts.searchApi.doSearch({
+        filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }],
+        properties: ['hhl_progress_state'],
+        limit: 1,
+      });
+      if (!search.results || search.results.length === 0) return ok({ mode: 'anonymous' }, origin);
+      contactId = search.results[0].id;
+    }
+
+    // Get progress state from contact
+    const contact = await hubspot.crm.contacts.basicApi.getById(contactId!, ['hhl_progress_state']);
+    let state: any = {};
+    try {
+      state = contact.properties.hhl_progress_state ? JSON.parse(contact.properties.hhl_progress_state) : {};
+    } catch (e) {
+      state = {};
+    }
+
+    // Calculate aggregated progress based on content type
+    let started = 0;
+    let completed = 0;
+    let enrolled = false;
+    let enrolled_at = null;
+
+    if (contentType === 'pathway') {
+      // Aggregate modules across the pathway
+      const pathwayData = state[slug];
+      if (pathwayData) {
+        enrolled = pathwayData.enrolled || false;
+        enrolled_at = pathwayData.enrolled_at || null;
+        const modules = pathwayData.modules || {};
+        for (const moduleSlug in modules) {
+          const moduleData = modules[moduleSlug];
+          if (moduleData.started) started++;
+          if (moduleData.completed) completed++;
+        }
+      }
+    } else if (contentType === 'course') {
+      // Aggregate modules across the course
+      const courseData = state.courses?.[slug];
+      if (courseData) {
+        enrolled = courseData.enrolled || false;
+        enrolled_at = courseData.enrolled_at || null;
+        const modules = courseData.modules || {};
+        for (const moduleSlug in modules) {
+          const moduleData = modules[moduleSlug];
+          if (moduleData.started) started++;
+          if (moduleData.completed) completed++;
+        }
+      }
+    }
+
+    return ok({
+      mode: 'authenticated',
+      started,
+      completed,
+      enrolled,
+      enrolled_at,
+    }, origin);
+  } catch (e: any) {
+    console.error('getAggregatedProgress error', e?.message || e);
+    return ok({ mode: 'fallback', error: 'Unable to fetch progress' }, origin);
+  }
+}
+
 async function readProgress(event: any, origin?: string) {
   const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
   if (!enableCrmProgress) return ok({ mode: 'anonymous' }, origin);
@@ -84,8 +291,21 @@ async function readProgress(event: any, origin?: string) {
   try {
     const hubspot = getHubSpotClient();
     const qs = event.queryStringParameters || {};
-    let contactId = qs.contactId as string | undefined;
-    const email = (qs.email as string | undefined) || undefined;
+
+    // Validate query parameters (note: both email and contactId are optional for readProgress)
+    const validation = validatePayload(progressReadQuerySchema, qs, 'query parameters');
+    if (!validation.success) {
+      const error = createValidationError(
+        ValidationErrorCode.SCHEMA_VALIDATION_FAILED,
+        validation.error,
+        validation.details
+      );
+      logValidationFailure(error, '/progress/read');
+      return bad(400, error.message, origin, { code: error.code, details: error.details });
+    }
+
+    let contactId = validation.data.contactId;
+    const email = validation.data.email;
 
     if (!contactId && !email) return ok({ mode: 'anonymous' }, origin);
 
@@ -128,26 +348,46 @@ async function readProgress(event: any, origin?: string) {
 }
 
 async function track(raw: string, origin?: string) {
-  const schema = z.object({
-    eventName: z.enum([
-      'learning_module_started',
-      'learning_module_completed',
-      'learning_pathway_enrolled',
-      'learning_page_viewed',
-    ]),
-    contactIdentifier: z
-      .object({
-        email: z.string().email().optional(),
-        contactId: z.string().optional(),
-      })
-      .optional(),
-    payload: z.record(z.any()).optional(),
-  });
+  // Check payload size first
+  if (!checkPayloadSize(raw)) {
+    const error = createValidationError(
+      ValidationErrorCode.PAYLOAD_TOO_LARGE,
+      'Request payload exceeds maximum size of 10KB',
+      undefined,
+      { payload_size: new TextEncoder().encode(raw).length }
+    );
+    logValidationFailure(error, '/events/track', raw);
+    return bad(400, error.message, origin, { code: error.code });
+  }
 
-  const parse = schema.safeParse(JSON.parse(raw || '{}'));
-  if (!parse.success) return bad(400, 'Invalid payload', origin);
+  // Parse JSON
+  let parsedBody: any;
+  try {
+    parsedBody = JSON.parse(raw || '{}');
+  } catch (e) {
+    const error = createValidationError(
+      ValidationErrorCode.INVALID_JSON,
+      'Request body is not valid JSON',
+      [(e as Error).message]
+    );
+    logValidationFailure(error, '/events/track', raw);
+    return bad(400, error.message, origin, { code: error.code, details: error.details });
+  }
 
-  const input = parse.data as TrackEventInput;
+  // Validate against schema
+  const validation = validatePayload(trackEventSchema, parsedBody, 'track event payload');
+  if (!validation.success) {
+    const error = createValidationError(
+      ValidationErrorCode.SCHEMA_VALIDATION_FAILED,
+      validation.error,
+      validation.details,
+      { event_name: parsedBody.eventName }
+    );
+    logValidationFailure(error, '/events/track', raw);
+    return bad(400, error.message, origin, { code: error.code, details: error.details });
+  }
+
+  const input = validation.data as TrackEventInput;
 
   // Check if CRM persistence is enabled
   const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
@@ -236,23 +476,44 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
     progressState = {};
   }
 
-  // Extract pathway and module info from payload
-  const pathwaySlug = (input.payload?.pathway_slug as string) || 'unknown';
+  // Extract pathway, course, and module info from payload or top-level fields
+  const pathwaySlug = input.pathway_slug || (input.payload?.pathway_slug as string) || null;
+  const courseSlug = input.course_slug || (input.payload?.course_slug as string) || null;
   const moduleSlug = (input.payload?.module_slug as string) || null;
-
-  // Initialize pathway if needed
-  if (!progressState[pathwaySlug]) {
-    progressState[pathwaySlug] = { modules: {} };
-  }
+  const enrollmentSource = input.enrollment_source || (input.payload?.enrollment_source as string) || null;
 
   // Update progress based on event type
   const timestamp = new Date().toISOString();
   const dateOnly = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format for HubSpot date property
 
-  if (input.eventName === 'learning_pathway_enrolled') {
+  if (input.eventName === 'learning_pathway_enrolled' && pathwaySlug) {
+    // Initialize pathway if needed
+    if (!progressState[pathwaySlug]) {
+      progressState[pathwaySlug] = { modules: {} };
+    }
     progressState[pathwaySlug].enrolled = true;
     progressState[pathwaySlug].enrolled_at = timestamp;
-  } else if (moduleSlug) {
+    if (enrollmentSource) {
+      progressState[pathwaySlug].enrollment_source = enrollmentSource;
+    }
+  } else if (input.eventName === 'learning_course_enrolled' && courseSlug) {
+    // Initialize courses object if needed
+    if (!progressState.courses) {
+      progressState.courses = {};
+    }
+    if (!progressState.courses[courseSlug]) {
+      progressState.courses[courseSlug] = { modules: {} };
+    }
+    progressState.courses[courseSlug].enrolled = true;
+    progressState.courses[courseSlug].enrolled_at = timestamp;
+    if (enrollmentSource) {
+      progressState.courses[courseSlug].enrollment_source = enrollmentSource;
+    }
+  } else if (moduleSlug && pathwaySlug) {
+    // Initialize pathway if needed
+    if (!progressState[pathwaySlug]) {
+      progressState[pathwaySlug] = { modules: {} };
+    }
     if (!progressState[pathwaySlug].modules[moduleSlug]) {
       progressState[pathwaySlug].modules[moduleSlug] = {};
     }
@@ -335,15 +596,43 @@ function generateProgressSummary(progressState: any): string {
 }
 
 async function grade(raw: string, origin?: string) {
-  const schema = z.object({
-    module_slug: z.string().min(1),
-    answers: z.array(z.object({ id: z.string(), value: z.any() })),
-  });
+  // Check payload size
+  if (!checkPayloadSize(raw)) {
+    const error = createValidationError(
+      ValidationErrorCode.PAYLOAD_TOO_LARGE,
+      'Request payload exceeds maximum size of 10KB'
+    );
+    logValidationFailure(error, '/quiz/grade', raw);
+    return bad(400, error.message, origin, { code: error.code });
+  }
 
-  const parse = schema.safeParse(JSON.parse(raw || '{}'));
-  if (!parse.success) return bad(400, 'Invalid payload', origin);
+  // Parse JSON
+  let parsedBody: any;
+  try {
+    parsedBody = JSON.parse(raw || '{}');
+  } catch (e) {
+    const error = createValidationError(
+      ValidationErrorCode.INVALID_JSON,
+      'Request body is not valid JSON',
+      [(e as Error).message]
+    );
+    logValidationFailure(error, '/quiz/grade', raw);
+    return bad(400, error.message, origin, { code: error.code, details: error.details });
+  }
 
-  const input = parse.data as QuizGradeInput;
+  // Validate against schema
+  const validation = validatePayload(quizGradeSchema, parsedBody, 'quiz grade payload');
+  if (!validation.success) {
+    const error = createValidationError(
+      ValidationErrorCode.SCHEMA_VALIDATION_FAILED,
+      validation.error,
+      validation.details
+    );
+    logValidationFailure(error, '/quiz/grade', raw);
+    return bad(400, error.message, origin, { code: error.code, details: error.details });
+  }
+
+  const input = validation.data as QuizGradeInput;
 
   // TODO: fetch quiz schema from HubDB (modules.quiz_schema_json) and compute score.
   // Placeholder logic:

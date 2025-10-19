@@ -26,6 +26,9 @@ See [`docs/content-sync.md`](docs/content-sync.md) for the full operational runb
 ## Documentation
 Only evergreen documentation lives in this repository. Historical decisions and sprint notes belong in GitHub issues or discussions.
 
+### For AI Agents
+- **[`docs/hubspot-project-apps-agent-guide.md`](docs/hubspot-project-apps-agent-guide.md)** – **AI Agent Training Guide** for HubSpot Project Apps (2025.2) platform, authentication patterns, API usage, and common pitfalls. **Read this first if you're an AI agent working with HubSpot APIs.**
+
 ### Content Authoring
 - [`docs/content-standard.md`](docs/content-standard.md) – **Normative standard** for module content (required reading for authors).
 - [`docs/contributor-guide.md`](docs/contributor-guide.md) – **Step-by-step workflow** for authoring and publishing modules.

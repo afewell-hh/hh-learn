@@ -20,6 +20,12 @@ import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import matter from 'gray-matter';
 import { getHubSpotClient } from '../shared/hubspot.js';
+import {
+  getAvailableModuleSlugs,
+  validateCourseReferences,
+  formatValidationErrors,
+  type ValidationError
+} from './validation.js';
 
 // ES module compatibility: get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -178,6 +184,11 @@ async function syncCourses(dryRun: boolean = false) {
 
   console.log(`Found ${courseFiles.length} course(s) to sync:\n`);
 
+  // Build catalog of available modules for validation
+  console.log('🔍 Building catalog of available modules for validation...');
+  const availableModules = await getAvailableModuleSlugs();
+  console.log(`   Found ${availableModules.size} available module(s)\n`);
+
   // Fetch existing rows if not in dry-run mode
   let existingRows: any[] = [];
   if (!dryRun && TABLE_ID) {
@@ -191,7 +202,55 @@ async function syncCourses(dryRun: boolean = false) {
 
   let successCount = 0;
   let failCount = 0;
+  const allValidationErrors: ValidationError[] = [];
 
+  // Phase 1: Validate all courses for orphaned references
+  console.log('📋 Phase 1: Validating course references...\n');
+
+  for (const courseFile of courseFiles) {
+    try {
+      const coursePath = join(coursesDir, courseFile);
+      const fileContent = await readFile(coursePath, 'utf-8');
+      const course = JSON.parse(fileContent) as CourseData;
+
+      // Validate required fields
+      if (!course.slug) {
+        console.error(`  ✗ ${courseFile}: Missing required field: slug`);
+        continue;
+      }
+      if (!course.modules || !Array.isArray(course.modules)) {
+        console.error(`  ✗ ${courseFile}: Missing or invalid required field: modules`);
+        continue;
+      }
+
+      // Validate module references
+      const errors = validateCourseReferences(
+        course.slug,
+        course.modules,
+        course.content_blocks,
+        availableModules
+      );
+
+      if (errors.length > 0) {
+        allValidationErrors.push(...errors);
+      } else {
+        console.log(`  ✓ ${course.slug}: All references valid`);
+      }
+    } catch (err: any) {
+      console.error(`  ✗ Failed to validate ${courseFile}: ${err.message}`);
+    }
+  }
+
+  // Fail fast if validation errors found
+  if (allValidationErrors.length > 0) {
+    console.error(formatValidationErrors(allValidationErrors));
+    throw new Error(`Validation failed: Found ${allValidationErrors.length} orphaned reference(s). Fix these issues before syncing.`);
+  }
+
+  console.log('✅ All course references validated successfully!\n');
+  console.log('📤 Phase 2: Syncing courses to HubDB...\n');
+
+  // Phase 2: Proceed with sync now that validation passed
   for (let i = 0; i < courseFiles.length; i++) {
     const courseFile = courseFiles[i];
 

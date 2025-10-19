@@ -1,0 +1,61 @@
+========================================
+Validation Tests (Issue #214)
+========================================
+
+Test Group 1: Valid Track Event Payloads
+------------------------------------------
+✓ Valid learning_module_started event
+✓ Valid learning_module_completed event
+✓ Valid learning_pathway_enrolled event
+✓ Valid learning_course_enrolled event
+✓ Valid learning_page_viewed event
+✓ Event without contactIdentifier (anonymous)
+
+Test Group 2: Invalid Track Event Payloads
+--------------------------------------------
+✓ Rejects invalid event name
+✓ Rejects invalid email format
+✓ Rejects module event without module_slug
+✓ Rejects pathway enrollment without pathway_slug
+✓ Rejects course enrollment without course_slug
+✓ Rejects page view without content_type/slug
+✓ Rejects slug exceeding max length
+
+Test Group 3: Quiz Grade Validation
+-------------------------------------
+✓ Valid quiz grade payload
+✓ Rejects missing module_slug
+✓ Rejects empty module_slug
+✓ Rejects missing answers
+✓ Rejects too many answers
+
+Test Group 4: Query Parameter Validation
+------------------------------------------
+✓ Valid progress aggregate query
+✓ Rejects aggregate query missing type
+✓ Rejects aggregate query missing slug
+✓ Rejects enrollments query without identifier
+✓ Valid enrollments query with email
+
+Test Group 5: Payload Size Validation
+---------------------------------------
+✓ Accepts payload within size limit
+✓ Rejects payload exceeding size limit
+✓ Respects custom size limit (within)
+✓ Respects custom size limit (exceeds)
+
+Test Group 6: Validation Error Creation
+----------------------------------------
+✓ Error code set correctly
+✓ Error message set correctly
+✓ Error details set correctly
+✓ Error context set correctly
+
+========================================
+Test Summary
+========================================
+Total: 31
+Passed: 31
+Failed: 0
+
+✓ All tests passed!

@@ -1,0 +1,18 @@
+
+> hedgehog-learn@0.1.0 deploy:aws
+> serverless deploy
+
+
+Deploying hedgehog-learn to stage dev (us-west-2)
+
+✔ Service deployed to stack hedgehog-learn-dev (71s)
+
+endpoints:
+  POST - https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track
+  POST - https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/quiz/grade
+  GET - https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/progress/read
+  GET - https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/enrollments/list
+functions:
+  api: hedgehog-learn-dev-api (14 MB)
+
+Need a faster logging experience than CloudWatch? Try our Dev Mode in Console: run "serverless dev"

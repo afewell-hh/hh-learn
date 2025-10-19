@@ -1,0 +1,45 @@
+=========================================
+Testing Progress Aggregate API (Issue #210)
+=========================================
+
+API Base: https://hvoog2lnha.execute-api.us-west-2.amazonaws.com
+Test Email: emailmaria@hubspot.com
+
+Test 1: Pathway progress (authenticated)
+-----------------------------------------
+GET https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/progress/aggregate?type=pathway&slug=getting-started&email=emailmaria@hubspot.com
+Response: {"mode":"authenticated","started":0,"completed":0,"enrolled":false,"enrolled_at":null}
+
+✓ Response contains mode field
+✓ Response contains started field
+✓ Response contains completed field
+
+Test 2: Course progress (authenticated)
+---------------------------------------
+GET https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/progress/aggregate?type=course&slug=sample-course&email=emailmaria@hubspot.com
+Response: {"mode":"authenticated","started":0,"completed":0,"enrolled":false,"enrolled_at":null}
+
+✓ Course response valid
+
+Test 3: Missing parameters validation
+-------------------------------------
+GET https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/progress/aggregate?type=pathway&email=emailmaria@hubspot.com (missing slug)
+HTTP Status: 400
+Response: {"error":"type and slug required"}
+✓ Correctly rejected invalid request with 400
+
+Test 4: Anonymous mode
+----------------------
+GET https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/progress/aggregate?type=pathway&slug=getting-started
+Response: {"mode":"anonymous"}
+✓ Correctly returned anonymous mode
+
+Test 5: Performance check
+------------------------
+Testing response time for authenticated request...
+Response time: 810ms
+⚠ Performance warning: 810ms exceeds 500ms target
+
+=========================================
+All tests completed successfully!
+=========================================

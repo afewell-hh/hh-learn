@@ -28,6 +28,12 @@
     if (track && track.indexOf('/events/track') >= 0) return track.replace('/events/track','/progress/read');
     return '/progress/read';
   }
+  function getEnrollmentsUrl(constants){
+    var track = (constants && constants.TRACK_EVENTS_URL) || '';
+    // Derive: replace /events/track with /enrollments/list; fallback to relative
+    if (track && track.indexOf('/events/track') >= 0) return track.replace('/events/track','/enrollments/list');
+    return '/enrollments/list';
+  }
   function getAllProgress(){
     var prog = { inProgress: new Set(), completed: new Set() };
     try {
@@ -47,13 +53,30 @@
     var res = { inProgress: new Set(), completed: new Set() };
     try {
       if (!progress) return res;
-      Object.keys(progress).forEach(function(pathway){
-        var modules = (progress[pathway] && progress[pathway].modules) || {};
-        Object.keys(modules).forEach(function(slug){
-          var m = modules[slug] || {};
-          if (m.completed) res.completed.add(slug);
-          else if (m.started) res.inProgress.add(slug);
-        });
+
+      // Process each top-level key
+      Object.keys(progress).forEach(function(key){
+        // Skip the 'courses' key as it's a container, not a pathway
+        if (key === 'courses') {
+          // Process courses separately - they have nested structure
+          var courses = progress.courses || {};
+          Object.keys(courses).forEach(function(courseSlug){
+            var courseModules = (courses[courseSlug] && courses[courseSlug].modules) || {};
+            Object.keys(courseModules).forEach(function(slug){
+              var m = courseModules[slug] || {};
+              if (m.completed) res.completed.add(slug);
+              else if (m.started) res.inProgress.add(slug);
+            });
+          });
+        } else {
+          // Process pathway modules
+          var modules = (progress[key] && progress[key].modules) || {};
+          Object.keys(modules).forEach(function(slug){
+            var m = modules[slug] || {};
+            if (m.completed) res.completed.add(slug);
+            else if (m.started) res.inProgress.add(slug);
+          });
+        }
       });
     } catch(e){}
     return res;
@@ -86,6 +109,92 @@
       if (last.at) meta.textContent = '· viewed ' + last.at;
       panel.style.display = 'block';
     }catch(e){}
+  }
+  function formatDate(isoString){
+    if (!isoString) return '';
+    try {
+      var d = new Date(isoString);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch(e) { return ''; }
+  }
+  function formatRelativeTime(isoString){
+    if (!isoString) return '';
+    try {
+      var now = new Date();
+      var then = new Date(isoString);
+      var diffMs = now - then;
+      var diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return 'today';
+      if (diffDays === 1) return 'yesterday';
+      if (diffDays < 7) return diffDays + ' days ago';
+      if (diffDays < 30) return Math.floor(diffDays / 7) + ' weeks ago';
+      return formatDate(isoString);
+    } catch(e) { return formatDate(isoString); }
+  }
+  function renderEnrollmentCard(item, type, modulesTable){
+    var card = document.createElement('div');
+    card.className = 'enrollment-card';
+    var slug = item.slug || '';
+    var enrolledAt = item.enrolled_at || '';
+    var source = item.enrollment_source || 'unknown';
+    var href = type === 'pathway' ? ('/learn/pathways/' + slug) : ('/learn/courses/' + slug);
+    var title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); });
+    var sourceLabel = source.replace(/_/g, ' ');
+    card.innerHTML = '<div class="enrollment-card-header">\
+        <h3><a href="'+href+'" style="color:#1a4e8a; text-decoration:none;">'+title+'</a></h3>\
+        <span class="enrollment-badge">'+type+'</span>\
+      </div>\
+      <div class="enrollment-meta">\
+        <div class="enrollment-date"><strong>Enrolled:</strong> '+formatDate(enrolledAt)+'</div>\
+        <div class="enrollment-source"><strong>Source:</strong> '+sourceLabel+'</div>\
+      </div>\
+      <div class="enrollment-actions">\
+        <a href="'+href+'" class="enrollment-cta">Continue Learning →</a>\
+      </div>';
+    return card;
+  }
+  function renderEnrolledContent(enrollments){
+    try {
+      var pathways = enrollments.pathways || [];
+      var courses = enrollments.courses || [];
+      var enrolledSection = q('enrolled-section');
+      var enrolledGrid = q('enrolled-grid');
+
+      if (!enrolledSection || !enrolledGrid) return;
+
+      // Clear existing content
+      enrolledGrid.innerHTML = '';
+
+      if (pathways.length === 0 && courses.length === 0){
+        enrolledSection.style.display = 'none';
+        return;
+      }
+
+      // Render pathways
+      pathways.forEach(function(pathway){
+        enrolledGrid.appendChild(renderEnrollmentCard(pathway, 'pathway'));
+      });
+
+      // Render courses
+      courses.forEach(function(course){
+        enrolledGrid.appendChild(renderEnrollmentCard(course, 'course'));
+      });
+
+      // Update count and show section
+      var totalEnrolled = pathways.length + courses.length;
+      var enrolledCount = q('enrolled-count');
+      if (enrolledCount) enrolledCount.textContent = '(' + totalEnrolled + ')';
+      enrolledSection.style.display = 'block';
+    } catch(e){
+      console.error('[hhl-my-learning] Error rendering enrolled content:', e);
+      // Show error state to user
+      var errorGrid = q('enrolled-grid');
+      if (errorGrid) {
+        errorGrid.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">\
+          <p>Unable to load enrollments. Please refresh the page to try again.</p>\
+        </div>';
+      }
+    }
   }
 
   ready(function(){
@@ -125,17 +234,33 @@
 
       if (auth.enableCrm && (auth.email || auth.contactId)){
         var readUrl = getReadUrl(constants);
-        var q = auth.contactId ? ('?contactId='+encodeURIComponent(auth.contactId)) : ('?email='+encodeURIComponent(auth.email));
-        fetchJSON(readUrl + q)
-          .then(function(json){
-            if (json && json.mode === 'authenticated' && json.progress){
-              // Resume panel (CRM only for MVP)
-              showResume(json.last_viewed);
-              return renderFromSets(setsFromCrm(json.progress));
-            }
-            renderFromSets(localSets);
-          })
-          .catch(function(){ renderFromSets(localSets); });
+        var enrollUrl = getEnrollmentsUrl(constants);
+        var query = auth.contactId ? ('?contactId='+encodeURIComponent(auth.contactId)) : ('?email='+encodeURIComponent(auth.email));
+
+        // Fetch both progress and enrollments in parallel
+        Promise.all([
+          fetchJSON(readUrl + query).catch(function(){ return null; }),
+          fetchJSON(enrollUrl + query).catch(function(){ return null; })
+        ]).then(function(results){
+          var progressData = results[0];
+          var enrollmentData = results[1];
+
+          // Show resume panel if available
+          if (progressData && progressData.mode === 'authenticated' && progressData.last_viewed){
+            showResume(progressData.last_viewed);
+          }
+
+          // Render enrolled content if available
+          if (enrollmentData && enrollmentData.mode === 'authenticated' && enrollmentData.enrollments){
+            renderEnrolledContent(enrollmentData.enrollments);
+          }
+
+          // Render module progress
+          if (progressData && progressData.mode === 'authenticated' && progressData.progress){
+            return renderFromSets(setsFromCrm(progressData.progress));
+          }
+          renderFromSets(localSets);
+        }).catch(function(){ renderFromSets(localSets); });
       } else {
         renderFromSets(localSets);
       }

@@ -61,46 +61,54 @@
         <div class="learn-filters" role="region" aria-label="Content filters">
           <h3 class="learn-filters-title" id="filters-heading">Filters</h3>
 
+          {# Results Count #}
+          <div class="learn-filter-results" role="status" aria-live="polite">
+            Showing <strong><span id="visible-count">0</span></strong> of <strong><span id="total-count">0</span></strong> items
+          </div>
+
           {# Search #}
           <div class="learn-filter-group">
             <label class="learn-filter-label" for="filter-search">Search</label>
-            <input type="text" id="filter-search" class="learn-filter-search" placeholder="Search..." disabled aria-disabled="true" aria-describedby="filters-coming-soon">
+            <input type="text" id="filter-search" class="learn-filter-search" placeholder="Search titles and tags..." aria-label="Search by title or tags">
           </div>
 
-          {# Content Type #}
+          {# Type #}
           <div class="learn-filter-group">
-            <fieldset disabled aria-describedby="filters-coming-soon">
-              <legend class="learn-filter-label">Content Type</legend>
+            <fieldset>
+              <legend class="learn-filter-label">Type</legend>
               <div class="learn-filter-options">
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> All
+                  <input type="checkbox" name="type" value="all" id="type-all" checked> All
                 </label>
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> Beginner
+                  <input type="checkbox" name="type" value="module" checked> Modules
                 </label>
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> Intermediate
+                  <input type="checkbox" name="type" value="course" checked> Courses
                 </label>
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> Advanced
+                  <input type="checkbox" name="type" value="pathway" checked> Pathways
                 </label>
               </div>
             </fieldset>
           </div>
 
-          {# Tags #}
+          {# Level #}
           <div class="learn-filter-group">
-            <fieldset disabled aria-describedby="filters-coming-soon">
-              <legend class="learn-filter-label">Tags</legend>
+            <fieldset>
+              <legend class="learn-filter-label">Level</legend>
               <div class="learn-filter-options">
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> Networking
+                  <input type="checkbox" name="level" value="all" id="level-all" checked> All
                 </label>
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> AI
+                  <input type="checkbox" name="level" value="beginner" checked> Beginner
                 </label>
                 <label class="learn-filter-checkbox">
-                  <input type="checkbox" disabled> Cloud
+                  <input type="checkbox" name="level" value="intermediate" checked> Intermediate
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="level" value="advanced" checked> Advanced
                 </label>
               </div>
             </fieldset>
@@ -109,15 +117,18 @@
           {# Duration #}
           <div class="learn-filter-group">
             <label class="learn-filter-label" for="filter-duration">Duration</label>
-            <select id="filter-duration" class="learn-filter-select" disabled aria-disabled="true" aria-describedby="filters-coming-soon">
-              <option>Any duration</option>
-              <option>Under 30 min</option>
-              <option>30-60 min</option>
-              <option>Over 60 min</option>
+            <select id="filter-duration" class="learn-filter-select" aria-label="Filter by duration">
+              <option value="all">Any duration</option>
+              <option value="0-30">Under 30 min</option>
+              <option value="30-60">30-60 min</option>
+              <option value="60-999">Over 60 min</option>
             </select>
           </div>
 
-          <p class="learn-filters-note" id="filters-coming-soon">Filters coming soon!</p>
+          {# Clear Filters Button #}
+          <button type="button" id="clear-filters" class="learn-filter-clear" aria-label="Clear all filters">
+            Clear Filters
+          </button>
         </div>
       {% endif %}
     </div>
