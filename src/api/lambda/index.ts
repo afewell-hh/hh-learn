@@ -613,6 +613,15 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       if (enrollmentSource) {
         progressState[pathwaySlug].courses[courseSlug].enrollment_source = enrollmentSource;
       }
+
+      // Ensure parent pathway is also marked as enrolled when first course is enrolled
+      if (!progressState[pathwaySlug].enrolled) {
+        progressState[pathwaySlug].enrolled = true;
+        progressState[pathwaySlug].enrolled_at = timestamp;
+        if (enrollmentSource) {
+          progressState[pathwaySlug].enrollment_source = enrollmentSource;
+        }
+      }
     } else {
       // Standalone course
       if (!progressState.courses) {
