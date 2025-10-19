@@ -364,21 +364,66 @@ function validateMigration(contactId: string, before: any, after: any): Validati
   const beforeModules = extractAllModuleProgress(before);
   const afterModules = extractAllModuleProgress(after);
 
-  for (const [key, progress] of Object.entries(beforeModules)) {
-    const matchingAfterKeys = Object.keys(afterModules).filter((k) => {
-      // Extract module slug from keys like "pathway.course.module" or "pathway.module"
-      const beforeModule = key.split('.').pop();
-      const afterModule = k.split('.').pop();
-      return beforeModule === afterModule;
-    });
+  for (const [beforeKey, progress] of Object.entries(beforeModules)) {
+    // Match by full path to handle reused modules correctly
+    // For flat pathways transforming to hierarchical, map flat paths to hierarchical paths
+    let matchingAfterKey: string | undefined;
 
-    if (matchingAfterKeys.length === 0) {
-      errors.push(`Module progress lost: ${key}`);
+    // Try exact match first (for unchanged pathways and standalone courses)
+    if (afterModules[beforeKey]) {
+      matchingAfterKey = beforeKey;
+    } else {
+      // For transformed pathways, match by logical equivalence
+      // Example: "pathway.module-a" -> "pathway.course-x.module-a"
+      // Strategy: Find the after key where the module slug matches AND is in the same pathway context
+      const beforeParts = beforeKey.split('.');
+      const beforeModule = beforeParts[beforeParts.length - 1]; // Last part is always module slug
+      const beforeContext = beforeParts.slice(0, -1).join('.'); // Everything before module slug
+
+      // Find all after keys with same module slug
+      const candidateKeys = Object.keys(afterModules).filter((k) => {
+        const afterParts = k.split('.');
+        const afterModule = afterParts[afterParts.length - 1];
+        const afterContext = afterParts.slice(0, -1).join('.');
+
+        // Module slug must match
+        if (beforeModule !== afterModule) return false;
+
+        // Context must match (pathway or course scope)
+        // For flat→hierarchical: "pathway" should match "pathway.course"
+        // For unchanged: "pathway" should match "pathway" or "courses.course" should match "courses.course"
+        return (
+          afterContext === beforeContext || // Exact match (no transformation)
+          afterContext.startsWith(beforeContext + '.') // Hierarchical transformation (flat→nested)
+        );
+      });
+
+      if (candidateKeys.length === 1) {
+        matchingAfterKey = candidateKeys[0];
+      } else if (candidateKeys.length > 1) {
+        // Multiple matches - this is expected for modules reused across courses in the SAME pathway
+        // All should have identical progress data, so pick the first one
+        matchingAfterKey = candidateKeys[0];
+
+        // Verify all candidates have identical progress
+        const firstProgress = afterModules[candidateKeys[0]];
+        for (let i = 1; i < candidateKeys.length; i++) {
+          if (JSON.stringify(afterModules[candidateKeys[i]]) !== JSON.stringify(firstProgress)) {
+            errors.push(
+              `Module progress inconsistent for reused module: ${beforeModule} (${candidateKeys.join(', ')})`
+            );
+          }
+        }
+      }
+    }
+
+    if (!matchingAfterKey) {
+      errors.push(`Module progress lost: ${beforeKey}`);
     } else {
       // Check if progress data matches
-      const afterProgress = afterModules[matchingAfterKeys[0]];
+      const afterProgress = afterModules[matchingAfterKey];
       if (JSON.stringify(progress) !== JSON.stringify(afterProgress)) {
-        errors.push(`Module progress changed: ${key}`);
+        errors.push(`Module progress changed: ${beforeKey} -> ${matchingAfterKey}`);
       }
     }
   }
