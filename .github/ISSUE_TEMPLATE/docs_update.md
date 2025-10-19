@@ -18,6 +18,9 @@ assignees: []
 ## Acceptance Criteria
 - [ ] Content accurate and reviewed
 - [ ] Links validated
+- [ ] PR opened and linked to this issue
+- [ ] All CI checks passing
+- [ ] Code review approval obtained
 - [ ] Added to Project and Milestone
 
 ## Links

@@ -11,7 +11,12 @@ assignees: []
 Describe the problem and the proposed solution.
 
 ## Acceptance Criteria
-- [ ] ...
+- [ ] Implementation complete with passing tests
+- [ ] PR opened and linked to this issue
+- [ ] All CI checks passing (lint, build, tests)
+- [ ] Code review approval obtained
+- [ ] Documentation updated (if applicable)
+- [ ] Verification artifacts stored in `verification-output/issue-XXX/`
 
 ## Area
 - [ ] cms-template
