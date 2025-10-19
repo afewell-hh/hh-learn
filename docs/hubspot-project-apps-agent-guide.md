@@ -2,12 +2,34 @@
 title: HubSpot Project Apps Platform - AI Agent Training Guide
 owner: hh-learn project lead
 status: reference
-last-reviewed: 2025-10-18
+last-reviewed: 2025-10-19
+related-docs:
+  - docs/project-app-oauth-integration.md (Migration guide - OAuth terminology clarification)
+  - docs/issue-60-verification-guide.md (Step-by-step token verification procedures)
+  - docs/auth-and-progress.md (Auth model and progress persistence overview)
+  - docs/phase2-contact-properties.md (Contact property schema reference)
+  - src/shared/hubspot.ts (Token precedence implementation)
+  - src/api/lambda/index.ts (Production Lambda code using HubSpot APIs)
 ---
 
 # HubSpot Project Apps Platform - AI Agent Training Guide
 
 > **Critical:** This guide exists because AI training data is outdated regarding HubSpot's platform changes. Most documentation and training data reference **legacy Private Apps**, but this application uses **HubSpot Project Apps (platform version 2025.2)** with fundamentally different authentication patterns.
+
+## Quick Navigation
+
+- [Executive Summary](#executive-summary-for-ai-agents) - Start here
+- [Platform Overview](#part-1-platform-overview) - What are Project Apps?
+- [Authentication](#part-2-authentication-patterns) - Static bearer tokens explained
+- [Required Scopes](#part-3-required-scopes) - Scope configuration
+- [Working with APIs](#part-4-working-with-hubspot-apis) - Code examples ✨
+- [AWS Lambda Integration](#part-5-external-serverless-integration-aws-lambda) - External serverless
+- [Debugging](#part-6-common-debugging-patterns) - Troubleshooting flows
+- [When Training Data Fails](#part-7-when-your-training-data-fails-you) - Red flags & how to search
+- [Test Contacts](#part-8-test-contacts-and-verification) - Testing procedures
+- [Project Structure](#part-9-project-structure-reference) - File locations
+- [Production Evidence](#part-10-production-evidence) - Live deployment proof
+- [Quick Reference](#part-11-quick-reference) - TL;DR cheat sheet
 
 ## Executive Summary for AI Agents
 
@@ -199,6 +221,80 @@ await client.crm.contacts.basicApi.update('12345', {
     hhl_progress_updated_at: new Date().toISOString().split('T')[0]
   }
 });
+```
+
+#### Real Examples from This Codebase
+
+**Example 1: Token precedence initialization** (`src/shared/hubspot.ts:3-17`)
+```typescript
+import { Client } from '@hubspot/api-client';
+
+export function getHubSpotClient() {
+  // Prefer HubSpot Projects token (static bearer), then API token, then Private App token
+  const token =
+    process.env.HUBSPOT_PROJECT_ACCESS_TOKEN ||
+    process.env.HUBSPOT_API_TOKEN ||
+    process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+
+  if (!token) {
+    throw new Error(
+      'No HubSpot access token available. Set HUBSPOT_PROJECT_ACCESS_TOKEN or HUBSPOT_API_TOKEN or HUBSPOT_PRIVATE_APP_TOKEN.'
+    );
+  }
+
+  return new Client({ accessToken: token });
+}
+```
+
+**Example 2: Contact lookup by email** (`src/api/lambda/index.ts:278-295`)
+```typescript
+// Look up contact by email using search API
+const hubspot = getHubSpotClient();
+
+const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+  filterGroups: [{
+    filters: [{
+      propertyName: 'email',
+      operator: 'EQ',
+      value: input.contactIdentifier.email,
+    }],
+  }],
+  properties: ['hhl_progress_state'],
+  limit: 1,
+});
+
+if (!searchResponse.results || searchResponse.results.length === 0) {
+  throw new Error(`Contact not found for email: ${input.contactIdentifier.email}`);
+}
+
+const contactId = searchResponse.results[0].id;
+```
+
+**Example 3: Read and update contact progress** (`src/api/lambda/index.ts:301-384`)
+```typescript
+// Read current progress state
+const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['hhl_progress_state']);
+let progressState: any = {};
+
+try {
+  if (contact.properties.hhl_progress_state) {
+    progressState = JSON.parse(contact.properties.hhl_progress_state);
+  }
+} catch (err) {
+  console.warn('Failed to parse existing progress state, starting fresh:', err);
+  progressState = {};
+}
+
+// ... modify progressState based on learning events ...
+
+// Update contact with new progress state
+const props: Record<string, any> = {
+  hhl_progress_state: JSON.stringify(progressState),
+  hhl_progress_updated_at: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+  hhl_progress_summary: generateProgressSummary(progressState),
+};
+
+await hubspot.crm.contacts.basicApi.update(contactId, { properties: props });
 ```
 
 #### Using Raw HTTP (curl)

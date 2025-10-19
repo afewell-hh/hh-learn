@@ -518,6 +518,49 @@
     text-decoration: underline;
   }
 
+  /* Enrollment CTA Block */
+  .enrollment-cta-block {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #0284c7;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+    text-align: center;
+  }
+  .enrollment-cta-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #0c4a6e;
+    margin: 0 0 12px 0;
+  }
+  .enrollment-cta-description {
+    font-size: 0.9375rem;
+    color: #0369a1;
+    margin: 0 0 20px 0;
+    line-height: 1.6;
+  }
+  .enrollment-button {
+    display: inline-block;
+    background: #1a4e8a;
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    text-decoration: none;
+  }
+  .enrollment-button:hover:not(:disabled) {
+    background: #154171;
+    transform: translateY(-2px);
+  }
+  .enrollment-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
   @media (max-width: 900px) {
     .learn-header-content, .learn-container {
       padding: 0 16px;
@@ -562,6 +605,19 @@
             </div>
           </header>
 
+          <!-- Enrollment CTA Block (only shown for authenticated users) -->
+          {% if request_contact.is_logged_in %}
+            <div class="enrollment-cta-block" id="hhl-enrollment-cta">
+              <div class="enrollment-cta-title">Ready to Begin This Learning Pathway?</div>
+              <div class="enrollment-cta-description">
+                Enroll to track your progress and receive personalized recommendations as you work through this pathway.
+              </div>
+              <button type="button" class="enrollment-button" id="hhl-enroll-button">
+                Enroll in Pathway
+              </button>
+            </div>
+          {% endif %}
+
           <!-- Progress Tracker -->
           <div class="pathway-progress" id="pathway-progress">
             <div class="progress-header">
@@ -595,6 +651,15 @@
                data-total-modules="{{ dynamic_page_hubdb_row.module_count|default(0) }}"
                style="display:none"></div>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pathways.js') }}"></script>
+          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>
+          <script>
+            // Initialize enrollment UI when enrollment.js is loaded
+            document.addEventListener('DOMContentLoaded', function() {
+              if (window.hhInitEnrollment) {
+                window.hhInitEnrollment('pathway', '{{ dynamic_page_hubdb_row.hs_path }}');
+              }
+            });
+          </script>
 
           <!-- Pathway Summary -->
           {% if dynamic_page_hubdb_row.summary_markdown %}

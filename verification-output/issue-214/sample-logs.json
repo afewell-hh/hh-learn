@@ -1,0 +1,98 @@
+[
+  {
+    "timestamp": "2025-10-19T10:30:15.234Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/events/track",
+    "error_code": "SCHEMA_VALIDATION_FAILED",
+    "error_message": "Invalid track event payload",
+    "details": [
+      "payload.module_slug: Required"
+    ],
+    "context": {
+      "event_name": "learning_module_started"
+    },
+    "payload_preview": "{\"eventName\":\"learning_module_started\",\"contactIdentifier\":{\"email\":\"test@example.com\"},\"payload\":{}}"
+  },
+  {
+    "timestamp": "2025-10-19T10:31:42.567Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/events/track",
+    "error_code": "INVALID_JSON",
+    "error_message": "Request body is not valid JSON",
+    "details": [
+      "Unexpected token } in JSON at position 42"
+    ],
+    "context": null,
+    "payload_preview": "{\"eventName\":\"learning_module_started\",\"payload\":{invalid json}}"
+  },
+  {
+    "timestamp": "2025-10-19T10:32:18.891Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/events/track",
+    "error_code": "SCHEMA_VALIDATION_FAILED",
+    "error_message": "Invalid track event payload",
+    "details": [
+      "contactIdentifier.email: Invalid email"
+    ],
+    "context": {
+      "event_name": "learning_module_started"
+    },
+    "payload_preview": "{\"eventName\":\"learning_module_started\",\"contactIdentifier\":{\"email\":\"not-an-email\"},\"payload\":{\"module_slug\":\"test\"}}"
+  },
+  {
+    "timestamp": "2025-10-19T10:33:05.123Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/events/track",
+    "error_code": "PAYLOAD_TOO_LARGE",
+    "error_message": "Request payload exceeds maximum size of 10KB",
+    "details": null,
+    "context": {
+      "payload_size": 11245
+    },
+    "payload_preview": "{\"eventName\":\"learning_module_started\",\"payload\":{\"data\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+  },
+  {
+    "timestamp": "2025-10-19T10:34:22.456Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/progress/aggregate",
+    "error_code": "SCHEMA_VALIDATION_FAILED",
+    "error_message": "Invalid query parameters",
+    "details": [
+      "type: Required",
+      "slug: Required"
+    ],
+    "context": null,
+    "payload_preview": null
+  },
+  {
+    "timestamp": "2025-10-19T10:35:11.789Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/enrollments/list",
+    "error_code": "SCHEMA_VALIDATION_FAILED",
+    "error_message": "Invalid query parameters",
+    "details": [
+      "Either email or contactId is required"
+    ],
+    "context": null,
+    "payload_preview": null
+  },
+  {
+    "timestamp": "2025-10-19T10:36:33.012Z",
+    "level": "warn",
+    "event": "validation_failure",
+    "endpoint": "/quiz/grade",
+    "error_code": "SCHEMA_VALIDATION_FAILED",
+    "error_message": "Invalid quiz grade payload",
+    "details": [
+      "module_slug: Required"
+    ],
+    "context": null,
+    "payload_preview": "{\"answers\":[{\"id\":\"q1\",\"value\":\"answer\"}]}"
+  }
+]

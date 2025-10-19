@@ -27,6 +27,7 @@
     "export:authoring": "npm run build && node dist/scripts/hubspot/export-course-authoring.js",
     "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants",
     "validate:cms": "npm run build && npm run provision:tables -- --dry-run && npm run provision:constants -- --dry-run && npm run provision:pages -- --dry-run",
+    "detect-orphans": "npm run build && node dist/scripts/detect-orphans.js",
     "test:e2e": "npx playwright test --reporter=list"
   },
   "dependencies": {

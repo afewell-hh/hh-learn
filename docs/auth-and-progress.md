@@ -86,29 +86,78 @@ When `ENABLE_CRM_PROGRESS=true` AND user signed in:
 POST https://<api-gateway-url>/events/track
 ```
 
-#### Request Payload
+#### Request Payload Schema (Issue #214)
+All incoming payloads are validated against a comprehensive JSON schema. Invalid requests return HTTP 400 with descriptive error messages.
+
+**Valid Event Names:**
+- `learning_module_started`
+- `learning_module_completed`
+- `learning_pathway_enrolled`
+- `learning_course_enrolled`
+- `learning_page_viewed`
+
+**Request Structure:**
 ```json
 {
-  "eventName": "learning_module_started" | "learning_module_completed" | "learning_pathway_enrolled",
+  "eventName": "learning_module_started",
   "contactIdentifier": {
-    "email": "user@example.com",  // OR
-    "contactId": "12345"
+    "email": "user@example.com",  // Optional, must be valid email (max 255 chars)
+    "contactId": "12345"           // Optional, max 50 chars
   },
   "payload": {
-    "module_slug": "intro-to-hedgehog",
-    "pathway_slug": "getting-started",
-    "ts": "2025-01-15T10:30:00Z"
-  }
+    "module_slug": "intro-to-hedgehog",     // Required for module events, max 200 chars
+    "pathway_slug": "getting-started",      // Optional for module events, max 200 chars
+    "course_slug": "network-fundamentals",  // Optional for module events, max 200 chars
+    "content_type": "pathway",              // Required for page_viewed events
+    "slug": "pathway-slug",                 // Required for page_viewed events
+    "ts": "2025-01-15T10:30:00Z"           // Optional ISO datetime
+  },
+  "enrollment_source": "pathway_page",      // Optional, max 1000 chars
+  "pathway_slug": "getting-started",        // Required for pathway_enrolled events
+  "course_slug": "kubernetes-basics"        // Required for course_enrolled events
 }
 ```
 
+**Validation Rules:**
+- **Payload size limit**: 10KB maximum (returns `PAYLOAD_TOO_LARGE` error code)
+- **Event-specific requirements**:
+  - `learning_module_started/completed`: Must include `module_slug` in payload or top-level fields
+  - `learning_pathway_enrolled`: Must include `pathway_slug`
+  - `learning_course_enrolled`: Must include `course_slug`
+  - `learning_page_viewed`: Must include `content_type` and `slug` in payload
+- **Email validation**: Must be valid email format if provided
+- **String length limits**: Applied to all string fields (see schema)
+- **contactIdentifier**: Optional for anonymous tracking; at least one of `email` or `contactId` required for authenticated tracking
+
 #### Response
+**Success (200):**
 ```json
 {
-  "status": "persisted" | "logged" | "queued",
-  "mode": "authenticated" | "anonymous" | "fallback"
+  "status": "persisted" | "logged",
+  "mode": "authenticated" | "anonymous" | "fallback",
+  "backend": "properties" | "events"
 }
 ```
+
+**Validation Error (400):**
+```json
+{
+  "error": "Invalid track event payload",
+  "code": "SCHEMA_VALIDATION_FAILED" | "INVALID_JSON" | "PAYLOAD_TOO_LARGE",
+  "details": [
+    "payload.module_slug: Required",
+    "contactIdentifier.email: Invalid email"
+  ]
+}
+```
+
+**Error Codes:**
+- `PAYLOAD_TOO_LARGE`: Request body exceeds 10KB
+- `INVALID_JSON`: Request body is not valid JSON
+- `SCHEMA_VALIDATION_FAILED`: Payload doesn't match schema requirements
+- `MISSING_REQUIRED_FIELD`: Required field is missing for event type
+- `INVALID_FIELD_TYPE`: Field has wrong data type
+- `INVALID_FIELD_VALUE`: Field value doesn't meet constraints
 
 #### Implementation Details
 - Environment variable: `ENABLE_CRM_PROGRESS` (default: `false`)
@@ -387,7 +436,93 @@ npm run deploy
 - Honor GDPR deletion requests via HubSpot
 - localStorage still used as local cache
 
+### 4. Validated GET Endpoints (Issue #214)
+
+All GET endpoints validate query parameters and return HTTP 400 for invalid requests.
+
+#### `/progress/read`
+**Query Parameters:**
+- `email`: Optional, valid email format (max 255 chars)
+- `contactId`: Optional, max 50 chars
+- At least one parameter recommended for authenticated mode
+
+**Validation Errors:**
+```json
+{
+  "error": "Invalid query parameters",
+  "code": "SCHEMA_VALIDATION_FAILED",
+  "details": ["email: Invalid email"]
+}
+```
+
+#### `/progress/aggregate`
+**Query Parameters:**
+- `email`: Optional, valid email format (max 255 chars)
+- `contactId`: Optional, max 50 chars
+- `type`: **Required**, must be `"pathway"` or `"course"`
+- `slug`: **Required**, non-empty string (max 200 chars)
+
+**Validation Errors:**
+Returns 400 if `type` or `slug` missing, or if values are invalid.
+
+#### `/enrollments/list`
+**Query Parameters:**
+- `email`: Valid email format OR
+- `contactId`: String (max 50 chars)
+- **At least one is required**
+
+**Validation Errors:**
+Returns 400 if neither identifier provided or if email format invalid.
+
+#### `/quiz/grade`
+**Request Body Schema:**
+```json
+{
+  "module_slug": "string (required, max 200 chars)",
+  "answers": [
+    {
+      "id": "string (required, max 1000 chars)",
+      "value": "any type"
+    }
+  ]
+}
+```
+
+**Validation Rules:**
+- Maximum 100 answers per quiz
+- `module_slug` cannot be empty
+- All answer objects must have `id` field
+
 ## Troubleshooting
+
+### Validation Errors (Issue #214)
+
+**Symptom**: Getting HTTP 400 with `SCHEMA_VALIDATION_FAILED` error
+
+**Solutions:**
+1. Check the `details` array in the error response for specific field errors
+2. Verify event-specific requirements (e.g., `module_slug` for module events)
+3. Ensure email addresses are valid format
+4. Check payload size is under 10KB
+5. Review structured logs for full validation context:
+   ```bash
+   aws logs tail /aws/lambda/hedgehog-learn-dev-api --follow --filter-pattern="VALIDATION_FAILURE"
+   ```
+
+**Sample Log Entry:**
+```json
+{
+  "timestamp": "2025-10-19T10:30:00Z",
+  "level": "warn",
+  "event": "validation_failure",
+  "endpoint": "/events/track",
+  "error_code": "SCHEMA_VALIDATION_FAILED",
+  "error_message": "Invalid track event payload",
+  "details": ["payload.module_slug: Required"],
+  "context": {"event_name": "learning_module_started"},
+  "payload_preview": "{\"eventName\":\"learning_module_started\"..."
+}
+```
 
 ### Events not appearing in HubSpot
 1. **Check event definitions exist**:

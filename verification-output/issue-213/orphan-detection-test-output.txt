@@ -1,0 +1,52 @@
+Test: Orphan Detection Error Handling
+=====================================
+
+This test demonstrates that the validation system correctly detects and reports
+orphaned references with clear, actionable error messages.
+
+Test Setup
+----------
+Created a temporary course file with intentional orphaned references:
+- 2 invalid modules in the modules array
+- 1 invalid module_ref in content_blocks
+
+Test Execution
+--------------
+Command: npm run sync:courses -- --dry-run
+
+Actual Output
+-------------
+
+❌ VALIDATION FAILED: Found orphaned references
+
+
+  COURSE: test-orphan-detection
+    ✗ Missing module "non-existent-module" in modules array
+    ✗ Missing module "another-missing-module" in modules array
+    ✗ Missing reference "invalid-content-block-ref" in content_blocks[0]
+
+
+💡 Fix these issues before syncing:
+   1. Create the missing modules/courses, OR
+   2. Remove the invalid references from the JSON files
+
+❌ Sync failed: Error: Validation failed: Found 3 orphaned reference(s). Fix these issues before syncing.
+
+
+Test Results
+------------
+✅ Validation correctly identified all 3 orphaned references
+✅ Error message includes parent type and slug (COURSE: test-orphan-detection)
+✅ Error message includes location of each invalid reference
+✅ Error message provides actionable guidance (create missing content or remove references)
+✅ Sync was blocked before attempting any HubDB operations
+✅ Exit code indicates failure (non-zero)
+
+Conclusion
+----------
+The orphan detection system functions as designed:
+- Fails fast before publishing
+- Provides clear, detailed error messages
+- Includes exact location of each problem
+- Offers actionable remediation steps
+- Prevents data corruption in HubDB

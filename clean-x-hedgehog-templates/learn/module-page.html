@@ -654,8 +654,9 @@
       <div class="learn-container">
         <div class="module-detail">
           <!-- Breadcrumbs -->
-          <nav class="module-breadcrumbs">
+          <nav class="module-breadcrumbs" id="hhl-breadcrumbs">
             <a href="/learn">← Back to Learning Portal</a>
+            <span id="hhl-course-position" style="display:none; margin-left:12px; color:#666; font-size:0.875rem;"></span>
           </nav>
 
           <!-- Module Header -->
@@ -697,6 +698,10 @@
               <a id="hhl-back-to-pathway" href="#" style="display:none; color:#0066CC; text-decoration:none; font-weight:600;">← Back to pathway</a>
             </div>
             {# Load external JS to avoid inline script CSP issues #}
+            <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/toast.js') }}"></script>
+            <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-context.js') }}"></script>
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-breadcrumbs.js') }}"></script>
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-navigation.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
           </header>

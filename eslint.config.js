@@ -49,6 +49,7 @@ export default [
         clearInterval: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
+        URLSearchParams: 'readonly',
       },
     },
   },

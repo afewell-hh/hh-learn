@@ -1,0 +1,138 @@
+(node:1905295) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ubuntu/afewell-hh/hh-learn/dist/src/sync/courses-to-hubdb.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ubuntu/afewell-hh/hh-learn/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+🔄 Starting courses sync to HubDB...
+
+📝 DRY RUN MODE - no changes will be made to HubDB
+
+Found 5 course(s) to sync:
+
+🔍 Building catalog of available modules for validation...
+   Found 15 available module(s)
+
+📋 Phase 1: Validating course references...
+
+  ✓ accessing-the-hedgehog-virtual-lab: All references valid
+  ✓ course-authoring-101: All references valid
+  ✓ getting-started-virtual-lab: All references valid
+  ✓ hedgehog-lab-foundations: All references valid
+  ✓ pathway-assembly-and-layouts: All references valid
+✅ All course references validated successfully!
+
+📤 Phase 2: Syncing courses to HubDB...
+
+📄 Course: Accessing the Hedgehog Virtual Lab (accessing-the-hedgehog-virtual-lab)
+   Modules: 3
+   Estimated minutes: 45
+   Content blocks: 0
+   Payload:
+{
+  "path": "accessing-the-hedgehog-virtual-lab",
+  "name": "Accessing the Hedgehog Virtual Lab",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Learn how to access the Hedgehog Virtual Lab across AWS, Azure, and Google Cloud. This course walks you through prerequisites, login, and environment setup so y",
+    "summary_markdown": "<p>Learn how to access the Hedgehog Virtual Lab across AWS, Azure, and Google Cloud. This course walks you through prerequisites, login, and environment setup so you can start learning fast.</p>\n",
+    "module_slugs_json": "[\"accessing-the-hedgehog-virtual-lab-with-amazon-web-services\",\"accessing-the-hedgehog-virtual-lab-with-microsoft-azure\",\"accessing-the-hedgehog-virtual-lab-with-google-cloud\"]",
+    "estimated_minutes": 45,
+    "badge_image_url": "",
+    "display_order": 1,
+    "tags": "getting-started,virtual-lab",
+    "content_blocks_json": "",
+    "social_image_url": ""
+  }
+}
+
+📄 Course: Course Authoring 101 (course-authoring-101)
+   Modules: 3
+   Estimated minutes: 90
+   Content blocks: 6
+   Payload:
+{
+  "path": "course-authoring-101",
+  "name": "Course Authoring 101",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Master the fundamentals of content authoring for Hedgehog Learn.\nWhat You&#39;ll Learn:\n\nCreate learning modules with proper front matter and markdown\nAdd image",
+    "summary_markdown": "<p>Master the fundamentals of content authoring for Hedgehog Learn.</p>\n<p><strong>What You&#39;ll Learn:</strong></p>\n<ul>\n<li>Create learning modules with proper front matter and markdown</li>\n<li>Add images, social previews, and SEO metadata</li>\n<li>Implement effective tagging strategies</li>\n<li>Test and troubleshoot your content with QA best practices</li>\n</ul>\n<p>This course takes you from zero to confidently authoring production-ready learning content.</p>\n",
+    "module_slugs_json": "[\"authoring-basics\",\"authoring-media-and-metadata\",\"authoring-qa-and-troubleshooting\"]",
+    "estimated_minutes": 90,
+    "badge_image_url": "",
+    "display_order": 1,
+    "tags": "authoring",
+    "content_blocks_json": "[{\"id\":\"intro\",\"type\":\"text\",\"title\":\"Welcome to Course Authoring 101\",\"body_markdown\":\"This course teaches you everything you need to start creating high-quality learning content for Hedgehog Learn.\\n\\nWhether you're a subject matter expert looking to share your knowledge or a content creator building comprehensive learning paths, this course gives you the foundational skills you need.\"},{\"id\":\"prereqs\",\"type\":\"callout\",\"title\":\"Prerequisites\",\"body_markdown\":\"**Required:**\\n- Basic text editor or IDE familiarity\\n- Understanding of markdown syntax\\n- Git and GitHub basics\\n\\n**Helpful but not required:**\\n- Command line experience\\n- JSON familiarity\\n- Content creation or technical writing background\"},{\"id\":\"module1\",\"type\":\"module_ref\",\"module_slug\":\"authoring-basics\"},{\"id\":\"module2\",\"type\":\"module_ref\",\"module_slug\":\"authoring-media-and-metadata\"},{\"id\":\"module3\",\"type\":\"module_ref\",\"module_slug\":\"authoring-qa-and-troubleshooting\"},{\"id\":\"next-steps\",\"type\":\"text\",\"title\":\"What's Next?\",\"body_markdown\":\"After completing this course, you'll be ready to:\\n\\n- Create individual learning modules\\n- Optimize content for discovery and engagement\\n- Ensure quality through systematic QA\\n\\nTo take your skills further, continue with the **Pathway Assembly & Layouts** course to learn how to assemble modules into courses and comprehensive learning pathways.\"}]",
+    "social_image_url": ""
+  }
+}
+
+📄 Course: Getting Started: Virtual Lab (getting-started-virtual-lab)
+   Modules: 3
+   Estimated minutes: 45
+   Content blocks: 6
+   Payload:
+{
+  "path": "getting-started-virtual-lab",
+  "name": "Getting Started: Virtual Lab",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Welcome to the Hedgehog Virtual Lab! This course will guide you through accessing your cloud-based learning environment across all three major cloud providers.\n",
+    "summary_markdown": "<p>Welcome to the Hedgehog Virtual Lab! This course will guide you through accessing your cloud-based learning environment across all three major cloud providers.</p>\n<p>You&#39;ll learn how to connect to and use the Hedgehog Virtual Lab (VLAB) using Google Cloud, Amazon Web Services, and Microsoft Azure. By the end of this course, you&#39;ll be comfortable accessing your hands-on learning environment from any of these platforms.</p>\n",
+    "module_slugs_json": "[\"accessing-the-hedgehog-virtual-lab-with-google-cloud\",\"accessing-the-hedgehog-virtual-lab-with-amazon-web-services\",\"accessing-the-hedgehog-virtual-lab-with-microsoft-azure\"]",
+    "estimated_minutes": 45,
+    "badge_image_url": "",
+    "display_order": 1,
+    "tags": "getting-started,vlab,onboarding,cloud",
+    "content_blocks_json": "[{\"id\":\"intro\",\"type\":\"text\",\"title\":\"Welcome to Your Virtual Lab\",\"body_markdown\":\"The Hedgehog Virtual Lab (VLAB) is your dedicated cloud environment for hands-on learning. This course covers three different ways to access your VLAB, depending on which cloud provider you're using or prefer.\"},{\"id\":\"choose-provider\",\"type\":\"callout\",\"title\":\"Choose Your Cloud Provider\",\"body_markdown\":\"You only need to complete **one** of the three modules below based on your preferred or assigned cloud provider:\\n\\n- **Google Cloud** - If you're using Google Cloud Platform\\n- **AWS** - If you're using Amazon Web Services\\n- **Azure** - If you're using Microsoft Azure\\n\\nIf you're not sure which to choose, contact your instructor or administrator.\"},{\"id\":\"gcp-module\",\"type\":\"module_ref\",\"module_slug\":\"accessing-the-hedgehog-virtual-lab-with-google-cloud\"},{\"id\":\"aws-module\",\"type\":\"module_ref\",\"module_slug\":\"accessing-the-hedgehog-virtual-lab-with-amazon-web-services\"},{\"id\":\"azure-module\",\"type\":\"module_ref\",\"module_slug\":\"accessing-the-hedgehog-virtual-lab-with-microsoft-azure\"},{\"id\":\"next-steps\",\"type\":\"text\",\"title\":\"Next Steps\",\"body_markdown\":\"Once you've successfully accessed your VLAB, you're ready to continue with additional learning pathways and modules. Check the pathways page to explore what's available!\"}]",
+    "social_image_url": ""
+  }
+}
+
+📄 Course: Hedgehog Lab Foundations (hedgehog-lab-foundations)
+   Modules: 4
+   Estimated minutes: 75
+   Content blocks: 8
+   Payload:
+{
+  "path": "hedgehog-lab-foundations",
+  "name": "Hedgehog Lab Foundations",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Build your foundation for hands-on learning in the Hedgehog Virtual Lab! This course covers accessing your cloud-based learning environment and introduces you t",
+    "summary_markdown": "<p>Build your foundation for hands-on learning in the Hedgehog Virtual Lab! This course covers accessing your cloud-based learning environment and introduces you to Kubernetes fundamentals.</p>\n<p>You&#39;ll start by learning how to connect to the Hedgehog Virtual Lab (VLAB) across all three major cloud providers, then dive into your first Kubernetes hands-on lab. By the end of this course, you&#39;ll be comfortable accessing your learning environment and deploying your first containerized application.</p>\n",
+    "module_slugs_json": "[\"accessing-the-hedgehog-virtual-lab-with-google-cloud\",\"accessing-the-hedgehog-virtual-lab-with-amazon-web-services\",\"accessing-the-hedgehog-virtual-lab-with-microsoft-azure\",\"intro-to-kubernetes\"]",
+    "estimated_minutes": 75,
+    "badge_image_url": "",
+    "display_order": 2,
+    "tags": "getting-started,vlab,kubernetes,foundations,onboarding",
+    "content_blocks_json": "[{\"id\":\"intro\",\"type\":\"text\",\"title\":\"Welcome to Hedgehog Lab Foundations\",\"body_markdown\":\"This course provides everything you need to get started with hands-on learning in the Hedgehog Virtual Lab. You'll learn how to access your cloud environment and complete your first Kubernetes lab.\"},{\"id\":\"section-vlab\",\"type\":\"text\",\"title\":\"Part 1: Access Your Virtual Lab\",\"body_markdown\":\"The Hedgehog Virtual Lab (VLAB) is your dedicated cloud environment. Choose one of the following modules based on your preferred cloud provider to learn how to access your VLAB.\"},{\"id\":\"gcp-module\",\"type\":\"module_ref\",\"module_slug\":\"accessing-the-hedgehog-virtual-lab-with-google-cloud\"},{\"id\":\"aws-module\",\"type\":\"module_ref\",\"module_slug\":\"accessing-the-hedgehog-virtual-lab-with-amazon-web-services\"},{\"id\":\"azure-module\",\"type\":\"module_ref\",\"module_slug\":\"accessing-the-hedgehog-virtual-lab-with-microsoft-azure\"},{\"id\":\"section-k8s\",\"type\":\"text\",\"title\":\"Part 2: Introduction to Kubernetes\",\"body_markdown\":\"Now that you can access your VLAB, it's time to deploy your first application! The Introduction to Kubernetes module will guide you through fundamental Kubernetes concepts with hands-on exercises.\"},{\"id\":\"k8s-intro-module\",\"type\":\"module_ref\",\"module_slug\":\"intro-to-kubernetes\"},{\"id\":\"next-steps\",\"type\":\"callout\",\"title\":\"Next Steps\",\"body_markdown\":\"Congratulations on completing the Hedgehog Lab Foundations! You're now ready to explore intermediate Kubernetes topics including storage and networking. Check the pathways page to continue your learning journey!\"}]",
+    "social_image_url": ""
+  }
+}
+
+📄 Course: Pathway Assembly & Layouts (pathway-assembly-and-layouts)
+   Modules: 2
+   Estimated minutes: 55
+   Content blocks: 5
+   Payload:
+{
+  "path": "pathway-assembly-and-layouts",
+  "name": "Pathway Assembly & Layouts",
+  "childTableId": 0,
+  "values": {
+    "meta_description": "Take your authoring skills to the next level by learning to create courses and pathways.\nWhat You&#39;ll Learn:\n\nAssemble modules into structured courses\nDesign",
+    "summary_markdown": "<p>Take your authoring skills to the next level by learning to create courses and pathways.</p>\n<p><strong>What You&#39;ll Learn:</strong></p>\n<ul>\n<li>Assemble modules into structured courses</li>\n<li>Design learning progressions and sequencing</li>\n<li>Create pathways that combine multiple courses</li>\n<li>Use content blocks to build rich, guided learning experiences</li>\n</ul>\n<p>This course focuses on the architecture and organization of learning content at scale.</p>\n",
+    "module_slugs_json": "[\"authoring-assembly-courses\",\"authoring-pathways-and-content-blocks\"]",
+    "estimated_minutes": 55,
+    "badge_image_url": "",
+    "display_order": 2,
+    "tags": "authoring,pathways",
+    "content_blocks_json": "[{\"id\":\"intro\",\"type\":\"text\",\"title\":\"Welcome to Pathway Assembly\",\"body_markdown\":\"In this course, you'll learn the higher-level skills of content organization: assembling modules into courses and courses into pathways.\\n\\nThese skills are essential for creating comprehensive, structured learning experiences that guide learners from beginner to expert.\"},{\"id\":\"prereqs\",\"type\":\"callout\",\"title\":\"Prerequisites\",\"body_markdown\":\"**Required:**\\n- Complete **Course Authoring 101** first\\n- Ability to create learning modules\\n- Understanding of JSON syntax\\n- Familiarity with markdown\\n\\n**Helpful but not required:**\\n- Instructional design principles\\n- Learning path architecture\\n- Content strategy experience\"},{\"id\":\"module1\",\"type\":\"module_ref\",\"module_slug\":\"authoring-assembly-courses\"},{\"id\":\"module2\",\"type\":\"module_ref\",\"module_slug\":\"authoring-pathways-and-content-blocks\"},{\"id\":\"next-steps\",\"type\":\"text\",\"title\":\"You're Now a Content Architect!\",\"body_markdown\":\"Congratulations! You now have the skills to:\\n\\n- Design and implement complete courses\\n- Create comprehensive learning pathways\\n- Use content blocks to enhance the learning experience\\n- Structure content from individual modules to expert-level journeys\\n\\n## Next Steps\\n\\nApply your skills:\\n- Create courses for your subject area\\n- Design pathways that guide learners to mastery\\n- Share your content with the community\\n- Help others learn by creating clear, well-structured learning experiences\"}]",
+    "social_image_url": ""
+  }
+}
+
+✅ Dry run complete!
+
+Summary: 5 succeeded, 0 failed
+

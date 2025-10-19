@@ -52,7 +52,17 @@
     Promise.all([getConstants(), Promise.resolve(getAuth())]).then(function(res){
       var constants = res[0];
       var auth = res[1];
-      send(constants, auth, { content_type: info.type, slug: info.slug, ts: new Date().toISOString() });
+      var payload = { content_type: info.type, slug: info.slug, ts: new Date().toISOString() };
+
+      // Add course context if viewing a module from a course
+      if (info.type === 'module' && window.hhCourseContext) {
+        var context = window.hhCourseContext.getContext();
+        if (context && context.courseSlug) {
+          payload.course_slug = context.courseSlug;
+        }
+      }
+
+      send(constants, auth, payload);
     });
   });
 })();

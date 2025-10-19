@@ -452,6 +452,49 @@
     align-items: center;
   }
 
+  /* Enrollment CTA Block */
+  .enrollment-cta-block {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #0284c7;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+    text-align: center;
+  }
+  .enrollment-cta-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #0c4a6e;
+    margin: 0 0 12px 0;
+  }
+  .enrollment-cta-description {
+    font-size: 0.9375rem;
+    color: #0369a1;
+    margin: 0 0 20px 0;
+    line-height: 1.6;
+  }
+  .enrollment-button {
+    display: inline-block;
+    background: #1a4e8a;
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    text-decoration: none;
+  }
+  .enrollment-button:hover:not(:disabled) {
+    background: #154171;
+    transform: translateY(-2px);
+  }
+  .enrollment-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
   @media (max-width: 900px) {
     .learn-header-content, .learn-container {
       padding: 0 16px;
@@ -496,6 +539,53 @@
               {% endif %}
             </div>
           </header>
+
+          <!-- Enrollment CTA Block (only shown for authenticated users) -->
+          {% if request_contact.is_logged_in %}
+            <div class="enrollment-cta-block" id="hhl-enrollment-cta">
+              <div class="enrollment-cta-title">Ready to Start This Course?</div>
+              <div class="enrollment-cta-description">
+                Enroll to track your progress and access personalized learning resources as you complete each module.
+              </div>
+              <button type="button" class="enrollment-button" id="hhl-enroll-button">
+                Start Course
+              </button>
+            </div>
+          {% endif %}
+
+          <!-- Progress Tracker -->
+          <div class="course-progress" id="course-progress" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 8px; padding: 20px 24px; margin: 24px 0;">
+            <div class="progress-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div class="progress-title" style="font-size: 0.875rem; font-weight: 600; color: #0c4a6e; text-transform: uppercase; letter-spacing: 0.5px;">Your Progress</div>
+              <div class="progress-stats" style="display: flex; gap: 16px; font-size: 0.875rem; color: #0369a1;">
+                <div class="progress-stat" style="display: flex; align-items: center; gap: 4px;">
+                  <span>Started: <strong id="progress-started" style="font-weight: 700; color: #0c4a6e;">0</strong></span>
+                </div>
+                <div class="progress-stat" style="display: flex; align-items: center; gap: 4px;">
+                  <span>Completed: <strong id="progress-completed" style="font-weight: 700; color: #0c4a6e;">0</strong></span>
+                </div>
+              </div>
+            </div>
+            <div class="progress-bar-container" style="background: #ffffff; border-radius: 8px; height: 8px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">
+              <div class="progress-bar" id="progress-bar" style="background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%); height: 100%; border-radius: 8px; transition: width 0.3s ease; width: 0%;"></div>
+            </div>
+            {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+            {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+            <div class="progress-auth-prompt" style="display: none; margin-top: 12px; padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 0.875rem; color: #78350f; align-items: center; gap: 8px;" id="auth-prompt">
+              ℹ️ Progress is saved locally. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}" style="color: #92400e; font-weight: 600; text-decoration: underline;">Sign in</a> to sync across devices.
+            </div>
+          </div>
+
+          {# Auth context for JS #}
+          <div id="hhl-auth-context"
+               data-email="{{ request_contact.email if request_contact.is_logged_in }}"
+               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
+               data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+               data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+               data-course-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+               data-total-modules="{% if dynamic_page_hubdb_row.module_slugs_json %}{{ dynamic_page_hubdb_row.module_slugs_json|fromjson|length }}{% else %}0{% endif %}"
+               style="display:none"></div>
+          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/courses.js') }}"></script>
 
           <!-- Course Summary -->
           {% if dynamic_page_hubdb_row.summary_markdown %}
@@ -610,7 +700,7 @@
                   {% set module = modules_by_slug[block.module_slug] %}
                   {% if module %}
                     <div class="content-block">
-                      <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
+                      <a href="/learn/modules/{{ module.hs_path }}?from=course:{{ dynamic_page_hubdb_row.hs_path }}" class="module-card">
                         <div class="module-card-number">{{ module_index }}</div>
                         <h3>{{ module.hs_name }}</h3>
 
@@ -630,7 +720,7 @@
                   {% else %}
                     {# Defensive: render minimal card using the slug #}
                     <div class="content-block">
-                      <a href="/learn/modules/{{ block.module_slug }}" class="module-card">
+                      <a href="/learn/modules/{{ block.module_slug }}?from=course:{{ dynamic_page_hubdb_row.hs_path }}" class="module-card">
                         <div class="module-card-number">{{ module_index }}</div>
                         <h3>{{ block.module_slug|replace('-',' ')|title }}</h3>
                         <div style="margin-top: 16px;">
@@ -663,7 +753,7 @@
                       {% if not module %}
                         {% set module = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
                       {% endif %}
-                      <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
+                      <a href="/learn/modules/{{ module.hs_path }}?from=course:{{ dynamic_page_hubdb_row.hs_path }}" class="module-card">
                         <div class="module-card-number">{{ module_index }}</div>
                         <h3>{{ module.hs_name }}</h3>
                         {% if module.meta_description %}
@@ -698,7 +788,7 @@
                     {# Defensive fallback: create a minimal object if lookup failed #}
                     {% set module = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
                   {% endif %}
-                    <a href="/learn/modules/{{ module.hs_path }}" class="module-card">
+                    <a href="/learn/modules/{{ module.hs_path }}?from=course:{{ dynamic_page_hubdb_row.hs_path }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
                       <h3>{{ module.hs_name }}</h3>
 
@@ -730,6 +820,15 @@
          data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
          style="display:none"></div>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
+    <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>
+    <script>
+      // Initialize enrollment UI when enrollment.js is loaded
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.hhInitEnrollment) {
+          window.hhInitEnrollment('course', '{{ dynamic_page_hubdb_row.hs_path }}');
+        }
+      });
+    </script>
 
   {% else %}
     {# List mode - showing all courses #}

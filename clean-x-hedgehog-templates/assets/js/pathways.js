@@ -54,24 +54,64 @@
     } catch (e) {}
   }
 
-  function getProgress(pathwaySlug) {
+  function getLocalProgress(pathwaySlug) {
     try {
       var raw = localStorage.getItem('hh-pathway-progress-' + pathwaySlug);
       return raw ? JSON.parse(raw) : { started:0, completed:0 };
     } catch(e) { return { started:0, completed:0 }; }
   }
 
-  function renderProgress(totalModules, pathwaySlug) {
-    var p = getProgress(pathwaySlug);
+  function fetchCRMProgress(constants, auth, pathwaySlug) {
+    // Return promise that resolves to progress data
+    if (!constants || !constants.TRACK_EVENTS_URL || !auth.enableCrm || (!auth.email && !auth.contactId)) {
+      return Promise.resolve(null); // Fall back to local storage
+    }
+
+    var apiBase = constants.TRACK_EVENTS_URL.replace('/events/track', '');
+    var params = new URLSearchParams({
+      type: 'pathway',
+      slug: pathwaySlug
+    });
+    if (auth.email) params.append('email', auth.email);
+    if (auth.contactId) params.append('contactId', auth.contactId);
+
+    var url = apiBase + '/progress/aggregate?' + params.toString();
+
+    return fetch(url, { credentials: 'omit' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('Failed to fetch progress');
+        return r.json();
+      })
+      .then(function(data) {
+        if (data.mode === 'authenticated') {
+          return {
+            started: data.started || 0,
+            completed: data.completed || 0,
+            enrolled: data.enrolled || false
+          };
+        }
+        return null;
+      })
+      .catch(function(err) {
+        console.warn('[hhl] Failed to fetch CRM progress:', err);
+        return null;
+      });
+  }
+
+  function renderProgress(totalModules, pathwaySlug, progressData) {
     var startedEl = document.getElementById('progress-started');
     var completedEl = document.getElementById('progress-completed');
     var barEl = document.getElementById('progress-bar');
     var authPrompt = document.getElementById('auth-prompt');
-    if (startedEl) startedEl.textContent = p.started;
-    if (completedEl) completedEl.textContent = p.completed;
-    var pct = totalModules > 0 ? Math.round((p.completed / totalModules) * 100) : 0;
+    if (startedEl) startedEl.textContent = progressData.started;
+    if (completedEl) completedEl.textContent = progressData.completed;
+    var pct = totalModules > 0 ? Math.round((progressData.completed / totalModules) * 100) : 0;
     if (barEl) barEl.style.width = pct + '%';
-    if (authPrompt && (p.started > 0 || p.completed > 0)) authPrompt.style.display = 'flex';
+
+    // Only show auth prompt if using local storage AND has some progress
+    if (authPrompt && !progressData.fromCRM && (progressData.started > 0 || progressData.completed > 0)) {
+      authPrompt.style.display = 'flex';
+    }
   }
 
   ready(function(){
@@ -82,14 +122,39 @@
 
     Promise.all([getConstants(), Promise.resolve(getAuth())]).then(function(res){
       var constants = res[0]; var auth = res[1];
-      renderProgress(totalModules, pathwaySlug);
-      sendEnrollment(constants, auth, pathwaySlug);
-      window.hhUpdatePathwayProgress = function(started, completed){
-        try {
-          localStorage.setItem('hh-pathway-progress-' + pathwaySlug, JSON.stringify({ started: started, completed: completed, lastUpdated: new Date().toISOString() }));
-        } catch(e) {}
-        renderProgress(totalModules, pathwaySlug);
-      };
+
+      // Try to fetch CRM progress first, fall back to local storage
+      fetchCRMProgress(constants, auth, pathwaySlug).then(function(crmProgress){
+        var progressData;
+        if (crmProgress) {
+          // Use CRM data
+          progressData = {
+            started: crmProgress.started,
+            completed: crmProgress.completed,
+            fromCRM: true
+          };
+        } else {
+          // Fall back to local storage
+          var localProgress = getLocalProgress(pathwaySlug);
+          progressData = {
+            started: localProgress.started,
+            completed: localProgress.completed,
+            fromCRM: false
+          };
+        }
+
+        renderProgress(totalModules, pathwaySlug, progressData);
+        sendEnrollment(constants, auth, pathwaySlug);
+
+        // Expose update function (for legacy compatibility)
+        window.hhUpdatePathwayProgress = function(started, completed){
+          try {
+            localStorage.setItem('hh-pathway-progress-' + pathwaySlug, JSON.stringify({ started: started, completed: completed, lastUpdated: new Date().toISOString() }));
+          } catch(e) {}
+          var updatedData = { started: started, completed: completed, fromCRM: false };
+          renderProgress(totalModules, pathwaySlug, updatedData);
+        };
+      });
     });
   });
 })();

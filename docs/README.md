@@ -2,7 +2,8 @@
 title: Hedgehog Learn Documentation Index
 owner: hh-learn project lead
 status: living
-last-reviewed: 2025-10-17
+last-reviewed: 2025-10-19
+last-updated: 2025-10-19
 ---
 
 # Documentation Index
@@ -11,8 +12,9 @@ last-reviewed: 2025-10-17
 
 ## Planning Sources of Truth
 - **GitHub Project (Hedgehog Learn):** Repo → *Projects* tab → *Hedgehog Learn* board (Kanban + Iterations views).
-- **Active Epics:** [#15 – Epic: v0.4 Structured Media](https://github.com/afewell-hh/hh-learn/issues/15), [#18 – Epic: v0.5 Analytics, A11y, Perf](https://github.com/afewell-hh/hh-learn/issues/18).
-- **Open Milestones:** `v0.1 – Authoring & Dynamic Pages` (#1), `v0.2 – Structured Media` (#2), `v0.3 – Quizzes & Progress` (#3), `v0.4 – Pathways & Labs` (#4), `v0.5 – Analytics, A11y, Perf` (#5), `v0.4 – Structured Media (backlog experiments)` (#8).
+- **Active Epics:** [#15 – Epic: v0.4 Structured Media](https://github.com/afewell-hh/hh-learn/issues/15), [#18 – Epic: v0.5 Analytics, A11y, Perf](https://github.com/afewell-hh/hh-learn/issues/18), _Learn MVP Launch Readiness_ (new epic to be created).
+- **Open Milestones:** `Learn MVP Launch Readiness` (target 2025-12-12), `v0.1 – Authoring & Dynamic Pages` (#1), `v0.2 – Structured Media` (#2), `v0.3 – Quizzes & Progress` (#3), `v0.4 – Pathways & Labs` (#4), `v0.5 – Analytics, A11y, Perf` (#5), `v0.4 – Structured Media (backlog experiments)` (#8).
+- **Iteration Plans:** [`iterations/2025-10-20-plan.md`](iterations/2025-10-20-plan.md) captures the four-iteration recovery schedule derived from the 2025-10-18 gap analysis.
 - **Outstanding Work:** [Issue #60](https://github.com/afewell-hh/hh-learn/issues/60) still requires manual verification; follow `docs/issue-60-verification-guide.md` before declaring the migration complete.
 
 ## Living Documents

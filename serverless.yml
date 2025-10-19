@@ -41,6 +41,12 @@ functions:
       - httpApi:
           path: /progress/read
           method: GET
+      - httpApi:
+          path: /progress/aggregate
+          method: GET
+      - httpApi:
+          path: /enrollments/list
+          method: GET
 
 package:
   individually: true
