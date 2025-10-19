@@ -1,0 +1,57 @@
+name: Validation Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "src/sync/**"
+      - "src/shared/validation.ts"
+      - "tests/validation.test.ts"
+      - "tests/run-validation-tests.ts"
+      - "scripts/detect-orphans.ts"
+      - ".github/workflows/validation-tests.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "src/sync/**"
+      - "src/shared/validation.ts"
+      - "tests/validation.test.ts"
+      - "tests/run-validation-tests.ts"
+      - "scripts/detect-orphans.ts"
+      - ".github/workflows/validation-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run validation unit tests
+        run: npx tsx tests/validation.test.ts
+
+      - name: Run orphan detection (dry-run)
+        env:
+          HUBSPOT_PROJECT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_PROJECT_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$HUBSPOT_PROJECT_ACCESS_TOKEN" ]; then
+            npx tsx scripts/detect-orphans.ts --dry-run
+          else
+            echo "Skipping orphan detection (no token available)"
+          fi
