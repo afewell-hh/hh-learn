@@ -499,13 +499,10 @@ function updatePathwayAggregates(pathway: any) {
       pathway.started_at = startedCourses.sort()[0]; // Earliest started_at
     }
 
-    // Completed: all courses completed
-    const allCompleted = courses.length > 0 && courses.every((c) => c.completed);
-    if (allCompleted && !pathway.completed) {
-      pathway.completed = true;
-      const completedCourses = courses.filter((c) => c.completed_at).map((c) => c.completed_at!);
-      pathway.completed_at = completedCourses.sort().reverse()[0]; // Latest completed_at
-    }
+    // Note: Pathway completion is NOT auto-calculated here because pathway.courses
+    // only contains courses the learner has interacted with, not the full course list
+    // from the pathway definition. Completion should be set explicitly by external logic
+    // that knows the total course count (e.g., via learning_pathway_completed event).
   } else if (pathway.modules) {
     // Flat model: aggregate from modules (backward compatibility)
     const modules = Object.values(pathway.modules || {}) as any[];
@@ -519,13 +516,9 @@ function updatePathwayAggregates(pathway: any) {
       pathway.started_at = startedModules.sort()[0]; // Earliest started_at
     }
 
-    // Completed: all modules completed
-    const allCompleted = modules.length > 0 && modules.every((m) => m.completed);
-    if (allCompleted && !pathway.completed) {
-      pathway.completed = true;
-      const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
-      pathway.completed_at = completedModules.sort().reverse()[0]; // Latest completed_at
-    }
+    // Note: Pathway completion is NOT auto-calculated for the same reason as hierarchical:
+    // pathway.modules may only contain modules the learner has interacted with, not the full
+    // module list from the pathway definition. Completion should be set explicitly.
   }
 }
 
