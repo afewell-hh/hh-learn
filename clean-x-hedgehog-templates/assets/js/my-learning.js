@@ -53,13 +53,30 @@
     var res = { inProgress: new Set(), completed: new Set() };
     try {
       if (!progress) return res;
-      Object.keys(progress).forEach(function(pathway){
-        var modules = (progress[pathway] && progress[pathway].modules) || {};
-        Object.keys(modules).forEach(function(slug){
-          var m = modules[slug] || {};
-          if (m.completed) res.completed.add(slug);
-          else if (m.started) res.inProgress.add(slug);
-        });
+
+      // Process each top-level key
+      Object.keys(progress).forEach(function(key){
+        // Skip the 'courses' key as it's a container, not a pathway
+        if (key === 'courses') {
+          // Process courses separately - they have nested structure
+          var courses = progress.courses || {};
+          Object.keys(courses).forEach(function(courseSlug){
+            var courseModules = (courses[courseSlug] && courses[courseSlug].modules) || {};
+            Object.keys(courseModules).forEach(function(slug){
+              var m = courseModules[slug] || {};
+              if (m.completed) res.completed.add(slug);
+              else if (m.started) res.inProgress.add(slug);
+            });
+          });
+        } else {
+          // Process pathway modules
+          var modules = (progress[key] && progress[key].modules) || {};
+          Object.keys(modules).forEach(function(slug){
+            var m = modules[slug] || {};
+            if (m.completed) res.completed.add(slug);
+            else if (m.started) res.inProgress.add(slug);
+          });
+        }
       });
     } catch(e){}
     return res;
