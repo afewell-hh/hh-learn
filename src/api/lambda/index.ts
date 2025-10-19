@@ -286,7 +286,21 @@ async function getAggregatedProgress(event: any, origin?: string) {
       }
     } else if (contentType === 'course') {
       // Aggregate modules across the course
-      const courseData = state.courses?.[slug];
+      // First check standalone courses
+      let courseData = state.courses?.[slug];
+
+      // If not found in standalone courses, search within pathways
+      if (!courseData) {
+        for (const [pathwaySlug, pathwayData] of Object.entries(state)) {
+          if (pathwaySlug === 'courses') continue; // Skip the standalone courses object
+          const pathway = pathwayData as any;
+          if (pathway.courses && pathway.courses[slug]) {
+            courseData = pathway.courses[slug];
+            break; // Found the course within a pathway
+          }
+        }
+      }
+
       if (courseData) {
         enrolled = courseData.enrolled || false;
         enrolled_at = courseData.enrolled_at || null;
