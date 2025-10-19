@@ -45,6 +45,8 @@ interface MigrationMetrics {
   skipped: number;
   failed: number;
   validation_errors: number;
+  pathways_already_hierarchical: number;
+  pathways_transformed: number;
   start_time: string;
   end_time?: string;
   duration_seconds?: number;
@@ -66,6 +68,8 @@ const metrics: MigrationMetrics = {
   skipped: 0,
   failed: 0,
   validation_errors: 0,
+  pathways_already_hierarchical: 0,
+  pathways_transformed: 0,
   start_time: new Date().toISOString(),
 };
 
@@ -251,8 +255,19 @@ async function transformProgressState(currentState: any): Promise<any> {
 
     if (pathwayContent.courses && pathwayContent.courses.length > 0) {
       // HIERARCHICAL: Pathway uses courses
-      console.log(`Transforming pathway ${pathwaySlug} to hierarchical model (${pathwayContent.courses.length} courses)`);
-      newState[pathwaySlug] = await transformToHierarchical(pathwaySlug, pathwayData, pathwayContent.courses);
+
+      // Check if pathway already has hierarchical structure (idempotency check)
+      if ((pathwayData as any).courses) {
+        // Already hierarchical - keep as-is (migration already ran or partial rollout)
+        console.log(`Pathway ${pathwaySlug} already hierarchical, preserving existing structure`);
+        newState[pathwaySlug] = pathwayData;
+        metrics.pathways_already_hierarchical++;
+      } else {
+        // Needs transformation from flat to hierarchical
+        console.log(`Transforming pathway ${pathwaySlug} to hierarchical model (${pathwayContent.courses.length} courses)`);
+        newState[pathwaySlug] = await transformToHierarchical(pathwaySlug, pathwayData, pathwayContent.courses);
+        metrics.pathways_transformed++;
+      }
     } else {
       // FLAT: Pathway uses direct modules (keep as-is for backward compatibility)
       console.log(`Keeping pathway ${pathwaySlug} as flat model (backward compatibility)`);
@@ -614,6 +629,8 @@ async function main() {
   console.log(`Skipped: ${metrics.skipped}`);
   console.log(`Failed: ${metrics.failed}`);
   console.log(`Validation errors: ${metrics.validation_errors}`);
+  console.log(`Pathways already hierarchical: ${metrics.pathways_already_hierarchical}`);
+  console.log(`Pathways transformed: ${metrics.pathways_transformed}`);
   console.log(`Duration: ${metrics.duration_seconds}s`);
   console.log(`\nSummary saved to: ${summaryPath}`);
   console.log(`Validation report: ${validationPath}`);
