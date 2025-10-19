@@ -2,7 +2,7 @@
 title: GitHub Projects – Best Practices
 owner: hh-learn project lead
 status: living
-last-reviewed: 2025-10-17
+last-reviewed: 2025-10-19
 ---
 
 # GitHub Projects – Best Practices
@@ -77,8 +77,76 @@ Note: Ensure your Project contains a single-select field named `Status` with opt
 - Every issue in a milestone has a clear acceptance criterion.
 
 ## Definitions of Ready/Done
-- Ready: clear problem statement; acceptance criteria; `Type`, `Area`, `Priority` set; dependencies identified.
-- Done: code merged; templates deployed; docs updated (incl. course-authoring); analytics hooks added (when applicable); issue closed.
+
+### Definition of Ready
+- Clear problem statement with acceptance criteria
+- `Type`, `Area`, and `Priority` labels set
+- Dependencies identified and linked
+- Assigned to appropriate iteration/milestone
+
+### Definition of Done (MANDATORY)
+**All issues MUST follow this process. No exceptions.**
+
+1. **Implementation**
+   - Code complete with passing unit tests
+   - Lint and build errors resolved
+   - Templates validated (for CMS changes)
+
+2. **Pull Request (REQUIRED)**
+   - PR created from feature branch
+   - PR linked to issue(s) via "Closes #XXX" or "Fixes #XXX"
+   - PR title follows conventional commit format
+   - PR description includes summary and testing notes
+   - Screenshots attached for UI changes
+
+3. **CI Validation (REQUIRED)**
+   - All CI checks passing:
+     - Lint (`npm run lint`)
+     - Build (`npm run build`)
+     - Unit tests (`npm test`)
+     - E2E tests (where applicable)
+     - Template validation (for CMS changes)
+   - No merge until all checks green
+
+4. **Code Review (REQUIRED)**
+   - At least one approval from project owner or area expert
+   - All review comments addressed
+   - Auto code review (`@codex review`) completed
+
+5. **Verification Evidence (REQUIRED)**
+   - Artifacts stored in `verification-output/issue-XXX/`
+   - Must include:
+     - Implementation summary
+     - Test results or manual test script
+     - Deployment/publish logs (where applicable)
+     - Screenshots or curl output demonstrating functionality
+   - Evidence linked in PR and issue closing comment
+
+6. **Documentation**
+   - `docs/course-authoring.md` updated (if content authoring affected)
+   - `docs/auth-and-progress.md` updated (if auth/progress affected)
+   - API documentation updated (if Lambda endpoints changed)
+   - This file updated (if process changed)
+
+7. **Deployment**
+   - Templates published via `publish-template` script (for CMS)
+   - Lambda deployed via `serverless deploy` (for backend)
+   - HubDB synced if schema changed
+   - Deployment verified in production
+
+8. **Issue Closure**
+   - All acceptance criteria checked off
+   - Closing comment includes:
+     - Link to merged PR
+     - Summary of changes
+     - Link to verification artifacts
+     - Deployment status
+   - Issue status moved to Done in GitHub Project
+
+### Enforcement
+**Issues closed without following this process MUST be reopened.**
+Per Issue #217, work done without PRs must be retroactively documented
+and reviewed before being considered complete.
 
 ## Cadence
 - Weekly triage/grooming: review Backlog → Ready; rebalance priorities.
@@ -124,6 +192,17 @@ CI gates:
 - For production-impacting issues, use the bug template with `priority/P0` and `blocked` as needed. Add a brief postmortem comment once resolved.
 
 ## Release Notes
+
+### 2025-10-19: PR + CI Enforcement (Issue #217)
+- **MANDATORY process established**: All issues now require PRs and CI validation
+- Updated Definition of Done with 8-step enforcement checklist
+- Added PR/CI requirements to all issue templates (feature, bug, docs)
+- Created new CI workflows:
+  - `validation-tests.yml` - Schema validation and orphan detection
+  - `e2e-catalog.yml` - Catalog filter E2E tests
+  - `e2e-course-navigation.yml` - Course-aware navigation tests
+- Issues #205-214 retroactively covered by comprehensive PR (Issue #217)
+- **Breaking change**: Issues closed without PR+review will be reopened
 
 ### 2025-10-16: Visible UX Priorities (P1)
 - Created P1 issues to address highly visible UX regressions and polish:
