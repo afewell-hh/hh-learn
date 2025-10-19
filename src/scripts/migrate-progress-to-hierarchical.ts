@@ -210,14 +210,25 @@ async function transformToHierarchical(
 
     // Migrate module progress from flat pathway to course
     const currentModules = currentPathwayData.modules || {};
+    let hasModuleProgress = false;
+
     for (const moduleSlug of courseModules) {
       if (currentModules[moduleSlug]) {
         // Module progress exists - migrate it
         courseProgress.modules![moduleSlug] = { ...currentModules[moduleSlug] };
+        hasModuleProgress = true;
       }
     }
 
-    // Compute course aggregates
+    // If the pathway is enrolled and this course has module progress, mark course as enrolled
+    // This ensures courses are visible in /enrollments/list endpoint
+    if (hasModuleProgress && currentPathwayData.enrolled) {
+      courseProgress.enrolled = true;
+      courseProgress.enrolled_at = currentPathwayData.enrolled_at || new Date().toISOString();
+      courseProgress.enrollment_source = currentPathwayData.enrollment_source || 'pathway_migration';
+    }
+
+    // Compute course aggregates (started/completed)
     updateCourseAggregates(courseProgress);
 
     newPathway.courses![courseSlug] = courseProgress;
