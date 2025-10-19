@@ -164,15 +164,31 @@ async function listEnrollments(event: any, origin?: string) {
           enrollment_source: pathwayData.enrollment_source || null
         });
       }
+
+      // Also extract courses within hierarchical pathways
+      if (pathwayData.courses) {
+        for (const [courseSlug, courseData] of Object.entries(pathwayData.courses)) {
+          const course = courseData as any;
+          if (course.enrolled) {
+            enrollments.courses.push({
+              slug: courseSlug,
+              pathway_slug: slug, // Track which pathway this course belongs to
+              enrolled_at: course.enrolled_at || null,
+              enrollment_source: course.enrollment_source || null
+            });
+          }
+        }
+      }
     }
 
-    // Parse courses
+    // Parse standalone courses
     if (state.courses) {
       for (const [slug, data] of Object.entries(state.courses)) {
         const courseData = data as any;
         if (courseData.enrolled) {
           enrollments.courses.push({
             slug,
+            pathway_slug: null, // Standalone course
             enrolled_at: courseData.enrolled_at || null,
             enrollment_source: courseData.enrollment_source || null
           });
@@ -244,16 +260,28 @@ async function getAggregatedProgress(event: any, origin?: string) {
     let enrolled_at = null;
 
     if (contentType === 'pathway') {
-      // Aggregate modules across the pathway
+      // Aggregate progress across the pathway
       const pathwayData = state[slug];
       if (pathwayData) {
         enrolled = pathwayData.enrolled || false;
         enrolled_at = pathwayData.enrolled_at || null;
-        const modules = pathwayData.modules || {};
-        for (const moduleSlug in modules) {
-          const moduleData = modules[moduleSlug];
-          if (moduleData.started) started++;
-          if (moduleData.completed) completed++;
+
+        if (pathwayData.courses) {
+          // Hierarchical model: count courses
+          const courses = pathwayData.courses || {};
+          for (const courseSlug in courses) {
+            const courseData = courses[courseSlug];
+            if (courseData.started) started++;
+            if (courseData.completed) completed++;
+          }
+        } else if (pathwayData.modules) {
+          // Flat model (legacy): count modules
+          const modules = pathwayData.modules || {};
+          for (const moduleSlug in modules) {
+            const moduleData = modules[moduleSlug];
+            if (moduleData.started) started++;
+            if (moduleData.completed) completed++;
+          }
         }
       }
     } else if (contentType === 'course') {
@@ -431,6 +459,77 @@ async function track(raw: string, origin?: string) {
 }
 
 /**
+ * Update course-level started/completed flags based on module progress
+ */
+function updateCourseAggregates(course: any) {
+  const modules = Object.values(course.modules || {}) as any[];
+  if (modules.length === 0) return;
+
+  // Started: any module started
+  const anyStarted = modules.some((m) => m.started);
+  if (anyStarted && !course.started) {
+    course.started = true;
+    const startedModules = modules.filter((m) => m.started_at).map((m) => m.started_at!);
+    course.started_at = startedModules.sort()[0]; // Earliest started_at
+  }
+
+  // Completed: all modules completed
+  const allCompleted = modules.length > 0 && modules.every((m) => m.completed);
+  if (allCompleted && !course.completed) {
+    course.completed = true;
+    const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
+    course.completed_at = completedModules.sort().reverse()[0]; // Latest completed_at
+  }
+}
+
+/**
+ * Update pathway-level started/completed flags based on course/module progress
+ */
+function updatePathwayAggregates(pathway: any) {
+  if (pathway.courses) {
+    // Hierarchical model: aggregate from courses
+    const courses = Object.values(pathway.courses || {}) as any[];
+    if (courses.length === 0) return;
+
+    // Started: any course started
+    const anyStarted = courses.some((c) => c.started);
+    if (anyStarted && !pathway.started) {
+      pathway.started = true;
+      const startedCourses = courses.filter((c) => c.started_at).map((c) => c.started_at!);
+      pathway.started_at = startedCourses.sort()[0]; // Earliest started_at
+    }
+
+    // Completed: all courses completed
+    const allCompleted = courses.length > 0 && courses.every((c) => c.completed);
+    if (allCompleted && !pathway.completed) {
+      pathway.completed = true;
+      const completedCourses = courses.filter((c) => c.completed_at).map((c) => c.completed_at!);
+      pathway.completed_at = completedCourses.sort().reverse()[0]; // Latest completed_at
+    }
+  } else if (pathway.modules) {
+    // Flat model: aggregate from modules (backward compatibility)
+    const modules = Object.values(pathway.modules || {}) as any[];
+    if (modules.length === 0) return;
+
+    // Started: any module started
+    const anyStarted = modules.some((m) => m.started);
+    if (anyStarted && !pathway.started) {
+      pathway.started = true;
+      const startedModules = modules.filter((m) => m.started_at).map((m) => m.started_at!);
+      pathway.started_at = startedModules.sort()[0]; // Earliest started_at
+    }
+
+    // Completed: all modules completed
+    const allCompleted = modules.length > 0 && modules.every((m) => m.completed);
+    if (allCompleted && !pathway.completed) {
+      pathway.completed = true;
+      const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
+      pathway.completed_at = completedModules.sort().reverse()[0]; // Latest completed_at
+    }
+  }
+}
+
+/**
  * Persist progress via Contact Properties (MVP default)
  * Uses hhl_progress_state property to store JSON progress data
  */
@@ -497,33 +596,112 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       progressState[pathwaySlug].enrollment_source = enrollmentSource;
     }
   } else if (input.eventName === 'learning_course_enrolled' && courseSlug) {
-    // Initialize courses object if needed
-    if (!progressState.courses) {
-      progressState.courses = {};
+    // Determine if this is a standalone course or course within a pathway
+    if (pathwaySlug) {
+      // Course within pathway (hierarchical model)
+      if (!progressState[pathwaySlug]) {
+        progressState[pathwaySlug] = { courses: {} };
+      }
+      if (!progressState[pathwaySlug].courses) {
+        progressState[pathwaySlug].courses = {};
+      }
+      if (!progressState[pathwaySlug].courses[courseSlug]) {
+        progressState[pathwaySlug].courses[courseSlug] = { modules: {} };
+      }
+      progressState[pathwaySlug].courses[courseSlug].enrolled = true;
+      progressState[pathwaySlug].courses[courseSlug].enrolled_at = timestamp;
+      if (enrollmentSource) {
+        progressState[pathwaySlug].courses[courseSlug].enrollment_source = enrollmentSource;
+      }
+    } else {
+      // Standalone course
+      if (!progressState.courses) {
+        progressState.courses = {};
+      }
+      if (!progressState.courses[courseSlug]) {
+        progressState.courses[courseSlug] = { modules: {} };
+      }
+      progressState.courses[courseSlug].enrolled = true;
+      progressState.courses[courseSlug].enrolled_at = timestamp;
+      if (enrollmentSource) {
+        progressState.courses[courseSlug].enrollment_source = enrollmentSource;
+      }
     }
-    if (!progressState.courses[courseSlug]) {
-      progressState.courses[courseSlug] = { modules: {} };
-    }
-    progressState.courses[courseSlug].enrolled = true;
-    progressState.courses[courseSlug].enrolled_at = timestamp;
-    if (enrollmentSource) {
-      progressState.courses[courseSlug].enrollment_source = enrollmentSource;
-    }
-  } else if (moduleSlug && pathwaySlug) {
-    // Initialize pathway if needed
-    if (!progressState[pathwaySlug]) {
-      progressState[pathwaySlug] = { modules: {} };
-    }
-    if (!progressState[pathwaySlug].modules[moduleSlug]) {
-      progressState[pathwaySlug].modules[moduleSlug] = {};
-    }
+  } else if (moduleSlug && (pathwaySlug || courseSlug)) {
+    // Module progress: support both hierarchical (pathway → course → module) and flat models
 
-    if (input.eventName === 'learning_module_started') {
-      progressState[pathwaySlug].modules[moduleSlug].started = true;
-      progressState[pathwaySlug].modules[moduleSlug].started_at = timestamp;
-    } else if (input.eventName === 'learning_module_completed') {
-      progressState[pathwaySlug].modules[moduleSlug].completed = true;
-      progressState[pathwaySlug].modules[moduleSlug].completed_at = timestamp;
+    if (pathwaySlug && courseSlug) {
+      // Hierarchical model: pathway → course → module
+      if (!progressState[pathwaySlug]) {
+        progressState[pathwaySlug] = { courses: {} };
+      }
+      if (!progressState[pathwaySlug].courses) {
+        progressState[pathwaySlug].courses = {};
+      }
+      if (!progressState[pathwaySlug].courses[courseSlug]) {
+        progressState[pathwaySlug].courses[courseSlug] = { modules: {} };
+      }
+      if (!progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug]) {
+        progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug] = {};
+      }
+
+      if (input.eventName === 'learning_module_started') {
+        progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].started = true;
+        progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].started_at = timestamp;
+      } else if (input.eventName === 'learning_module_completed') {
+        progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].completed = true;
+        progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].completed_at = timestamp;
+      }
+
+      // Update course aggregates
+      updateCourseAggregates(progressState[pathwaySlug].courses[courseSlug]);
+
+      // Update pathway aggregates
+      updatePathwayAggregates(progressState[pathwaySlug]);
+    } else if (pathwaySlug && !courseSlug) {
+      // Flat model (legacy): pathway → module (backward compatibility)
+      if (!progressState[pathwaySlug]) {
+        progressState[pathwaySlug] = { modules: {} };
+      }
+      if (!progressState[pathwaySlug].modules) {
+        progressState[pathwaySlug].modules = {};
+      }
+      if (!progressState[pathwaySlug].modules[moduleSlug]) {
+        progressState[pathwaySlug].modules[moduleSlug] = {};
+      }
+
+      if (input.eventName === 'learning_module_started') {
+        progressState[pathwaySlug].modules[moduleSlug].started = true;
+        progressState[pathwaySlug].modules[moduleSlug].started_at = timestamp;
+      } else if (input.eventName === 'learning_module_completed') {
+        progressState[pathwaySlug].modules[moduleSlug].completed = true;
+        progressState[pathwaySlug].modules[moduleSlug].completed_at = timestamp;
+      }
+
+      // Update pathway aggregates (flat model)
+      updatePathwayAggregates(progressState[pathwaySlug]);
+    } else if (courseSlug && !pathwaySlug) {
+      // Standalone course → module
+      if (!progressState.courses) {
+        progressState.courses = {};
+      }
+      if (!progressState.courses[courseSlug]) {
+        progressState.courses[courseSlug] = { modules: {} };
+      }
+      if (!progressState.courses[courseSlug].modules[moduleSlug]) {
+        progressState.courses[courseSlug].modules[moduleSlug] = {};
+      }
+
+      if (input.eventName === 'learning_module_started') {
+        progressState.courses[courseSlug].modules[moduleSlug].started = true;
+        progressState.courses[courseSlug].modules[moduleSlug].started_at = timestamp;
+      } else if (input.eventName === 'learning_module_completed') {
+        progressState.courses[courseSlug].modules[moduleSlug].completed = true;
+        progressState.courses[courseSlug].modules[moduleSlug].completed_at = timestamp;
+      }
+
+      // Update course aggregates
+      updateCourseAggregates(progressState.courses[courseSlug]);
     }
   }
 
@@ -578,17 +756,48 @@ async function persistViaBehavioralEvents(hubspot: any, input: TrackEventInput) 
  * Generate a human-readable summary of progress state
  */
 function generateProgressSummary(progressState: any): string {
-  const pathways = Object.keys(progressState);
-  if (pathways.length === 0) return 'No progress yet';
+  const keys = Object.keys(progressState);
+  if (keys.length === 0) return 'No progress yet';
 
   const summaries: string[] = [];
-  for (const pathway of pathways) {
-    const modules = Object.keys(progressState[pathway].modules || {});
-    const completed = modules.filter(m => progressState[pathway].modules[m].completed).length;
-    const total = modules.length;
 
-    if (total > 0) {
-      summaries.push(`${pathway}: ${completed}/${total} modules`);
+  for (const key of keys) {
+    if (key === 'courses') {
+      // Standalone courses
+      const courses = progressState.courses || {};
+      for (const courseSlug in courses) {
+        const courseData = courses[courseSlug];
+        const modules = Object.keys(courseData.modules || {});
+        const completed = modules.filter((m) => courseData.modules[m].completed).length;
+        const total = modules.length;
+
+        if (total > 0) {
+          summaries.push(`${courseSlug}: ${completed}/${total} modules`);
+        }
+      }
+    } else {
+      // Pathway
+      const pathwayData = progressState[key];
+
+      if (pathwayData.courses) {
+        // Hierarchical model: count courses
+        const courses = Object.keys(pathwayData.courses || {});
+        const completedCourses = courses.filter((c) => pathwayData.courses[c].completed).length;
+        const total = courses.length;
+
+        if (total > 0) {
+          summaries.push(`${key}: ${completedCourses}/${total} courses`);
+        }
+      } else if (pathwayData.modules) {
+        // Flat model: count modules (backward compatibility)
+        const modules = Object.keys(pathwayData.modules || {});
+        const completed = modules.filter((m) => pathwayData.modules[m].completed).length;
+        const total = modules.length;
+
+        if (total > 0) {
+          summaries.push(`${key}: ${completed}/${total} modules`);
+        }
+      }
     }
   }
 
