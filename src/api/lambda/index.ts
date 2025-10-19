@@ -487,13 +487,10 @@ function updateCourseAggregates(course: any) {
     course.started_at = startedModules.sort()[0]; // Earliest started_at
   }
 
-  // Completed: all modules completed
-  const allCompleted = modules.length > 0 && modules.every((m) => m.completed);
-  if (allCompleted && !course.completed) {
-    course.completed = true;
-    const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
-    course.completed_at = completedModules.sort().reverse()[0]; // Latest completed_at
-  }
+  // Note: Course completion is NOT auto-calculated here because course.modules
+  // only contains modules the learner has interacted with, not the full module list
+  // from the course definition. Completion should be set explicitly by external logic
+  // that knows the total module count (e.g., via learning_course_completed event).
 }
 
 /**
