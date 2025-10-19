@@ -220,9 +220,9 @@ async function transformToHierarchical(
       }
     }
 
-    // If the pathway is enrolled and this course has module progress, mark course as enrolled
-    // This ensures courses are visible in /enrollments/list endpoint
-    if (hasModuleProgress && currentPathwayData.enrolled) {
+    // If the pathway is enrolled, mark all courses as enrolled
+    // This ensures courses remain visible in /enrollments/list endpoint even without module progress
+    if (currentPathwayData.enrolled) {
       courseProgress.enrolled = true;
       courseProgress.enrolled_at = currentPathwayData.enrolled_at || new Date().toISOString();
       courseProgress.enrollment_source = currentPathwayData.enrollment_source || 'pathway_migration';
