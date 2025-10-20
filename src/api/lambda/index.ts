@@ -12,6 +12,8 @@ import {
   checkPayloadSize,
   ValidationErrorCode,
   createValidationError,
+  createValidationException,
+  ValidationErrorException,
   type ValidationError,
 } from '../../shared/validation.js';
 import {
@@ -472,8 +474,20 @@ async function track(raw: string, origin?: string) {
       return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' }, origin);
     }
   } catch (err: any) {
+    // Handle validation errors with 4xx response (Issue #221 feedback)
+    if (err instanceof ValidationErrorException) {
+      console.error('[Validation] Explicit completion validation failed:', err.code, err.message);
+      logValidationFailure(err.toValidationError(), '/track', JSON.stringify(input));
+      return bad(400, err.message, origin, {
+        code: err.code,
+        details: err.details,
+        context: err.context,
+      });
+    }
+
+    // For other errors (CRM failures, network issues), return success with fallback
+    // This prevents breaking the user experience when HubSpot API is unavailable
     console.error('Failed to persist event to CRM:', err.message || err);
-    // Return success even if CRM persistence fails - don't break user experience
     return ok({ status: 'logged', mode: 'fallback', error: err.message }, origin);
   }
 }
@@ -816,7 +830,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
         console.error(
           `[Completion] Rejected learning_course_completed event for ${courseSlug}: ${validation.reason}`
         );
-        throw createValidationError(
+        throw createValidationException(
           ValidationErrorCode.INVALID_EVENT_DATA,
           `Course completion claim rejected: ${validation.reason}`,
           [validation.reason || 'Unknown validation failure'],
@@ -855,7 +869,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
         console.error(
           `[Completion] Rejected learning_pathway_completed event for ${pathwaySlug}: ${validation.reason}`
         );
-        throw createValidationError(
+        throw createValidationException(
           ValidationErrorCode.INVALID_EVENT_DATA,
           `Pathway completion claim rejected: ${validation.reason}`,
           [validation.reason || 'Unknown validation failure'],

@@ -7,10 +7,11 @@
  * helpful error messages when validation fails.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ValidationErrorCode = exports.pathwayProgressStateSchema = exports.courseProgressStateSchema = exports.moduleProgressStateSchema = exports.quizGradeSchema = exports.enrollmentsListQuerySchema = exports.progressAggregateQuerySchema = exports.progressReadQuerySchema = exports.trackEventSchema = exports.contactIdentifierSchema = void 0;
+exports.ValidationErrorException = exports.ValidationErrorCode = exports.pathwayProgressStateSchema = exports.courseProgressStateSchema = exports.moduleProgressStateSchema = exports.quizGradeSchema = exports.enrollmentsListQuerySchema = exports.progressAggregateQuerySchema = exports.progressReadQuerySchema = exports.trackEventSchema = exports.contactIdentifierSchema = void 0;
 exports.validatePayload = validatePayload;
 exports.checkPayloadSize = checkPayloadSize;
 exports.createValidationError = createValidationError;
+exports.createValidationException = createValidationException;
 const zod_1 = require("zod");
 // Maximum payload sizes to prevent DoS
 const MAX_SLUG_LENGTH = 200;
@@ -187,7 +188,40 @@ var ValidationErrorCode;
     ValidationErrorCode["INVALID_EVENT_DATA"] = "INVALID_EVENT_DATA";
 })(ValidationErrorCode || (exports.ValidationErrorCode = ValidationErrorCode = {}));
 /**
+ * Custom error class for validation failures
+ * Extends Error to enable proper error handling and 4xx responses
+ */
+class ValidationErrorException extends Error {
+    code;
+    details;
+    context;
+    constructor(code, message, details, context) {
+        super(message);
+        this.name = 'ValidationErrorException';
+        this.code = code;
+        this.details = details;
+        this.context = context;
+        // Maintain proper stack trace for debugging
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, ValidationErrorException);
+        }
+    }
+    /**
+     * Convert to ValidationError interface for backward compatibility
+     */
+    toValidationError() {
+        return {
+            code: this.code,
+            message: this.message,
+            details: this.details,
+            context: this.context,
+        };
+    }
+}
+exports.ValidationErrorException = ValidationErrorException;
+/**
  * Create a structured validation error
+ * @deprecated Use createValidationException instead for throwable errors
  */
 function createValidationError(code, message, details, context) {
     return {
@@ -196,4 +230,11 @@ function createValidationError(code, message, details, context) {
         details,
         context,
     };
+}
+/**
+ * Create a throwable validation exception
+ * Use this when you need to throw validation errors that should result in 4xx responses
+ */
+function createValidationException(code, message, details, context) {
+    return new ValidationErrorException(code, message, details, context);
 }

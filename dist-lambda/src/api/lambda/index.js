@@ -422,8 +422,19 @@ async function track(raw, origin) {
         }
     }
     catch (err) {
+        // Handle validation errors with 4xx response (Issue #221 feedback)
+        if (err instanceof validation_js_1.ValidationErrorException) {
+            console.error('[Validation] Explicit completion validation failed:', err.code, err.message);
+            logValidationFailure(err.toValidationError(), '/track', JSON.stringify(input));
+            return bad(400, err.message, origin, {
+                code: err.code,
+                details: err.details,
+                context: err.context,
+            });
+        }
+        // For other errors (CRM failures, network issues), return success with fallback
+        // This prevents breaking the user experience when HubSpot API is unavailable
         console.error('Failed to persist event to CRM:', err.message || err);
-        // Return success even if CRM persistence fails - don't break user experience
         return ok({ status: 'logged', mode: 'fallback', error: err.message }, origin);
     }
 }
@@ -742,7 +753,7 @@ async function persistViaContactProperties(hubspot, input) {
             else {
                 // Reject invalid completion event
                 console.error(`[Completion] Rejected learning_course_completed event for ${courseSlug}: ${validation.reason}`);
-                throw (0, validation_js_1.createValidationError)(validation_js_1.ValidationErrorCode.INVALID_EVENT_DATA, `Course completion claim rejected: ${validation.reason}`, [validation.reason || 'Unknown validation failure'], { courseSlug });
+                throw (0, validation_js_1.createValidationException)(validation_js_1.ValidationErrorCode.INVALID_EVENT_DATA, `Course completion claim rejected: ${validation.reason}`, [validation.reason || 'Unknown validation failure'], { courseSlug });
             }
         }
         else {
@@ -769,7 +780,7 @@ async function persistViaContactProperties(hubspot, input) {
             else {
                 // Reject invalid completion event
                 console.error(`[Completion] Rejected learning_pathway_completed event for ${pathwaySlug}: ${validation.reason}`);
-                throw (0, validation_js_1.createValidationError)(validation_js_1.ValidationErrorCode.INVALID_EVENT_DATA, `Pathway completion claim rejected: ${validation.reason}`, [validation.reason || 'Unknown validation failure'], { pathwaySlug });
+                throw (0, validation_js_1.createValidationException)(validation_js_1.ValidationErrorCode.INVALID_EVENT_DATA, `Pathway completion claim rejected: ${validation.reason}`, [validation.reason || 'Unknown validation failure'], { pathwaySlug });
             }
         }
         else {

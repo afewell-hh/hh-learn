@@ -226,7 +226,48 @@ export interface ValidationError {
 }
 
 /**
+ * Custom error class for validation failures
+ * Extends Error to enable proper error handling and 4xx responses
+ */
+export class ValidationErrorException extends Error {
+  public readonly code: ValidationErrorCode;
+  public readonly details?: string[];
+  public readonly context?: Record<string, any>;
+
+  constructor(
+    code: ValidationErrorCode,
+    message: string,
+    details?: string[],
+    context?: Record<string, any>
+  ) {
+    super(message);
+    this.name = 'ValidationErrorException';
+    this.code = code;
+    this.details = details;
+    this.context = context;
+
+    // Maintain proper stack trace for debugging
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, ValidationErrorException);
+    }
+  }
+
+  /**
+   * Convert to ValidationError interface for backward compatibility
+   */
+  toValidationError(): ValidationError {
+    return {
+      code: this.code,
+      message: this.message,
+      details: this.details,
+      context: this.context,
+    };
+  }
+}
+
+/**
  * Create a structured validation error
+ * @deprecated Use createValidationException instead for throwable errors
  */
 export function createValidationError(
   code: ValidationErrorCode,
@@ -240,4 +281,17 @@ export function createValidationError(
     details,
     context,
   };
+}
+
+/**
+ * Create a throwable validation exception
+ * Use this when you need to throw validation errors that should result in 4xx responses
+ */
+export function createValidationException(
+  code: ValidationErrorCode,
+  message: string,
+  details?: string[],
+  context?: Record<string, any>
+): ValidationErrorException {
+  return new ValidationErrorException(code, message, details, context);
 }
