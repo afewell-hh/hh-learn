@@ -131,7 +131,7 @@
       return formatDate(isoString);
     } catch(e) { return formatDate(isoString); }
   }
-  function renderEnrollmentCard(item, type, modulesTable){
+  function renderEnrollmentCard(item, type, courseMetadata, progressData){
     var card = document.createElement('div');
     card.className = 'enrollment-card';
     var slug = item.slug || '';
@@ -140,20 +140,85 @@
     var href = type === 'pathway' ? ('/learn/pathways/' + slug) : ('/learn/courses/' + slug);
     var title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); });
     var sourceLabel = source.replace(/_/g, ' ');
-    card.innerHTML = '<div class="enrollment-card-header">\
+
+    // Build card header
+    var html = '<div class="enrollment-card-header">\
         <h3><a href="'+href+'" style="color:#1a4e8a; text-decoration:none;">'+title+'</a></h3>\
         <span class="enrollment-badge">'+type+'</span>\
       </div>\
       <div class="enrollment-meta">\
         <div class="enrollment-date"><strong>Enrolled:</strong> '+formatDate(enrolledAt)+'</div>\
         <div class="enrollment-source"><strong>Source:</strong> '+sourceLabel+'</div>\
-      </div>\
-      <div class="enrollment-actions">\
+      </div>';
+
+    // Add module listings if courseMetadata is provided
+    if (courseMetadata && courseMetadata.modules && courseMetadata.modules.length > 0){
+      var modules = courseMetadata.modules;
+      var completedCount = 0;
+      var totalCount = modules.length;
+      var nextIncompleteModule = null;
+
+      // Calculate completion count and find next incomplete
+      modules.forEach(function(mod){
+        if (mod.completed) {
+          completedCount++;
+        } else if (!nextIncompleteModule && mod.started) {
+          nextIncompleteModule = mod;
+        } else if (!nextIncompleteModule && !mod.started) {
+          nextIncompleteModule = mod;
+        }
+      });
+
+      var progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+      // Add progress bar
+      html += '<div class="enrollment-progress">\
+        <div class="enrollment-progress-label">'+completedCount+' of '+totalCount+' modules complete ('+progressPercent+'%)</div>\
+        <div class="enrollment-progress-bar">\
+          <div class="enrollment-progress-fill" style="width:'+progressPercent+'%"></div>\
+        </div>\
+      </div>';
+
+      // Add collapsible module list
+      html += '<details class="enrollment-modules-toggle">\
+        <summary class="enrollment-modules-summary">View Modules</summary>\
+        <div class="enrollment-modules-list">';
+
+      modules.forEach(function(mod){
+        var modPath = mod.path || mod.hs_path || mod.slug;
+        var modName = mod.name || mod.hs_name || modPath.replace(/-/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); });
+        var modStatus = mod.completed ? '✓' : (mod.started ? '◐' : '○');
+        var modStatusClass = mod.completed ? 'completed' : (mod.started ? 'in-progress' : 'not-started');
+        html += '<div class="enrollment-module-item '+modStatusClass+'">\
+          <span class="enrollment-module-status">'+modStatus+'</span>\
+          <a href="/learn/'+modPath+'" class="enrollment-module-link">'+modName+'</a>\
+        </div>';
+      });
+
+      html += '</div></details>';
+
+      // Update "Continue" button to link to next incomplete module
+      if (nextIncompleteModule) {
+        var nextPath = nextIncompleteModule.path || nextIncompleteModule.hs_path || nextIncompleteModule.slug;
+        html += '<div class="enrollment-actions">\
+          <a href="/learn/'+nextPath+'" class="enrollment-cta">Continue to Next Module →</a>\
+        </div>';
+      } else {
+        html += '<div class="enrollment-actions">\
+          <a href="'+href+'" class="enrollment-cta">View Course →</a>\
+        </div>';
+      }
+    } else {
+      // No module metadata, show generic "Continue Learning" button
+      html += '<div class="enrollment-actions">\
         <a href="'+href+'" class="enrollment-cta">Continue Learning →</a>\
       </div>';
+    }
+
+    card.innerHTML = html;
     return card;
   }
-  function renderEnrolledContent(enrollments){
+  function renderEnrolledContent(enrollments, constants, progressData){
     try {
       var pathways = enrollments.pathways || [];
       var courses = enrollments.courses || [];
@@ -170,21 +235,137 @@
         return;
       }
 
-      // Render pathways
-      pathways.forEach(function(pathway){
-        enrolledGrid.appendChild(renderEnrollmentCard(pathway, 'pathway'));
+      var COURSES_TABLE_ID = constants.HUBDB_COURSES_TABLE_ID;
+      var MODULES_TABLE_ID = constants.HUBDB_MODULES_TABLE_ID;
+
+      // Fetch course metadata for all enrolled courses
+      var coursePromises = courses.map(function(course){
+        var courseSlug = course.slug || '';
+        if (!COURSES_TABLE_ID || !courseSlug) return Promise.resolve(null);
+
+        return fetchJSON('/hs/api/hubdb/v3/tables/'+COURSES_TABLE_ID+'/rows?hs_path__eq='+encodeURIComponent(courseSlug))
+          .then(function(data){
+            if (!data || !data.results || data.results.length === 0) return null;
+            var courseRow = data.results[0];
+            var moduleSlugsJson = (courseRow.values && courseRow.values.module_slugs_json) || courseRow.module_slugs_json || '[]';
+            var moduleSlugs = [];
+            try {
+              moduleSlugs = JSON.parse(moduleSlugsJson);
+            } catch(e){}
+
+            return {
+              courseSlug: courseSlug,
+              moduleSlugs: moduleSlugs,
+              courseRow: courseRow
+            };
+          })
+          .catch(function(){ return null; });
       });
 
-      // Render courses
-      courses.forEach(function(course){
-        enrolledGrid.appendChild(renderEnrollmentCard(course, 'course'));
+      // Wait for all course metadata to load
+      Promise.all(coursePromises).then(function(coursesData){
+        // Fetch module metadata for all unique module slugs
+        var allModuleSlugs = [];
+        coursesData.forEach(function(courseData){
+          if (courseData && courseData.moduleSlugs) {
+            allModuleSlugs = allModuleSlugs.concat(courseData.moduleSlugs);
+          }
+        });
+
+        // Remove duplicates
+        allModuleSlugs = Array.from(new Set(allModuleSlugs));
+
+        if (allModuleSlugs.length === 0 || !MODULES_TABLE_ID) {
+          // No modules to fetch, render without module metadata
+          renderEnrolledCards(pathways, courses, null, null);
+          return;
+        }
+
+        // Fetch all module metadata in one batch
+        var filter = allModuleSlugs.map(function(s){ return 'hs_path__eq='+encodeURIComponent(s); }).join('&');
+        fetchJSON('/hs/api/hubdb/v3/tables/'+MODULES_TABLE_ID+'/rows?'+filter+'&tags__not__icontains=archived')
+          .then(function(data){
+            var modules = (data && data.results) || [];
+
+            // Build a map of moduleSlug -> moduleData
+            var moduleMap = {};
+            modules.forEach(function(mod){
+              var slug = (mod.values && mod.values.hs_path) || mod.hs_path || mod.path;
+              if (slug) moduleMap[slug] = mod;
+            });
+
+            // Build course metadata with modules and progress
+            var courseMetadataMap = {};
+            coursesData.forEach(function(courseData){
+              if (!courseData) return;
+              var courseSlug = courseData.courseSlug;
+              var moduleSlugs = courseData.moduleSlugs;
+
+              // Get progress data for this course
+              var courseProgress = null;
+              if (progressData && progressData.progress) {
+                var prog = progressData.progress;
+                // Check in courses container
+                if (prog.courses && prog.courses[courseSlug]) {
+                  courseProgress = prog.courses[courseSlug];
+                }
+                // Also check in pathways
+                Object.keys(prog).forEach(function(pathwaySlug){
+                  if (pathwaySlug !== 'courses' && prog[pathwaySlug].courses && prog[pathwaySlug].courses[courseSlug]) {
+                    courseProgress = prog[pathwaySlug].courses[courseSlug];
+                  }
+                });
+              }
+
+              // Build module list with progress
+              var modulesWithProgress = moduleSlugs.map(function(modSlug){
+                var modData = moduleMap[modSlug] || {};
+                var modProgress = (courseProgress && courseProgress.modules && courseProgress.modules[modSlug]) || {};
+                return {
+                  slug: modSlug,
+                  path: (modData.values && modData.values.hs_path) || modData.hs_path || modSlug,
+                  hs_path: (modData.values && modData.values.hs_path) || modData.hs_path || modSlug,
+                  name: (modData.values && modData.values.hs_name) || modData.hs_name || '',
+                  hs_name: (modData.values && modData.values.hs_name) || modData.hs_name || '',
+                  started: modProgress.started || false,
+                  completed: modProgress.completed || false
+                };
+              });
+
+              courseMetadataMap[courseSlug] = {
+                modules: modulesWithProgress
+              };
+            });
+
+            renderEnrolledCards(pathways, courses, courseMetadataMap, progressData);
+          })
+          .catch(function(err){
+            console.error('[hhl-my-learning] Error fetching module metadata:', err);
+            renderEnrolledCards(pathways, courses, null, null);
+          });
+      }).catch(function(err){
+        console.error('[hhl-my-learning] Error fetching course metadata:', err);
+        renderEnrolledCards(pathways, courses, null, null);
       });
 
-      // Update count and show section
-      var totalEnrolled = pathways.length + courses.length;
-      var enrolledCount = q('enrolled-count');
-      if (enrolledCount) enrolledCount.textContent = '(' + totalEnrolled + ')';
-      enrolledSection.style.display = 'block';
+      function renderEnrolledCards(pathways, courses, courseMetadataMap, progressData){
+        // Render pathways
+        pathways.forEach(function(pathway){
+          enrolledGrid.appendChild(renderEnrollmentCard(pathway, 'pathway', null, progressData));
+        });
+
+        // Render courses with metadata
+        courses.forEach(function(course){
+          var courseMetadata = courseMetadataMap ? courseMetadataMap[course.slug] : null;
+          enrolledGrid.appendChild(renderEnrollmentCard(course, 'course', courseMetadata, progressData));
+        });
+
+        // Update count and show section
+        var totalEnrolled = pathways.length + courses.length;
+        var enrolledCount = q('enrolled-count');
+        if (enrolledCount) enrolledCount.textContent = '(' + totalEnrolled + ')';
+        enrolledSection.style.display = 'block';
+      }
     } catch(e){
       console.error('[hhl-my-learning] Error rendering enrolled content:', e);
       // Show error state to user
@@ -252,7 +433,7 @@
 
           // Render enrolled content if available
           if (enrollmentData && enrollmentData.mode === 'authenticated' && enrollmentData.enrollments){
-            renderEnrolledContent(enrollmentData.enrollments);
+            renderEnrolledContent(enrollmentData.enrollments, constants, progressData);
           }
 
           // Render module progress
