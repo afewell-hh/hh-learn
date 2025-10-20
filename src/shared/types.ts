@@ -24,6 +24,10 @@ export type CourseProgressState = {
   enrolled?: boolean;
   enrolled_at?: string;
   enrollment_source?: string;
+  started?: boolean; // At least one module started
+  started_at?: string; // Timestamp of first module start
+  completed?: boolean; // All modules completed
+  completed_at?: string; // Timestamp of last module completion
   modules?: Record<string, ModuleProgressState>;
 };
 
@@ -31,6 +35,15 @@ export type PathwayProgressState = {
   enrolled?: boolean;
   enrolled_at?: string;
   enrollment_source?: string;
+  started?: boolean; // At least one course/module started
+  started_at?: string; // Timestamp of first activity
+  completed?: boolean; // All courses/modules completed
+  completed_at?: string; // Timestamp of final completion
+
+  // For pathways with courses (hierarchical model)
+  courses?: Record<string, CourseProgressState>;
+
+  // For legacy pathways with direct modules (backward compatibility)
   modules?: Record<string, ModuleProgressState>;
 };
 
