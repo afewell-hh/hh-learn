@@ -493,6 +493,168 @@ Returns 400 if neither identifier provided or if email format invalid.
 - `module_slug` cannot be empty
 - All answer objects must have `id` field
 
+## Debugging & Instrumentation (Issue #237)
+
+### Debug Mode
+
+A comprehensive debug instrumentation module is available to diagnose authentication and session issues.
+
+**Enable Debug Mode:**
+```javascript
+// In browser console
+localStorage.setItem('HHL_DEBUG', 'true')
+location.reload()
+```
+
+**Disable Debug Mode:**
+```javascript
+localStorage.removeItem('HHL_DEBUG')
+location.reload()
+```
+
+**What Gets Logged:**
+- Auth bootstrapper context (`#hhl-auth-context` div)
+- Cookie information (names only, no values for privacy)
+- Membership profile API responses (`/_hcms/api/membership/v1/profile`)
+- Authentication state changes
+- Enrollment and progress tracking calls
+
+**Debug Output Example:**
+```
+[hhl:debug] Debug mode ENABLED
+[hhl:bootstrap] Auth Context Loaded
+  ├─ email: user@example.com
+  ├─ contactId: 12345
+  ├─ enableCrm: true
+  └─ Authenticated: true
+[hhl:cookies] Cookie Information
+  ├─ Total cookies: 15
+  └─ HubSpot cookies: [__hstc, hubspotutk, __hssc, ...]
+[hhl:membership] Profile API Response
+  ├─ Status: 200 OK
+  └─ Has email: true, Has contact ID: true
+```
+
+### Membership Profile API
+
+HubSpot CMS provides an internal API endpoint for checking membership session state:
+
+**Endpoint:**
+```
+GET /_hcms/api/membership/v1/profile
+```
+
+**Authentication:** Session cookies (included automatically when logged in)
+
+**Expected Responses:**
+
+**Anonymous User (404):**
+```json
+{
+  "status": 404,
+  "message": "Not found"
+}
+```
+
+**Authenticated User (200):**
+```json
+{
+  "email": "user@example.com",
+  "contactId": "12345",
+  "vid": "12345",
+  "hs_object_id": "12345",
+  "is_logged_in": true,
+  "firstname": "John",
+  "lastname": "Doe"
+}
+```
+
+### Required HubSpot Configuration
+
+**1. Enable CMS Membership**
+- Navigate to: **Settings** > **Website** > **Pages** > **Memberships**
+- Enable: **Require member registration**
+- Configure: **Access Groups**
+
+**2. Access Groups**
+- Create an access group (e.g., "Learners")
+- Assign contacts to the access group OR
+- Enable self-registration
+
+**3. Verify Membership Pages**
+- Login URL: `/hs-login` or `/_hcms/mem/login`
+- Logout URL: `/hs-logout` or `/_hcms/mem/logout`
+- Both should be accessible and functional
+
+**4. Test Membership Session**
+With debug mode enabled:
+1. Visit any Learn page anonymously
+2. Profile API should return 404
+3. Sign in via login URL
+4. After redirect, profile API should return 200
+5. Auth context should populate with email/contactId
+6. Session should persist across page navigations
+
+### Common Configuration Issues
+
+**Profile API Returns 404 After Login:**
+- Membership feature not enabled on portal
+- User not assigned to an access group
+- Session cookies not being set/persisted
+- Cookie domain mismatch
+
+**Auth Context Empty Despite Login:**
+- HubL template not using `request_contact` variables
+- Templates not published or cached
+- `request_contact.is_logged_in` returning false
+- JavaScript errors preventing bootstrapper execution
+
+**Session Not Persisting:**
+- Cookie `SameSite` attribute too restrictive
+- Redirects causing cookie loss
+- Testing on HTTP instead of HTTPS
+- Cookie path doesn't match navigation path
+
+### Automated Testing
+
+Run Playwright tests to capture detailed session behavior:
+
+```bash
+# Full instrumentation test suite
+npx playwright test tests/e2e/membership-instrumentation.spec.ts
+
+# Run with browser UI
+npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
+
+# Specific test
+npx playwright test tests/e2e/membership-instrumentation.spec.ts -g "authenticated"
+```
+
+**Test Coverage:**
+- Anonymous session behavior
+- Authenticated session flow (full login)
+- Cookie persistence across redirects
+- Profile API responses
+- Auth context population
+- Debug module verification
+
+**Output Artifacts:**
+Results saved to `verification-output/issue-237/`:
+- `anonymous-session-capture.json`
+- `authenticated-session-capture.json`
+- `debug-module-output.json`
+- `post-login-page.png`
+
+### Manual Testing Guide
+
+Run the interactive debug guide:
+
+```bash
+node scripts/membership/debug-profile.js
+```
+
+This provides step-by-step instructions for browser-based testing and troubleshooting.
+
 ## Troubleshooting
 
 ### Validation Errors (Issue #214)
