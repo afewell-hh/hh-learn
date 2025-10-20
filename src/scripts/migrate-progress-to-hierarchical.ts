@@ -25,6 +25,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getHubSpotClient } from '../shared/hubspot.js';
 import type { PathwayProgressState, CourseProgressState, ModuleProgressState } from '../shared/types.js';
+import { loadMetadataCache, calculateCourseCompletion, calculatePathwayCompletion } from '../api/lambda/completion.js';
 
 const OUTPUT_DIR = 'verification-output/issue-215';
 const SNAPSHOTS_DIR = `${OUTPUT_DIR}/snapshots`;
@@ -133,8 +134,12 @@ function loadCourseContent(courseSlug: string): any {
 
 /**
  * Update course-level aggregates based on module progress
+ *
+ * Decision (Issue #221): Use metadata-driven completion calculation
+ * - Completion timestamp = latest module completed_at
+ * - All modules in definition are required (no optional modules yet)
  */
-function updateCourseAggregates(course: CourseProgressState) {
+function updateCourseAggregates(courseSlug: string, course: CourseProgressState) {
   const modules = Object.values(course.modules || {}) as ModuleProgressState[];
   if (modules.length === 0) return;
 
@@ -146,17 +151,25 @@ function updateCourseAggregates(course: CourseProgressState) {
     course.started_at = startedModules.sort()[0]; // Earliest
   }
 
-  // NOTE: Course completion is intentionally NOT calculated during migration.
-  // The course.modules object only contains modules the learner has interacted with,
-  // not the full module list from the course definition. Computing completion would
-  // require loading course metadata to know the total module count.
-  // Completion tracking will be implemented in a follow-up issue.
+  // Completion: check against metadata (Issue #221)
+  const completionResult = calculateCourseCompletion(courseSlug, course.modules || {});
+
+  if (completionResult.completed && !course.completed) {
+    // Course completed - use latest module completion time
+    course.completed = true;
+    const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
+    course.completed_at = completedModules.sort().reverse()[0] || new Date().toISOString();
+  }
 }
 
 /**
  * Update pathway-level aggregates based on course progress
+ *
+ * Decision (Issue #221): Use metadata-driven completion calculation
+ * - Completion timestamp = latest course completed_at
+ * - All courses in definition are required (no optional courses yet)
  */
-function updatePathwayAggregates(pathway: PathwayProgressState) {
+function updatePathwayAggregates(pathwaySlug: string, pathway: PathwayProgressState) {
   if (pathway.courses) {
     const courses = Object.values(pathway.courses || {}) as CourseProgressState[];
     if (courses.length === 0) return;
@@ -168,11 +181,15 @@ function updatePathwayAggregates(pathway: PathwayProgressState) {
       pathway.started_at = startedCourses.sort()[0];
     }
 
-    // NOTE: Pathway completion is intentionally NOT calculated during migration.
-    // The pathway.courses object only contains courses the learner has interacted with,
-    // not the full course list from the pathway definition. Computing completion would
-    // require loading pathway metadata to know the total course count.
-    // Completion tracking will be implemented in a follow-up issue.
+    // Completion: check against metadata (Issue #221)
+    const completionResult = calculatePathwayCompletion(pathwaySlug, pathway.courses || {});
+
+    if (completionResult.completed && !pathway.completed) {
+      // Pathway completed - use latest course completion time
+      pathway.completed = true;
+      const completedCourses = courses.filter((c) => c.completed_at).map((c) => c.completed_at!);
+      pathway.completed_at = completedCourses.sort().reverse()[0] || new Date().toISOString();
+    }
   }
 }
 
@@ -226,13 +243,13 @@ async function transformToHierarchical(
     }
 
     // Compute course aggregates (started/completed)
-    updateCourseAggregates(courseProgress);
+    updateCourseAggregates(courseSlug, courseProgress);
 
     newPathway.courses![courseSlug] = courseProgress;
   }
 
   // Compute pathway aggregates
-  updatePathwayAggregates(newPathway);
+  updatePathwayAggregates(pathwaySlug, newPathway);
 
   return newPathway;
 }
@@ -562,6 +579,11 @@ async function main() {
   console.log(`Mode: ${dryRun ? 'DRY-RUN' : verifyOnly ? 'VERIFY-ONLY' : 'LIVE'}`);
   console.log(`Batch size: ${batchSize}`);
   console.log(`Single contact: ${singleContactId || 'No (migrating all)'}`);
+  console.log('');
+
+  // Load course/pathway metadata for completion calculation (Issue #221)
+  console.log('Loading course and pathway metadata for completion tracking...');
+  loadMetadataCache();
   console.log('');
 
   setupOutputDirectories();

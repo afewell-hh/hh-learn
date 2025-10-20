@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = void 0;
 const hubspot_js_1 = require("../../shared/hubspot.js");
 const validation_js_1 = require("../../shared/validation.js");
+const completion_js_1 = require("./completion.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -428,8 +429,12 @@ async function track(raw, origin) {
 }
 /**
  * Update course-level started/completed flags based on module progress
+ *
+ * Decision (Issue #221): Use metadata-driven completion calculation
+ * - Completion timestamp = latest module completed_at
+ * - All modules in definition are required (no optional modules yet)
  */
-function updateCourseAggregates(course) {
+function updateCourseAggregates(courseSlug, course) {
     const modules = Object.values(course.modules || {});
     if (modules.length === 0)
         return;
@@ -440,16 +445,28 @@ function updateCourseAggregates(course) {
         const startedModules = modules.filter((m) => m.started_at).map((m) => m.started_at);
         course.started_at = startedModules.sort()[0]; // Earliest started_at
     }
-    // NOTE: Course completion is intentionally NOT calculated here.
-    // The course.modules object only contains modules the learner has interacted with,
-    // not the full module list from the course definition. Computing completion would
-    // require loading course metadata to know the total module count.
-    // Completion tracking will be implemented in a follow-up issue.
+    // Completion: check against metadata (Issue #221)
+    const completionResult = (0, completion_js_1.calculateCourseCompletion)(courseSlug, course.modules || {});
+    if (completionResult.completed && !course.completed) {
+        // Course just completed - use latest module completion time
+        course.completed = true;
+        const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at);
+        course.completed_at = completedModules.sort().reverse()[0] || new Date().toISOString();
+    }
+    else if (!completionResult.completed && course.completed) {
+        // Course no longer complete (e.g., new modules added to definition)
+        course.completed = false;
+        delete course.completed_at;
+    }
 }
 /**
  * Update pathway-level started/completed flags based on course/module progress
+ *
+ * Decision (Issue #221): Use metadata-driven completion calculation
+ * - Completion timestamp = latest course completed_at
+ * - All courses in definition are required (no optional courses yet)
  */
-function updatePathwayAggregates(pathway) {
+function updatePathwayAggregates(pathwaySlug, pathway) {
     if (pathway.courses) {
         // Hierarchical model: aggregate from courses
         const courses = Object.values(pathway.courses || {});
@@ -462,11 +479,19 @@ function updatePathwayAggregates(pathway) {
             const startedCourses = courses.filter((c) => c.started_at).map((c) => c.started_at);
             pathway.started_at = startedCourses.sort()[0]; // Earliest started_at
         }
-        // NOTE: Pathway completion is intentionally NOT calculated here.
-        // The pathway.courses object only contains courses the learner has interacted with,
-        // not the full course list from the pathway definition. Computing completion would
-        // require loading pathway metadata to know the total course count.
-        // Completion tracking will be implemented in a follow-up issue.
+        // Completion: check against metadata (Issue #221)
+        const completionResult = (0, completion_js_1.calculatePathwayCompletion)(pathwaySlug, pathway.courses || {});
+        if (completionResult.completed && !pathway.completed) {
+            // Pathway just completed - use latest course completion time
+            pathway.completed = true;
+            const completedCourses = courses.filter((c) => c.completed_at).map((c) => c.completed_at);
+            pathway.completed_at = completedCourses.sort().reverse()[0] || new Date().toISOString();
+        }
+        else if (!completionResult.completed && pathway.completed) {
+            // Pathway no longer complete (e.g., new courses added to definition)
+            pathway.completed = false;
+            delete pathway.completed_at;
+        }
     }
     else if (pathway.modules) {
         // Flat model: aggregate from modules (backward compatibility)
@@ -480,10 +505,9 @@ function updatePathwayAggregates(pathway) {
             const startedModules = modules.filter((m) => m.started_at).map((m) => m.started_at);
             pathway.started_at = startedModules.sort()[0]; // Earliest started_at
         }
-        // NOTE: Flat model pathway completion is intentionally NOT calculated here for the same
-        // reason as hierarchical: pathway.modules may only contain modules the learner has
-        // interacted with, not the full module list from the pathway definition.
-        // Completion tracking will be implemented in a follow-up issue.
+        // NOTE: Flat model pathways don't have course definitions to check against,
+        // so completion tracking is deferred for flat models. Modern pathways should
+        // use the hierarchical model.
     }
 }
 /**
@@ -628,9 +652,9 @@ async function persistViaContactProperties(hubspot, input) {
                 progressState[pathwaySlug].courses[courseSlug].modules[moduleSlug].completed_at = timestamp;
             }
             // Update course aggregates
-            updateCourseAggregates(progressState[pathwaySlug].courses[courseSlug]);
+            updateCourseAggregates(courseSlug, progressState[pathwaySlug].courses[courseSlug]);
             // Update pathway aggregates
-            updatePathwayAggregates(progressState[pathwaySlug]);
+            updatePathwayAggregates(pathwaySlug, progressState[pathwaySlug]);
         }
         else if (pathwaySlug && !courseSlug) {
             // Flat model (legacy): pathway → module (backward compatibility)
@@ -658,7 +682,7 @@ async function persistViaContactProperties(hubspot, input) {
                 progressState[pathwaySlug].modules[moduleSlug].completed_at = timestamp;
             }
             // Update pathway aggregates (flat model)
-            updatePathwayAggregates(progressState[pathwaySlug]);
+            updatePathwayAggregates(pathwaySlug, progressState[pathwaySlug]);
         }
         else if (courseSlug && !pathwaySlug) {
             // Standalone course → module
@@ -686,7 +710,7 @@ async function persistViaContactProperties(hubspot, input) {
                 progressState.courses[courseSlug].modules[moduleSlug].completed_at = timestamp;
             }
             // Update course aggregates
-            updateCourseAggregates(progressState.courses[courseSlug]);
+            updateCourseAggregates(courseSlug, progressState.courses[courseSlug]);
         }
     }
     // Base properties to update
