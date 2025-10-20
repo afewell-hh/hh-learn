@@ -39,6 +39,8 @@
         </div>
       </footer>
     </div>
+    {# Debug instrumentation - loaded before standard_footer_includes to capture early state #}
+    {{ require_js(get_asset_url("../../js/debug.js"), { position: 'footer'}) }}
     {{ standard_footer_includes }}
   </body>
 </html>
