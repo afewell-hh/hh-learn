@@ -85,7 +85,8 @@ export function loadMetadataCache(): void {
     return;
   }
 
-  const contentDir = path.join(__dirname, '../../../content');
+  // Use process.cwd() instead of __dirname to work in both Lambda and test environments
+  const contentDir = path.join(process.cwd(), 'content');
 
   try {
     // Load all course definitions

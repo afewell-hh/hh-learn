@@ -10,5 +10,6 @@
     "resolveJsonModule": true,
     "types": ["node", "aws-lambda"]
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["tests/*.test.ts", "tests/*.spec.ts", "tests/e2e/**/*.spec.ts"]
 }
