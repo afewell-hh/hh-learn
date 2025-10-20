@@ -4,6 +4,8 @@ export type TrackEventInput = {
     | 'learning_module_completed'
     | 'learning_pathway_enrolled'
     | 'learning_course_enrolled'
+    | 'learning_course_completed' // Issue #221
+    | 'learning_pathway_completed' // Issue #221
     | 'learning_page_viewed';
   contactIdentifier?: { email?: string; contactId?: string };
   payload?: Record<string, unknown>;

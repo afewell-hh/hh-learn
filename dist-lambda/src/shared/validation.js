@@ -55,6 +55,8 @@ exports.trackEventSchema = zod_1.z.object({
         'learning_module_completed',
         'learning_pathway_enrolled',
         'learning_course_enrolled',
+        'learning_course_completed',
+        'learning_pathway_completed',
         'learning_page_viewed',
     ]),
     contactIdentifier: exports.contactIdentifierSchema.optional(),
@@ -77,6 +79,16 @@ exports.trackEventSchema = zod_1.z.object({
     }
     if (data.eventName === 'learning_course_enrolled') {
         if (!data.course_slug && !data.payload?.course_slug) {
+            return false;
+        }
+    }
+    if (data.eventName === 'learning_course_completed') {
+        if (!data.course_slug && !data.payload?.course_slug) {
+            return false;
+        }
+    }
+    if (data.eventName === 'learning_pathway_completed') {
+        if (!data.pathway_slug && !data.payload?.pathway_slug) {
             return false;
         }
     }
@@ -172,6 +184,7 @@ var ValidationErrorCode;
     ValidationErrorCode["INVALID_FIELD_TYPE"] = "INVALID_FIELD_TYPE";
     ValidationErrorCode["INVALID_FIELD_VALUE"] = "INVALID_FIELD_VALUE";
     ValidationErrorCode["INVALID_EVENT_TYPE"] = "INVALID_EVENT_TYPE";
+    ValidationErrorCode["INVALID_EVENT_DATA"] = "INVALID_EVENT_DATA";
 })(ValidationErrorCode || (exports.ValidationErrorCode = ValidationErrorCode = {}));
 /**
  * Create a structured validation error

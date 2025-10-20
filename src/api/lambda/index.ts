@@ -14,7 +14,12 @@ import {
   createValidationError,
   type ValidationError,
 } from '../../shared/validation.js';
-import { calculateCourseCompletion, calculatePathwayCompletion } from './completion.js';
+import {
+  calculateCourseCompletion,
+  calculatePathwayCompletion,
+  validateExplicitCompletion,
+  validateCompletionTimestamp
+} from './completion.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -771,6 +776,94 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
 
       // Update course aggregates
       updateCourseAggregates(courseSlug, progressState.courses[courseSlug]);
+    }
+  }
+
+  // Handle explicit completion events (Issue #221)
+  // Decision: Strict validation - reject events that don't match actual progress
+  if (input.eventName === 'learning_course_completed' && courseSlug) {
+    // Find the course data (could be hierarchical or standalone)
+    const courseData = pathwaySlug
+      ? progressState[pathwaySlug]?.courses?.[courseSlug]
+      : progressState.courses?.[courseSlug];
+
+    if (courseData) {
+      const validation = validateExplicitCompletion('course', courseSlug, courseData);
+
+      if (validation.valid) {
+        // Validate timestamp if provided (±5 minute window)
+        const explicitTimestamp = (input.payload?.completed_at as string) || timestamp;
+        const inferredTimestamp = courseData.completed_at;
+
+        if (inferredTimestamp && !validateCompletionTimestamp(explicitTimestamp, inferredTimestamp)) {
+          console.warn(
+            `[Completion] learning_course_completed timestamp mismatch for ${courseSlug}: ` +
+            `explicit=${explicitTimestamp}, inferred=${inferredTimestamp}`
+          );
+        }
+
+        // Accept explicit completion
+        courseData.completed = true;
+        courseData.completed_at = explicitTimestamp;
+        console.log(`[Completion] Course ${courseSlug} marked complete via explicit event`);
+
+        // Update parent pathway if hierarchical
+        if (pathwaySlug && progressState[pathwaySlug]) {
+          updatePathwayAggregates(pathwaySlug, progressState[pathwaySlug]);
+        }
+      } else {
+        // Reject invalid completion event
+        console.error(
+          `[Completion] Rejected learning_course_completed event for ${courseSlug}: ${validation.reason}`
+        );
+        throw createValidationError(
+          ValidationErrorCode.INVALID_EVENT_DATA,
+          `Course completion claim rejected: ${validation.reason}`,
+          [validation.reason || 'Unknown validation failure'],
+          { courseSlug }
+        );
+      }
+    } else {
+      console.warn(`[Completion] Course data not found for learning_course_completed: ${courseSlug}`);
+    }
+  }
+
+  if (input.eventName === 'learning_pathway_completed' && pathwaySlug) {
+    const pathwayData = progressState[pathwaySlug];
+
+    if (pathwayData) {
+      const validation = validateExplicitCompletion('pathway', pathwaySlug, pathwayData);
+
+      if (validation.valid) {
+        // Validate timestamp if provided (±5 minute window)
+        const explicitTimestamp = (input.payload?.completed_at as string) || timestamp;
+        const inferredTimestamp = pathwayData.completed_at;
+
+        if (inferredTimestamp && !validateCompletionTimestamp(explicitTimestamp, inferredTimestamp)) {
+          console.warn(
+            `[Completion] learning_pathway_completed timestamp mismatch for ${pathwaySlug}: ` +
+            `explicit=${explicitTimestamp}, inferred=${inferredTimestamp}`
+          );
+        }
+
+        // Accept explicit completion
+        pathwayData.completed = true;
+        pathwayData.completed_at = explicitTimestamp;
+        console.log(`[Completion] Pathway ${pathwaySlug} marked complete via explicit event`);
+      } else {
+        // Reject invalid completion event
+        console.error(
+          `[Completion] Rejected learning_pathway_completed event for ${pathwaySlug}: ${validation.reason}`
+        );
+        throw createValidationError(
+          ValidationErrorCode.INVALID_EVENT_DATA,
+          `Pathway completion claim rejected: ${validation.reason}`,
+          [validation.reason || 'Unknown validation failure'],
+          { pathwaySlug }
+        );
+      }
+    } else {
+      console.warn(`[Completion] Pathway data not found for learning_pathway_completed: ${pathwaySlug}`);
     }
   }
 

@@ -59,6 +59,8 @@ export const trackEventSchema = z.object({
     'learning_module_completed',
     'learning_pathway_enrolled',
     'learning_course_enrolled',
+    'learning_course_completed',
+    'learning_pathway_completed',
     'learning_page_viewed',
   ]),
   contactIdentifier: contactIdentifierSchema.optional(),
@@ -82,6 +84,16 @@ export const trackEventSchema = z.object({
     }
     if (data.eventName === 'learning_course_enrolled') {
       if (!data.course_slug && !data.payload?.course_slug) {
+        return false;
+      }
+    }
+    if (data.eventName === 'learning_course_completed') {
+      if (!data.course_slug && !data.payload?.course_slug) {
+        return false;
+      }
+    }
+    if (data.eventName === 'learning_pathway_completed') {
+      if (!data.pathway_slug && !data.payload?.pathway_slug) {
         return false;
       }
     }
@@ -200,6 +212,7 @@ export enum ValidationErrorCode {
   INVALID_FIELD_TYPE = 'INVALID_FIELD_TYPE',
   INVALID_FIELD_VALUE = 'INVALID_FIELD_VALUE',
   INVALID_EVENT_TYPE = 'INVALID_EVENT_TYPE',
+  INVALID_EVENT_DATA = 'INVALID_EVENT_DATA', // Issue #221: For completion validation failures
 }
 
 /**
