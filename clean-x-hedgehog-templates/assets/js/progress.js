@@ -42,13 +42,22 @@
   }
 
   function getAuthContext() {
+    // Use window.hhIdentity API for actual membership authentication
+    var identity = window.hhIdentity ? window.hhIdentity.get() : null;
+    var email = null;
+    var contactId = null;
+    if (identity) {
+      email = identity.email || null;
+      contactId = identity.contactId || null;
+    }
+    // Get enableCrm from auth context div
     var el = document.getElementById('hhl-auth-context');
-    if (!el) return {};
-    return {
-      email: el.getAttribute('data-email') || null,
-      contactId: el.getAttribute('data-contact-id') || null,
-      enableCrm: (el.getAttribute('data-enable-crm') || 'false') === 'true',
-    };
+    var enableCrm = false;
+    if (el) {
+      var enableAttr = el.getAttribute('data-enable-crm');
+      enableCrm = (enableAttr || '').toString().toLowerCase() === 'true';
+    }
+    return { email: email, contactId: contactId, enableCrm: enableCrm };
   }
 
   function sendBeacon(constants, auth, eventName, payload) {
