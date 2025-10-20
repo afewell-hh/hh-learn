@@ -52,7 +52,7 @@ jobs:
         run: npm run build
 
       - name: Run validation unit tests
-        run: npx tsx tests/validation.test.ts
+        run: node dist/tests/run-validation-tests.js
 
       - name: Run completion engine tests (Issue #221)
         run: node dist/tests/run-completion-tests.js
