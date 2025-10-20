@@ -146,13 +146,11 @@ function updateCourseAggregates(course: CourseProgressState) {
     course.started_at = startedModules.sort()[0]; // Earliest
   }
 
-  // Completed: all modules completed
-  const allCompleted = modules.length > 0 && modules.every((m) => m.completed);
-  if (allCompleted && !course.completed) {
-    course.completed = true;
-    const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
-    course.completed_at = completedModules.sort().reverse()[0]; // Latest
-  }
+  // NOTE: Course completion is intentionally NOT calculated during migration.
+  // The course.modules object only contains modules the learner has interacted with,
+  // not the full module list from the course definition. Computing completion would
+  // require loading course metadata to know the total module count.
+  // Completion tracking will be implemented in a follow-up issue.
 }
 
 /**
@@ -170,12 +168,11 @@ function updatePathwayAggregates(pathway: PathwayProgressState) {
       pathway.started_at = startedCourses.sort()[0];
     }
 
-    const allCompleted = courses.length > 0 && courses.every((c) => c.completed);
-    if (allCompleted && !pathway.completed) {
-      pathway.completed = true;
-      const completedCourses = courses.filter((c) => c.completed_at).map((c) => c.completed_at!);
-      pathway.completed_at = completedCourses.sort().reverse()[0];
-    }
+    // NOTE: Pathway completion is intentionally NOT calculated during migration.
+    // The pathway.courses object only contains courses the learner has interacted with,
+    // not the full course list from the pathway definition. Computing completion would
+    // require loading pathway metadata to know the total course count.
+    // Completion tracking will be implemented in a follow-up issue.
   }
 }
 
