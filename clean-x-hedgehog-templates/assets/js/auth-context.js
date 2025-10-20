@@ -167,6 +167,7 @@
 
         // Emit custom event for downstream consumers
         try {
+          // eslint-disable-next-line no-undef
           var event = new CustomEvent('hhl:identity', {
             detail: identity,
             bubbles: true,
