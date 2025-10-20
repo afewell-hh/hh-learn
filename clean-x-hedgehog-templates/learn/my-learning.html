@@ -573,10 +573,11 @@
 {# Auth context for external JS and constants URL #}
 {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
 <div id="hhl-auth-context"
-     data-email="{{ request_contact.email if request_contact.is_logged_in }}"
-     data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
-     data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+     data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
+     data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
+     data-enable-crm="true"
      data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
      style="display:none"></div>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/my-learning.js') }}"></script>
 {% endblock body %}
