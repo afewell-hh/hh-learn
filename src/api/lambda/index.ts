@@ -12,8 +12,16 @@ import {
   checkPayloadSize,
   ValidationErrorCode,
   createValidationError,
+  createValidationException,
+  ValidationErrorException,
   type ValidationError,
 } from '../../shared/validation.js';
+import {
+  calculateCourseCompletion,
+  calculatePathwayCompletion,
+  validateExplicitCompletion,
+  validateCompletionTimestamp
+} from './completion.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -466,16 +474,32 @@ async function track(raw: string, origin?: string) {
       return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' }, origin);
     }
   } catch (err: any) {
+    // Handle validation errors with 4xx response (Issue #221 feedback)
+    if (err instanceof ValidationErrorException) {
+      console.error('[Validation] Explicit completion validation failed:', err.code, err.message);
+      logValidationFailure(err.toValidationError(), '/track', JSON.stringify(input));
+      return bad(400, err.message, origin, {
+        code: err.code,
+        details: err.details,
+        context: err.context,
+      });
+    }
+
+    // For other errors (CRM failures, network issues), return success with fallback
+    // This prevents breaking the user experience when HubSpot API is unavailable
     console.error('Failed to persist event to CRM:', err.message || err);
-    // Return success even if CRM persistence fails - don't break user experience
     return ok({ status: 'logged', mode: 'fallback', error: err.message }, origin);
   }
 }
 
 /**
  * Update course-level started/completed flags based on module progress
+ *
+ * Decision (Issue #221): Use metadata-driven completion calculation
+ * - Completion timestamp = latest module completed_at
+ * - All modules in definition are required (no optional modules yet)
  */
-function updateCourseAggregates(course: any) {
+function updateCourseAggregates(courseSlug: string, course: any) {
   const modules = Object.values(course.modules || {}) as any[];
   if (modules.length === 0) return;
 
@@ -487,17 +511,29 @@ function updateCourseAggregates(course: any) {
     course.started_at = startedModules.sort()[0]; // Earliest started_at
   }
 
-  // NOTE: Course completion is intentionally NOT calculated here.
-  // The course.modules object only contains modules the learner has interacted with,
-  // not the full module list from the course definition. Computing completion would
-  // require loading course metadata to know the total module count.
-  // Completion tracking will be implemented in a follow-up issue.
+  // Completion: check against metadata (Issue #221)
+  const completionResult = calculateCourseCompletion(courseSlug, course.modules || {});
+
+  if (completionResult.completed && !course.completed) {
+    // Course just completed - use latest module completion time
+    course.completed = true;
+    const completedModules = modules.filter((m) => m.completed_at).map((m) => m.completed_at!);
+    course.completed_at = completedModules.sort().reverse()[0] || new Date().toISOString();
+  } else if (!completionResult.completed && course.completed) {
+    // Course no longer complete (e.g., new modules added to definition)
+    course.completed = false;
+    delete course.completed_at;
+  }
 }
 
 /**
  * Update pathway-level started/completed flags based on course/module progress
+ *
+ * Decision (Issue #221): Use metadata-driven completion calculation
+ * - Completion timestamp = latest course completed_at
+ * - All courses in definition are required (no optional courses yet)
  */
-function updatePathwayAggregates(pathway: any) {
+function updatePathwayAggregates(pathwaySlug: string, pathway: any) {
   if (pathway.courses) {
     // Hierarchical model: aggregate from courses
     const courses = Object.values(pathway.courses || {}) as any[];
@@ -511,11 +547,19 @@ function updatePathwayAggregates(pathway: any) {
       pathway.started_at = startedCourses.sort()[0]; // Earliest started_at
     }
 
-    // NOTE: Pathway completion is intentionally NOT calculated here.
-    // The pathway.courses object only contains courses the learner has interacted with,
-    // not the full course list from the pathway definition. Computing completion would
-    // require loading pathway metadata to know the total course count.
-    // Completion tracking will be implemented in a follow-up issue.
+    // Completion: check against metadata (Issue #221)
+    const completionResult = calculatePathwayCompletion(pathwaySlug, pathway.courses || {});
+
+    if (completionResult.completed && !pathway.completed) {
+      // Pathway just completed - use latest course completion time
+      pathway.completed = true;
+      const completedCourses = courses.filter((c) => c.completed_at).map((c) => c.completed_at!);
+      pathway.completed_at = completedCourses.sort().reverse()[0] || new Date().toISOString();
+    } else if (!completionResult.completed && pathway.completed) {
+      // Pathway no longer complete (e.g., new courses added to definition)
+      pathway.completed = false;
+      delete pathway.completed_at;
+    }
   } else if (pathway.modules) {
     // Flat model: aggregate from modules (backward compatibility)
     const modules = Object.values(pathway.modules || {}) as any[];
@@ -529,10 +573,9 @@ function updatePathwayAggregates(pathway: any) {
       pathway.started_at = startedModules.sort()[0]; // Earliest started_at
     }
 
-    // NOTE: Flat model pathway completion is intentionally NOT calculated here for the same
-    // reason as hierarchical: pathway.modules may only contain modules the learner has
-    // interacted with, not the full module list from the pathway definition.
-    // Completion tracking will be implemented in a follow-up issue.
+    // NOTE: Flat model pathways don't have course definitions to check against,
+    // so completion tracking is deferred for flat models. Modern pathways should
+    // use the hierarchical model.
   }
 }
 
@@ -685,10 +728,10 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
 
       // Update course aggregates
-      updateCourseAggregates(progressState[pathwaySlug].courses[courseSlug]);
+      updateCourseAggregates(courseSlug, progressState[pathwaySlug].courses[courseSlug]);
 
       // Update pathway aggregates
-      updatePathwayAggregates(progressState[pathwaySlug]);
+      updatePathwayAggregates(pathwaySlug, progressState[pathwaySlug]);
     } else if (pathwaySlug && !courseSlug) {
       // Flat model (legacy): pathway → module (backward compatibility)
       if (!progressState[pathwaySlug]) {
@@ -717,7 +760,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
 
       // Update pathway aggregates (flat model)
-      updatePathwayAggregates(progressState[pathwaySlug]);
+      updatePathwayAggregates(pathwaySlug, progressState[pathwaySlug]);
     } else if (courseSlug && !pathwaySlug) {
       // Standalone course → module
       if (!progressState.courses) {
@@ -746,7 +789,95 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
 
       // Update course aggregates
-      updateCourseAggregates(progressState.courses[courseSlug]);
+      updateCourseAggregates(courseSlug, progressState.courses[courseSlug]);
+    }
+  }
+
+  // Handle explicit completion events (Issue #221)
+  // Decision: Strict validation - reject events that don't match actual progress
+  if (input.eventName === 'learning_course_completed' && courseSlug) {
+    // Find the course data (could be hierarchical or standalone)
+    const courseData = pathwaySlug
+      ? progressState[pathwaySlug]?.courses?.[courseSlug]
+      : progressState.courses?.[courseSlug];
+
+    if (courseData) {
+      const validation = validateExplicitCompletion('course', courseSlug, courseData);
+
+      if (validation.valid) {
+        // Validate timestamp if provided (±5 minute window)
+        const explicitTimestamp = (input.payload?.completed_at as string) || timestamp;
+        const inferredTimestamp = courseData.completed_at;
+
+        if (inferredTimestamp && !validateCompletionTimestamp(explicitTimestamp, inferredTimestamp)) {
+          console.warn(
+            `[Completion] learning_course_completed timestamp mismatch for ${courseSlug}: ` +
+            `explicit=${explicitTimestamp}, inferred=${inferredTimestamp}`
+          );
+        }
+
+        // Accept explicit completion
+        courseData.completed = true;
+        courseData.completed_at = explicitTimestamp;
+        console.log(`[Completion] Course ${courseSlug} marked complete via explicit event`);
+
+        // Update parent pathway if hierarchical
+        if (pathwaySlug && progressState[pathwaySlug]) {
+          updatePathwayAggregates(pathwaySlug, progressState[pathwaySlug]);
+        }
+      } else {
+        // Reject invalid completion event
+        console.error(
+          `[Completion] Rejected learning_course_completed event for ${courseSlug}: ${validation.reason}`
+        );
+        throw createValidationException(
+          ValidationErrorCode.INVALID_EVENT_DATA,
+          `Course completion claim rejected: ${validation.reason}`,
+          [validation.reason || 'Unknown validation failure'],
+          { courseSlug }
+        );
+      }
+    } else {
+      console.warn(`[Completion] Course data not found for learning_course_completed: ${courseSlug}`);
+    }
+  }
+
+  if (input.eventName === 'learning_pathway_completed' && pathwaySlug) {
+    const pathwayData = progressState[pathwaySlug];
+
+    if (pathwayData) {
+      const validation = validateExplicitCompletion('pathway', pathwaySlug, pathwayData);
+
+      if (validation.valid) {
+        // Validate timestamp if provided (±5 minute window)
+        const explicitTimestamp = (input.payload?.completed_at as string) || timestamp;
+        const inferredTimestamp = pathwayData.completed_at;
+
+        if (inferredTimestamp && !validateCompletionTimestamp(explicitTimestamp, inferredTimestamp)) {
+          console.warn(
+            `[Completion] learning_pathway_completed timestamp mismatch for ${pathwaySlug}: ` +
+            `explicit=${explicitTimestamp}, inferred=${inferredTimestamp}`
+          );
+        }
+
+        // Accept explicit completion
+        pathwayData.completed = true;
+        pathwayData.completed_at = explicitTimestamp;
+        console.log(`[Completion] Pathway ${pathwaySlug} marked complete via explicit event`);
+      } else {
+        // Reject invalid completion event
+        console.error(
+          `[Completion] Rejected learning_pathway_completed event for ${pathwaySlug}: ${validation.reason}`
+        );
+        throw createValidationException(
+          ValidationErrorCode.INVALID_EVENT_DATA,
+          `Pathway completion claim rejected: ${validation.reason}`,
+          [validation.reason || 'Unknown validation failure'],
+          { pathwaySlug }
+        );
+      }
+    } else {
+      console.warn(`[Completion] Pathway data not found for learning_pathway_completed: ${pathwaySlug}`);
     }
   }
 

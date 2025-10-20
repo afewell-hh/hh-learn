@@ -6,7 +6,11 @@ on:
     paths:
       - "src/sync/**"
       - "src/shared/validation.ts"
+      - "src/api/lambda/completion.ts"
       - "tests/validation.test.ts"
+      - "tests/completion.test.ts"
+      - "tests/completion-migration.test.ts"
+      - "tests/completion-lambda.test.ts"
       - "tests/run-validation-tests.ts"
       - "scripts/detect-orphans.ts"
       - ".github/workflows/validation-tests.yml"
@@ -15,7 +19,11 @@ on:
     paths:
       - "src/sync/**"
       - "src/shared/validation.ts"
+      - "src/api/lambda/completion.ts"
       - "tests/validation.test.ts"
+      - "tests/completion.test.ts"
+      - "tests/completion-migration.test.ts"
+      - "tests/completion-lambda.test.ts"
       - "tests/run-validation-tests.ts"
       - "scripts/detect-orphans.ts"
       - ".github/workflows/validation-tests.yml"
@@ -44,7 +52,10 @@ jobs:
         run: npm run build
 
       - name: Run validation unit tests
-        run: npx tsx tests/validation.test.ts
+        run: node dist/tests/run-validation-tests.js
+
+      - name: Run completion engine tests (Issue #221)
+        run: node dist/tests/run-completion-tests.js
 
       - name: Run orphan detection (dry-run)
         env:

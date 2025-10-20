@@ -1,0 +1,74 @@
+[Completion] Metadata loaded: 5 courses, 5 pathways
+========================================
+Completion Engine Tests (Issue #221)
+========================================
+
+Test Group 1: Metadata Loading
+------------------------------------------
+✓ Load course metadata: hedgehog-lab-foundations
+✓ Course slug matches
+✓ Course has modules array
+✓ Course has 4 modules
+✓ Load pathway metadata: course-authoring-expert
+✓ Pathway slug matches
+✓ Pathway has courses array
+✓ Return undefined for missing course
+✓ Return undefined for missing pathway
+
+Test Group 2: Course Completion Calculation
+------------------------------------------
+✓ Course complete with all 4 modules done
+✓ Progress: 4 completed
+✓ Progress: 4 total
+✓ Course incomplete with 2/4 modules
+✓ Progress: 2 completed
+✓ Progress: 4 total
+✓ Course incomplete with 0 modules
+✓ Progress: 0 completed
+✓ Progress: 4 total
+✓ Nonexistent course not complete
+✓ Nonexistent: 0 completed
+✓ Nonexistent: 0 total
+✓ Started modules without completed=true do not count
+✓ Progress: 0 completed
+
+Test Group 3: Pathway Completion Calculation
+------------------------------------------
+✓ Pathway complete when all courses done
+✓ All courses completed
+✓ Pathway incomplete with partial courses
+✓ Not all courses complete
+✓ Pathway incomplete with 0 courses
+✓ Progress: 0 completed
+
+Test Group 4: Timestamp Validation
+------------------------------------------
+✓ Accept timestamp within 5 min (+4)
+✓ Accept timestamp within 5 min (-3)
+✓ Accept timestamp exactly 5 min apart
+✓ Reject timestamp outside 5 min (+6)
+✓ Accept identical timestamps
+
+Test Group 5: Explicit Completion Validation
+------------------------------------------
+✓ Accept valid course completion claim
+✓ Reject invalid course completion claim (1/4 modules)
+✓ Rejection reason mentions modules
+✓ Reject course completion with no modules
+✓ Reject course completion without modules object
+✓ Reject completion for nonexistent course
+
+Test Group 6: Reused Modules Across Courses
+------------------------------------------
+✓ Module counts in first calculation
+✓ Module counts in second calculation (reusable)
+✓ Progress exists for module
+
+========================================
+Test Summary
+========================================
+Total:  43
+Passed: 43
+Failed: 0
+========================================
+
