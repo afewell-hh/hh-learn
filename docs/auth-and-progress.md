@@ -619,15 +619,17 @@ With debug mode enabled:
 
 Run Playwright tests to capture detailed session behavior:
 
+**Note:** These tests are opt-in (skipped by default) because they hit production.
+
 ```bash
-# Full instrumentation test suite
-npx playwright test tests/e2e/membership-instrumentation.spec.ts
+# Full instrumentation test suite (enable with RUN_LIVE_TESTS)
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts
 
 # Run with browser UI
-npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
 
 # Specific test
-npx playwright test tests/e2e/membership-instrumentation.spec.ts -g "authenticated"
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts -g "authenticated"
 ```
 
 **Test Coverage:**

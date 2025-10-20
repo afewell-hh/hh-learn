@@ -27,12 +27,14 @@ Comprehensive instrumentation to debug HubSpot CMS membership sessions and valid
 
 ## 📋 Automated Tests
 
+**Note:** Tests are opt-in (require `RUN_LIVE_TESTS=true`) to avoid hitting production by default.
+
 ```bash
 # Run all instrumentation tests
-npx playwright test tests/e2e/membership-instrumentation.spec.ts
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts
 
 # Run with browser visible
-npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
 
 # View results
 ls -la verification-output/issue-237/

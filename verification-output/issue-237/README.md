@@ -116,18 +116,28 @@ node scripts/membership/debug-profile.js
 
 This displays a comprehensive guide with manual testing steps and troubleshooting tips.
 
-### Method 3: Automated Tests (Recommended)
+### Method 3: Automated Tests (Opt-In for Live Tests)
+
+**IMPORTANT:** These tests hit production (hedgehog.cloud) and are **skipped by default** to avoid external dependencies in CI/CD.
+
+To run these live integration tests:
 
 ```bash
-# Run all instrumentation tests
-npx playwright test tests/e2e/membership-instrumentation.spec.ts
+# Enable live tests and run
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts
 
 # Run with UI to watch the flow
-npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
 
 # Run specific test
-npx playwright test tests/e2e/membership-instrumentation.spec.ts -g "authenticated session"
+RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts -g "authenticated session"
 ```
+
+**Why opt-in?**
+- Avoids hitting production in default test runs
+- Prevents failures in disconnected environments
+- Keeps CI/CD deterministic
+- These are diagnostic tests for Issue #233, not unit tests
 
 **Output Files** (saved to `verification-output/issue-237/`):
 - `anonymous-session-capture.json` - Baseline anonymous behavior

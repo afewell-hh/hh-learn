@@ -1,16 +1,22 @@
 /**
  * Membership Profile Instrumentation Test (Issue #237)
  *
- * This test captures detailed information about HubSpot CMS membership behavior
- * to help diagnose authentication issues and validate the bootstrapper.
+ * IMPORTANT: These are LIVE INTEGRATION TESTS that hit production (hedgehog.cloud)
+ * to diagnose real membership session behavior for Issue #233.
+ *
+ * These tests are SKIPPED BY DEFAULT to avoid:
+ * - External dependencies in CI/CD
+ * - Failures in disconnected environments
+ * - Brittleness from production changes
+ *
+ * To run these tests, set the environment variable:
+ *   RUN_LIVE_TESTS=true npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
  *
  * Captures:
  * - Membership profile API responses (/_hcms/api/membership/v1/profile)
  * - Cookie names and persistence across redirects
  * - Auth context bootstrapper state
  * - HubSpot tracking variables
- *
- * Run with: npx playwright test tests/e2e/membership-instrumentation.spec.ts --headed
  */
 
 import 'dotenv/config';
@@ -20,6 +26,7 @@ import * as path from 'path';
 
 const COURSE_URL = process.env.COURSE_URL || 'https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1';
 const OUTPUT_DIR = path.join(process.cwd(), 'verification-output', 'issue-237');
+const RUN_LIVE_TESTS = process.env.RUN_LIVE_TESTS === 'true';
 
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -38,6 +45,7 @@ function saveCapture(filename: string, data: any) {
 test.describe('Membership instrumentation (Issue #237)', () => {
 
   test('capture anonymous session behavior', async ({ page, context }) => {
+    test.skip(!RUN_LIVE_TESTS, 'Live tests disabled - set RUN_LIVE_TESTS=true to run');
     const capture: any = {
       test: 'anonymous session',
       timestamp: new Date().toISOString(),
@@ -155,6 +163,8 @@ test.describe('Membership instrumentation (Issue #237)', () => {
   });
 
   test('capture authenticated session behavior', async ({ page, context }) => {
+    test.skip(!RUN_LIVE_TESTS, 'Live tests disabled - set RUN_LIVE_TESTS=true to run');
+
     const username = process.env.HUBSPOT_TEST_USERNAME as string;
     const password = process.env.HUBSPOT_TEST_PASSWORD as string;
 
@@ -381,6 +391,8 @@ test.describe('Membership instrumentation (Issue #237)', () => {
   });
 
   test('test debug module with HHL_DEBUG enabled', async ({ page, context }) => {
+    test.skip(!RUN_LIVE_TESTS, 'Live tests disabled - set RUN_LIVE_TESTS=true to run');
+
     // Clear cookies
     await context.clearCookies();
 
