@@ -141,8 +141,8 @@ When `HHL_DEBUG=true`, users see:
 [hhl:debug] Running instrumentation checks...
 
 [hhl:bootstrap] Auth Context Loaded
-  email: user@example.com
-  contactId: 12345
+  email: (redacted - present)
+  contactId: (redacted - present)
   enableCrm: true
   loginUrl: /hs-login
   ---

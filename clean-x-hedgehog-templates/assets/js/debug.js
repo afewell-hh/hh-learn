@@ -87,18 +87,23 @@
         return;
       }
 
+      // Extract values (privacy-safe: redact actual values)
+      var email = div.getAttribute('data-email');
+      var contactId = div.getAttribute('data-contact-id');
+      var hasEmail = !!(email);
+      var hasContactId = !!(contactId);
+      var isAuthenticated = hasEmail || hasContactId;
+
       console.group('[hhl:bootstrap] Auth Context Loaded');
       console.log('Element found:', div);
-      console.log('email:', div.getAttribute('data-email') || '(empty)');
-      console.log('contactId:', div.getAttribute('data-contact-id') || '(empty)');
+
+      // Log presence/absence only, not actual values (privacy-safe)
+      console.log('email:', hasEmail ? '(redacted - present)' : '(empty)');
+      console.log('contactId:', hasContactId ? '(redacted - present)' : '(empty)');
+
       console.log('enableCrm:', div.getAttribute('data-enable-crm'));
       console.log('constantsUrl:', div.getAttribute('data-constants-url'));
       console.log('loginUrl:', div.getAttribute('data-login-url'));
-
-      // Check if user appears to be authenticated
-      var hasEmail = !!(div.getAttribute('data-email'));
-      var hasContactId = !!(div.getAttribute('data-contact-id'));
-      var isAuthenticated = hasEmail || hasContactId;
 
       console.log('---');
       console.log('Authenticated:', isAuthenticated);
