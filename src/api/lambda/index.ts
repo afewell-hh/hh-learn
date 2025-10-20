@@ -1,4 +1,6 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
+import fs from 'fs';
+import path from 'path';
 import { z } from 'zod';
 import { getHubSpotClient } from '../../shared/hubspot.js';
 import type { TrackEventInput, QuizGradeInput, QuizGradeResult } from '../../shared/types.js';
@@ -20,6 +22,59 @@ const ALLOWED_ORIGINS = [
   'https://hedgehog.cloud',
   'https://www.hedgehog.cloud',
 ];
+
+const COURSE_MODULE_CACHE = new Map<string, string[]>();
+const PATHWAY_COURSE_CACHE = new Map<string, string[]>();
+
+function loadCourseModules(courseSlug?: string): string[] {
+  if (!courseSlug) return [];
+  if (COURSE_MODULE_CACHE.has(courseSlug)) {
+    return COURSE_MODULE_CACHE.get(courseSlug)!;
+  }
+
+  try {
+    const coursePath = path.join(process.cwd(), 'content', 'courses', `${courseSlug}.json`);
+    if (!fs.existsSync(coursePath)) {
+      COURSE_MODULE_CACHE.set(courseSlug, []);
+      return [];
+    }
+
+    const raw = fs.readFileSync(coursePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    const modules = Array.isArray(parsed?.modules) ? (parsed.modules as string[]) : [];
+    COURSE_MODULE_CACHE.set(courseSlug, modules);
+    return modules;
+  } catch (err: any) {
+    console.warn(`Unable to load course metadata for ${courseSlug}:`, err?.message || err);
+    COURSE_MODULE_CACHE.set(courseSlug, []);
+    return [];
+  }
+}
+
+function loadPathwayCourses(pathwaySlug?: string): string[] {
+  if (!pathwaySlug) return [];
+  if (PATHWAY_COURSE_CACHE.has(pathwaySlug)) {
+    return PATHWAY_COURSE_CACHE.get(pathwaySlug)!;
+  }
+
+  try {
+    const pathwayPath = path.join(process.cwd(), 'content', 'pathways', `${pathwaySlug}.json`);
+    if (!fs.existsSync(pathwayPath)) {
+      PATHWAY_COURSE_CACHE.set(pathwaySlug, []);
+      return [];
+    }
+
+    const raw = fs.readFileSync(pathwayPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    const courses = Array.isArray(parsed?.courses) ? (parsed.courses as string[]) : [];
+    PATHWAY_COURSE_CACHE.set(pathwaySlug, courses);
+    return courses;
+  } catch (err: any) {
+    console.warn(`Unable to load pathway metadata for ${pathwaySlug}:`, err?.message || err);
+    PATHWAY_COURSE_CACHE.set(pathwaySlug, []);
+    return [];
+  }
+}
 
 // Check if origin matches HubSpot CDN patterns
 function isAllowedOrigin(origin: string | undefined): boolean {
@@ -475,32 +530,60 @@ async function track(raw: string, origin?: string) {
 /**
  * Update course-level started/completed flags based on module progress
  */
-function updateCourseAggregates(course: any) {
-  const modules = Object.values(course.modules || {}) as any[];
-  if (modules.length === 0) return;
+function updateCourseAggregates(course: any, courseSlug?: string) {
+  const modulesBySlug = course.modules || {};
+  const modules = Object.values(modulesBySlug) as any[];
 
   // Started: any module started
-  const anyStarted = modules.some((m) => m.started);
+  const anyStarted = modules.some((m) => m?.started);
   if (anyStarted && !course.started) {
     course.started = true;
-    const startedModules = modules.filter((m) => m.started_at).map((m) => m.started_at!);
-    course.started_at = startedModules.sort()[0]; // Earliest started_at
+    const startedModules = modules
+      .map((m) => m?.started_at)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+    if (startedModules.length > 0) {
+      course.started_at = startedModules[0]; // Earliest started_at
+    }
   }
 
-  // Note: Course completion is NOT auto-calculated here because course.modules
-  // only contains modules the learner has interacted with, not the full module list
-  // from the course definition. Completion should be set explicitly by external logic
-  // that knows the total module count (e.g., via learning_course_completed event).
+  // Determine completion by comparing against known module roster when available
+  const expectedModuleSlugs = loadCourseModules(courseSlug);
+  let allModulesCompleted = false;
+
+  if (expectedModuleSlugs.length > 0) {
+    allModulesCompleted = expectedModuleSlugs.every(
+      (moduleSlug) => modulesBySlug[moduleSlug]?.completed === true
+    );
+  } else {
+    const moduleSlugs = Object.keys(modulesBySlug);
+    allModulesCompleted = moduleSlugs.length > 0 && moduleSlugs.every((slug) => modulesBySlug[slug]?.completed);
+  }
+
+  if (allModulesCompleted) {
+    if (!course.completed) {
+      course.completed = true;
+    }
+    const completedModules = Object.keys(modulesBySlug)
+      .map((slug) => modulesBySlug[slug]?.completed_at)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+    if (completedModules.length > 0) {
+      course.completed_at = completedModules[completedModules.length - 1]; // Latest completed_at
+    }
+  } else if (course.completed) {
+    course.completed = false;
+    delete course.completed_at;
+  }
 }
 
 /**
  * Update pathway-level started/completed flags based on course/module progress
  */
-function updatePathwayAggregates(pathway: any) {
+function updatePathwayAggregates(pathway: any, pathwaySlug?: string) {
   if (pathway.courses) {
     // Hierarchical model: aggregate from courses
     const courses = Object.values(pathway.courses || {}) as any[];
-    if (courses.length === 0) return;
 
     // Started: any course started
     const anyStarted = courses.some((c) => c.started);
@@ -510,10 +593,32 @@ function updatePathwayAggregates(pathway: any) {
       pathway.started_at = startedCourses.sort()[0]; // Earliest started_at
     }
 
-    // Note: Pathway completion is NOT auto-calculated here because pathway.courses
-    // only contains courses the learner has interacted with, not the full course list
-    // from the pathway definition. Completion should be set explicitly by external logic
-    // that knows the total course count (e.g., via learning_pathway_completed event).
+    const expectedCourses = loadPathwayCourses(pathwaySlug);
+    let allCoursesCompleted = false;
+
+    if (expectedCourses.length > 0) {
+      allCoursesCompleted = expectedCourses.every(
+        (courseSlug) => pathway.courses?.[courseSlug]?.completed === true
+      );
+    } else {
+      allCoursesCompleted = courses.length > 0 && courses.every((c) => c.completed);
+    }
+
+    if (allCoursesCompleted) {
+      if (!pathway.completed) {
+        pathway.completed = true;
+      }
+      const completedCourses = Object.values(pathway.courses || {})
+        .map((course: any) => course?.completed_at)
+        .filter((value): value is string => Boolean(value))
+        .sort();
+      if (completedCourses.length > 0) {
+        pathway.completed_at = completedCourses[completedCourses.length - 1];
+      }
+    } else if (pathway.completed) {
+      pathway.completed = false;
+      delete pathway.completed_at;
+    }
   } else if (pathway.modules) {
     // Flat model: aggregate from modules (backward compatibility)
     const modules = Object.values(pathway.modules || {}) as any[];
@@ -682,10 +787,10 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
 
       // Update course aggregates
-      updateCourseAggregates(progressState[pathwaySlug].courses[courseSlug]);
+      updateCourseAggregates(progressState[pathwaySlug].courses[courseSlug], courseSlug);
 
       // Update pathway aggregates
-      updatePathwayAggregates(progressState[pathwaySlug]);
+      updatePathwayAggregates(progressState[pathwaySlug], pathwaySlug);
     } else if (pathwaySlug && !courseSlug) {
       // Flat model (legacy): pathway → module (backward compatibility)
       if (!progressState[pathwaySlug]) {
@@ -714,7 +819,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
 
       // Update pathway aggregates (flat model)
-      updatePathwayAggregates(progressState[pathwaySlug]);
+      updatePathwayAggregates(progressState[pathwaySlug], pathwaySlug);
     } else if (courseSlug && !pathwaySlug) {
       // Standalone course → module
       if (!progressState.courses) {
@@ -743,7 +848,7 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
       }
 
       // Update course aggregates
-      updateCourseAggregates(progressState.courses[courseSlug]);
+      updateCourseAggregates(progressState.courses[courseSlug], courseSlug);
     }
   }
 
