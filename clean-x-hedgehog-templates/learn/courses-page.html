@@ -540,18 +540,17 @@
             </div>
           </header>
 
-          <!-- Enrollment CTA Block (only shown for authenticated users) -->
-          {% if request_contact.is_logged_in %}
-            <div class="enrollment-cta-block" id="hhl-enrollment-cta">
-              <div class="enrollment-cta-title">Ready to Start This Course?</div>
-              <div class="enrollment-cta-description">
-                Enroll to track your progress and access personalized learning resources as you complete each module.
-              </div>
-              <button type="button" class="enrollment-button" id="hhl-enroll-button">
-                Start Course
-              </button>
+          <!-- Enrollment CTA Block -->
+          <div class="enrollment-cta-block" id="hhl-enrollment-cta">
+            <div class="enrollment-cta-title">Ready to Start This Course?</div>
+            <div class="enrollment-cta-description">
+              Enroll to track your progress and access personalized learning resources as you complete each module.
             </div>
-          {% endif %}
+            <button type="button" class="enrollment-button" id="hhl-enroll-button">
+              Start Course
+            </button>
+            <p class="enrollment-cta-helper" id="hhl-enroll-helper" style="display:none;"></p>
+          </div>
 
           <!-- Progress Tracker -->
           <div class="course-progress" id="course-progress" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 8px; padding: 20px 24px; margin: 24px 0;">
@@ -578,12 +577,13 @@
 
           {# Auth context for JS #}
           <div id="hhl-auth-context"
-               data-email="{{ request_contact.email if request_contact.is_logged_in }}"
-               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
-               data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+               data-email="{{ (request_contact.email if request_contact.is_logged_in else personalization_token('contact.email'))|default('', true) }}"
+               data-contact-id="{{ (request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id'))|default('', true) }}"
+               data-enable-crm="true"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-course-slug="{{ dynamic_page_hubdb_row.hs_path }}"
                data-total-modules="{% if dynamic_page_hubdb_row.module_slugs_json %}{{ dynamic_page_hubdb_row.module_slugs_json|fromjson|length }}{% else %}0{% endif %}"
+               data-login-url="{{ login_url }}"
                style="display:none"></div>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/courses.js') }}"></script>
 
@@ -813,12 +813,14 @@
     </section>
     {# Auth context for pageview beacon; only relevant when logged in #}
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-    <div id="hhl-auth-context"
-         data-email="{{ request_contact.email if request_contact.is_logged_in }}"
-         data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
-         data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
-         data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
-         style="display:none"></div>
+          <div id="hhl-auth-context"
+               data-email="{{ request_contact.email if request_contact.is_logged_in }}"
+               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
+               data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+               data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+               data-login-url="{{ login_url }}"
+               style="display:none"></div>
+    <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>
     <script>

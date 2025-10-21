@@ -9,18 +9,144 @@
   var debug = localStorage.getItem('HHL_DEBUG') === 'true';
 
   /**
-   * Get authentication context from hidden div
+   * Get authentication context from window.hhIdentity API
+   * Falls back to #hhl-auth-context div for non-identity fields (constants, login URLs)
    */
   function getAuth() {
+    // Get identity from window.hhIdentity (uses actual membership session, not personalization tokens)
+    var identity = window.hhIdentity ? window.hhIdentity.get() : null;
+    var email = '';
+    var contactId = '';
+
+    if (identity) {
+      email = identity.email || '';
+      contactId = identity.contactId || '';
+    }
+
+    // Get other config from auth context div
     var authDiv = document.getElementById('hhl-auth-context');
-    if (!authDiv) return { enableCrm: false };
+    var enableCrm = false;
+    var constantsUrl = '';
+    var loginUrl = '';
+
+    if (authDiv) {
+      var enableAttr = authDiv.getAttribute('data-enable-crm');
+      if (enableAttr) {
+        enableCrm = enableAttr.toString().toLowerCase() === 'true';
+      }
+      constantsUrl = authDiv.getAttribute('data-constants-url') || '';
+      loginUrl = authDiv.getAttribute('data-login-url') || '';
+    }
+
+    if (debug) {
+      console.log('[hhl-enroll] Auth context:', {
+        hasEmail: !!email,
+        hasContactId: !!contactId,
+        enableCrm: enableCrm,
+        source: identity ? 'hhIdentity' : 'fallback'
+      });
+    }
 
     return {
-      email: authDiv.getAttribute('data-email') || '',
-      contactId: authDiv.getAttribute('data-contact-id') || '',
-      enableCrm: authDiv.getAttribute('data-enable-crm') === 'true',
-      constantsUrl: authDiv.getAttribute('data-constants-url') || ''
+      email: email,
+      contactId: contactId,
+      enableCrm: enableCrm,
+      constantsUrl: constantsUrl,
+      loginUrl: loginUrl
     };
+  }
+
+  function deriveLoginUrl(auth, constants) {
+    if (auth && auth.loginUrl) return auth.loginUrl;
+    if (constants && constants.LOGIN_URL) return constants.LOGIN_URL;
+    return '/_hcms/mem/login';
+  }
+
+  function buildLoginRedirect(loginUrl) {
+    var base = loginUrl || '/_hcms/mem/login';
+    var separator = base.indexOf('?') >= 0 ? '&' : '?';
+    return base + separator + 'redirect_url=' + encodeURIComponent(window.location.pathname + window.location.search);
+  }
+
+  function unbindClick(button) {
+    if (button && button.__hhlHandler) {
+      button.removeEventListener('click', button.__hhlHandler);
+      button.__hhlHandler = null;
+    }
+  }
+
+  function bindClick(button, handler) {
+    if (!button) return;
+    unbindClick(button);
+    button.__hhlHandler = handler;
+    button.addEventListener('click', handler);
+  }
+
+  function renderSignInState(button, helper, loginUrl, contentType) {
+    if (!button) return;
+    unbindClick(button);
+    button.disabled = false;
+    button.setAttribute('aria-disabled', 'false');
+    button.innerHTML = contentType === 'pathway'
+      ? 'Sign in to enroll'
+      : 'Sign in to start course';
+    button.style.background = '#1a4e8a';
+    button.style.color = '#fff';
+    button.style.border = 'none';
+    button.style.cursor = 'pointer';
+    var redirect = buildLoginRedirect(loginUrl);
+    bindClick(button, function(event) {
+      event.preventDefault();
+      window.location.href = redirect;
+    });
+
+    if (helper) {
+      helper.style.display = 'block';
+      helper.innerHTML = 'Please <a href="' + redirect + '">sign in</a> to ' + (contentType === 'pathway' ? 'enroll in this pathway.' : 'start this course.');
+    }
+  }
+
+  function buildEnrollmentsUrl(constants, auth) {
+    if (!constants || !constants.TRACK_EVENTS_URL) return null;
+    if (!auth.enableCrm || (!auth.email && !auth.contactId)) return null;
+    var base = constants.TRACK_EVENTS_URL;
+    if (base.indexOf('/events/track') >= 0) {
+      base = base.replace('/events/track', '');
+    }
+    var params = [];
+    if (auth.email) params.push('email=' + encodeURIComponent(auth.email));
+    if (auth.contactId) params.push('contactId=' + encodeURIComponent(auth.contactId));
+    return base + '/enrollments/list' + (params.length ? '?' + params.join('&') : '');
+  }
+
+  function fetchEnrollmentFromCRM(constants, auth, contentType, slug) {
+    return new Promise(function(resolve) {
+      var url = buildEnrollmentsUrl(constants, auth);
+      if (!url) {
+        resolve(null);
+        return;
+      }
+      fetch(url, { credentials: 'omit' })
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data) {
+          if (!data || data.mode !== 'authenticated' || !data.enrollments) {
+            resolve(null);
+            return;
+          }
+          var list = contentType === 'pathway'
+            ? (data.enrollments.pathways || [])
+            : (data.enrollments.courses || []);
+          var match = list.find(function(entry) { return entry && entry.slug === slug; });
+          resolve(match || null);
+        })
+        .catch(function(err) {
+          if (debug) console.warn('[hhl-enroll] Failed to fetch CRM enrollment:', err);
+          resolve(null);
+        });
+    });
   }
 
   /**
@@ -29,16 +155,16 @@
   function getConstants(auth, callback) {
     if (!auth.constantsUrl) {
       if (debug) console.log('[hhl-enroll] No constants URL');
-      callback(null);
+      callback({});
       return;
     }
 
     fetch(auth.constantsUrl)
       .then(function(res) { return res.json(); })
-      .then(function(data) { callback(data); })
+      .then(function(data) { callback(data || {}); })
       .catch(function(err) {
         if (debug) console.error('[hhl-enroll] Failed to fetch constants:', err);
-        callback(null);
+        callback({});
       });
   }
 
@@ -127,11 +253,11 @@
   /**
    * Set enrollment state in localStorage
    */
-  function setEnrollmentState(contentType, slug, enrolled) {
+  function setEnrollmentState(contentType, slug, enrolled, enrolledAt) {
     var key = 'hh-enrollment-' + contentType + '-' + slug;
     var state = {
       enrolled: enrolled,
-      enrolled_at: enrolled ? new Date().toISOString() : null
+      enrolled_at: enrolled ? (enrolledAt || new Date().toISOString()) : null
     };
 
     try {
@@ -203,6 +329,7 @@
       button.style.border = '2px solid #6EE7B7';
       button.disabled = true;
       button.style.cursor = 'not-allowed';
+      button.setAttribute('aria-disabled', 'true');
     } else {
       button.innerHTML = contentType === 'pathway'
         ? 'Enroll in Pathway'
@@ -212,6 +339,7 @@
       button.style.border = 'none';
       button.disabled = false;
       button.style.cursor = 'pointer';
+      button.setAttribute('aria-disabled', 'false');
     }
   }
 
@@ -224,6 +352,7 @@
 
     button.disabled = true;
     button.innerHTML = 'Enrolling...';
+    button.setAttribute('aria-disabled', 'true');
 
     // Set enrollment state
     setEnrollmentState(contentType, slug, true);
@@ -234,6 +363,7 @@
     // Update UI after brief delay (simulate network request)
     setTimeout(function() {
       updateButtonUI(button, true, contentType);
+      unbindClick(button);
 
       var message = contentType === 'pathway'
         ? 'Successfully enrolled in pathway!'
@@ -246,20 +376,9 @@
 
   /**
    * Initialize enrollment UI for a specific content item
+   * Waits for window.hhIdentity to be ready before checking authentication
    */
   function initEnrollmentUI(contentType, slug) {
-    var auth = getAuth();
-
-    // Only show enrollment CTA for authenticated users
-    if (!auth.email && !auth.contactId) {
-      if (debug) console.log('[hhl-enroll] User not authenticated, hiding enrollment CTA');
-      var ctaBlock = document.getElementById('hhl-enrollment-cta');
-      if (ctaBlock) {
-        ctaBlock.style.display = 'none';
-      }
-      return;
-    }
-
     // Get enrollment button
     var button = document.getElementById('hhl-enroll-button');
     if (!button) {
@@ -267,21 +386,75 @@
       return;
     }
 
-    // Check current enrollment state
-    var state = getEnrollmentState(contentType, slug);
-    var isEnrolled = state && state.enrolled;
+    var helper = document.getElementById('hhl-enroll-helper');
 
-    // Update button UI
-    updateButtonUI(button, isEnrolled, contentType);
+    // Wait for identity to be resolved before proceeding
+    if (window.hhIdentity && window.hhIdentity.ready) {
+      window.hhIdentity.ready.then(function() {
+        proceedWithInit();
+      }).catch(function(err) {
+        if (debug) console.warn('[hhl-enroll] Identity check failed, proceeding anyway:', err);
+        proceedWithInit();
+      });
+    } else {
+      // Fallback if hhIdentity not available (shouldn't happen if auth-context.js loaded)
+      if (debug) console.warn('[hhl-enroll] window.hhIdentity not available, proceeding without it');
+      proceedWithInit();
+    }
 
-    // If not enrolled, set up click handler
-    if (!isEnrolled) {
+    function proceedWithInit() {
+      var auth = getAuth();
+
       getConstants(auth, function(constants) {
-        button.addEventListener('click', function() {
-          handleEnrollClick(button, contentType, slug, auth, constants);
-        });
+        var loginUrl = deriveLoginUrl(auth, constants);
 
-        if (debug) console.log('[hhl-enroll] Initialized:', { contentType, slug, auth: !!auth.email });
+        if (!auth.email && !auth.contactId) {
+          renderSignInState(button, helper, loginUrl, contentType);
+          return;
+        }
+
+        if (helper) {
+          helper.style.display = 'none';
+          helper.textContent = '';
+        }
+
+        button.disabled = true;
+        button.setAttribute('aria-disabled', 'true');
+        button.innerHTML = 'Checking enrollment...';
+
+        fetchEnrollmentFromCRM(constants, auth, contentType, slug).then(function(match) {
+          if (match) {
+            setEnrollmentState(contentType, slug, true, match.enrolled_at || undefined);
+          }
+
+          var localState = getEnrollmentState(contentType, slug);
+          var isEnrolled = !!match || (localState && localState.enrolled);
+
+          if (isEnrolled) {
+            updateButtonUI(button, true, contentType);
+            unbindClick(button);
+            return;
+          }
+
+          updateButtonUI(button, false, contentType);
+          bindClick(button, function() {
+            handleEnrollClick(button, contentType, slug, auth, constants);
+          });
+
+          if (debug) console.log('[hhl-enroll] Initialized (CRM)', { contentType: contentType, slug: slug });
+        }).catch(function() {
+          if (debug) console.warn('[hhl-enroll] Falling back to local enrollment state');
+          var state = getEnrollmentState(contentType, slug);
+          var fallbackEnrolled = state && state.enrolled;
+          updateButtonUI(button, !!fallbackEnrolled, contentType);
+          if (!fallbackEnrolled) {
+            bindClick(button, function() {
+              handleEnrollClick(button, contentType, slug, auth, constants);
+            });
+          } else {
+            unbindClick(button);
+          }
+        });
       });
     }
   }

@@ -13,13 +13,22 @@
     return fetchJSON(url).catch(function(){ return {}; });
   }
   function getAuth(){
+    // Use window.hhIdentity API for actual membership authentication
+    var identity = window.hhIdentity ? window.hhIdentity.get() : null;
+    var email = '';
+    var contactId = '';
+    if (identity) {
+      email = identity.email || '';
+      contactId = identity.contactId || '';
+    }
+    // Get enableCrm from auth context div
     var el = document.getElementById('hhl-auth-context');
-    if (!el) return { enableCrm:false };
-    return {
-      enableCrm: (el.getAttribute('data-enable-crm')||'false') === 'true',
-      email: el.getAttribute('data-email') || '',
-      contactId: el.getAttribute('data-contact-id') || ''
-    };
+    var enableCrm = false;
+    if (el) {
+      var enableAttr = el.getAttribute('data-enable-crm');
+      enableCrm = (enableAttr || '').toString().toLowerCase() === 'true';
+    }
+    return { enableCrm: enableCrm, email: email, contactId: contactId };
   }
   function send(constants, auth, payload){
     if (!constants || !constants.TRACK_EVENTS_ENABLED || !constants.TRACK_EVENTS_URL) return;
@@ -66,4 +75,3 @@
     });
   });
 })();
-
