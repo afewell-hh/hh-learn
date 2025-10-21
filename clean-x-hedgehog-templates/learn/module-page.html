@@ -682,9 +682,9 @@
             {# Minimal pathway progress affordance (CSP-safe, authenticated) #}
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
             <div id="hhl-auth-context"
-                 data-email="{{ request_contact.email if request_contact.is_logged_in }}"
-                 data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
-                 data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+                 data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
+                 data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
+                 data-enable-crm="true"
                  data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                  style="display:none"></div>
 
@@ -700,6 +700,7 @@
             {# Load external JS to avoid inline script CSP issues #}
             <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/toast.js') }}"></script>
             <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-context.js') }}"></script>
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-breadcrumbs.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-navigation.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
