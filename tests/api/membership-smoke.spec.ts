@@ -24,6 +24,9 @@ const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api
 const TEST_EMAIL = process.env.HUBSPOT_TEST_EMAIL || process.env.HUBSPOT_TEST_USERNAME;
 const TEST_CONTACT_ID = process.env.HUBSPOT_TEST_CONTACT_ID;
 
+// Run tests serially to avoid race conditions on shared test contact state
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Membership API Smoke Tests', () => {
 
   test.beforeAll(async () => {
