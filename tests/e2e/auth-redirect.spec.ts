@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-test.skip('Anonymous users get authentication prompt for My Learning (requires template deployment)', async ({ page }) => {
-  // TODO: This test requires the my-learning.html template fix to be deployed (Issue #258)
-  // The template currently has hardcoded /_hcms/mem/login instead of using the configured login_url variable
+test('Anonymous users get authentication prompt for My Learning', async ({ page }) => {
+  // Template fix deployed: my-learning.html now uses configured login_url variable (Issue #258, deployed via Issue #260)
   await page.goto('https://hedgehog.cloud/learn/my-learning', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2000);
 
