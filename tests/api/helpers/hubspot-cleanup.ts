@@ -134,6 +134,8 @@ export async function clearModuleProgress(
     }
 
     // Remove specified modules
+    // Ensure modules object exists before attempting deletion
+    progressState.modules ??= {};
     moduleSlugs.forEach(slug => {
       delete progressState.modules[slug];
     });
@@ -191,6 +193,8 @@ export async function deleteTestEnrollments(
 
     // Remove specified pathways
     if (options.pathwaySlugs) {
+      // Ensure pathways object exists before attempting deletion
+      progressState.pathways ??= {};
       options.pathwaySlugs.forEach(slug => {
         delete progressState.pathways[slug];
       });
@@ -198,6 +202,8 @@ export async function deleteTestEnrollments(
 
     // Remove specified courses
     if (options.courseSlugs) {
+      // Ensure courses object exists before attempting deletion
+      progressState.courses ??= {};
       options.courseSlugs.forEach(slug => {
         delete progressState.courses[slug];
       });
