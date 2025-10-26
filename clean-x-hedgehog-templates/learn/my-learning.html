@@ -37,7 +37,7 @@
 {% block body %}
 {# If user is not logged in, redirect to LOGIN_URL preserving return URL #}
 {% if not request_contact.is_logged_in %}
-  <meta http-equiv="refresh" content="0; url=/_hcms/mem/login?redirect_url={{ request.path_and_query|urlencode }}">
+  <meta http-equiv="refresh" content="0; url={{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">
 {% endif %}
 <style>
   /* Header section styling */
