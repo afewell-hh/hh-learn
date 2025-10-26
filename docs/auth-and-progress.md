@@ -12,28 +12,134 @@ Runtime and scripts look for HubSpot tokens in this order:
 
 CI workflows are configured to prefer the Project token when present. Keep the Private App token only as a safety net until rollout is complete, then remove it.
 
-## Architecture Decision: HubSpot CMS Membership
+## Authentication Architecture
 
-### Chosen Approach
-We use **HubSpot CMS Membership** as the authentication mechanism because:
+### Dual Authentication System (v0.3+)
 
+The application supports **two authentication methods** to work across both public and private pages:
+
+#### 1. JWT Session Authentication (Primary - Public Pages)
+
+**Status**: IMPLEMENTED (Issue #242, PR #252 - 2025-10-26)
+
+**Purpose**: Enable authenticated identity on **public course pages** without HubSpot Membership dependency
+
+**Why JWT?**
+- **Works on public pages**: HubSpot Membership API returns 404 on public pages
+- **Standard pattern**: Well-understood JWT authentication flow
+- **Session persistence**: 24-hour tokens stored in localStorage
+- **API integration**: Seamless integration with Lambda endpoints
+- **Unblocks testing**: Playwright tests can authenticate directly via API
+
+**Flow**:
+1. User visits public page (anonymous state)
+2. User enters email → calls `POST /auth/login`
+3. Lambda validates email exists in HubSpot CRM
+4. Lambda returns signed JWT token (24h expiry)
+5. Client stores token in localStorage
+6. All subsequent API calls include `Authorization: Bearer <jwt>` header
+7. Lambda validates JWT signature and extracts contact identifier
+8. Progress/enrollment endpoints work with authenticated identity
+
+**JWT Payload**:
+```json
+{
+  "contactId": "12345",
+  "email": "user@example.com",
+  "iat": 1698345600,
+  "exp": 1698432000,
+  "iss": "hedgehog-learn",
+  "aud": "hedgehog-learn-frontend"
+}
+```
+
+**Security**:
+- JWT signed with 256-bit secret (stored in AWS SSM Parameter Store)
+- 24-hour expiry (configurable)
+- No password required (email-only verification for MVP)
+- Token validation on every Lambda request
+- Future: Email verification (magic link) for additional security
+
+**Frontend Usage**:
+```javascript
+// Login
+await window.hhIdentity.login('user@example.com');
+
+// Identity automatically available
+const identity = window.hhIdentity.get();
+console.log(identity.email, identity.contactId);
+
+// Logout
+localStorage.removeItem('hhl_auth_token');
+localStorage.removeItem('hhl_identity_from_jwt');
+location.reload();
+```
+
+**API Endpoint**:
+```
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+
+Response (200):
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "contactId": "12345",
+  "email": "user@example.com",
+  "firstname": "John",
+  "lastname": "Doe"
+}
+```
+
+**Backward Compatibility**:
+- HubSpot Membership still works on private pages
+- Action-runner pattern unchanged
+- Existing enrollment/progress tracking unaffected
+- Legacy email/contactId query parameters still supported
+
+**References**:
+- ADR 001: `docs/adr/001-public-page-authentication.md`
+- Implementation Plan: `docs/implementation-plan-issue-242.md`
+- Verification: `verification-output/issue-242/`
+
+#### 2. HubSpot CMS Membership (Secondary - Private Pages)
+
+**Status**: ACTIVE (legacy authentication method)
+
+**Purpose**: Authentication on **private HubSpot pages** using built-in membership system
+
+**Use Cases**:
+- Private member-only pages
+- Access-restricted content
+- Legacy authentication flows
+
+**Benefits**:
 1. **Native Integration**: Built into HubSpot CMS/Content Hub
 2. **Zero OAuth Complexity**: No custom OAuth flows or token management
 3. **CRM Integration**: Contacts automatically exist in HubSpot CRM
 4. **Template Access**: `request_contact` HubL variable provides identity data
 5. **Enterprise Ready**: Available with Content Hub Professional/Enterprise
 
-### Requirements
+**Requirements**:
 - Content Hub Professional or Enterprise (OR Marketing Hub Enterprise)
 - CMS Membership feature enabled
 - Private content/access groups configured
 
-### Alternative Considered
+**Limitations** (why JWT was needed):
+- Membership API returns 404 on public pages
+- Cannot authenticate on public course pages
+- Blocks Playwright testing on public pages
+- Fragile sessionStorage dependency
+
+**Alternative Considered**:
 OAuth 2.0 via HubSpot App was considered but rejected due to:
 - Additional complexity (token refresh, storage, security)
 - Requires custom app configuration
 - More maintenance overhead
-- Membership provides equivalent functionality with less code
+- Unconfirmed HubSpot Project Apps OAuth support
 
 ## System Components
 
@@ -657,7 +763,144 @@ node scripts/membership/debug-profile.js
 
 This provides step-by-step instructions for browser-based testing and troubleshooting.
 
+## JWT Authentication Testing
+
+### Automated Tests
+
+**API Tests** (`tests/api/membership-smoke.spec.ts`):
+- JWT token generation and validation
+- Authentication with valid/invalid emails
+- All endpoints with JWT Authorization header
+- Error handling for missing/invalid tokens
+
+**E2E Tests** (`tests/e2e/enrollment-flow.spec.ts`):
+- Complete enrollment flow with JWT authentication
+- CTA state updates after JWT login
+- Progress tracking with authenticated identity
+- My Learning dashboard with enrolled courses
+
+**Run Tests**:
+```bash
+# API tests
+npx playwright test tests/api/membership-smoke.spec.ts
+
+# E2E tests
+npx playwright test tests/e2e/enrollment-flow.spec.ts
+
+# All tests
+npx playwright test
+```
+
+**Required Environment Variables**:
+```bash
+HUBSPOT_TEST_USERNAME=<valid-crm-contact-email>
+JWT_SECRET=<jwt-signing-secret>  # Must match Lambda
+```
+
+### JWT Token Management
+
+**Generate JWT_SECRET**:
+```bash
+# Generate a secure 256-bit random key
+openssl rand -base64 32
+```
+
+**Store in AWS SSM Parameter Store**:
+```bash
+aws ssm put-parameter \
+  --name /hhl/jwt-secret \
+  --value "YOUR_GENERATED_SECRET_HERE" \
+  --type SecureString \
+  --description "JWT signing secret for Hedgehog Learn authentication"
+```
+
+**Verify Parameter Exists**:
+```bash
+aws ssm get-parameter --name /hhl/jwt-secret --with-decryption
+```
+
+**Token Rotation**:
+- Rotate JWT_SECRET every 90 days (best practice)
+- If secret is compromised, rotate immediately
+- All issued tokens become invalid after rotation
+- Users must re-login after rotation
+
+**Security Notes**:
+- Never commit JWT_SECRET to git
+- Store only in AWS SSM Parameter Store (encrypted)
+- Configure as GitHub Actions secret for CI/CD
+- Monitor CloudWatch logs for JWT verification errors
+
+### Monitoring & Alerting
+
+**CloudWatch Logs**:
+```bash
+# Monitor JWT authentication errors
+aws logs tail /aws/lambda/hedgehog-learn-dev-api --follow --filter-pattern="JWT"
+
+# Monitor token verification failures
+aws logs tail /aws/lambda/hedgehog-learn-dev-api --follow --filter-pattern="Token verification failed"
+
+# Monitor authentication endpoint
+aws logs tail /aws/lambda/hedgehog-learn-dev-api --follow --filter-pattern="/auth/login"
+```
+
+**Key Metrics to Monitor**:
+- JWT login success rate (should be > 95%)
+- Token verification failures (investigate spikes)
+- Invalid email attempts (potential enumeration attacks)
+- Token expiry patterns (adjust expiry if needed)
+
+**Common JWT Issues**:
+
+**Invalid Token Signature**:
+- JWT_SECRET mismatch between client and server
+- Token modified by client
+- Solution: Verify JWT_SECRET in Lambda environment
+
+**Token Expired**:
+- Token older than 24 hours
+- Solution: User must re-login (automatic in frontend)
+
+**Contact Not Found (404)**:
+- Email not in HubSpot CRM
+- Solution: Ensure contact exists before authenticating
+
 ## Troubleshooting
+
+### JWT Authentication Issues
+
+**Symptom**: Login fails with 404 "Contact not found"
+
+**Solutions**:
+1. Verify email exists in HubSpot CRM
+2. Check contact is not deleted or merged
+3. Ensure HubSpot API token has `crm.objects.contacts.read` scope
+
+**Symptom**: Login fails with 401/403 errors
+
+**Solutions**:
+1. Verify JWT_SECRET is configured in Lambda environment
+2. Check Lambda has HubSpot API token configured
+3. Verify token has required scopes
+4. Check CloudWatch logs for detailed error messages
+
+**Symptom**: Token validation fails on API calls
+
+**Solutions**:
+1. Ensure Authorization header format: `Bearer <token>`
+2. Verify JWT_SECRET matches between login and validation
+3. Check token expiry (24 hours from issuance)
+4. Clear localStorage and re-login if token corrupted
+
+**Symptom**: Identity not resolving after JWT login
+
+**Solutions**:
+1. Check browser console for JavaScript errors
+2. Verify token stored in localStorage (`hhl_auth_token`)
+3. Verify identity stored in localStorage (`hhl_identity_from_jwt`)
+4. Reload page to trigger identity resolution
+5. Enable debug mode: `localStorage.setItem('HHL_DEBUG', 'true')`
 
 ### Validation Errors (Issue #214)
 
