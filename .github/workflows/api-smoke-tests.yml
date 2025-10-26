@@ -1,0 +1,177 @@
+name: API Smoke Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggers
+
+jobs:
+  api-smoke-tests:
+    name: API Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run API smoke tests
+        env:
+          # API Gateway URL
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com' }}
+
+          # Test contact credentials
+          HUBSPOT_TEST_EMAIL: ${{ secrets.HUBSPOT_TEST_EMAIL }}
+          HUBSPOT_TEST_CONTACT_ID: ${{ secrets.HUBSPOT_TEST_CONTACT_ID }}
+
+          # HubSpot token for cleanup helpers
+          HUBSPOT_PROJECT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_PROJECT_ACCESS_TOKEN }}
+          HUBSPOT_API_TOKEN: ${{ secrets.HUBSPOT_API_TOKEN }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+        run: |
+          npx playwright test tests/api/membership-smoke.spec.ts --reporter=list,html
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-smoke-test-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+      - name: Comment PR with test results
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comment = `## ⚠️ API Smoke Tests Failed
+
+            The API-level membership smoke tests have failed. Please review the test results artifact for details.
+
+            **Test Suite:** \`tests/api/membership-smoke.spec.ts\`
+
+            Common causes:
+            - Lambda function not responding (check AWS deployment)
+            - HubSpot API token expired or invalid
+            - Test contact not found in CRM
+            - Required environment variables not set
+
+            See the [test results artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed logs.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  verify-endpoints:
+    name: Verify API Endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Health check - /events/track
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com' }}
+        run: |
+          echo "Testing anonymous event tracking..."
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "eventName": "learning_page_viewed",
+              "payload": {
+                "content_type": "test",
+                "slug": "health-check",
+                "ts": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }
+            }' \
+            "$API_BASE_URL/events/track")
+
+          status_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "Response: $body"
+          echo "Status: $status_code"
+
+          if [ "$status_code" != "200" ]; then
+            echo "❌ Health check failed with status $status_code"
+            exit 1
+          fi
+
+          echo "✅ Health check passed"
+
+      - name: Health check - /progress/read
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com' }}
+          HUBSPOT_TEST_EMAIL: ${{ secrets.HUBSPOT_TEST_EMAIL }}
+        run: |
+          if [ -z "$HUBSPOT_TEST_EMAIL" ]; then
+            echo "⚠️ HUBSPOT_TEST_EMAIL not set, skipping authenticated endpoint check"
+            exit 0
+          fi
+
+          echo "Testing progress read endpoint..."
+          response=$(curl -s -w "\n%{http_code}" \
+            "$API_BASE_URL/progress/read?email=$HUBSPOT_TEST_EMAIL")
+
+          status_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "Response: $body"
+          echo "Status: $status_code"
+
+          if [ "$status_code" != "200" ]; then
+            echo "❌ Progress read check failed with status $status_code"
+            exit 1
+          fi
+
+          echo "✅ Progress read check passed"
+
+      - name: Health check - /enrollments/list
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com' }}
+          HUBSPOT_TEST_EMAIL: ${{ secrets.HUBSPOT_TEST_EMAIL }}
+        run: |
+          if [ -z "$HUBSPOT_TEST_EMAIL" ]; then
+            echo "⚠️ HUBSPOT_TEST_EMAIL not set, skipping enrollments endpoint check"
+            exit 0
+          fi
+
+          echo "Testing enrollments list endpoint..."
+          response=$(curl -s -w "\n%{http_code}" \
+            "$API_BASE_URL/enrollments/list?email=$HUBSPOT_TEST_EMAIL")
+
+          status_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "Response: $body"
+          echo "Status: $status_code"
+
+          if [ "$status_code" != "200" ]; then
+            echo "❌ Enrollments list check failed with status $status_code"
+            exit 1
+          fi
+
+          echo "✅ Enrollments list check passed"
