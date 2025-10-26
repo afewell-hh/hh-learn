@@ -15,3 +15,19 @@ playwright-report/
 aws/
 awscliv2.zip
 module-page.html
+
+# Build output
+dist-cjs/
+
+# Debug and test scripts (temporary)
+scripts/debug-*.js
+scripts/test-*.js
+scripts/fetch-*.js
+
+# Temporary research files
+verification-output/LINKED-*.md
+
+# Test-generated verification artifacts (may contain PII)
+verification-output/issue-242/*.png
+verification-output/issue-242/*-test-report.json
+verification-output/issue-242/api-smoke-test-output.log
