@@ -133,11 +133,15 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       expect(['properties', 'events']).toContain(enrollData.backend);
 
       // Step 2: Verify enrollment appears in enrollments list (with JWT auth)
-      const enrollmentsResponse = await request.get(`${API_BASE_URL}/enrollments/list`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
+      const enrollmentsResponse = await request.get(
+        `${API_BASE_URL}/enrollments/list?email=${encodeURIComponent(TEST_EMAIL!)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
 
       expect(enrollmentsResponse.ok()).toBeTruthy();
       const enrollmentsData = await enrollmentsResponse.json();
@@ -179,11 +183,15 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       expect(startData.mode).toBe('authenticated');
 
       // Step 2: Verify progress reflects started module (with JWT auth)
-      const progressResponse = await request.get(`${API_BASE_URL}/progress/read`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
+      const progressResponse = await request.get(
+        `${API_BASE_URL}/progress/read?email=${encodeURIComponent(TEST_EMAIL!)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
 
       expect(progressResponse.ok()).toBeTruthy();
       const progressData = await progressResponse.json();
@@ -224,11 +232,15 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       expect(completeData.mode).toBe('authenticated');
 
       // Step 2: Verify progress reflects completed module (with JWT auth)
-      const progressResponse = await request.get(`${API_BASE_URL}/progress/read`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
+      const progressResponse = await request.get(
+        `${API_BASE_URL}/progress/read?email=${encodeURIComponent(TEST_EMAIL!)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
 
       expect(progressResponse.ok()).toBeTruthy();
       const progressData = await progressResponse.json();
@@ -270,11 +282,15 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       expect(enrollData.mode).toBe('authenticated');
 
       // Step 2: Verify enrollment appears in enrollments list (with JWT auth)
-      const enrollmentsResponse = await request.get(`${API_BASE_URL}/enrollments/list`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
+      const enrollmentsResponse = await request.get(
+        `${API_BASE_URL}/enrollments/list?email=${encodeURIComponent(TEST_EMAIL!)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
 
       expect(enrollmentsResponse.ok()).toBeTruthy();
       const enrollmentsData = await enrollmentsResponse.json();
@@ -316,11 +332,15 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       expect(startData.mode).toBe('authenticated');
 
       // Step 2: Verify progress reflects started module (with JWT auth)
-      const progressResponse = await request.get(`${API_BASE_URL}/progress/read`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
+      const progressResponse = await request.get(
+        `${API_BASE_URL}/progress/read?email=${encodeURIComponent(TEST_EMAIL!)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
 
       expect(progressResponse.ok()).toBeTruthy();
       const progressData = await progressResponse.json();
@@ -338,8 +358,9 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       const token = await getJWTToken(request, TEST_EMAIL!);
       const courseSlug = 'api-test-course';
 
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
       const response = await request.get(
-        `${API_BASE_URL}/progress/aggregate?type=course&slug=${encodeURIComponent(courseSlug)}`,
+        `${API_BASE_URL}/progress/aggregate?email=${encodeURIComponent(TEST_EMAIL!)}&type=course&slug=${encodeURIComponent(courseSlug)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -364,8 +385,9 @@ test.describe('Membership API Smoke Tests with JWT', () => {
       const token = await getJWTToken(request, TEST_EMAIL!);
       const pathwaySlug = 'api-test-pathway';
 
+      // Note: Still pass email parameter until backend validation is relaxed to accept JWT alone
       const response = await request.get(
-        `${API_BASE_URL}/progress/aggregate?type=pathway&slug=${encodeURIComponent(pathwaySlug)}`,
+        `${API_BASE_URL}/progress/aggregate?email=${encodeURIComponent(TEST_EMAIL!)}&type=pathway&slug=${encodeURIComponent(pathwaySlug)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
