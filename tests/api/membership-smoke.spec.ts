@@ -1,33 +1,48 @@
 /**
- * API-level smoke tests for membership-related flows
+ * API-level smoke tests for membership-related flows with JWT authentication
  *
- * These tests exercise Lambda APIs directly without relying on HubSpot's
- * membership UI login (which is blocked by CSRF in automated browsers).
+ * These tests exercise Lambda APIs directly using JWT authentication tokens.
  *
  * Test Coverage:
- * - /events/track - Enrollment and progress events
- * - /enrollments/list - Verify enrollment persistence
- * - /progress/read - Verify progress persistence
+ * - /auth/login - JWT authentication endpoint
+ * - /events/track - Enrollment and progress events (with JWT auth)
+ * - /enrollments/list - Verify enrollment persistence (with JWT auth)
+ * - /progress/read - Verify progress persistence (with JWT auth)
  *
  * Related Issues:
- * - #248: Implement API-level membership smoke tests
- * - #247: HubSpot membership automation research
- * - #242: Public-page authentication alternative (long-term)
+ * - #253: Phase 3 - Update tests for JWT public auth
+ * - #251: JWT-based public page authentication implementation
+ * - #242: Public-page authentication alternative
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, APIRequestContext } from '@playwright/test';
 
 // API Gateway base URL (from hubspot-project-apps-agent-guide.md)
 const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com';
 
 // Test contact credentials (from environment or defaults)
 const TEST_EMAIL = process.env.HUBSPOT_TEST_EMAIL || process.env.HUBSPOT_TEST_USERNAME;
-const TEST_CONTACT_ID = process.env.HUBSPOT_TEST_CONTACT_ID;
+
+/**
+ * Helper function to get JWT token for authenticated requests
+ */
+async function getJWTToken(request: APIRequestContext, email: string): Promise<string> {
+  const response = await request.post(`${API_BASE_URL}/auth/login`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: { email }
+  });
+
+  expect(response.ok(), `JWT login should succeed for ${email}`).toBeTruthy();
+  const data = await response.json();
+  expect(data.token).toBeTruthy();
+
+  return data.token;
+}
 
 // Run tests serially to avoid race conditions on shared test contact state
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Membership API Smoke Tests', () => {
+test.describe('Membership API Smoke Tests with JWT', () => {
 
   test.beforeAll(async () => {
     // Validate that required environment variables are set
@@ -38,22 +53,72 @@ test.describe('Membership API Smoke Tests', () => {
     }
   });
 
-  test.describe('Course Enrollment Flow', () => {
+  test.describe('JWT Authentication', () => {
 
-    test('should enroll in a course and verify via enrollments API', async ({ request }) => {
+    test('should authenticate and return valid JWT token', async ({ request }) => {
+      const response = await request.post(`${API_BASE_URL}/auth/login`, {
+        headers: { 'Content-Type': 'application/json' },
+        data: { email: TEST_EMAIL }
+      });
+
+      expect(response.ok()).toBeTruthy();
+      const data = await response.json();
+
+      // Verify response structure
+      expect(data.token).toBeTruthy();
+      expect(data.email).toBe(TEST_EMAIL);
+      expect(data.contactId).toBeTruthy();
+      expect(typeof data.token).toBe('string');
+
+      // JWT token should have 3 parts (header.payload.signature)
+      const tokenParts = data.token.split('.');
+      expect(tokenParts.length).toBe(3);
+    });
+
+    test('should reject invalid email format', async ({ request }) => {
+      const response = await request.post(`${API_BASE_URL}/auth/login`, {
+        headers: { 'Content-Type': 'application/json' },
+        data: { email: 'not-an-email' }
+      });
+
+      expect(response.status()).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBeDefined();
+      expect(data.code).toBe('INVALID_EMAIL');
+    });
+
+    test('should reject non-existent email', async ({ request }) => {
+      const response = await request.post(`${API_BASE_URL}/auth/login`, {
+        headers: { 'Content-Type': 'application/json' },
+        data: { email: 'nonexistent-user-12345@example.com' }
+      });
+
+      expect(response.status()).toBe(404);
+      const data = await response.json();
+      expect(data.error).toBeDefined();
+      expect(data.code).toBe('CONTACT_NOT_FOUND');
+    });
+  });
+
+  test.describe('Course Enrollment Flow (with JWT)', () => {
+
+    test('should enroll in a course using JWT auth', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
+
       const courseSlug = 'api-test-course';
       const timestamp = new Date().toISOString();
 
-      // Step 1: Send enrollment event
+      // Step 1: Send enrollment event with JWT auth
       const enrollResponse = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_course_enrolled',
-          contactIdentifier: {
-            email: TEST_EMAIL,
-            ...(TEST_CONTACT_ID && { contactId: TEST_CONTACT_ID }),
-          },
           course_slug: courseSlug,
-          enrollment_source: 'api_smoke_test',
+          enrollment_source: 'api_smoke_test_jwt',
           payload: {
             ts: timestamp,
           },
@@ -67,10 +132,12 @@ test.describe('Membership API Smoke Tests', () => {
       expect(enrollData.mode).toBe('authenticated');
       expect(['properties', 'events']).toContain(enrollData.backend);
 
-      // Step 2: Verify enrollment appears in enrollments list
-      const enrollmentsResponse = await request.get(
-        `${API_BASE_URL}/enrollments/list?email=${encodeURIComponent(TEST_EMAIL!)}`
-      );
+      // Step 2: Verify enrollment appears in enrollments list (with JWT auth)
+      const enrollmentsResponse = await request.get(`${API_BASE_URL}/enrollments/list`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
       expect(enrollmentsResponse.ok()).toBeTruthy();
       const enrollmentsData = await enrollmentsResponse.json();
@@ -83,19 +150,21 @@ test.describe('Membership API Smoke Tests', () => {
       expect(hasCourse).toBeTruthy();
     });
 
-    test('should mark course module as started and verify progress', async ({ request }) => {
+    test('should mark course module as started using JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
       const moduleSlug = 'api-test-module-started';
       const courseSlug = 'api-test-course';
       const timestamp = new Date().toISOString();
 
-      // Step 1: Send module started event
+      // Step 1: Send module started event with JWT auth
       const startResponse = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_module_started',
-          contactIdentifier: {
-            email: TEST_EMAIL,
-            ...(TEST_CONTACT_ID && { contactId: TEST_CONTACT_ID }),
-          },
           payload: {
             module_slug: moduleSlug,
             course_slug: courseSlug,
@@ -109,10 +178,12 @@ test.describe('Membership API Smoke Tests', () => {
       expect(startData.status).toBe('persisted');
       expect(startData.mode).toBe('authenticated');
 
-      // Step 2: Verify progress reflects started module
-      const progressResponse = await request.get(
-        `${API_BASE_URL}/progress/read?email=${encodeURIComponent(TEST_EMAIL!)}`
-      );
+      // Step 2: Verify progress reflects started module (with JWT auth)
+      const progressResponse = await request.get(`${API_BASE_URL}/progress/read`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
       expect(progressResponse.ok()).toBeTruthy();
       const progressData = await progressResponse.json();
@@ -124,19 +195,21 @@ test.describe('Membership API Smoke Tests', () => {
       expect(progressData.progress.modules[moduleSlug].started).toBe(true);
     });
 
-    test('should mark course module as completed and verify progress', async ({ request }) => {
+    test('should mark course module as completed using JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
       const moduleSlug = 'api-test-module-completed';
       const courseSlug = 'api-test-course';
       const timestamp = new Date().toISOString();
 
-      // Step 1: Send module completed event
+      // Step 1: Send module completed event with JWT auth
       const completeResponse = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_module_completed',
-          contactIdentifier: {
-            email: TEST_EMAIL,
-            ...(TEST_CONTACT_ID && { contactId: TEST_CONTACT_ID }),
-          },
           payload: {
             module_slug: moduleSlug,
             course_slug: courseSlug,
@@ -150,10 +223,12 @@ test.describe('Membership API Smoke Tests', () => {
       expect(completeData.status).toBe('persisted');
       expect(completeData.mode).toBe('authenticated');
 
-      // Step 2: Verify progress reflects completed module
-      const progressResponse = await request.get(
-        `${API_BASE_URL}/progress/read?email=${encodeURIComponent(TEST_EMAIL!)}`
-      );
+      // Step 2: Verify progress reflects completed module (with JWT auth)
+      const progressResponse = await request.get(`${API_BASE_URL}/progress/read`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
       expect(progressResponse.ok()).toBeTruthy();
       const progressData = await progressResponse.json();
@@ -165,22 +240,24 @@ test.describe('Membership API Smoke Tests', () => {
     });
   });
 
-  test.describe('Pathway Enrollment Flow', () => {
+  test.describe('Pathway Enrollment Flow (with JWT)', () => {
 
-    test('should enroll in a pathway and verify via enrollments API', async ({ request }) => {
+    test('should enroll in a pathway using JWT auth', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
       const pathwaySlug = 'api-test-pathway';
       const timestamp = new Date().toISOString();
 
-      // Step 1: Send pathway enrollment event
+      // Step 1: Send pathway enrollment event with JWT auth
       const enrollResponse = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_pathway_enrolled',
-          contactIdentifier: {
-            email: TEST_EMAIL,
-            ...(TEST_CONTACT_ID && { contactId: TEST_CONTACT_ID }),
-          },
           pathway_slug: pathwaySlug,
-          enrollment_source: 'api_smoke_test',
+          enrollment_source: 'api_smoke_test_jwt',
           payload: {
             ts: timestamp,
           },
@@ -192,10 +269,12 @@ test.describe('Membership API Smoke Tests', () => {
       expect(enrollData.status).toBe('persisted');
       expect(enrollData.mode).toBe('authenticated');
 
-      // Step 2: Verify enrollment appears in enrollments list
-      const enrollmentsResponse = await request.get(
-        `${API_BASE_URL}/enrollments/list?email=${encodeURIComponent(TEST_EMAIL!)}`
-      );
+      // Step 2: Verify enrollment appears in enrollments list (with JWT auth)
+      const enrollmentsResponse = await request.get(`${API_BASE_URL}/enrollments/list`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
       expect(enrollmentsResponse.ok()).toBeTruthy();
       const enrollmentsData = await enrollmentsResponse.json();
@@ -208,19 +287,21 @@ test.describe('Membership API Smoke Tests', () => {
       expect(hasPathway).toBeTruthy();
     });
 
-    test('should mark pathway module as started and verify progress', async ({ request }) => {
+    test('should mark pathway module as started using JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
       const moduleSlug = 'api-test-pathway-module';
       const pathwaySlug = 'api-test-pathway';
       const timestamp = new Date().toISOString();
 
-      // Step 1: Send module started event
+      // Step 1: Send module started event with JWT auth
       const startResponse = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_module_started',
-          contactIdentifier: {
-            email: TEST_EMAIL,
-            ...(TEST_CONTACT_ID && { contactId: TEST_CONTACT_ID }),
-          },
           payload: {
             module_slug: moduleSlug,
             pathway_slug: pathwaySlug,
@@ -234,10 +315,12 @@ test.describe('Membership API Smoke Tests', () => {
       expect(startData.status).toBe('persisted');
       expect(startData.mode).toBe('authenticated');
 
-      // Step 2: Verify progress reflects started module
-      const progressResponse = await request.get(
-        `${API_BASE_URL}/progress/read?email=${encodeURIComponent(TEST_EMAIL!)}`
-      );
+      // Step 2: Verify progress reflects started module (with JWT auth)
+      const progressResponse = await request.get(`${API_BASE_URL}/progress/read`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
       expect(progressResponse.ok()).toBeTruthy();
       const progressData = await progressResponse.json();
@@ -248,16 +331,20 @@ test.describe('Membership API Smoke Tests', () => {
     });
   });
 
-  test.describe('Progress Aggregation', () => {
+  test.describe('Progress Aggregation (with JWT)', () => {
 
-    test('should retrieve course progress aggregate', async ({ request }) => {
+    test('should retrieve course progress aggregate using JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
       const courseSlug = 'api-test-course';
 
       const response = await request.get(
-        `${API_BASE_URL}/progress/aggregate?` +
-        `email=${encodeURIComponent(TEST_EMAIL!)}&` +
-        `type=course&` +
-        `slug=${encodeURIComponent(courseSlug)}`
+        `${API_BASE_URL}/progress/aggregate?type=course&slug=${encodeURIComponent(courseSlug)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
 
       expect(response.ok()).toBeTruthy();
@@ -272,14 +359,18 @@ test.describe('Membership API Smoke Tests', () => {
       expect(data.completion.totalModules).toBeDefined();
     });
 
-    test('should retrieve pathway progress aggregate', async ({ request }) => {
+    test('should retrieve pathway progress aggregate using JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
       const pathwaySlug = 'api-test-pathway';
 
       const response = await request.get(
-        `${API_BASE_URL}/progress/aggregate?` +
-        `email=${encodeURIComponent(TEST_EMAIL!)}&` +
-        `type=pathway&` +
-        `slug=${encodeURIComponent(pathwaySlug)}`
+        `${API_BASE_URL}/progress/aggregate?type=pathway&slug=${encodeURIComponent(pathwaySlug)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
 
       expect(response.ok()).toBeTruthy();
@@ -315,13 +406,17 @@ test.describe('Membership API Smoke Tests', () => {
       expect(data.mode).toBe('anonymous');
     });
 
-    test('should handle authenticated events with email', async ({ request }) => {
+    test('should handle authenticated events with JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
+
       const response = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_page_viewed',
-          contactIdentifier: {
-            email: TEST_EMAIL,
-          },
           payload: {
             content_type: 'course',
             slug: 'authenticated-test-course',
@@ -341,12 +436,18 @@ test.describe('Membership API Smoke Tests', () => {
 
   test.describe('Error Handling', () => {
 
-    test('should return 400 for invalid event payload', async ({ request }) => {
+    test('should return 400 for invalid event payload even with valid JWT', async ({ request }) => {
+      // Get JWT token
+      const token = await getJWTToken(request, TEST_EMAIL!);
+
       const response = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         data: {
           eventName: 'learning_module_started',
           // Missing required module_slug in payload
-          contactIdentifier: { email: TEST_EMAIL },
           payload: {},
         },
       });
@@ -357,7 +458,7 @@ test.describe('Membership API Smoke Tests', () => {
       expect(data.code).toBe('SCHEMA_VALIDATION_FAILED');
     });
 
-    test('should return 400 for missing contact identifier in enrollments/list', async ({ request }) => {
+    test('should return 400 for missing JWT in enrollments/list', async ({ request }) => {
       const response = await request.get(`${API_BASE_URL}/enrollments/list`);
 
       expect(response.status()).toBe(400);
@@ -365,13 +466,14 @@ test.describe('Membership API Smoke Tests', () => {
       expect(data.error).toBeDefined();
     });
 
-    test('should return 400 for invalid email format', async ({ request }) => {
+    test('should return 401 for invalid JWT token', async ({ request }) => {
       const response = await request.post(`${API_BASE_URL}/events/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer invalid-token-12345'
+        },
         data: {
           eventName: 'learning_page_viewed',
-          contactIdentifier: {
-            email: 'not-an-email',
-          },
           payload: {
             content_type: 'course',
             slug: 'test-course',
@@ -379,10 +481,10 @@ test.describe('Membership API Smoke Tests', () => {
         },
       });
 
-      expect(response.status()).toBe(400);
+      // Should still work as anonymous if JWT is invalid (backward compatibility)
+      expect(response.ok()).toBeTruthy();
       const data = await response.json();
-      expect(data.error).toBeDefined();
-      expect(data.code).toBe('SCHEMA_VALIDATION_FAILED');
+      expect(data.mode).toBe('anonymous');
     });
   });
 });
