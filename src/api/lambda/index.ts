@@ -22,6 +22,7 @@ import {
   validateExplicitCompletion,
   validateCompletionTimestamp
 } from './completion.js';
+import { signToken, extractContactFromToken } from './auth.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -53,7 +54,7 @@ const ok = (body: unknown = {}, origin?: string) => ({
   body: JSON.stringify(body),
   headers: {
     'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   },
 });
@@ -63,7 +64,7 @@ const bad = (code: number, msg: string, origin?: string, details?: any) => ({
   body: JSON.stringify(details ? { error: msg, details } : { error: msg }),
   headers: {
     'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   },
 });
@@ -87,6 +88,67 @@ function logValidationFailure(validationError: ValidationError, endpoint: string
   console.warn('[VALIDATION_FAILURE]', JSON.stringify(logEntry));
 }
 
+/**
+ * POST /auth/login
+ * Accepts email, returns JWT token if contact exists in HubSpot CRM
+ */
+async function login(event: any, origin?: string) {
+  try {
+    const body = JSON.parse(event.body || '{}');
+    const { email } = body;
+
+    if (!email || typeof email !== 'string') {
+      return bad(400, 'Email is required', origin, { code: 'MISSING_EMAIL' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return bad(400, 'Invalid email format', origin, { code: 'INVALID_EMAIL' });
+    }
+
+    const hubspot = getHubSpotClient();
+
+    // Search for contact by email
+    const searchResponse = await (hubspot as any).crm.contacts.searchApi.doSearch({
+      filterGroups: [{
+        filters: [{
+          propertyName: 'email',
+          operator: 'EQ',
+          value: email,
+        }],
+      }],
+      properties: ['email', 'firstname', 'lastname'],
+      limit: 1,
+    });
+
+    if (!searchResponse.results || searchResponse.results.length === 0) {
+      return bad(404, 'Contact not found', origin, { code: 'CONTACT_NOT_FOUND' });
+    }
+
+    const contact = searchResponse.results[0];
+    const contactId = contact.id;
+
+    // Generate JWT token
+    const token = signToken({
+      contactId,
+      email
+    });
+
+    return ok({
+      token,
+      contactId,
+      email,
+      firstname: contact.properties.firstname || '',
+      lastname: contact.properties.lastname || ''
+    }, origin);
+
+  } catch (err: any) {
+    console.error('[login] Error:', err.message || err);
+    return bad(500, 'Authentication failed', origin, { code: 'AUTH_ERROR' });
+  }
+}
+
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
     const origin = event.headers?.origin || event.headers?.Origin;
@@ -98,7 +160,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         statusCode: 200,
         headers: {
           'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : 'https://hedgehog.cloud',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         },
       };
@@ -108,7 +170,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (path.endsWith('/progress/aggregate') && event.requestContext.http.method === 'GET') return await getAggregatedProgress(event, origin);
     if (path.endsWith('/enrollments/list') && event.requestContext.http.method === 'GET') return await listEnrollments(event, origin);
     if (event.requestContext.http.method !== 'POST') return bad(405, 'POST only', origin);
-  if (path.endsWith('/events/track')) return await track(event.body || '', origin);
+    if (path.endsWith('/auth/login')) return await login(event, origin);
+    if (path.endsWith('/events/track')) return await track(event, origin);
     if (path.endsWith('/quiz/grade')) return await grade(event.body || '', origin);
 
     return bad(404, 'Not found', origin);
@@ -138,8 +201,18 @@ async function listEnrollments(event: any, origin?: string) {
       return bad(400, error.message, origin, { code: error.code, details: error.details });
     }
 
+    // Extract contact identifier from JWT if present
+    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    const jwtContact = extractContactFromToken(authHeader);
+
     let contactId = validation.data.contactId;
-    const email = validation.data.email;
+    let email = validation.data.email;
+
+    // Override with JWT if present (JWT takes precedence)
+    if (jwtContact) {
+      email = jwtContact.email;
+      contactId = jwtContact.contactId;
+    }
 
     if (!contactId && email) {
       const search = await (hubspot as any).crm.contacts.searchApi.doSearch({
@@ -234,10 +307,20 @@ async function getAggregatedProgress(event: any, origin?: string) {
       return bad(400, error.message, origin, { code: error.code, details: error.details });
     }
 
+    // Extract contact identifier from JWT if present
+    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    const jwtContact = extractContactFromToken(authHeader);
+
     let contactId = validation.data.contactId;
-    const email = validation.data.email;
+    let email = validation.data.email;
     const contentType = validation.data.type;
     const slug = validation.data.slug;
+
+    // Override with JWT if present (JWT takes precedence)
+    if (jwtContact) {
+      email = jwtContact.email;
+      contactId = jwtContact.contactId;
+    }
 
     if (!contactId && !email) return ok({ mode: 'anonymous' }, origin);
 
@@ -354,8 +437,18 @@ async function readProgress(event: any, origin?: string) {
       return bad(400, error.message, origin, { code: error.code, details: error.details });
     }
 
+    // Extract contact identifier from JWT if present
+    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    const jwtContact = extractContactFromToken(authHeader);
+
     let contactId = validation.data.contactId;
-    const email = validation.data.email;
+    let email = validation.data.email;
+
+    // Override with JWT if present (JWT takes precedence)
+    if (jwtContact) {
+      email = jwtContact.email;
+      contactId = jwtContact.contactId;
+    }
 
     if (!contactId && !email) return ok({ mode: 'anonymous' }, origin);
 
@@ -397,7 +490,9 @@ async function readProgress(event: any, origin?: string) {
   }
 }
 
-async function track(raw: string, origin?: string) {
+async function track(event: any, origin?: string) {
+  const raw = event.body || '';
+
   // Check payload size first
   if (!checkPayloadSize(raw)) {
     const error = createValidationError(
@@ -449,8 +544,19 @@ async function track(raw: string, origin?: string) {
     return ok({ status: 'logged', mode: 'anonymous' }, origin);
   }
 
+  // Extract contact identifier from JWT if present
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  const jwtContact = extractContactFromToken(authHeader);
+
+  // Use JWT identity if available, otherwise fall back to explicit contactIdentifier
+  let contactIdentifier = input.contactIdentifier;
+  if (jwtContact) {
+    // JWT takes precedence
+    contactIdentifier = jwtContact;
+  }
+
   // CRM persistence enabled - require contact identifier
-  if (!input.contactIdentifier?.email && !input.contactIdentifier?.contactId) {
+  if (!contactIdentifier?.email && !contactIdentifier?.contactId) {
     console.log('Track event (no identity)', input.eventName);
     return ok({ status: 'logged', mode: 'anonymous' }, origin);
   }
@@ -458,17 +564,20 @@ async function track(raw: string, origin?: string) {
   try {
     const hubspot = getHubSpotClient();
 
+    // Update input with JWT-aware contact identifier
+    const inputWithAuth = { ...input, contactIdentifier };
+
     // Route to appropriate backend
     if (progressBackend === 'properties') {
       // Contact Properties backend (MVP default)
-      await persistViaContactProperties(hubspot, input);
-      console.log('Track event (persisted via properties)', input.eventName, input.contactIdentifier);
-      return ok({ status: 'persisted', mode: 'authenticated', backend: 'properties' }, origin);
+      await persistViaContactProperties(hubspot, inputWithAuth);
+      console.log('Track event (persisted via properties)', inputWithAuth.eventName, contactIdentifier);
+      return ok({ status: 'persisted', mode: 'authenticated', backend: 'properties', contactId: contactIdentifier?.contactId }, origin);
     } else if (progressBackend === 'events') {
       // Custom Behavioral Events backend (future enhancement)
-      await persistViaBehavioralEvents(hubspot, input);
-      console.log('Track event (persisted via events)', input.eventName, input.contactIdentifier);
-      return ok({ status: 'persisted', mode: 'authenticated', backend: 'events' }, origin);
+      await persistViaBehavioralEvents(hubspot, inputWithAuth);
+      console.log('Track event (persisted via events)', inputWithAuth.eventName, contactIdentifier);
+      return ok({ status: 'persisted', mode: 'authenticated', backend: 'events', contactId: contactIdentifier?.contactId }, origin);
     } else {
       console.error('Invalid PROGRESS_BACKEND:', progressBackend);
       return ok({ status: 'logged', mode: 'fallback', error: 'Invalid backend configuration' }, origin);

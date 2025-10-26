@@ -2,7 +2,7 @@
  * Hedgehog Learn – Courses page interactions (CSP-safe)
  * - Shows CRM-backed progress counts and bar for authenticated users
  * - Falls back to local storage for anonymous users
- * - Emits one-time course enrollment beacon per session when authenticated
+ * - (Legacy) Enrollment beacons now handled via /learn/action-runner (Issue #245)
  * - Exposes window.hhUpdateCourseProgress(started, completed)
  */
 (function () {
@@ -10,8 +10,27 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn();
   }
 
+  /**
+   * Build fetch headers with JWT token if available (Issue #251)
+   */
+  function buildAuthHeaders() {
+    var headers = { 'Content-Type': 'application/json' };
+    try {
+      var token = localStorage.getItem('hhl_auth_token');
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    return headers;
+  }
+
   function fetchJSON(url) {
-    return fetch(url, { credentials: 'omit' }).then(function (r) {
+    return fetch(url, {
+      credentials: 'omit',
+      headers: buildAuthHeaders()
+    }).then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + url);
       return r.json();
     });
@@ -27,31 +46,24 @@
   function getAuth() {
     var el = document.getElementById('hhl-auth-context');
     if (!el) return { enableCrm: false };
+    var identity = (window.hhIdentity && typeof window.hhIdentity.get === 'function') ? window.hhIdentity.get() : null;
+    var email = identity && identity.email ? identity.email : (el.getAttribute('data-email') || null);
+    var contactId = identity && identity.contactId ? identity.contactId : (el.getAttribute('data-contact-id') || null);
     return {
-      email: el.getAttribute('data-email') || null,
-      contactId: el.getAttribute('data-contact-id') || null,
+      email: email,
+      contactId: contactId,
       enableCrm: (el.getAttribute('data-enable-crm') || 'false') === 'true'
     };
   }
 
   function sendEnrollment(constants, auth, courseSlug) {
-    if (!constants || !constants.TRACK_EVENTS_ENABLED || !constants.TRACK_EVENTS_URL) return;
+    // Deprecated: explicit enrollment now routes through /learn/action-runner (Issue #245)
+    // We keep the session flag to avoid re-triggering legacy flows, but no network requests occur here.
     try {
       var key = 'hh-course-enrolled-' + courseSlug;
-      if (sessionStorage.getItem(key)) return;
-      var payload = { eventName: 'learning_course_enrolled', payload: { course_slug: courseSlug, ts: new Date().toISOString() } };
-      if (auth.enableCrm && (auth.email || auth.contactId)) {
-        payload.contactIdentifier = {};
-        if (auth.email) payload.contactIdentifier.email = auth.email;
-        if (auth.contactId) payload.contactIdentifier.contactId = auth.contactId;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, 'true');
       }
-      if (navigator.sendBeacon) {
-        var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        navigator.sendBeacon(constants.TRACK_EVENTS_URL, blob);
-      } else {
-        fetch(constants.TRACK_EVENTS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload), keepalive:true }).catch(function(){});
-      }
-      sessionStorage.setItem(key, 'true');
     } catch (e) {}
   }
 
