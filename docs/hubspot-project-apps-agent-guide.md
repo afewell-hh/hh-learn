@@ -24,6 +24,7 @@ related-docs:
 - [Required Scopes](#part-3-required-scopes) - Scope configuration
 - [Working with APIs](#part-4-working-with-hubspot-apis) - Code examples ✨
 - [AWS Lambda Integration](#part-5-external-serverless-integration-aws-lambda) - External serverless
+- [JWT Authentication](#part-55-jwt-authentication-for-public-pages) - Public page auth (NEW) 🔐
 - [Debugging](#part-6-common-debugging-patterns) - Troubleshooting flows
 - [When Training Data Fails](#part-7-when-your-training-data-fails-you) - Red flags & how to search
 - [Test Contacts](#part-8-test-contacts-and-verification) - Testing procedures
@@ -430,6 +431,328 @@ npm run deploy:aws
 ```
 
 **Evidence:** Successfully deployed and verified (see `verification-output/issue-189/`)
+
+---
+
+## Part 5.5: JWT Authentication for Public Pages
+
+**Status**: IMPLEMENTED (Issue #242, PR #252 - 2025-10-26)
+
+### Problem Statement
+
+HubSpot Membership API (`/_hcms/api/membership/v1/profile`) **returns 404 on public pages**, making it impossible to authenticate users on public course pages. This blocked:
+- CTA state management ("Enroll" vs "Sign in to start")
+- Enrollment tracking with CRM persistence
+- Progress beacons with contact identifiers
+- Playwright automated testing
+
+### Solution: JWT Session Tokens
+
+Implemented a **JWT-based authentication system** that works on public pages without HubSpot Membership dependency.
+
+### Architecture
+
+```
+Public Page (anonymous)
+  ↓
+User enters email → POST /auth/login
+  ↓
+Lambda validates email exists in CRM
+  ↓
+Returns signed JWT (24h expiry)
+  ↓
+Client stores in localStorage
+  ↓
+All API calls include Authorization: Bearer <jwt>
+  ↓
+Lambda validates JWT → extracts contactId
+  ↓
+Progress/enrollment endpoints work authenticated
+```
+
+### Implementation Details
+
+**Backend Endpoint** (`src/api/lambda/index.ts`):
+
+```typescript
+// POST /auth/login
+async function login(event: any, origin?: string) {
+  const { email } = JSON.parse(event.body || '{}');
+
+  // Validate email format
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return bad(400, 'Invalid email format', origin);
+  }
+
+  // Search for contact in HubSpot CRM
+  const hubspot = getHubSpotClient();
+  const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+    filterGroups: [{
+      filters: [{ propertyName: 'email', operator: 'EQ', value: email }]
+    }],
+    properties: ['email', 'firstname', 'lastname'],
+    limit: 1
+  });
+
+  if (!searchResponse.results || searchResponse.results.length === 0) {
+    return bad(404, 'Contact not found', origin);
+  }
+
+  const contact = searchResponse.results[0];
+
+  // Generate JWT token
+  const token = signToken({
+    contactId: contact.id,
+    email: email
+  });
+
+  return ok({
+    token,
+    contactId: contact.id,
+    email: email,
+    firstname: contact.properties.firstname || '',
+    lastname: contact.properties.lastname || ''
+  }, origin);
+}
+```
+
+**JWT Utilities** (`src/api/lambda/auth.ts`):
+
+```typescript
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const JWT_EXPIRY = '24h';
+
+export function signToken(payload: { contactId: string; email: string }): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRY,
+    issuer: 'hedgehog-learn',
+    audience: 'hedgehog-learn-frontend'
+  });
+}
+
+export function verifyToken(token: string): { contactId: string; email: string } {
+  return jwt.verify(token, JWT_SECRET, {
+    issuer: 'hedgehog-learn',
+    audience: 'hedgehog-learn-frontend'
+  }) as any;
+}
+
+export function extractContactFromToken(authHeader: string | undefined) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+
+  try {
+    const payload = verifyToken(token);
+    return { email: payload.email, contactId: payload.contactId };
+  } catch (err) {
+    console.warn('[JWT] Token verification failed:', err);
+    return null;
+  }
+}
+```
+
+**Frontend Integration** (`clean-x-hedgehog-templates/assets/js/auth-context.js`):
+
+```javascript
+// Public API for login
+window.hhIdentity = window.hhIdentity || {};
+window.hhIdentity.login = function(email) {
+  return fetch(AUTH_LOGIN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Store JWT token
+    localStorage.setItem('hhl_auth_token', data.token);
+    localStorage.setItem('hhl_auth_token_expires', Date.now() + (24 * 60 * 60 * 1000));
+
+    // Store identity for immediate use
+    localStorage.setItem('hhl_identity_from_jwt', JSON.stringify({
+      email: data.email,
+      contactId: data.contactId,
+      firstname: data.firstname,
+      lastname: data.lastname
+    }));
+
+    return data;
+  });
+};
+
+// Usage
+await window.hhIdentity.login('user@example.com');
+```
+
+**API Calls with JWT** (all endpoints updated):
+
+```javascript
+// Before (required explicit contactIdentifier)
+fetch('/events/track', {
+  method: 'POST',
+  body: JSON.stringify({
+    eventName: 'learning_course_enrolled',
+    contactIdentifier: { email: 'user@example.com', contactId: '12345' }
+  })
+});
+
+// After (JWT provides identity automatically)
+const token = localStorage.getItem('hhl_auth_token');
+fetch('/events/track', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: JSON.stringify({
+    eventName: 'learning_course_enrolled'
+    // No contactIdentifier needed!
+  })
+});
+```
+
+### Environment Configuration
+
+**Lambda Environment** (`serverless.yml`):
+
+```yaml
+environment:
+  HUBSPOT_PROJECT_ACCESS_TOKEN: ${ssm:/hhl/hubspot/token}
+  JWT_SECRET: ${ssm:/hhl/jwt-secret}  # NEW
+  ENABLE_CRM_PROGRESS: true
+```
+
+**Generate and Store JWT_SECRET**:
+
+```bash
+# Generate secure 256-bit key
+openssl rand -base64 32
+
+# Store in AWS SSM Parameter Store
+aws ssm put-parameter \
+  --name /hhl/jwt-secret \
+  --value "YOUR_GENERATED_SECRET_HERE" \
+  --type SecureString \
+  --description "JWT signing secret for Hedgehog Learn authentication"
+```
+
+### Security Considerations
+
+1. **Token Expiry**: 24 hours (configurable via `JWT_EXPIRY`)
+2. **Signature Verification**: Every request validates JWT signature
+3. **Email-Only Authentication**: No password required for MVP (acceptable for learning platform)
+4. **Token Storage**: localStorage (client-side, user can clear)
+5. **Token Rotation**: Rotate `JWT_SECRET` every 90 days (best practice)
+6. **No Revocation**: Tokens cannot be revoked without blacklist (acceptable for 24h expiry)
+
+**Future Enhancements**:
+- Magic link email verification
+- Token refresh endpoint
+- Logout blacklist (DynamoDB)
+- Rate limiting on `/auth/login`
+
+### Testing
+
+**API Tests** (`tests/api/membership-smoke.spec.ts`):
+
+```typescript
+// Helper function
+async function getJWTToken(request: APIRequestContext, email: string): Promise<string> {
+  const response = await request.post(`${API_BASE}/auth/login`, {
+    data: { email }
+  });
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  return data.token;
+}
+
+// Test JWT authentication
+test('should authenticate with valid email and return JWT', async ({ request }) => {
+  const token = await getJWTToken(request, TEST_EMAIL);
+  expect(token).toBeTruthy();
+  expect(token.length).toBeGreaterThan(20);
+});
+
+// Test using JWT for enrollment
+test('should enroll in course using JWT auth', async ({ request }) => {
+  const token = await getJWTToken(request, TEST_EMAIL);
+
+  const response = await request.post(`${API_BASE}/events/track`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+    data: {
+      eventName: 'learning_course_enrolled',
+      course_slug: 'test-course'
+    }
+  });
+
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  expect(data.mode).toBe('authenticated');
+});
+```
+
+**E2E Tests** (`tests/e2e/enrollment-flow.spec.ts`):
+
+```typescript
+async function authenticateViaJWT(page: Page, email: string) {
+  const response = await page.request.post(`${API_BASE}/auth/login`, {
+    data: { email }
+  });
+
+  const data = await response.json();
+
+  // Store token in localStorage
+  await page.evaluate((token) => {
+    localStorage.setItem('hhl_auth_token', token);
+    localStorage.setItem('hhl_auth_token_expires', String(Date.now() + 24*60*60*1000));
+  }, data.token);
+}
+
+test('should authenticate and enroll', async ({ page }) => {
+  await page.goto('/learn/courses/test-course');
+  await authenticateViaJWT(page, TEST_EMAIL);
+  await page.reload();
+
+  // CTA should show "Start Course" (not "Sign in")
+  await expect(page.locator('#hhl-enroll-button')).toContainText(/Start Course/);
+});
+```
+
+### Troubleshooting JWT Issues
+
+**Login returns 404 "Contact not found"**:
+- Email doesn't exist in HubSpot CRM
+- Contact was deleted or merged
+- Solution: Verify contact exists before authenticating
+
+**Token validation fails on API calls**:
+- `JWT_SECRET` mismatch between login and validation
+- Token expired (> 24 hours old)
+- Token modified by client
+- Solution: Verify `JWT_SECRET` in Lambda environment, check CloudWatch logs
+
+**Identity not resolving after login**:
+- Token not stored in localStorage
+- JavaScript errors preventing identity resolution
+- Solution: Check browser console, verify `hhl_auth_token` in localStorage
+
+### Production Evidence
+
+- **Implementation**: PR #252 (merged 2025-10-26)
+- **Tests**: 16 automated tests (15 API + 1 E2E)
+- **Verification**: `verification-output/issue-242/`
+- **Issues Unblocked**: #233 (CTA state), #247 (Playwright testing)
+
+### References
+
+- ADR 001: `docs/adr/001-public-page-authentication.md`
+- Implementation Plan: `docs/implementation-plan-issue-242.md`
+- Auth Guide: `docs/auth-and-progress.md`
+- Issue #242: Design & implement public-page authentication
+- Issue #251: JWT implementation (backend)
+- Issue #253: JWT testing (frontend)
 
 ---
 
