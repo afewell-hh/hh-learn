@@ -7,6 +7,8 @@
   "ENABLE_CRM_PROGRESS": true,
   "LOGOUT_URL": "/_hcms/mem/logout",
   "LOGIN_URL": "/_hcms/mem/login",
+  "AUTH_LOGIN_URL": "https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login",
   "TRACK_EVENTS_ENABLED": true,
-  "TRACK_EVENTS_URL": "https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track"
+  "TRACK_EVENTS_URL": "https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track",
+  "ACTION_RUNNER_URL": "/learn/action-runner"
 }

@@ -13,6 +13,7 @@ provider:
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
     PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
+    JWT_SECRET: ${env:JWT_SECRET, ''}
   httpApi:
     cors:
       allowedOrigins:
@@ -32,6 +33,9 @@ functions:
   api:
     handler: dist-lambda/src/api/lambda/index.handler
     events:
+      - httpApi:
+          path: /auth/login
+          method: POST
       - httpApi:
           path: /events/track
           method: POST
@@ -94,7 +98,40 @@ package:
     - '!node_modules/zod/**/*.map'
     - 'node_modules/zod/package.json'
 
+    - 'node_modules/jsonwebtoken/**/*.js'
+    - '!node_modules/jsonwebtoken/**/*.d.ts'
+    - '!node_modules/jsonwebtoken/**/*.map'
+    - 'node_modules/jsonwebtoken/package.json'
+
     # Transitiv dependencies needed at runtime
+    - 'node_modules/buffer-equal-constant-time/**/*.js'
+    - 'node_modules/buffer-equal-constant-time/package.json'
+    - 'node_modules/ecdsa-sig-formatter/**/*.js'
+    - 'node_modules/ecdsa-sig-formatter/package.json'
+    - 'node_modules/jwa/**/*.js'
+    - 'node_modules/jwa/package.json'
+    - 'node_modules/jws/**/*.js'
+    - 'node_modules/jws/package.json'
+    - 'node_modules/lodash.includes/**/*.js'
+    - 'node_modules/lodash.includes/package.json'
+    - 'node_modules/lodash.isboolean/**/*.js'
+    - 'node_modules/lodash.isboolean/package.json'
+    - 'node_modules/lodash.isinteger/**/*.js'
+    - 'node_modules/lodash.isinteger/package.json'
+    - 'node_modules/lodash.isnumber/**/*.js'
+    - 'node_modules/lodash.isnumber/package.json'
+    - 'node_modules/lodash.isplainobject/**/*.js'
+    - 'node_modules/lodash.isplainobject/package.json'
+    - 'node_modules/lodash.isstring/**/*.js'
+    - 'node_modules/lodash.isstring/package.json'
+    - 'node_modules/lodash.once/**/*.js'
+    - 'node_modules/lodash.once/package.json'
+    - 'node_modules/ms/**/*.js'
+    - 'node_modules/ms/package.json'
+    - 'node_modules/safe-buffer/**/*.js'
+    - 'node_modules/safe-buffer/package.json'
+    - 'node_modules/semver/**/*.js'
+    - 'node_modules/semver/package.json'
     - 'node_modules/asynckit/**/*.js'
     - 'node_modules/asynckit/package.json'
     - 'node_modules/combined-stream/**/*.js'

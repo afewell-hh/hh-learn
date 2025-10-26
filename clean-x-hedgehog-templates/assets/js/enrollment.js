@@ -65,7 +65,9 @@
   function buildLoginRedirect(loginUrl) {
     var base = loginUrl || '/_hcms/mem/login';
     var separator = base.indexOf('?') >= 0 ? '&' : '?';
-    return base + separator + 'redirect_url=' + encodeURIComponent(window.location.pathname + window.location.search);
+    // Redirect to handshake page to capture identity, then back to current page (Issue #244)
+    var handshakeUrl = '/learn/auth-handshake?redirect_url=' + encodeURIComponent(window.location.pathname + window.location.search);
+    return base + separator + 'redirect_url=' + encodeURIComponent(handshakeUrl);
   }
 
   function unbindClick(button) {
@@ -119,6 +121,50 @@
     return base + '/enrollments/list' + (params.length ? '?' + params.join('&') : '');
   }
 
+  function getActionRunnerBase(constants) {
+    if (constants && constants.ACTION_RUNNER_URL) return constants.ACTION_RUNNER_URL;
+    return '/learn/action-runner';
+  }
+
+  function buildRunnerUrl(base, redirectUrl, params) {
+    var runner = base || '/learn/action-runner';
+    var search = new URLSearchParams();
+    Object.keys(params || {}).forEach(function(key){
+      var value = params[key];
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, value);
+      }
+    });
+    if (redirectUrl) {
+      search.set('redirect_url', redirectUrl);
+    }
+    return runner + '?' + search.toString();
+  }
+
+  function deriveEnrollmentSource() {
+    var currentPath = window.location.pathname.toLowerCase();
+    if (currentPath.indexOf('/pathways/') >= 0) return 'pathway_page';
+    if (currentPath.indexOf('/courses/') >= 0) return 'course_page';
+    if (currentPath.indexOf('/learn') >= 0) return 'catalog';
+    return 'unknown';
+  }
+
+  /**
+   * Build fetch headers with JWT token if available (Issue #251)
+   */
+  function buildAuthHeaders() {
+    var headers = { 'Content-Type': 'application/json' };
+    try {
+      var token = localStorage.getItem('hhl_auth_token');
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    return headers;
+  }
+
   function fetchEnrollmentFromCRM(constants, auth, contentType, slug) {
     return new Promise(function(resolve) {
       var url = buildEnrollmentsUrl(constants, auth);
@@ -126,7 +172,10 @@
         resolve(null);
         return;
       }
-      fetch(url, { credentials: 'omit' })
+      fetch(url, {
+        credentials: 'omit',
+        headers: buildAuthHeaders()
+      })
         .then(function(res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
@@ -168,70 +217,38 @@
       });
   }
 
-  /**
-   * Send enrollment beacon to backend
-   */
-  function sendEnrollmentBeacon(constants, auth, contentType, slug) {
-    if (!constants || !constants.TRACK_EVENTS_URL) {
-      if (debug) console.log('[hhl-enroll] No tracking URL configured');
-      return;
+  function consumeRunnerResult(contentType, slug) {
+    try {
+      var raw = sessionStorage.getItem('hhl_last_action');
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      var expected = 'enroll_' + contentType;
+      if (!data || data.action !== expected) return null;
+      if (slug && data.params && data.params.slug && data.params.slug !== slug) return null;
+      sessionStorage.removeItem('hhl_last_action');
+      return data;
+    } catch (error) {
+      if (debug) console.warn('[hhl-enroll] Failed to parse runner result:', error);
+      try { sessionStorage.removeItem('hhl_last_action'); } catch (cleanupError) {
+        if (debug) console.warn('[hhl-enroll] Failed to clear runner result cache:', cleanupError);
+      }
+      return null;
     }
+  }
 
-    var eventName = contentType === 'pathway'
-      ? 'learning_pathway_enrolled'
-      : 'learning_course_enrolled';
-
-    var payload = {
-      ts: new Date().toISOString()
-    };
-
-    // Determine enrollment source from current page
-    var enrollmentSource = 'unknown';
-    var currentPath = window.location.pathname.toLowerCase();
-    if (currentPath.includes('/pathways/')) {
-      enrollmentSource = 'pathway_page';
-    } else if (currentPath.includes('/courses/')) {
-      enrollmentSource = 'course_page';
-    } else if (currentPath.includes('/learn') || currentPath === '/') {
-      enrollmentSource = 'catalog';
-    }
-
-    var eventData = {
-      eventName: eventName,
-      payload: payload,
-      enrollment_source: enrollmentSource
-    };
-
-    // Add slug as top-level field for easier backend processing
-    if (contentType === 'pathway') {
-      eventData.pathway_slug = slug;
-    } else {
-      eventData.course_slug = slug;
-    }
-
-    // Add contact identifier if authenticated
-    if (auth.enableCrm && (auth.email || auth.contactId)) {
-      eventData.contactIdentifier = {};
-      if (auth.email) eventData.contactIdentifier.email = auth.email;
-      if (auth.contactId) eventData.contactIdentifier.contactId = auth.contactId;
-    }
-
-    if (debug) console.log('[hhl-enroll] Sending beacon:', eventData);
-
-    // Use sendBeacon if available, otherwise fetch
-    if (navigator.sendBeacon) {
-      var blob = new Blob([JSON.stringify(eventData)], { type: 'application/json' });
-      navigator.sendBeacon(constants.TRACK_EVENTS_URL, blob);
-    } else {
-      fetch(constants.TRACK_EVENTS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData),
-        credentials: 'omit',
-        keepalive: true
-      }).catch(function(err) {
-        if (debug) console.error('[hhl-enroll] Beacon failed:', err);
-      });
+  function applyRunnerFeedback(result, contentType) {
+    if (!result) return;
+    if (result.status === 'success') {
+      if (window.hhToast) {
+        var message = contentType === 'pathway'
+          ? 'You are enrolled in this pathway.'
+          : 'Course enrollment confirmed.';
+        window.hhToast.show(message, 'success', 4200);
+      }
+    } else if (result.status === 'error') {
+      if (window.hhToast) {
+        window.hhToast.show('We could not complete your last enrollment. Please try again.', 'error', 5200);
+      }
     }
   }
 
@@ -245,7 +262,8 @@
 
     try {
       return JSON.parse(stored);
-    } catch (e) {
+    } catch (error) {
+      if (debug) console.warn('[hhl-enroll] Failed to read cached enrollment state:', error);
       return null;
     }
   }
@@ -263,57 +281,9 @@
     try {
       localStorage.setItem(key, JSON.stringify(state));
       if (debug) console.log('[hhl-enroll] Saved state:', key, state);
-    } catch (e) {
-      if (debug) console.error('[hhl-enroll] Failed to save state:', e);
+    } catch (error) {
+      if (debug) console.error('[hhl-enroll] Failed to save state:', error);
     }
-  }
-
-  /**
-   * Show toast notification
-   */
-  function showToast(message, type) {
-    // Check if toast container exists, create if not
-    var container = document.getElementById('hhl-toast-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'hhl-toast-container';
-      container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
-      document.body.appendChild(container);
-    }
-
-    // Create toast element
-    var toast = document.createElement('div');
-    toast.className = 'hhl-toast hhl-toast-' + type;
-    toast.style.cssText = [
-      'background: ' + (type === 'success' ? '#D1FAE5' : '#FEF3C7'),
-      'border: 1px solid ' + (type === 'success' ? '#6EE7B7' : '#FCD34D'),
-      'color: ' + (type === 'success' ? '#065F46' : '#92400E'),
-      'padding: 12px 20px',
-      'border-radius: 8px',
-      'margin-bottom: 10px',
-      'box-shadow: 0 4px 12px rgba(0,0,0,0.15)',
-      'min-width: 250px',
-      'font-size: 0.875rem',
-      'font-weight: 500',
-      'display: flex',
-      'align-items: center',
-      'gap: 8px',
-      'animation: slideIn 0.3s ease-out'
-    ].join(';');
-
-    var icon = type === 'success' ? '✓' : 'ℹ️';
-    toast.innerHTML = '<span style="font-size:1.2em">' + icon + '</span><span>' + message + '</span>';
-
-    container.appendChild(toast);
-
-    // Auto-remove after 3 seconds
-    setTimeout(function() {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s ease-out';
-      setTimeout(function() {
-        container.removeChild(toast);
-      }, 300);
-    }, 3000);
   }
 
   /**
@@ -347,31 +317,39 @@
    * Handle enrollment button click
    */
   function handleEnrollClick(button, contentType, slug, auth, constants) {
-    // Prevent double-clicks
     if (button.disabled) return;
+
+    var runnerBase = getActionRunnerBase(constants);
+    var redirectPath = window.location.pathname + window.location.search + window.location.hash;
+    var actionKey = 'enroll_' + contentType;
+    var source = deriveEnrollmentSource();
+
+    // Persist local enrollment flag immediately for optimistic UI
+    setEnrollmentState(contentType, slug, true, new Date().toISOString());
 
     button.disabled = true;
     button.innerHTML = 'Enrolling...';
+    button.style.cursor = 'wait';
     button.setAttribute('aria-disabled', 'true');
 
-    // Set enrollment state
-    setEnrollmentState(contentType, slug, true);
+    updateButtonUI(button, true, contentType);
+    unbindClick(button);
 
-    // Send beacon
-    sendEnrollmentBeacon(constants, auth, contentType, slug);
+    var params = {
+      action: actionKey,
+      slug: slug,
+      source: source
+    };
 
-    // Update UI after brief delay (simulate network request)
+    var courseContext = window.hhCourseContext && window.hhCourseContext.getContext ? window.hhCourseContext.getContext() : null;
+    if (courseContext && courseContext.courseSlug) {
+      params.course_slug = courseContext.courseSlug;
+    }
+
     setTimeout(function() {
-      updateButtonUI(button, true, contentType);
-      unbindClick(button);
-
-      var message = contentType === 'pathway'
-        ? 'Successfully enrolled in pathway!'
-        : 'Successfully enrolled in course!';
-      showToast(message, 'success');
-
-      if (debug) console.log('[hhl-enroll] Enrollment complete:', contentType, slug);
-    }, 500);
+      if (debug) console.log('[hhl-enroll] Redirecting to action runner', params);
+      window.location.href = buildRunnerUrl(runnerBase, redirectPath, params);
+    }, 150);
   }
 
   /**
@@ -404,6 +382,7 @@
 
     function proceedWithInit() {
       var auth = getAuth();
+      var pendingResult = consumeRunnerResult(contentType, slug);
 
       getConstants(auth, function(constants) {
         var loginUrl = deriveLoginUrl(auth, constants);
@@ -433,6 +412,10 @@
           if (isEnrolled) {
             updateButtonUI(button, true, contentType);
             unbindClick(button);
+            if (pendingResult) {
+              applyRunnerFeedback(pendingResult, contentType);
+              pendingResult = null;
+            }
             return;
           }
 
@@ -440,6 +423,11 @@
           bindClick(button, function() {
             handleEnrollClick(button, contentType, slug, auth, constants);
           });
+
+          if (pendingResult) {
+            applyRunnerFeedback(pendingResult, contentType);
+            pendingResult = null;
+          }
 
           if (debug) console.log('[hhl-enroll] Initialized (CRM)', { contentType: contentType, slug: slug });
         }).catch(function() {
@@ -453,6 +441,10 @@
             });
           } else {
             unbindClick(button);
+          }
+          if (pendingResult) {
+            applyRunnerFeedback(pendingResult, contentType);
+            pendingResult = null;
           }
         });
       });
