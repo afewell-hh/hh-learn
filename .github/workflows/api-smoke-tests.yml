@@ -18,6 +18,9 @@ jobs:
     name: API Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Skip for pull requests from forks where secrets are not available
+    # Run for: push events, scheduled runs, manual triggers, and PRs with secrets
+    if: ${{ github.event_name != 'pull_request' || secrets.HUBSPOT_TEST_EMAIL != '' }}
 
     steps:
       - name: Checkout repository
