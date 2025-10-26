@@ -26,3 +26,8 @@ scripts/fetch-*.js
 
 # Temporary research files
 verification-output/LINKED-*.md
+
+# Test-generated verification artifacts (may contain PII)
+verification-output/issue-242/*.png
+verification-output/issue-242/*-test-report.json
+verification-output/issue-242/api-smoke-test-output.log
