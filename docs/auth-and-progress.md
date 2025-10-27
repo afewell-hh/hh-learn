@@ -12,28 +12,137 @@ Runtime and scripts look for HubSpot tokens in this order:
 
 CI workflows are configured to prefer the Project token when present. Keep the Private App token only as a safety net until rollout is complete, then remove it.
 
-## Architecture Decision: HubSpot CMS Membership
+## Authentication Architecture: Dual System
 
-### Chosen Approach
-We use **HubSpot CMS Membership** as the authentication mechanism because:
+This application uses a **dual authentication system** to support both public and private pages:
 
+1. **JWT Authentication** (Primary) - For public pages where HubSpot Membership is unavailable
+2. **HubSpot CMS Membership** (Secondary) - For private pages with membership requirements
+
+### JWT Authentication for Public Pages (Issue #242)
+
+**Status**: IMPLEMENTED (2025-10-26, PRs #252, #254)
+
+**Purpose**: Enable authenticated identity on public course pages without HubSpot Membership dependency
+
+**Problem Solved**: HubSpot Membership API (`/_hcms/api/membership/v1/profile`) returns 404 on public pages, preventing identity resolution even after successful login. JWT tokens work on both public and private pages.
+
+**Authentication Flow**:
+```
+1. User visits public page (anonymous)
+   ↓
+2. User enters email → calls POST /auth/login
+   ↓
+3. Lambda validates email exists in HubSpot CRM
+   ↓
+4. Lambda returns signed JWT token (24h expiry)
+   ↓
+5. Client stores token in localStorage
+   ↓
+6. All subsequent API calls include: Authorization: Bearer <jwt>
+   ↓
+7. Lambda validates JWT signature and extracts contact identifier
+   ↓
+8. Progress/enrollment endpoints work with authenticated identity
+```
+
+**JWT Payload**:
+```json
+{
+  "contactId": "12345",
+  "email": "user@example.com",
+  "iat": 1698345600,
+  "exp": 1698432000,
+  "iss": "hedgehog-learn",
+  "aud": "hedgehog-learn-frontend"
+}
+```
+
+**Security Features**:
+- JWT signed with 256-bit secret (stored in AWS SSM Parameter Store: `/hhl/jwt-secret`)
+- 24-hour expiry with 15-minute refresh buffer
+- Email-only verification (no password required for MVP)
+- Token signature validation on every Lambda request
+- Tokens can't be forged without JWT_SECRET
+
+**Frontend API**:
+```javascript
+// Login
+await window.hhIdentity.login('user@example.com');
+// Returns: { token, contactId, email, firstname, lastname }
+
+// Identity automatically available after login
+const identity = window.hhIdentity.get();
+console.log(identity.email, identity.contactId);
+
+// Logout
+window.hhIdentity.logout(); // Clears tokens and reloads page
+```
+
+**API Endpoints**:
+- `POST /auth/login` - Authenticates user by email, returns JWT
+- All endpoints accept `Authorization: Bearer <jwt>` header
+  - `/events/track` - JWT-aware contact identification
+  - `/progress/read` - JWT-aware
+  - `/progress/aggregate` - JWT-aware
+  - `/enrollments/list` - JWT-aware
+
+**Token Storage**:
+- Token: `localStorage.getItem('hhl_auth_token')`
+- Expiry: `localStorage.getItem('hhl_auth_token_expires')`
+- Identity: `localStorage.getItem('hhl_identity_from_jwt')`
+
+**Backward Compatibility**:
+- HubSpot Membership still works on private pages
+- Action-runner pattern unchanged
+- Existing enrollment/progress tracking unaffected
+- APIs still accept explicit email/contactId in requests (JWT takes precedence)
+
+**Testing**:
+```bash
+# API tests (15 tests)
+npm test -- auth
+
+# E2E tests (1 test)
+npx playwright test tests/e2e/enrollment-flow.spec.ts
+```
+
+**Related Documentation**:
+- ADR 001: `docs/adr/001-public-page-authentication.md`
+- Implementation Plan: `docs/implementation-plan-issue-242.md`
+- Issues: #242 (design), #251 (implementation), #253 (tests), #255 (docs)
+- PRs: #252 (implementation), #254 (tests), #259 (fixes), #261 (deployment)
+
+---
+
+### HubSpot CMS Membership (Secondary Method)
+
+**Status**: IMPLEMENTED (v0.3), used as fallback for private pages
+
+HubSpot CMS Membership is used as a **secondary authentication method** for private pages where the Membership API is available.
+
+**Use Cases**:
+- Private content pages with access group requirements
+- Pages where `request_contact.is_logged_in` is available
+- Template-level authentication without JavaScript
+
+**Benefits**:
 1. **Native Integration**: Built into HubSpot CMS/Content Hub
-2. **Zero OAuth Complexity**: No custom OAuth flows or token management
+2. **Zero Custom Code**: No token management on client side
 3. **CRM Integration**: Contacts automatically exist in HubSpot CRM
 4. **Template Access**: `request_contact` HubL variable provides identity data
 5. **Enterprise Ready**: Available with Content Hub Professional/Enterprise
 
-### Requirements
+**Requirements**:
 - Content Hub Professional or Enterprise (OR Marketing Hub Enterprise)
 - CMS Membership feature enabled
 - Private content/access groups configured
 
-### Alternative Considered
-OAuth 2.0 via HubSpot App was considered but rejected due to:
-- Additional complexity (token refresh, storage, security)
-- Requires custom app configuration
-- More maintenance overhead
-- Membership provides equivalent functionality with less code
+**Limitations** (Why JWT is Primary):
+- ❌ Membership API returns 404 on public pages
+- ❌ Cannot authenticate users on public course pages
+- ❌ Blocks Playwright tests that need public page auth
+- ✅ JWT solves all these issues
 
 ## System Components
 
@@ -718,6 +827,265 @@ This provides step-by-step instructions for browser-based testing and troublesho
 1. Verify user is signed in: `request_contact.is_logged_in`
 2. Check `ENABLE_CRM_PROGRESS=true` in constants.json
 3. Ensure template includes synced indicator component
+
+## JWT Token Management & Operations
+
+### JWT_SECRET Configuration
+
+**Generation**:
+```bash
+# Generate a secure 256-bit random key
+openssl rand -base64 32
+```
+
+**Storage** (AWS SSM Parameter Store):
+```bash
+# Store secret as encrypted parameter
+aws ssm put-parameter \
+  --name /hhl/jwt-secret \
+  --value "YOUR_GENERATED_SECRET_HERE" \
+  --type SecureString \
+  --description "JWT signing secret for Hedgehog Learn authentication"
+
+# Verify parameter exists
+aws ssm get-parameter --name /hhl/jwt-secret --with-decryption
+```
+
+**GitHub Actions Secret**:
+```bash
+# Add to repository secrets as: JWT_SECRET
+# Used by E2E tests in CI/CD pipeline
+```
+
+**Rotation Schedule**:
+- Recommended: Every 90 days
+- After rotation: All existing tokens become invalid (users must re-login)
+
+**Deployment Configuration**:
+```yaml
+# serverless.yml
+environment:
+  JWT_SECRET: ${ssm:/hhl/jwt-secret}
+```
+
+### Monitoring & Alerting
+
+**CloudWatch Log Patterns**:
+```bash
+# JWT verification failures
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/hedgehog-learn-dev-api \
+  --filter-pattern "[JWT] Token verification failed"
+
+# Successful logins
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/hedgehog-learn-dev-api \
+  --filter-pattern "POST /auth/login" \
+  --filter-pattern "200"
+
+# Failed login attempts
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/hedgehog-learn-dev-api \
+  --filter-pattern "POST /auth/login" \
+  --filter-pattern "404"
+```
+
+**Key Metrics to Monitor**:
+1. **Login Success Rate**: `200 / (200 + 404 + 500)` for `/auth/login`
+2. **Token Verification Failures**: Count of "Invalid token signature" errors
+3. **Token Expiry Rate**: Count of "Token has expired" errors
+4. **API Authentication Rate**: Percentage of API calls with valid JWT
+
+**Recommended Alert Thresholds**:
+- Login success rate < 90% (spike in 404/500 errors)
+- Token verification failures > 100/hour (potential attack or JWT_SECRET mismatch)
+- API calls without JWT > 50% (frontend integration issue)
+
+### JWT Troubleshooting Guide
+
+#### Issue 1: "JWT_SECRET environment variable not configured"
+
+**Symptom**: `/auth/login` returns 500 error
+
+**Diagnosis**:
+```bash
+# Check Lambda environment variables
+aws lambda get-function-configuration \
+  --function-name hedgehog-learn-dev-api \
+  --query 'Environment.Variables.JWT_SECRET'
+```
+
+**Solution**:
+```bash
+# Verify SSM parameter exists
+aws ssm get-parameter --name /hhl/jwt-secret
+
+# Redeploy Lambda to pick up environment variable
+serverless deploy
+```
+
+---
+
+#### Issue 2: "Token has expired"
+
+**Symptom**: API calls return 401 after 24 hours
+
+**Diagnosis**:
+```javascript
+// Browser console
+const expires = localStorage.getItem('hhl_auth_token_expires');
+console.log('Token expires at:', new Date(parseInt(expires)));
+console.log('Is expired?', Date.now() >= parseInt(expires));
+```
+
+**Solution**:
+```javascript
+// User should re-login
+await window.hhIdentity.login('user@example.com');
+```
+
+**Future Enhancement**: Implement token refresh endpoint
+
+---
+
+#### Issue 3: "Invalid token signature"
+
+**Symptom**: JWT authentication works locally but fails in Lambda
+
+**Diagnosis**:
+```bash
+# Check if JWT_SECRET matches between environments
+# Local: .env
+# Lambda: AWS SSM Parameter Store
+
+# Get Lambda JWT_SECRET (first 10 chars for comparison)
+aws ssm get-parameter --name /hhl/jwt-secret --with-decryption \
+  --query 'Parameter.Value' --output text | head -c 10
+```
+
+**Solution**:
+- Ensure same JWT_SECRET in both environments
+- If secrets differ, rotate to single source of truth
+
+---
+
+#### Issue 4: "Contact not found" (404 from /auth/login)
+
+**Symptom**: User enters email, gets 404 error
+
+**Diagnosis**:
+```bash
+# Check if contact exists in HubSpot CRM
+# Method 1: Via HubSpot UI
+# Method 2: Via API
+curl -H "Authorization: Bearer ${HUBSPOT_PROJECT_ACCESS_TOKEN}" \
+  "https://api.hubapi.com/crm/v3/objects/contacts/search" \
+  -H "Content-Type: application/json" \
+  -d '{"filterGroups":[{"filters":[{"propertyName":"email","operator":"EQ","value":"user@example.com"}]}]}'
+```
+
+**Solution**:
+- Create contact in HubSpot CRM
+- Or: Use different test email that exists in CRM
+
+---
+
+#### Issue 5: Authorization header not sent from frontend
+
+**Symptom**: Lambda logs show no JWT token, falls back to anonymous mode
+
+**Diagnosis**:
+```javascript
+// Browser Network tab → Check API call headers
+// Should see: Authorization: Bearer eyJ...
+
+// Browser console
+const token = localStorage.getItem('hhl_auth_token');
+console.log('Token exists?', !!token);
+console.log('Token length:', token?.length);
+```
+
+**Solution**:
+```javascript
+// Verify auth-context.js is loaded
+console.log(window.hhIdentity);
+
+// Verify login succeeded
+await window.hhIdentity.login('user@example.com');
+
+// Verify enrollment.js includes Authorization header
+// Should have: headers['Authorization'] = 'Bearer ' + token;
+```
+
+---
+
+#### Issue 6: CORS error when calling /auth/login
+
+**Symptom**: Browser console shows CORS error
+
+**Diagnosis**:
+```javascript
+// Check API Gateway CORS configuration
+// serverless.yml should include:
+// cors:
+//   origin: '*'
+//   headers:
+//     - Content-Type
+//     - Authorization  // <-- Required for JWT
+```
+
+**Solution**:
+```bash
+# Redeploy with CORS headers
+serverless deploy
+```
+
+---
+
+#### Issue 7: Token works but identity not populating
+
+**Symptom**: localStorage has token, but `window.hhIdentity.get()` returns null
+
+**Diagnosis**:
+```javascript
+// Browser console
+const token = localStorage.getItem('hhl_auth_token');
+const identity = localStorage.getItem('hhl_identity_from_jwt');
+console.log('Token:', !!token);
+console.log('Identity:', identity);
+```
+
+**Solution**:
+```javascript
+// Re-login to repopulate identity
+await window.hhIdentity.login('user@example.com');
+
+// Or manually refresh page after login
+location.reload();
+```
+
+---
+
+#### Issue 8: Playwright tests fail with JWT authentication
+
+**Symptom**: E2E tests can't authenticate
+
+**Diagnosis**:
+```typescript
+// Check test environment has JWT_SECRET configured
+console.log(process.env.JWT_SECRET);
+```
+
+**Solution**:
+```bash
+# Add JWT_SECRET to GitHub Actions secrets
+# tests/e2e/enrollment-flow.spec.ts uses authenticateViaJWT() helper
+
+# Run tests locally with JWT_SECRET
+JWT_SECRET=your-secret npx playwright test
+```
+
+---
 
 ## Future Enhancements (v0.4+)
 
