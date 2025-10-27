@@ -36,6 +36,7 @@ jobs:
         env:
           HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
           HUBSPOT_ACCOUNT_ID: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           AWS_REGION: us-west-2
           APP_STAGE: dev
           ENABLE_CRM_PROGRESS: false
