@@ -13,7 +13,7 @@ provider:
     HUBSPOT_ACCOUNT_ID: ${env:HUBSPOT_ACCOUNT_ID}
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
     PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
-    JWT_SECRET: ${env:JWT_SECRET, ''}
+    JWT_SECRET: ${env:JWT_SECRET}
   httpApi:
     cors:
       allowedOrigins:
