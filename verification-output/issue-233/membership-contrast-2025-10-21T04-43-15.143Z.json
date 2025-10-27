@@ -1,0 +1,270 @@
+{
+  "capturedAt": "2025-10-21T04:43:15.143Z",
+  "loginBase": "https://hedgehog.cloud/_hcms/mem/login",
+  "privateRedirect": "https://hedgehog.cloud/tickets",
+  "courseUrl": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1",
+  "privateUrl": "https://hedgehog.cloud/tickets",
+  "publicUrl": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1",
+  "privateProfile": {
+    "status": 404,
+    "body": {
+      "error": "No function configured for this endpoint."
+    }
+  },
+  "publicProfile": {
+    "status": 404,
+    "body": {
+      "error": "No function configured for this endpoint."
+    }
+  },
+  "authContext": {
+    "email": "",
+    "contactId": "",
+    "enableCrm": "true"
+  },
+  "courseCtaText": "Sign in to start course",
+  "consoleLogs": [
+    {
+      "stage": "private",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/tickets?status=all&view=my_tickets&offset=0"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl-enroll] enrollment.js loaded",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl-enroll] Auth context: {hasEmail: false, hasContactId: false, enableCrm: true, source: hhIdentity}",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Access to resource at 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track' from origin 'https://hedgehog.cloud' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: The value of the 'Access-Control-Allow-Credentials' header in the response is '' which must be 'true' when the request's credentials mode is 'include'.",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    }
+  ],
+  "cookies": [
+    {
+      "name": "hs-membership-csrf",
+      "domain": "hedgehog.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1761023590.741782,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1795581792.250585,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "domain": ".hubspot.com",
+      "path": "/",
+      "expires": 1761023591.25946,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "domain": ".hubspot.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "domain": ".hsforms.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "li_sugr",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1768797792.307337,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bcookie",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1792557793.30749,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "lidc",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1761108192.460028,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_gcl_au",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1768797791,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "UserMatchHistory",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1763613791.590741,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "AnalyticsSyncHistory",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1763613791.590776,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "IDE",
+      "domain": ".doubleclick.net",
+      "path": "/",
+      "expires": 1795581791.600584,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bscookie",
+      "domain": ".www.linkedin.com",
+      "path": "/",
+      "expires": 1792557791.75994,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1761023591.760159,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__hsmem",
+      "domain": "hedgehog.cloud",
+      "path": "/",
+      "expires": 1761626591.829859,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_P93EESKB3J",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1795581792.266528,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hstc",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1776573792,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hubspotutk",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1776573792,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hssrc",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hssc",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1761023592,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ]
+}
