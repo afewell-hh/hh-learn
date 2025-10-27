@@ -1,0 +1,310 @@
+
+> hedgehog-learn@0.1.0 test:e2e
+> npx playwright test --reporter=list tests/e2e/auth.spec.ts tests/e2e/enrollment-cta.spec.ts tests/e2e/auth-redirect.spec.ts --reporter=json
+
+{
+  "config": {
+    "configFile": "/home/ubuntu/afewell-hh/hh-learn/playwright.config.ts",
+    "rootDir": "/home/ubuntu/afewell-hh/hh-learn",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 3
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 15000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/afewell-hh/hh-learn/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "",
+        "name": "",
+        "testDir": "/home/ubuntu/afewell-hh/hh-learn",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "version": "1.48.2",
+    "workers": 10,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "tests/e2e/auth-redirect.spec.ts",
+      "file": "tests/e2e/auth-redirect.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Anonymous users get authentication prompt for My Learning (requires template deployment)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [
+                {
+                  "type": "skip"
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2025-10-26T22:41:08.482Z",
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "1e843159b07c93c3b79b-57108a148662cfa5d226",
+          "file": "tests/e2e/auth-redirect.spec.ts",
+          "line": 3,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "title": "tests/e2e/auth.spec.ts",
+      "file": "tests/e2e/auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Auth links and redirects",
+          "file": "tests/e2e/auth.spec.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Anonymous courses list shows Register/Sign In with redirect_url",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "status": "passed",
+                      "duration": 1709,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-26T22:41:09.196Z",
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "297304a53b92864d331c-56561a4412a4700e8169",
+              "file": "tests/e2e/auth.spec.ts",
+              "line": 6,
+              "column": 7
+            },
+            {
+              "title": "Anonymous My Learning redirects to login with redirect_url",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "status": "passed",
+                      "duration": 3628,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-26T22:41:11.090Z",
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "297304a53b92864d331c-c0fb396640a434c6b696",
+              "file": "tests/e2e/auth.spec.ts",
+              "line": 31,
+              "column": 7
+            },
+            {
+              "title": "Logout preserves return and redirects back after login (fixture needed)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [
+                    {
+                      "type": "skip"
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-26T22:41:14.725Z",
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "297304a53b92864d331c-29f1ff7b48973e199bc6",
+              "file": "tests/e2e/auth.spec.ts",
+              "line": 59,
+              "column": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "tests/e2e/enrollment-cta.spec.ts",
+      "file": "tests/e2e/enrollment-cta.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Enrollment CTA (DOM)",
+          "file": "tests/e2e/enrollment-cta.spec.ts",
+          "line": 45,
+          "column": 6,
+          "specs": [
+            {
+              "title": "shows sign-in prompt for anonymous visitors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "status": "passed",
+                      "duration": 594,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-26T22:41:09.186Z",
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e8c5c93b0409adc0a770-cd827918b7183e574a6d",
+              "file": "tests/e2e/enrollment-cta.spec.ts",
+              "line": 46,
+              "column": 7
+            },
+            {
+              "title": "uses CRM enrollment data when available (needs JWT auth flow update)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [
+                    {
+                      "type": "skip"
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-26T22:41:09.974Z",
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e8c5c93b0409adc0a770-da74cc9226cdeae59086",
+              "file": "tests/e2e/enrollment-cta.spec.ts",
+              "line": 70,
+              "column": 8
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-10-26T22:41:08.009Z",
+    "duration": 6796.637000000001,
+    "expected": 3,
+    "skipped": 3,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
