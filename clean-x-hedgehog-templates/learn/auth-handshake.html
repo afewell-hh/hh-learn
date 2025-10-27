@@ -1,0 +1,114 @@
+<!--
+  templateType: page
+  isAvailableForNewContent: true
+  label: Auth Handshake (Private)
+  description: Private handshake page that captures request_contact data and stores identity in sessionStorage before redirecting back to the public page. Issue #244.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing you in...</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 4px solid white;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+    p {
+      font-size: 1rem;
+      opacity: 0.9;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  {{ standard_header_includes }}
+  <div class="container">
+    <div class="spinner"></div>
+    <h1>Signing you in...</h1>
+    <p>Please wait while we complete your sign-in.</p>
+  </div>
+
+  {% set is_editor_mode = is_in_editor or is_in_page_preview or request.query_dict.hs_preview or request.query_dict.hs_builder %}
+  {% if is_editor_mode %}
+    <div style="margin-top:1.5rem;font-size:0.9rem;opacity:0.8;text-align:center;">
+      Editor preview detected. Redirect logic is disabled so you can modify this page safely.
+    </div>
+  {% else %}
+    <script>
+      (function() {
+        'use strict';
+
+        var urlParams = new URLSearchParams(window.location.search);
+        var rawRedirectUrl = urlParams.get('redirect_url') || '/learn';
+
+        // Decode the redirect URL to handle double-encoding from login flow (Issue #267)
+        var redirectUrl = rawRedirectUrl;
+        try {
+          redirectUrl = decodeURIComponent(rawRedirectUrl);
+        } catch (e) {
+          console.warn('[auth-handshake] Failed to decode redirect_url, using raw value:', e);
+        }
+
+        {% if request_contact.is_logged_in %}
+          {% set handshake_contact_id = request_contact.hs_object_id|default(request_contact.vid, true) %}
+          var identity = {
+            email: "{{ request_contact.email|escapejs }}",
+            contactId: "{{ handshake_contact_id|escapejs }}",
+            firstname: "{{ request_contact.firstname|default('')|escapejs }}",
+            lastname: "{{ request_contact.lastname|default('')|escapejs }}",
+            timestamp: new Date().toISOString()
+          };
+
+          try {
+            sessionStorage.setItem('hhl_identity', JSON.stringify(identity));
+            console.log('[auth-handshake] Identity stored:', {
+              hasEmail: !!identity.email,
+              hasContactId: !!identity.contactId
+            });
+          } catch (e) {
+            console.error('[auth-handshake] Failed to store identity:', e);
+          }
+        {% else %}
+          console.warn('[auth-handshake] User is not logged in on private page - this should not happen');
+        {% endif %}
+
+        setTimeout(function() {
+          console.log('[auth-handshake] Redirecting to:', redirectUrl);
+          window.location.href = redirectUrl;
+        }, 500);
+      })();
+    </script>
+  {% endif %}
+  {{ standard_footer_includes }}
+</body>
+</html>
