@@ -10,7 +10,7 @@ Successfully provisioned production JWT secret and redeployed the authentication
 
 ### 1. ✅ JWT Secret Generation
 - Generated secure 256-bit random secret using `openssl rand -base64 32`
-- Secret value: `Cu7agXtY0bWf6Xhy/YxHI3EIAdYBCJEnpUl7OYL+9UQ=`
+- Secret value: `<redacted - stored securely in AWS SSM and GitHub Secrets>`
 - Stored in `.env` for local development
 
 ### 2. ✅ AWS SSM Parameter Store
