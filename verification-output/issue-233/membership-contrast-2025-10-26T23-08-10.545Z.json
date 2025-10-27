@@ -1,0 +1,498 @@
+{
+  "capturedAt": "2025-10-26T23:08:10.545Z",
+  "loginBase": "https://hedgehog.cloud/_hcms/mem/login",
+  "privateRedirect": "https://hedgehog.cloud/tickets",
+  "courseUrl": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1",
+  "privateUrl": "https://hedgehog.cloud/tickets",
+  "publicUrl": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1",
+  "privateProfile": {
+    "status": 404,
+    "body": {
+      "error": "No function configured for this endpoint."
+    }
+  },
+  "publicProfile": {
+    "status": 404,
+    "body": {
+      "error": "No function configured for this endpoint."
+    }
+  },
+  "authContext": {
+    "email": "",
+    "contactId": "",
+    "enableCrm": "true"
+  },
+  "courseCtaText": "Sign in to start course",
+  "consoleLogs": [
+    {
+      "stage": "private",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/tickets"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:auth-context] No server identity or sessionStorage, fetching from membership API",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:auth-context] Fetching membership profile from /_hcms/api/membership/v1/profile",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:auth-context] Bootstrapper initialized",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl-enroll] enrollment.js loaded",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "%c[hhl:debug] Debug mode ENABLED color: #00A4BD; font-weight: bold; font-size: 14px;",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:debug] Disable with: localStorage.removeItem(\"HHL_DEBUG\")",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:debug] Running instrumentation checks...",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "---",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "startGroup",
+      "text": "[hhl:bootstrap] Auth Context Loaded",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Element found: JSHandle@node",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "email: (empty)",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "contactId: (empty)",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "enableCrm: true",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "constantsUrl: //21430285.fs1.hubspotusercontent-na1.net/hubfs/21430285/raw_assets/public/CLEAN%20x%20HEDGEHOG/templates/config/constants.json",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "loginUrl: /_hcms/mem/login",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "---",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Authenticated: false",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Has Email: false",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Has Contact ID: false",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "endGroup",
+      "text": "console.groupEnd",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "startGroup",
+      "text": "[hhl:cookies] Cookie Information",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Total cookies: 7",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "HubSpot cookies: 4",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "HubSpot cookie names: [__hstc, hubspotutk, __hssrc, __hssc]",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "All cookie names: [_ga, _gcl_au, __hstc, hubspotutk, __hssrc, __hssc, _ga_P93EESKB3J]",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "endGroup",
+      "text": "console.groupEnd",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:membership] Fetching membership profile from /_hcms/api/membership/v1/profile",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:auth-context] Profile API returned 404 - anonymous session",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:auth-context] Identity resolved {hasEmail: false, hasContactId: false, isAuthenticated: false}",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl:auth-context] Dispatched hhl:identity event",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "[hhl-enroll] Auth context: {hasEmail: false, hasContactId: false, enableCrm: true, source: hhIdentity}",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "startGroup",
+      "text": "[hhl:membership] Profile API Response",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Status: 404 ",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "OK: false",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "Headers: {content-type: application/json;charset=utf-8, cache-control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0}",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "warning",
+      "text": "Profile API returned 404 - membership session may not exist",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "This could indicate:",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "  1. User is not logged in via CMS membership",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "  2. Membership feature not enabled on this portal",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "log",
+      "text": "  3. Session cookies not being sent/persisted",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "endGroup",
+      "text": "console.groupEnd",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    },
+    {
+      "stage": "public",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://hedgehog.cloud/learn/courses/course-authoring-101?hs_no_cache=1"
+    }
+  ],
+  "cookies": [
+    {
+      "name": "hs-membership-csrf",
+      "domain": "hedgehog.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1761521884.226394,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "domain": ".hubspot.com",
+      "path": "/",
+      "expires": 1761521884.59232,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "domain": ".hubspot.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1796080086.808846,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "li_sugr",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1769296086.859105,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bcookie",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1793056087.859275,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "lidc",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1761606484.998517,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "UserMatchHistory",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1764112085.056765,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "AnalyticsSyncHistory",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1764112085.056809,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "domain": ".hsforms.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_gcl_au",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1769296085,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "bscookie",
+      "domain": ".www.linkedin.com",
+      "path": "/",
+      "expires": 1793056085.809888,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1761521885.810007,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "IDE",
+      "domain": ".doubleclick.net",
+      "path": "/",
+      "expires": 1796080085.863767,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__hsmem",
+      "domain": "hedgehog.cloud",
+      "path": "/",
+      "expires": 1762124886.079878,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_P93EESKB3J",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1796080086.825826,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hstc",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1777072087,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hubspotutk",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1777072087,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hssrc",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hssc",
+      "domain": ".hedgehog.cloud",
+      "path": "/",
+      "expires": 1761521887,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ]
+}
