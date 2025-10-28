@@ -385,41 +385,19 @@ Document resolution path with what worked and what could improve.
 Create actionable improvements categorized by timeline.
 
 **Immediate (Do This Week):**
-
-1. **Update operator runbook:** Document reserved VLAN ranges (1020-1029)
-2. **Create VLAN selection checklist:**
-   ```
-   Before creating VPC:
-   ☐ Check existing VPCs: kubectl get vpc -A -o yaml | grep "vlan:" | sort
-   ☐ Avoid reserved VLANs: 1020-1029 (system use)
-   ☐ Choose from available range: 1000-2999 (excluding reserved)
-   ☐ Document chosen VLAN in design notes
-   ```
-3. **Add VLAN conflict troubleshooting example** to diagnostic guide
+1. Update operator runbook: Document reserved VLAN ranges (1020-1029)
+2. Create VLAN selection checklist: Check existing VPCs, avoid reserved ranges, document choices
+3. Add VLAN conflict troubleshooting example to diagnostic guide
 
 **Short-Term (Do This Month):**
+4. File Hedgehog GitHub issue requesting documentation of reserved VLANs in official docs
+5. Create kubectl helper script (show-available-vlans.sh) to list reserved, used, and available VLANs
 
-4. **Request documentation update:** File Hedgehog GitHub issue to document reserved VLANs in official docs
-5. **Create kubectl helper script:**
-   ```bash
-   # show-available-vlans.sh
-   echo "=== Reserved VLANs ==="
-   echo "1020-1029: System reserved"
-   echo ""
-   echo "=== Currently Used VLANs ==="
-   kubectl get vpc -A -o yaml | grep "vlan:" | sort | uniq
-   echo ""
-   echo "=== VLANNamespace Range ==="
-   kubectl get vlannamespace default -o jsonpath='{.spec.ranges}'
-   ```
+**Long-Term (Product Team Proposals):**
+6. Feature request: VLANNamespace API to expose available VLANs with validation
+7. Feature request: VPC creation pre-validation with clear error messages and suggestions
 
-**Long-Term (Propose to Product Team):**
-
-6. **Feature request:** VLANNamespace API should expose available VLANs, not just range
-7. **Feature request:** VPC creation should validate VLAN availability and return clear error with suggestions
-8. **Feature request:** Document reserved VLANs in VLANNamespace status field
-
-**Prioritization:** Focus on immediate/short-term (operator-actionable). Long-term requires product team collaboration but documents desired improvements.
+**Prioritization:** Focus on immediate/short-term (operator-actionable). Long-term documents desired product improvements.
 
 ---
 
@@ -464,59 +442,25 @@ Create actionable improvements categorized by timeline.
 - Is the deadline realistic?
 - Does priority match urgency?
 
-#### SMART Action Item Template
+#### SMART Action Item Example
 
 ```markdown
-## Action Item: [Title]
+Title: Document Reserved VLAN Ranges
+Owner: Alice Thompson
+Due Date: 2025-10-20
+Priority: High
 
-**Owner:** [Person name]
-**Due Date:** YYYY-MM-DD
-**Priority:** [High/Medium/Low]
+Description: Update operator runbook section "VLAN Selection Guidelines" documenting reserved VLAN ranges (1020-1029), kubectl command to check existing VLANs, recommended selection procedure, and troubleshooting tips.
 
-**Description:**
-[Detailed description of what will be done, including specific steps]
+Success Criteria:
+- Runbook section created with reserved VLANs documented
+- kubectl command example included
+- Committed to docs repository
 
-**Success Criteria:**
-- [ ] [Specific, verifiable criterion 1]
-- [ ] [Specific, verifiable criterion 2]
-- [ ] [Specific, verifiable criterion 3]
-
-**Notes:**
-[Additional context, dependencies, or considerations]
-
-**Status:** [Pending/In Progress/Complete]
+Status: In Progress
 ```
 
-**Example:**
-
-```markdown
-## Action Item: Document Reserved VLAN Ranges
-
-**Owner:** Alice Thompson
-**Due Date:** 2025-10-20
-**Priority:** High
-
-**Description:**
-Update operator runbook with section "VLAN Selection Guidelines" documenting:
-1. Reserved VLAN ranges (1020-1029 for system use)
-2. kubectl command to check existing VPC VLANs
-3. Recommended VLAN selection procedure
-4. Troubleshooting tips for VLAN conflicts
-
-**Success Criteria:**
-- [ ] Runbook section "VLAN Selection Guidelines" created
-- [ ] Reserved VLANs 1020-1029 documented with explanation
-- [ ] kubectl command example included: `kubectl get vpc -A -o yaml | grep "vlan:"`
-- [ ] Runbook committed to docs repository with commit message referencing PIR
-
-**Notes:**
-This addresses root cause "documentation gap" identified in PIR.
-Prevents future operators from encountering same VLAN reservation issue.
-
-**Status:** In Progress (started Oct 17)
-```
-
-**Verification:** Can check completion objectively by looking at runbook for specific content.
+**Key elements:** Specific owner and deadline, measurable success criteria, actionable steps.
 
 ---
 
@@ -659,32 +603,13 @@ YYYY-MM-DD HH:MM UTC - [Event description]
 - Connectivity verified
 - Incident resolved
 
-**Fill in Timeline:**
-
-```
-2025-10-17 10:00 UTC - _________________________________
-2025-10-17 10:05 UTC - _________________________________
-2025-10-17 10:07 UTC - _________________________________
-2025-10-17 10:15 UTC - _________________________________
-2025-10-17 10:30 UTC - _________________________________
-2025-10-17 10:45 UTC - _________________________________
-2025-10-17 11:00 UTC - _________________________________
-2025-10-17 11:05 UTC - _________________________________
-2025-10-17 11:30 UTC - _________________________________
-2025-10-17 14:00 UTC - _________________________________
-2025-10-17 14:15 UTC - _________________________________
-2025-10-17 14:20 UTC - _________________________________
-```
+**Fill in Timeline:** Create 10-12 timestamped entries from VPCAttachment creation through incident resolution, including investigation milestones, failed attempts, escalation, and final resolution.
 
 #### Step 1.2: Calculate Metrics
 
-**Mean Time to Detect (MTTD):**
-- Time from incident start to detection
-- MTTD = _____ minutes (10:00 to 10:07)
+**Mean Time to Detect (MTTD):** Time from incident start (10:00) to detection (10:07) = 7 minutes
 
-**Mean Time to Resolve (MTTR):**
-- Time from detection to resolution
-- MTTR = _____ hours _____ minutes (10:07 to 14:20)
+**Mean Time to Resolve (MTTR):** Time from detection (10:07) to resolution (14:20) = 4 hours 13 minutes
 
 #### Success Criteria
 
@@ -703,41 +628,20 @@ YYYY-MM-DD HH:MM UTC - [Event description]
 
 #### Step 2.1: Complete 5 Whys
 
-Start with symptom, ask "why" five times:
+Start with the symptom "server-07 has no connectivity" and ask "why" five times:
+1. Why did server-07 have no connectivity?
+2. Why [answer to #1]?
+3. Why [answer to #2]?
+4. Why [answer to #3]?
+5. Why [answer to #4]?
 
-**1. Why did server-07 have no connectivity?**
-
-Your answer: _______________________________________
-
-**2. Why [answer to #1]?**
-
-Your answer: _______________________________________
-
-**3. Why [answer to #2]?**
-
-Your answer: _______________________________________
-
-**4. Why [answer to #3]?**
-
-Your answer: _______________________________________
-
-**5. Why [answer to #4]?**
-
-Your answer: _______________________________________
+Each "why" should dig deeper from the proximate cause toward the systemic root cause.
 
 #### Step 2.2: State Root Cause
 
-Based on your 5 Whys analysis:
-
-**Root Cause:**
-
-_______________________________________
-
-**Contributing Factors:**
-
-1. _______________________________________
-2. _______________________________________
-3. _______________________________________
+Based on your 5 Whys analysis, identify:
+- **Root Cause:** The systemic issue (process gap, tool limitation, or documentation gap)
+- **Contributing Factors:** 2-3 additional factors that enabled the issue
 
 #### Step 2.3: Verify Root Cause
 
@@ -781,61 +685,12 @@ What could prevent this incident from recurring?
 
 #### Step 3.2: Make Action Items SMART
 
-Choose 2-3 improvements and apply SMART criteria:
-
-**Action Item 1:**
-
-```
-Title: _______________________________________
-
-Owner: _______________________________________
-
-Due Date: _______________________________________
-
-Description:
-_______________________________________
-_______________________________________
-
-Success Criteria:
-☐ _______________________________________
-☐ _______________________________________
-```
-
-**Action Item 2:**
-
-```
-Title: _______________________________________
-
-Owner: _______________________________________
-
-Due Date: _______________________________________
-
-Description:
-_______________________________________
-_______________________________________
-
-Success Criteria:
-☐ _______________________________________
-☐ _______________________________________
-```
-
-**Action Item 3 (Optional):**
-
-```
-Title: _______________________________________
-
-Owner: _______________________________________
-
-Due Date: _______________________________________
-
-Description:
-_______________________________________
-_______________________________________
-
-Success Criteria:
-☐ _______________________________________
-☐ _______________________________________
-```
+Choose 2-3 improvements and apply SMART criteria. For each action item, define:
+- **Title:** Clear, specific description
+- **Owner:** Specific person responsible
+- **Due Date:** Realistic deadline
+- **Description:** What will be done, including specific steps
+- **Success Criteria:** 2-3 measurable, verifiable outcomes
 
 #### Success Criteria
 
@@ -860,36 +715,17 @@ Add to your personal troubleshooting runbook:
 ```markdown
 ## VLAN Selection for New VPCs
 
-**Objective:** Choose non-conflicting VLAN from VLANNamespace range
-
 **Before Creating VPC:**
-
-1. Check VLANNamespace range:
-   ```bash
-   kubectl get vlannamespace default -o jsonpath='{.spec.ranges}'
-   # Expected: [{"from":1000,"to":2999}]
-   ```
-
-2. Check existing VPC VLANs:
-   ```bash
-   kubectl get vpc -A -o yaml | grep "vlan:" | sort | uniq
-   ```
-
-3. Avoid reserved VLANs:
-   - **1020-1029:** System reserved (do not use)
-
-4. Choose available VLAN:
-   - From VLANNamespace range (1000-2999)
-   - Not currently in use (from step 2)
-   - Not in reserved range (from step 3)
-
+1. Check VLANNamespace range: `kubectl get vlannamespace default -o jsonpath='{.spec.ranges}'`
+2. Check existing VPC VLANs: `kubectl get vpc -A -o yaml | grep "vlan:" | sort | uniq`
+3. Avoid reserved VLANs: 1020-1029 (system reserved)
+4. Choose available VLAN from range, not in use, not reserved
 5. Document chosen VLAN in VPC design notes
 
 **Troubleshooting:**
-
-- **"VLAN conflict" error:** Choose different VLAN (check existing VPCs)
-- **"VLAN reserved" error:** Avoid 1020-1029 range
-- **Unclear which VLANs available:** Use show-available-vlans.sh script or escalate to support
+- "VLAN conflict": Choose different VLAN
+- "VLAN reserved": Avoid 1020-1029 range
+- Use show-available-vlans.sh script or escalate if unclear
 ```
 
 #### Success Criteria
@@ -935,18 +771,9 @@ You conducted a blameless post-incident review with:
 
 #### Challenge: "I can't identify a systemic root cause"
 
-**Symptom:** Your root cause is "operator chose wrong VLAN" (individual action, not systemic).
+**Symptom:** Your root cause is individual action, not systemic.
 
-**Solution:** Keep asking "why" until you reach a system issue.
-
-**Example:**
-- "Operator chose wrong VLAN" → Why? → "Didn't check existing VPCs"
-- "Didn't check existing VPCs" → Why? → "No process required it"
-- "No process required it" → Why? → **"System doesn't enforce validation"** ← ROOT CAUSE
-
-**Test:** "If we fix this, can the same mistake happen again?"
-- Fix "operator chose wrong": YES (next operator can make same choice)
-- Fix "system doesn't validate": NO (system prevents the mistake)
+**Solution:** Keep asking "why" until you reach system issue. Test: "If we fix this, can the same mistake happen again?" If YES, keep digging.
 
 ---
 
@@ -954,34 +781,13 @@ You conducted a blameless post-incident review with:
 
 **Symptom:** Action items like "Improve documentation" or "Be more careful."
 
-**Solution:** Apply SMART criteria. Ask:
-- **Specific:** What exactly will be documented? Where?
-- **Measurable:** How do I know it's complete?
-- **Actionable:** Who will do this? Do they have access?
-- **Relevant:** Does this prevent recurrence?
-- **Time-bound:** When will this be done?
-
-**Example transformation:**
-
-**Vague:** "Improve documentation"
-
-**SMART:** "Add section 'VLAN Selection Guidelines' to operator-runbook.md documenting reserved VLANs 1020-1029 and kubectl command to check existing VLANs (Owner: Alice, Due: Oct 20)"
+**Solution:** Apply SMART criteria: Specific owner, deadline, measurable success criteria, actionable steps.
 
 ---
 
 #### Challenge: "Timeline is incomplete"
 
-**Symptom:** Missing key events or timestamps.
-
-**Solution:** Review Modules 4.1-4.3 for incident details. Include:
-- When issue started (VPCAttachment creation)
-- When detected (user report)
-- Investigation milestones (diagnosis, root cause identification)
-- Resolution attempts (failed and successful)
-- Escalation points (support ticket)
-- Final resolution
-
-**Minimum timeline events:** Creation → Detection → Investigation → Diagnosis → Attempted fix → Escalation → Support response → Resolution → Verification
+**Solution:** Include creation, detection, investigation, diagnosis, resolution attempts, escalation, and final resolution with timestamps.
 
 ---
 
@@ -1061,381 +867,92 @@ You conducted a blameless post-incident review with:
 
 ### Question 1: Blameless Culture
 
-**Scenario:** During a post-incident review, a team member says: "This outage happened because Alice pushed the wrong YAML to Git. She should have tested it first."
+**Scenario:** During a PIR, someone says: "This outage happened because Alice pushed wrong YAML. She should have tested it first."
 
 What is the BEST blameless response?
 
 - A) "You're right, Alice should have been more careful."
-- B) "Let's focus on Alice's training plan to prevent this in the future."
-- C) "This isn't Alice's fault, it's the system's fault for allowing the push."
-- D) "Let's discuss what process or validation would have caught this error before it reached production."
+- B) "Let's focus on Alice's training plan."
+- C) "This isn't Alice's fault, it's the system's fault."
+- D) "Let's discuss what process or validation would have caught this error before production."
 
 <details>
 <summary>Answer & Explanation</summary>
 
-**Answer:** D) "Let's discuss what process or validation would have caught this error before it reached production."
+**Answer:** D
 
-**Explanation:**
+**Why D is correct:** Focuses on systems thinking (process gap), forward-looking improvements, and actionable solutions like pre-commit validation, staging environments, or peer review workflows.
 
-**Why D is correct:**
+**Why others wrong:** A and B focus on individual blame, C is too vague without actionable steps.
 
-**Blameless approach:**
-- **Systems thinking** - Focus on process gap, not individual mistake
-- **Forward-looking** - "How do we prevent this?" not "Why did Alice do this?"
-- **Constructive** - Leads to actionable improvements
-
-**What this question reveals:**
-- Pre-commit validation (git hook to validate YAML syntax)
-- Staging environment (test changes before production)
-- Peer review (GitOps pull request approval workflow)
-- Automated testing (CI/CD pipeline validates YAML before merge)
-
-**Example improvements:**
-
-1. **Immediate:** Add pre-commit git hook that validates YAML syntax
-2. **Short-term:** Require peer review for production VPC changes
-3. **Long-term:** Implement staging environment for testing changes
-
-**Why others are wrong:**
-
-**A) Agrees with blame:**
-- Focuses on individual, not system
-- "More careful" is vague, not actionable
-- Doesn't prevent recurrence (what if Alice IS careful and makes typo?)
-- Creates fear of making mistakes (damages psychological safety)
-
-**B) Focuses on individual training:**
-- Implies Alice lacks knowledge (blaming)
-- Training doesn't address system gap (no validation process)
-- What if Alice was fully trained but made typo? Still her fault?
-- Doesn't prevent others from making same mistake
-
-**C) Dismisses human role entirely:**
-- "System's fault" is too broad, not specific
-- Doesn't lead to specific improvements
-- Oversimplifies root cause analysis
-- No actionable next steps
-
-**Blameless Principle:**
-
-> **"Human error is a symptom of systemic issues. Fix the system, not the human."**
-
-**Effective PIR discussion flow:**
-
-1. **Acknowledge fact:** "Alice pushed YAML, incident occurred." (no blame, just fact)
-2. **Ask systems question:** "What validation could have caught this earlier?" (process focus)
-3. **Identify gap:** "No pre-commit YAML validation exists." (systemic issue)
-4. **Create improvement:** "Implement git hook to validate YAML syntax before push." (actionable)
-
-**Result:** Same mistake won't happen again because system prevents it, regardless of who commits.
-
-**Module 4.4 Reference:** Concept 1 - Blameless Culture (Principle 1: Systems Thinking)
+**Blameless principle:** "Human error is a symptom of systemic issues. Fix the system, not the human."
 </details>
 
 ---
 
 ### Question 2: Root Cause Analysis
 
-**Scenario:** Using the 5 Whys technique, which of these statements represents a ROOT CAUSE (vs. proximate cause)?
+**Scenario:** Which statement represents a ROOT CAUSE (vs. proximate cause)?
 
-- A) "Server had no connectivity because the VLAN was wrong."
-- B) "The VLAN was wrong because the operator chose VLAN 1025."
-- C) "The operator chose VLAN 1025 because they didn't check existing VPC VLANs."
-- D) "VLANNamespace doesn't validate VLAN conflicts at creation time, allowing operators to select conflicting VLANs."
+- A) "Server had no connectivity because VLAN was wrong."
+- B) "VLAN was wrong because operator chose VLAN 1025."
+- C) "Operator chose VLAN 1025 because they didn't check existing VPCs."
+- D) "VLANNamespace doesn't validate VLAN conflicts at creation time."
 
 <details>
 <summary>Answer & Explanation</summary>
 
-**Answer:** D) "VLANNamespace doesn't validate VLAN conflicts at creation time"
+**Answer:** D
 
-**Explanation:**
+**Why D is root cause:** Systemic (system design limitation), actionable (feature request), preventive (fixes all similar incidents). System would validate and prevent conflicts automatically.
 
-**Why D is the root cause:**
+**Why others are proximate:** A describes symptom, B and C are human actions. Fixing these doesn't prevent next operator from same mistake.
 
-**Root cause characteristics:**
-- **Systemic:** System design limitation (not individual action)
-- **Actionable:** Can be addressed with feature request or workaround
-- **Preventive:** Fixing this prevents all similar incidents
-
-**If you fix this root cause:**
-- VLANNamespace API validates VLANs at creation time
-- Operators get immediate error if VLAN conflicts
-- No need to manually check existing VPCs (system does it automatically)
-- System prevents the mistake (fail-safe design)
-
-**Why others are proximate causes (symptoms):**
-
-**A) "VLAN was wrong":**
-- **What happened** (symptom), not **why it was allowed** (cause)
-- Doesn't explain how to prevent recurrence
-- No actionable improvement
-- Just describing the problem, not explaining why it could occur
-
-**B) "Operator chose VLAN 1025":**
-- Human action (proximate cause)
-- Fixing: "Tell operator to choose different VLAN" doesn't prevent next operator from same mistake
-- Relies on human memory/knowledge (error-prone)
-- Doesn't address why system allowed bad choice
-
-**C) "Didn't check existing VLANs":**
-- Human action (proximate cause)
-- Fixing: "Require manual checking" is still error-prone (human can forget)
-- Doesn't prevent recurrence (people make mistakes even with checklists)
-- Manual process doesn't scale
-
-**5 Whys Example (reaching root cause):**
-
-1. **Why no connectivity?** → VLAN mismatch
-2. **Why VLAN mismatch?** → Operator chose conflicting VLAN
-3. **Why choose conflicting VLAN?** → Didn't check existing VPCs
-4. **Why didn't check?** → No process required it
-5. **Why no process?** → **System doesn't enforce validation** ← ROOT CAUSE
-
-**Root Cause Test:**
-
-> **"If we fix this, would the same incident be impossible (or much less likely)?"**
-
-- **Fix A:** No clear fix (just describes problem)
-- **Fix B:** No (next operator can make same choice)
-- **Fix C:** No (operators can still forget to check)
-- **Fix D:** YES (system prevents VLAN conflicts automatically) ✅
-
-**Difference in Approach:**
-
-| Level | Cause | Solution | Prevents Recurrence? |
-|-------|-------|----------|---------------------|
-| Symptom | VLAN was wrong | Fix this VLAN | No |
-| Proximate | Operator chose wrong | Train operator | No (others can make mistake) |
-| Root | No validation | Add validation | Yes (system prevents mistake) |
-
-**Module 4.4 Reference:** Concept 2 - Post-Incident Review Template (Section 2: 5 Whys for Root Cause)
+**Root Cause Test:** "If we fix this, would same incident be impossible?" Only D passes: YES (system prevents mistake).
 </details>
 
 ---
 
 ### Question 3: SMART Action Items
 
-**Scenario:** Which of these action items is BEST (most SMART)?
+**Scenario:** Which action item is BEST (most SMART)?
 
-**A:**
-"Be more careful when selecting VLANs for new VPCs."
-
-**B:**
-"Update documentation about VLANs."
-
-**C:**
-"Document reserved VLAN ranges (1020-1029) in operator runbook section 'VLAN Selection', including kubectl command to check existing VLANs. Owner: Alice. Due: Oct 20, 2025."
-
-**D:**
-"Someone should probably write down the VLAN stuff somewhere so we don't forget."
+- A) "Be more careful when selecting VLANs."
+- B) "Update documentation about VLANs."
+- C) "Document reserved VLAN ranges (1020-1029) in operator runbook section 'VLAN Selection', including kubectl command. Owner: Alice. Due: Oct 20, 2025."
+- D) "Someone should write down VLAN stuff somewhere."
 
 <details>
 <summary>Answer & Explanation</summary>
 
 **Answer:** C
 
-**Explanation:**
+**Why C is SMART:** Specific (what/where), Measurable (clear success criteria), Actionable (Alice can do it), Relevant (prevents VLAN conflicts), Time-bound (Oct 20 deadline).
 
-**Why C is SMART:**
-
-**S - Specific:**
-- **What:** Document reserved VLAN ranges (1020-1029)
-- **Where:** Operator runbook section "VLAN Selection"
-- **Include:** kubectl command to check existing VLANs
-- Exact scope defined
-
-**M - Measurable:**
-- Done when: Runbook section exists with reserved VLANs documented AND kubectl command included
-- Can verify by reading runbook section
-- Clear completion criteria
-
-**A - Actionable:**
-- Alice can do this (has access to runbook)
-- Alice knows kubectl commands
-- Task is concrete: write documentation
-- No blockers or dependencies
-
-**R - Relevant:**
-- Prevents VLAN conflict recurrence
-- Addresses root cause: documentation gap
-- High value for effort (prevents future incidents)
-
-**T - Time-bound:**
-- Due: Oct 20, 2025 (specific date)
-- Realistic timeline (3 days for documentation)
-- Creates accountability
-
-**Verification test:**
-
-```bash
-# On Oct 20, check completion:
-grep -A 10 "VLAN Selection" operator-runbook.md | grep "1020-1029"
-# If found → Specific criterion met
-
-grep "kubectl get vpc" operator-runbook.md
-# If found → Second criterion met
-
-# If both found in correct section → Action item complete ✅
-```
-
-**Why others are NOT SMART:**
-
-**A) "Be more careful":**
-- ❌ **Not specific:** How to "be more careful"? What actions exactly?
-- ❌ **Not measurable:** How to verify "more careful"? Subjective.
-- ❌ **Not actionable:** Vague advice, not concrete action
-- ❌ **Not time-bound:** When should this happen?
-- ❌ **Not owned:** Who is responsible?
-
-**Result:** Nothing changes. No way to track or verify.
-
-**B) "Update documentation":**
-- ❌ **Not specific:** Which documentation? What content? Where?
-- ❌ **Not measurable:** How much is "updated"? What's complete?
-- ⚠️ **Partially actionable:** Could update docs, but what specifically?
-- ❌ **Not time-bound:** When will this happen?
-- ❌ **Not owned:** Who will do this?
-
-**Result:** Ambiguous. Different people might interpret differently.
-
-**D) "Someone should probably":**
-- ❌ **Not specific:** "VLAN stuff" - what exactly?
-- ❌ **Not measurable:** "Somewhere" - where? How to verify?
-- ❌ **Not actionable:** "Probably" - not committed, not definite
-- ❌ **Not time-bound:** No deadline
-- ❌ **Not owned:** "Someone" - who exactly?
-
-**Result:** Nobody does it. Bystander effect (everyone assumes someone else will do it).
-
-**SMART Action Item Template:**
-
-```markdown
-[Specific action verb] [What] [Where/How]
-Owner: [Specific person name]
-Due: [Specific date]
-Details: [Specific steps or content]
-Success Criteria: [Verifiable checkboxes]
-```
-
-**Example transformation (vague → SMART):**
-
-**Vague:** "Improve VLAN documentation"
-
-**SMART:**
-- **Title:** Add VLAN selection guidelines to operator runbook
-- **Owner:** Alice Thompson
-- **Due:** 2025-10-20
-- **Description:** Create section "VLAN Selection" documenting: (1) Reserved ranges 1020-1029, (2) kubectl command: `kubectl get vpc -A -o yaml | grep "vlan:"`, (3) Selection procedure
-- **Success Criteria:** ☐ Section exists ☐ Reserved ranges documented ☐ kubectl command included ☐ Committed to repo
-
-**Module 4.4 Reference:** Concept 3 - Creating Actionable Improvements (SMART Criteria)
+**Why others fail:** A is vague and not measurable. B lacks specifics on what/where/who/when. D has no owner, deadline, or specific scope.
 </details>
 
 ---
 
 ### Question 4: Continuous Improvement
 
-**Scenario:** Your team has conducted 5 post-incident reviews this month. All 5 incidents were VLAN-related configuration errors. What is the BEST next step?
+**Scenario:** Your team has 5 PIRs this month. All 5 were VLAN-related config errors. What's the BEST next step?
 
-- A) Accept that VLAN issues are common and continue current process
-- B) Recognize pattern and prioritize systemic improvement (e.g., VLAN validation tooling)
-- C) Require all operators to re-read documentation about VLANs
-- D) Add more warning labels to the Gitea repository
+- A) Accept that VLAN issues are common
+- B) Recognize pattern and prioritize systemic improvement (VLAN validation tooling)
+- C) Require operators to re-read VLAN documentation
+- D) Add more warning labels to Gitea
 
 <details>
 <summary>Answer & Explanation</summary>
 
-**Answer:** B) Recognize pattern and prioritize systemic improvement
+**Answer:** B
 
-**Explanation:**
+**Why B is correct:** 5 incidents with same root cause = systemic issue. Requires systemic fix (validation tooling, pre-commit hooks, staging environment) not individual training. High ROI: tooling investment < ongoing incident response time.
 
-**Why B is correct:**
+**Why others wrong:** A is defeatist (not continuous improvement). C didn't prevent first 5 incidents (manual process still error-prone). D is weakest error prevention (warnings don't change behavior).
 
-**Pattern Recognition:**
-- **5 incidents, same root cause** → Systemic issue, not isolated mistakes
-- Current process (manual VLAN selection) is fundamentally error-prone
-- Individual training won't prevent recurrence (proven by 5 incidents)
-- Requires systemic fix, not individual fixes
-
-**Systemic Improvements for VLAN Issues:**
-
-**1. Short-term (do immediately - this week):**
-- Create kubectl helper script: `show-available-vlans.sh`
-- Add VLAN selection checklist to runbook (before every VPC creation)
-- Require peer review for all VPC changes
-
-**2. Medium-term (do this month):**
-- Develop pre-commit git hook to validate VLAN conflicts before accepting commits
-- Create CI/CD pipeline to test VPC YAML before merge to main
-- Implement staging environment for testing VPC changes
-
-**3. Long-term (propose to product team):**
-- **Feature request:** VLANNamespace API validates conflicts at creation
-- **Feature request:** VPC creation returns clear error with available VLAN suggestions
-- **Feature request:** Web UI for VLAN selection (shows available VLANs visually)
-
-**Prioritization rationale:**
-- **High impact:** 5 incidents/month = significant operational burden
-- **Clear pattern:** All same root cause (VLAN validation gap)
-- **High ROI:** Time invested in tooling < time spent on 5 PIRs + incident response
-
-**Why others are wrong:**
-
-**A) Accept as common:**
-- ❌ **Defeatist mindset** (not continuous improvement culture)
-- ❌ **Ignores pattern:** 5 incidents = systemic issue, not "normal"
-- ❌ **Incidents will continue:** Same issues recurring monthly
-- ❌ **Team morale suffers:** Repeated failures discourage team
-- ❌ **Customer impact:** Each incident potentially affects users
-
-**Accepting recurring incidents is NOT acceptable in high-performing operations.**
-
-**C) Re-read documentation:**
-- ❌ **Already tried:** Training didn't prevent first 5 incidents
-- ❌ **Assumes knowledge gap:** But 5 different incidents suggests process gap, not knowledge gap
-- ❌ **Manual process still error-prone:** Reading docs doesn't prevent mistakes
-- ❌ **Doesn't scale:** New operators will make same mistakes despite documentation
-
-**If documentation was sufficient, why did 5 incidents occur?**
-→ Documentation alone doesn't prevent errors. Need validation/automation.
-
-**D) More warnings:**
-- ❌ **Warning fatigue:** More labels = less attention to each
-- ❌ **Doesn't prevent errors:** People make mistakes despite warnings
-- ❌ **Reactive approach:** Adds warnings vs. proactive (prevents errors)
-- ❌ **No behavioral change:** Warnings don't change error-prone process
-
-**Warnings are the weakest form of error prevention.**
-
-**Continuous Improvement Principle:**
-
-> **"Recurring incidents indicate systemic issues. Fix the system, not the symptoms."**
-
-**SRE Best Practice: Error Prevention Hierarchy (most to least effective)**
-
-1. **Elimination:** Remove error possibility (automated VLAN allocation)
-2. **Replacement:** Replace error-prone process (validation tool vs. manual check)
-3. **Engineering controls:** Add validation (pre-commit hooks, CI/CD)
-4. **Administrative controls:** Add procedures (checklists, peer review)
-5. **PPE/Warnings:** Add warnings (weakest, least effective)
-
-**Option B uses levels 2-3 (effective). Options C-D use levels 4-5 (weak).**
-
-**Metrics-Based Decision:**
-
-**Before systemic fix:**
-- VLAN incidents: 5/month
-- MTTR per incident: 4 hours
-- Total time lost: 20 hours/month
-
-**After VLAN validation tooling:**
-- VLAN incidents: 0-1/month (80-100% reduction)
-- MTTR if incident occurs: 1 hour (faster with validation errors)
-- Total time lost: 0-1 hours/month
-
-**ROI:** Time invested in tooling (1-2 days) < time saved from preventing incidents (20 hours/month ongoing)
-
-**Module 4.4 Reference:** Concept 4 - Operational Knowledge Management (Continuous Improvement Cycle)
+**SRE principle:** "Recurring incidents indicate systemic issues. Fix the system, not symptoms."
 </details>
 
 ---

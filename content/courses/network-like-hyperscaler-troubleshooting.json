@@ -3,7 +3,8 @@
   "title": "Course 4: Troubleshooting, Recovery & Escalation",
   "summary_markdown": "Master systematic troubleshooting and recovery workflows for production fabric operations! This course teaches you to diagnose fabric issues using decision trees, safely rollback configurations, coordinate effectively with support teams, and conduct post-incident reviews that prevent future problems.\n\nYou'll develop confidence in handling production incidents, learning when to self-resolve vs. escalate, and building the professional communication skills that define effective fabric operators.",
   "modules": [
-    "fabric-operations-diagnosing-issues",
+    "fabric-operations-troubleshooting-framework",
+    "fabric-operations-diagnosis-lab",
     "fabric-operations-rollback-recovery",
     "fabric-operations-post-incident-review"
   ],
@@ -21,12 +22,17 @@
       "id": "section-diagnosis",
       "type": "text",
       "title": "Part 1: Systematic Issue Diagnosis",
-      "body_markdown": "Learn to use decision trees and diagnostic workflows for common fabric issues. Master the four-layer approach: Events → Agent CRD → Grafana → Logs."
+      "body_markdown": "Learn to use decision trees and diagnostic workflows for common fabric issues. Master the four-layer approach: Events → Agent CRD → Grafana → Logs. This section is split into two modules: first you'll learn the troubleshooting methodology and decision trees, then apply them in a hands-on diagnostic lab."
     },
     {
-      "id": "module-4-1",
+      "id": "module-4-1a",
       "type": "module_ref",
-      "module_slug": "fabric-operations-diagnosing-issues"
+      "module_slug": "fabric-operations-troubleshooting-framework"
+    },
+    {
+      "id": "module-4-1b",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-diagnosis-lab"
     },
     {
       "id": "section-recovery",

@@ -15,7 +15,8 @@
     "fabric-operations-dashboard-interpretation",
     "fabric-operations-events-status",
     "fabric-operations-pre-support-diagnostics",
-    "fabric-operations-diagnosing-issues",
+    "fabric-operations-troubleshooting-framework",
+    "fabric-operations-diagnosis-lab",
     "fabric-operations-rollback-recovery",
     "fabric-operations-post-incident-review"
   ],
