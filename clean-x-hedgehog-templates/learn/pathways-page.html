@@ -655,6 +655,10 @@
             {% set total_modules = 0 %}
             {% for slug in course_slugs %}
               {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% if not rows or rows|length == 0 %}
+                {# Fallback for hubs that expose 'path' instead of 'hs_path' in filters #}
+                {% set rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% endif %}
               {% if rows and rows|length > 0 %}
                 {% set course = rows[0] %}
                 {% if course.module_slugs_json %}
