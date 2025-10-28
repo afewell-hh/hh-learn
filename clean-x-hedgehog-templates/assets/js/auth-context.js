@@ -328,8 +328,12 @@
 
   /**
    * Initialize identity detection
-   * Prioritizes JWT token, then server-side identity, then membership API
-   * Falls back to membership profile fetch only if other methods are not available
+   * Priority order (Issue #272):
+   * 1. HubL server-side data attributes (NEW - preferred for native membership)
+   * 2. JWT token from localStorage (for test automation only)
+   * 3. sessionStorage (from legacy handshake - deprecated)
+   * 4. window.hhServerIdentity (alternative server-side injection)
+   * 5. Membership profile API (fallback for private pages)
    *
    * @returns {Promise<Object>}
    */
@@ -339,7 +343,45 @@
       return identityPromise;
     }
 
-    // Priority 0: Check JWT token from localStorage (Issue #251)
+    // Priority 0: Check HubL data attributes from server-side rendering (Issue #272)
+    // This is the new preferred method for native HubSpot membership authentication
+    var authContextDiv = document.getElementById('hhl-auth-context');
+    if (authContextDiv) {
+      var serverEmail = authContextDiv.getAttribute('data-email');
+      var serverContactId = authContextDiv.getAttribute('data-contact-id');
+      var serverFirstname = authContextDiv.getAttribute('data-firstname');
+      var serverLastname = authContextDiv.getAttribute('data-lastname');
+
+      if (serverEmail || serverContactId) {
+        if (debug && window.hhDebug) {
+          window.hhDebug.log('auth-context', 'Using HubL data attributes from server-side rendering (Issue #272)');
+        }
+
+        identityPromise = Promise.resolve({
+          email: serverEmail || '',
+          contactId: serverContactId || '',
+          firstname: serverFirstname || '',
+          lastname: serverLastname || ''
+        });
+
+        return identityPromise.then(function(identity) {
+          identityCache = identity;
+          identityResolved = true;
+          updateAuthContextDom(identity);
+          if (debug && window.hhDebug) {
+            window.hhDebug.log('auth-context', 'Identity resolved from HubL data attributes', {
+              hasEmail: !!identity.email,
+              hasContactId: !!identity.contactId,
+              isAuthenticated: !!(identity.email || identity.contactId)
+            });
+          }
+          emitIdentityEvent(identity);
+          return identity;
+        });
+      }
+    }
+
+    // Priority 1: Check JWT token from localStorage (for test automation only - Issue #251)
     var token = checkStoredToken();
     if (token) {
       // Token is valid, check for stored identity
@@ -349,7 +391,7 @@
           var parsed = JSON.parse(storedJwtIdentity);
           if (parsed && (parsed.email || parsed.contactId)) {
             if (debug && window.hhDebug) {
-              window.hhDebug.log('auth-context', 'Using JWT token identity from localStorage');
+              window.hhDebug.log('auth-context', 'Using JWT token identity from localStorage (test automation)');
             }
             identityPromise = Promise.resolve(parsed);
             return identityPromise.then(function(identity) {
@@ -375,7 +417,7 @@
       }
     }
 
-    // Priority 1: Check sessionStorage (from auth handshake page) - Issue #244
+    // Priority 2: Check sessionStorage (from auth handshake page - deprecated, Issue #244)
     var storedIdentity = null;
     try {
       var stored = sessionStorage.getItem('hhl_identity');
@@ -392,7 +434,7 @@
         }
         if (storedIdentity && (storedIdentity.email || storedIdentity.contactId)) {
           if (debug && window.hhDebug) {
-            window.hhDebug.log('auth-context', 'Using sessionStorage identity from handshake page');
+            window.hhDebug.log('auth-context', 'Using sessionStorage identity from handshake page (deprecated)');
           }
           identityPromise = Promise.resolve({
             email: storedIdentity.email || '',
@@ -422,8 +464,7 @@
       }
     }
 
-    // Priority 2: Check if server-side identity is available (Issue #244)
-    // This avoids the broken membership profile API on public pages
+    // Priority 3: Check if server-side identity is available (window.hhServerIdentity)
     if (window.hhServerIdentity && (window.hhServerIdentity.email || window.hhServerIdentity.contactId)) {
       if (debug && window.hhDebug) {
         window.hhDebug.log('auth-context', 'Using server-side identity bootstrap (window.hhServerIdentity)');
@@ -437,9 +478,9 @@
         lastname: window.hhServerIdentity.lastname || ''
       });
     } else {
-      // Priority 3: Fallback to membership profile API (works on private pages)
+      // Priority 4: Fallback to membership profile API (works on private pages)
       if (debug && window.hhDebug) {
-        window.hhDebug.log('auth-context', 'No server identity or sessionStorage, fetching from membership API');
+        window.hhDebug.log('auth-context', 'No server identity found, fetching from membership API');
       }
       identityPromise = fetchMembershipProfile();
     }

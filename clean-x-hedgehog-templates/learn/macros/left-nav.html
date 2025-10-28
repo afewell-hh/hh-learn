@@ -5,7 +5,9 @@
   {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
   {% set logout_url = constants.LOGOUT_URL|default('/_hcms/mem/logout') if constants else '/_hcms/mem/logout' %}
 
-  <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation">
+  {% set contact_email = personalization_token('contact.email', '') %}
+  {% set is_logged_in = request_contact.is_logged_in or contact_email %}
+  <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation" data-request-contact="{{ 'true' if is_logged_in else 'false' }}">
     <div class="learn-left-nav-content">
       {# Navigation Links #}
       <nav class="learn-nav-links" aria-label="Learning sections">
@@ -36,7 +38,7 @@
 
       {# Auth Links #}
       <div class="learn-nav-auth" role="region" aria-label="User authentication">
-        {% if request_contact.is_logged_in %}
+        {% if is_logged_in %}
           <div class="learn-user-greeting" aria-live="polite">Hi, {{ request_contact.firstname|default('there') }}!</div>
           <a href="{{ logout_url }}?redirect_url={{ request.path_and_query|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
             <span class="learn-nav-icon" aria-hidden="true">🚪</span>

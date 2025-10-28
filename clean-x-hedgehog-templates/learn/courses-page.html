@@ -516,6 +516,10 @@
 
     <section class="learn-main-section">
       <div class="learn-container">
+
+      {# TEMP: Add left nav to test request_contact.is_logged_in on detail pages #}
+      {{ learning_left_nav('courses', show_filters=false) }}
+
       <div class="course-detail">
           <!-- Breadcrumbs -->
           <nav class="course-breadcrumbs">
@@ -540,16 +544,35 @@
             </div>
           </header>
 
-          <!-- Enrollment CTA Block -->
-          <div class="enrollment-cta-block" id="hhl-enrollment-cta">
+          {# Enrollment CTA Block #}
+          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+          {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+          {% set contact_email = personalization_token('contact.email', '') %}
+          {% set is_logged_in = request_contact.is_logged_in or contact_email %}
+          <div class="enrollment-cta-block" id="hhl-enrollment-cta" data-content-type="course" data-build-id="cta-v3-20251028" data-request-contact="{{ 'true' if is_logged_in else 'false' }}">
             <div class="enrollment-cta-title">Ready to Start This Course?</div>
             <div class="enrollment-cta-description">
               Enroll to track your progress and access personalized learning resources as you complete each module.
             </div>
-            <button type="button" class="enrollment-button" id="hhl-enroll-button">
-              Start Course
-            </button>
-            <p class="enrollment-cta-helper" id="hhl-enroll-helper" style="display:none;"></p>
+            {% if is_logged_in %}
+              <button type="button"
+                      class="enrollment-button"
+                      id="hhl-enroll-button"
+                      data-content-type="course"
+                      data-content-slug="{{ dynamic_page_hubdb_row.hs_path }}">
+                Start Course
+              </button>
+              <p class="enrollment-cta-helper" id="hhl-enroll-helper" style="display:none;" aria-live="polite"></p>
+            {% else %}
+              <a class="enrollment-button"
+                 id="hhl-enroll-login"
+                 href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">
+                Sign in to start course
+              </a>
+              <p class="enrollment-cta-helper" id="hhl-enroll-helper" aria-live="polite">
+                Already registered? <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to continue.
+              </p>
+            {% endif %}
           </div>
 
           <!-- Progress Tracker -->
@@ -575,17 +598,19 @@
             </div>
           </div>
 
-          {# Auth context for JS #}
+          {# Auth context for JS (Issue #272 - Native HubSpot membership only) #}
           <div id="hhl-auth-context"
-               data-email="{{ (request_contact.email if request_contact.is_logged_in else personalization_token('contact.email'))|default('', true) }}"
-               data-contact-id="{{ (request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id'))|default('', true) }}"
+               data-email="{% if is_logged_in %}{{ request_contact.email|default(contact_email, true) }}{% endif %}"
+               data-contact-id="{% if is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
+               data-firstname="{% if is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
+               data-lastname="{% if is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
                data-enable-crm="true"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-course-slug="{{ dynamic_page_hubdb_row.hs_path }}"
                data-total-modules="{% if dynamic_page_hubdb_row.module_slugs_json %}{{ dynamic_page_hubdb_row.module_slugs_json|fromjson|length }}{% else %}0{% endif %}"
                data-login-url="{{ login_url }}"
+               data-authenticated="{{ 'true' if is_logged_in else 'false' }}"
                style="display:none"></div>
-          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/courses.js') }}"></script>
 
           <!-- Course Summary -->
           {% if dynamic_page_hubdb_row.summary_markdown %}
@@ -811,20 +836,25 @@
         </div>
       </div>
     </section>
-    {# Auth context for pageview beacon; only relevant when logged in #}
+    {# Auth context for pageview beacon (Issue #272 - Native HubSpot membership only) #}
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           <div id="hhl-auth-context"
-               data-email="{{ request_contact.email if request_contact.is_logged_in }}"
-               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in }}"
-               data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants }}"
+               data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
+               data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
+               data-firstname="{% if request_contact.is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
+               data-lastname="{% if request_contact.is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
+               data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants else 'true' }}"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-login-url="{{ login_url }}"
+               data-authenticated="{{ 'true' if request_contact.is_logged_in else 'false' }}"
                style="display:none"></div>
+    <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
+    <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/courses.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>
     <script>
-      // Initialize enrollment UI when enrollment.js is loaded
+      // Initialize enrollment UI after DOM is ready; init handles login-link fallback
       document.addEventListener('DOMContentLoaded', function() {
         if (window.hhInitEnrollment) {
           window.hhInitEnrollment('course', '{{ dynamic_page_hubdb_row.hs_path }}');
