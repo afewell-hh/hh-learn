@@ -1,0 +1,60 @@
+{
+  "slug": "network-like-hyperscaler-troubleshooting",
+  "title": "Course 4: Troubleshooting, Recovery & Escalation",
+  "summary_markdown": "Master systematic troubleshooting and recovery workflows for production fabric operations! This course teaches you to diagnose fabric issues using decision trees, safely rollback configurations, coordinate effectively with support teams, and conduct post-incident reviews that prevent future problems.\n\nYou'll develop confidence in handling production incidents, learning when to self-resolve vs. escalate, and building the professional communication skills that define effective fabric operators.",
+  "modules": [
+    "fabric-operations-diagnosing-issues",
+    "fabric-operations-rollback-recovery",
+    "fabric-operations-post-incident-review"
+  ],
+  "badge_image_url": "",
+  "display_order": 4,
+  "tags": "hedgehog,fabric,troubleshooting,recovery,support,incident-response,operations",
+  "content_blocks": [
+    {
+      "id": "intro",
+      "type": "text",
+      "title": "Welcome to Troubleshooting, Recovery & Escalation",
+      "body_markdown": "This course completes your journey to becoming a confident Hedgehog Fabric Operator. You'll learn systematic approaches to diagnosing problems, recovering from failures, and collaborating with support—transforming incidents into learning opportunities."
+    },
+    {
+      "id": "section-diagnosis",
+      "type": "text",
+      "title": "Part 1: Systematic Issue Diagnosis",
+      "body_markdown": "Learn to use decision trees and diagnostic workflows for common fabric issues. Master the four-layer approach: Events → Agent CRD → Grafana → Logs."
+    },
+    {
+      "id": "module-4-1",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-diagnosing-issues"
+    },
+    {
+      "id": "section-recovery",
+      "type": "text",
+      "title": "Part 2: Rollback & Recovery Procedures",
+      "body_markdown": "Master safe rollback techniques for VPCs, VPCAttachments, and wiring changes. Learn to minimize blast radius and validate recovery success."
+    },
+    {
+      "id": "module-4-2",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-rollback-recovery"
+    },
+    {
+      "id": "section-post-incident",
+      "type": "text",
+      "title": "Part 3: Post-Incident Review & Continuous Improvement",
+      "body_markdown": "Transform incidents into learning opportunities. Conduct blameless post-incident reviews that identify systemic improvements and prevent recurrence."
+    },
+    {
+      "id": "module-4-4",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-post-incident-review"
+    },
+    {
+      "id": "next-steps",
+      "type": "callout",
+      "title": "Congratulations!",
+      "body_markdown": "You've completed all four courses in the Network Like a Hyperscaler pathway! You're now equipped to operate Hedgehog fabrics with confidence, backed by systematic workflows and strong operational habits. Consider pursuing the Hedgehog Certified Fabric Operator (HCFO) certification to validate your skills."
+    }
+  ]
+}

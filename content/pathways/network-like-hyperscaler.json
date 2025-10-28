@@ -1,0 +1,24 @@
+{
+  "slug": "network-like-hyperscaler",
+  "title": "Network Like a Hyperscaler",
+  "summary_markdown": "Transform your approach to network operations with Hedgehog's Kubernetes-native fabric platform. This comprehensive pathway teaches you to provision, monitor, and troubleshoot modern datacenter networks using the same declarative infrastructure-as-code principles that power the world's largest hyperscalers.\n\nWhether you're a cloud-native engineer learning networking or a traditional network engineer adopting Kubernetes, this pathway bridges both worlds—building confidence through hands-on labs, systematic workflows, and real-world operational scenarios. By the end, you'll operate Hedgehog fabrics with the same confidence you have managing Kubernetes workloads.",
+  "modules": [
+    "fabric-operations-welcome",
+    "fabric-operations-how-it-works",
+    "fabric-operations-mastering-interfaces",
+    "fabric-operations-foundations-recap",
+    "fabric-operations-vpc-provisioning",
+    "fabric-operations-vpc-attachments",
+    "fabric-operations-connectivity-validation",
+    "fabric-operations-decommission-cleanup",
+    "fabric-operations-telemetry-overview",
+    "fabric-operations-dashboard-interpretation",
+    "fabric-operations-events-status",
+    "fabric-operations-pre-support-diagnostics",
+    "fabric-operations-diagnosing-issues",
+    "fabric-operations-rollback-recovery",
+    "fabric-operations-post-incident-review"
+  ],
+  "display_order": 5,
+  "tags": "hedgehog,fabric,networking,kubernetes,operations,observability,troubleshooting,certification"
+}
