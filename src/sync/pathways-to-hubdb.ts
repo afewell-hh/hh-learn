@@ -306,6 +306,7 @@ async function syncPathways(dryRun: boolean = false) {
         || pathway.summary_markdown.replace(/<[^>]*>/g, '').substring(0, 160);
 
       // Calculate module_count and total_estimated_minutes
+      // Note: course_count is calculated dynamically in templates from course_slugs_json
       const moduleCount = pathway.modules?.length || 0;
       const totalEstimatedMinutes = totalMinutes; // Alias for better clarity in templates
 
