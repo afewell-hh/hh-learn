@@ -4,8 +4,8 @@
 **Date Proposed**: 2025-10-26
 **Date Implemented**: 2025-10-26
 **Deciders**: Engineering Team
-**Implementation**: PRs #252, #254, #259, #261
-**Related Issues**: #242, #233, #234, #235, #237, #239, #251, #253, #255
+**Implementation**: Issues #270, #272, #274 (server-rendered membership); historical PRs #252, #254, #259, #261 retained for automation helpers
+**Related Issues**: #233, #234, #235, #237, #239, #242, #251, #253, #255, #270, #272, #274, #275
 
 ## Context and Problem Statement
 
@@ -33,7 +33,7 @@ Hedgehog Learn requires authenticated identity on **public course pages** to ena
 
 ## Considered Options
 
-### Option A: JWT Session Token System (RECOMMENDED)
+### Option A: JWT Session Token System (Historical Baseline – **DEPRECATED** 2025-10-28)
 
 **Architecture**:
 ```
@@ -84,19 +84,22 @@ Progress/enrollment endpoints work with authenticated identity
 - Add token refresh logic (15 minutes before expiry)
 - Update all Lambda calls to include `Authorization: Bearer` header
 
-**Pros**:
-- ✅ Works on public pages (no HubSpot Membership dependency)
-- ✅ Standard, well-understood pattern (JWT ecosystem)
-- ✅ Minimal backend changes (~200 lines of code)
-- ✅ No email delivery required (MVP uses email-only verification)
-- ✅ Compatible with existing CORS setup (`Authorization` header already allowed)
-- ✅ Can add refresh tokens later without breaking changes
+> **2025-10-28 Update:** Issue #270/#272/#274 replaced this option with native membership rendering for all user-facing flows. Keep the implementation notes here for regression analysis and automated test helpers only.
 
-**Cons**:
-- ❌ No email verification (anyone can claim any email) - acceptable for MVP
-- ❌ Requires JWT_SECRET management in environment
-- ❌ Token can't be revoked without blacklist (acceptable for 24h expiry)
-- ❌ Logout requires client-side cooperation (can't force token invalidation)
+**Pros (at the time)**:
+- ✅ Worked on public pages (no HubSpot Membership dependency)
+- ✅ Standard JWT ecosystem tooling
+- ✅ Minimal backend changes (~200 lines of code)
+- ✅ No email delivery required (email-only verification)
+- ✅ Compatible with existing CORS setup (`Authorization` header already allowed)
+- ✅ Could add refresh tokens later without breaking changes
+
+**Cons (blocking adoption for production)**:
+- ❌ Email-only verification allowed impersonation
+- ❌ Required JWT_SECRET lifecycle management
+- ❌ Tokens could not be revoked without additional infrastructure
+- ❌ Logout required client-side cooperation
+- ❌ Duplicated functionality already offered by HubSpot Membership cookies
 
 **Risk Level**: LOW
 **Effort**: 2-3 days (implementation + testing)
@@ -185,74 +188,63 @@ Client stores JWT
 
 ---
 
-### Option D: Enhanced Membership Session Bridge (Current Approach)
+### Option D: Native Membership Identity Injection (Current Approach – **ADOPTED 2025-10-28**)
 
-**Status**: IMPLEMENTED but BLOCKED (Issue #233)
+**Status**: IMPLEMENTED ✅ (Issues #270, #272)
 
 **Architecture**:
 ```
-Public Page → /_hcms/mem/login → /learn/auth-handshake (private) → sessionStorage → Public Page
+Public Page → /_hcms/mem/login → Public Page (HubL data attributes hydrate window.hhIdentity)
 ```
 
-**Why it doesn't work**:
-- HubSpot Membership API returns 404 on public pages
-- Auth-handshake page cannot detect `request_contact.is_logged_in` reliably
-- sessionStorage is fragile (cleared on browser restart, Safari private mode)
+**Why it works**:
+- HubSpot renders `request_contact` data on any page when membership session cookie present
+- HubL data attributes feed `auth-context.js`, avoiding fragile sessionStorage hand-offs
+- Eliminates custom JWT flow from production; JWT retained only for automated testing helpers
 
 **Pros**:
-- ✅ Already implemented (Issues #244, #245)
-- ✅ No additional infrastructure
+- ✅ Fully aligned with HubSpot's native "golden path"
+- ✅ No intermediate handshake page (simpler redirect chain)
+- ✅ HTTP-only membership cookies managed by HubSpot (built-in CSRF, MFA, SSO)
+- ✅ Supports Playwright TDD via native membership helper (`tests/helpers/auth.ts`)
 
-**Cons**:
-- ❌ **CRITICAL BLOCKER**: HubSpot Membership API broken on public pages
-- ❌ Fragile sessionStorage dependency
-- ❌ No solution to fundamental public/private page gap
+**Cons / Risks**:
+- ⚠️ Requires HubSpot membership login availability in automated environments
+- ⚠️ Authentication helper must keep pace with HubSpot form markup changes
 
-**Risk Level**: N/A (blocked by HubSpot platform limitation)
-**Effort**: N/A (not viable)
+**Risk Level**: LOW (HubSpot-managed auth surface)
+**Effort**: Delivered across Issues #270, #272, #274
 
 ---
 
 ## Decision Outcome
 
-**RECOMMENDED: Option A - JWT Session Token System**
+**RECOMMENDED & ADOPTED: Option D – Native Membership Identity Injection**
 
 ### Rationale
 
-1. **Unblocks Issue #233 immediately**: Works on public pages without HubSpot Membership
-2. **Low risk**: Standard JWT pattern, well-understood security model
-3. **Fast implementation**: ~200 lines of code, 2-3 day effort
-4. **Compatible with existing architecture**: Reuses Lambda infrastructure, CORS setup
-5. **Scalable**: Can add email verification (Option B) later without breaking changes
-6. **Testable**: Playwright tests can authenticate via `/auth/login` endpoint directly
+1. **HubSpot-managed identity** – `request_contact` HubL variables expose membership state on every render, eliminating the brittle client bootstrapper.
+2. **Zero custom token surface** – Removes JWT issuance/storage for production users, reducing security and maintenance overhead.
+3. **Consistent UX** – CTA, nav, and downstream scripts derive state from the same HubL flags, preventing split-brain experiences.
+4. **Automation still covered** – The JWT `/auth/login` endpoint is retained exclusively for Playwright helpers (`tests/helpers/jwt-auth.ts`) with clear documentation.
+5. **Verified in production** – Issue #274 captures anonymous/authenticated HTML snapshots and manual verification showing the CTA renders correctly without client polling.
 
 ### Implementation Phases
 
-#### Phase 1: JWT Infrastructure (Days 1-2)
-- Add `jsonwebtoken` library to Lambda dependencies
-- Create `/auth/login` endpoint
-- Implement JWT signing/verification utilities
-- Add `JWT_SECRET` to environment variables
-- Update validation logic to accept JWT from Authorization header
+#### Phase A: Membership-first identity (Issue #270 / #272)
+- Remove `/learn/auth-handshake` template and email-prompt modal.
+- Hydrate `window.hhIdentity` from HubL data attributes emitted by the page templates.
+- Update login helpers to build `/_hcms/mem/login?redirect_url=...` links.
 
-#### Phase 2: Frontend Integration (Day 2)
-- Update `auth-context.js` to attempt JWT login before membership API fallback
-- Add token storage in localStorage
-- Add token refresh logic (check expiry every 5 minutes)
-- Update logout flow to clear localStorage
+#### Phase B: Server-rendered CTA (Issue #274)
+- Branch hero CTA markup on `request_contact.is_logged_in` + `personalization_token('contact.email','')`.
+- Update `enrollment.js` to treat anonymous state as terminal (no DOM rewrites) and only hydrate CRM checks for authenticated visitors.
+- Publish updated templates and capture verification artifacts under `verification-output/issue-274/`.
 
-#### Phase 3: Testing & Validation (Day 3)
-- Update Playwright tests to use `/auth/login` endpoint
-- Verify CTA state updates after authentication
-- Verify enrollment tracking includes contact identifiers
-- Verify progress beacons work on public pages
-
-#### Phase 4: Documentation & Deployment (Day 3)
-- Update `docs/auth-and-progress.md` with JWT authentication flow
-- Update deployment guide with JWT_SECRET configuration
-- Create verification artifacts under `verification-output/issue-242/`
-- Deploy to staging, run smoke tests
-- Deploy to production
+#### Phase C: Documentation & Test Cleanup (Issue #275 – this ADR update)
+- Rewrite guidance to make native membership the baseline and demote JWT to automation-only tooling.
+- Reference Issue #274 verification assets from `docs/auth-and-progress.md`, `docs/README.md`, and this ADR.
+- Ensure README, HubSpot agent guide, and quick references point to native login flows.
 
 ### Future Enhancements (Post-MVP)
 
@@ -266,7 +258,7 @@ Public Page → /_hcms/mem/login → /learn/auth-handshake (private) → session
 
 ## Consequences
 
-### Positive
+### Positive *(Option A historical notes retained for comparison)*
 
 - ✅ Public pages can authenticate users without HubSpot Membership
 - ✅ CTA state updates correctly after login
@@ -275,14 +267,14 @@ Public Page → /_hcms/mem/login → /learn/auth-handshake (private) → session
 - ✅ Standard authentication pattern (easier for future developers)
 - ✅ Foundation for email verification (Option B) later
 
-### Negative
+### Negative *(Option A historical notes retained for comparison)*
 
 - ❌ Email-only verification (no password, no email confirmation for MVP)
 - ❌ Token can't be revoked without blacklist infrastructure
 - ❌ Requires JWT_SECRET management in environment variables
 - ❌ Slightly more complex frontend (token refresh logic)
 
-### Neutral
+### Neutral *(Option A historical notes retained for comparison)*
 
 - 🔹 HubSpot Membership still works on private pages (backward compatible)
 - 🔹 Action-runner pattern still used for enrollment (no breaking changes)
@@ -294,113 +286,86 @@ Public Page → /_hcms/mem/login → /learn/auth-handshake (private) → session
 
 ### Status: COMPLETE ✅
 
-All phases of the JWT authentication system have been implemented, tested, and deployed to production.
+All user-facing authentication now relies on HubSpot membership state rendered server-side. JWT infrastructure remains operational strictly for automated test setup.
 
 ### Timeline
-- **Phase 1** (Backend): Implemented 2025-10-26 (PR #252)
-- **Phase 2** (Frontend): Implemented 2025-10-26 (PR #252)
-- **Phase 3** (Testing): Completed 2025-10-26 (PR #254)
-- **Phase 4** (Documentation): Completed 2025-10-27 (Issue #255)
+- **Phase A – Membership hydration (Issues #270/#272):** Implemented 2025-10-27
+- **Phase B – Server-rendered CTA (Issue #274):** Implemented 2025-10-28
+- **Phase C – Documentation cleanup (Issue #275):** Implemented 2025-10-28
 
-### Files Modified
+### Key Assets
 
-**Backend** (5 files):
-- `src/api/lambda/auth.ts` - NEW: JWT utilities (signToken, verifyToken, extractContactFromToken)
-- `src/api/lambda/index.ts` - Added /auth/login endpoint, JWT validation in all endpoints
-- `package.json` - Added jsonwebtoken dependency
-- `serverless.yml` - Added JWT_SECRET environment variable, CORS headers
-- `tsconfig.json` - TypeScript configuration for JWT types
+**Templates & Client Scripts**
+- `clean-x-hedgehog-templates/learn/courses-page.html` – CTA branches on `request_contact.is_logged_in`.
+- `clean-x-hedgehog-templates/learn/pathways-page.html` – Mirrors CTA logic for pathway detail pages.
+- `clean-x-hedgehog-templates/learn/macros/left-nav.html` – Shares authenticated flags with hero CTA.
+- `clean-x-hedgehog-templates/assets/js/enrollment.js` – Hydrates authenticated CTAs only; anonymous state remains a login link.
+- `clean-x-hedgehog-templates/assets/js/auth-context.js` – Loads `window.hhIdentity` from HubL data attributes and exposes membership metadata to other scripts.
 
-**Frontend** (4 files):
-- `clean-x-hedgehog-templates/assets/js/auth-context.js` - JWT login, token storage, priority resolution
-- `clean-x-hedgehog-templates/assets/js/enrollment.js` - Authorization header support
-- `clean-x-hedgehog-templates/assets/js/progress.js` - Authorization header support
-- `clean-x-hedgehog-templates/config/constants.json` - AUTH_LOGIN_URL configuration
+**Automation Helpers & Tests**
+- `tests/helpers/auth.ts` – Provides membership-aware Playwright login helper and wraps JWT fallback for fixtures.
+- `tests/e2e/enrollment-cta.spec.ts` – Verifies CTA text before JavaScript instrumentation and after enrollment.
+- `tests/e2e/enrollment-flow.spec.ts` – Confirms enrollment button launches action runner after membership login.
 
-**Tests** (2 files):
-- `tests/api/smoke.test.ts` - 15 JWT authentication tests
-- `tests/e2e/enrollment-flow.spec.ts` - E2E enrollment test with JWT auth
-
-**Documentation** (3 files):
-- `docs/adr/001-public-page-authentication.md` - This ADR
-- `docs/implementation-plan-issue-242.md` - Detailed implementation plan
-- `docs/auth-and-progress.md` - Updated with JWT authentication section
+**Documentation**
+- `docs/auth-and-progress.md` – Describes membership-first architecture and CRM persistence.
+- `docs/hubspot-project-apps-agent-guide.md` – Updated training guidance for agents.
+- `docs/README.md` & `README.md` – Point contributors to the new baseline.
+- `verification-output/issue-274/IMPLEMENTATION-NOTES.md` – Canonical evidence of the server-rendered CTA change.
 
 ### Environment Configuration
 
-**AWS SSM Parameter Store**:
-- `/hhl/jwt-secret` - SecureString (256-bit random key)
-
-**GitHub Actions Secrets**:
-- `JWT_SECRET` - For E2E test authentication
-
-**HubSpot Constants**:
-- `AUTH_LOGIN_URL` - Points to Lambda `/auth/login` endpoint
+- HubSpot membership login is served by HubSpot; no new environment variables required.
+- `/auth/login` Lambda endpoint and `JWT_SECRET` remain available for CI automation and Playwright helpers; user-facing flows do not surface JWT tokens.
+- `ENABLE_CRM_PROGRESS` continues to gate behavioral event emission.
 
 ### Production Evidence
 
-**Deployed Endpoints**:
-- `POST /auth/login` - Live at `https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login`
-- All API endpoints accepting `Authorization: Bearer` header
+- Anonymous vs authenticated HTML captures in `verification-output/issue-274/` demonstrate CTA rendering without JavaScript hydration.
+- Manual verification log confirms “Start Course” CTA transitions after membership login while preserving CRM enrollment state.
+- Playwright suite executed on 2025-10-28 shows green runs for `enrollment-cta` and `enrollment-flow` specs.
 
-**Test Results**:
-- API tests: 15/15 passing
-- E2E tests: 1/1 passing
-- Zero regressions detected
-
-**Production Usage**:
-- Live site: https://hedgehog.cloud/learn
-- JWT authentication functional on all public course pages
-- Token expiry: 24 hours
-- No errors in CloudWatch logs
-
-### Pull Requests
-- **PR #252**: feat: implement JWT-based public page authentication (Merged 2025-10-26)
-- **PR #254**: test: update tests for JWT authentication (Merged 2025-10-26)
-- **PR #259**: fix: update E2E tests for JWT authentication flow (Merged 2025-10-26)
-- **PR #261**: feat: deploy JWT templates and re-enable E2E auth tests (Merged 2025-10-26)
+### Pull Requests / Issues
+- **Issue #270:** Transition to membership hydration.
+- **Issue #272:** Remove handshake and align login helper.
+- **Issue #274:** Server-render hero CTA.
+- **Issue #275:** Documentation cleanup (this ADR update).
+- Legacy PR references (#252, #254, #259, #261) remain for historical JWT implementation context.
 
 ---
 
 ## Validation Criteria
 
-### Definition of Done
+### Definition of Done (2025-10-28 baseline)
 
-- [x] `/auth/login` endpoint accepts email, returns signed JWT
-- [x] JWT includes contactId, email, iat, exp fields
-- [x] Lambda validates JWT signature on all protected endpoints
-- [x] `auth-context.js` detects JWT from localStorage and populates `window.hhIdentity`
-- [x] CTA state changes from "Sign in to start course" to "Start Course" after authentication
-- [x] Enrollment tracking persists to CRM with authenticated contact identifier
-- [x] Playwright test `tests/e2e/enrollment-flow.spec.ts` passes
-- [x] Documentation updated with JWT authentication flow
-- [x] Verification artifacts captured under `verification-output/issue-242/`
+- [x] Hero CTA renders correct state server-side for anonymous vs authenticated visitors.
+- [x] `window.hhIdentity` hydrates entirely from HubL data (no localStorage bootstrapper).
+- [x] `enrollment.js` only upgrades authenticated CTAs and continues CRM polling for logged-in contacts.
+- [x] README + docs redirect contributors to membership-first flow.
+- [x] JWT `/auth/login` endpoint scoped to automated tests and documented as such.
+- [x] Verification artifacts from Issue #274 linked in primary documentation.
 
 ### Success Metrics
 
-- [x] Playwright test passes (PASSING - was RED, now GREEN)
-- [x] Login success rate > 95% (100% in testing)
-- [ ] Token refresh success rate > 99% (refresh endpoint not yet implemented - planned for v0.4)
-- [x] No increase in CRM API errors (zero errors in CloudWatch)
-- [x] Page load time impact < 50ms (JWT adds ~10-20ms)
+- [x] Playwright CTA regression passes without waiting for SPA hydration.
+- [x] Membership login UX roundtrip (“Sign in” → “Start Course”) validated manually.
+- [x] No remaining docs instruct users to rely on JWT bootstrapper for live pages.
+- [ ] Action runner whitelist follow-up tracked separately (Issue TBD) – still outstanding.
 
 ---
 
 ## References
 
-- Issue #191: HubSpot Project Apps Agent Guide
-- Issue #233: Membership bootstrapper fails on public pages (2025-10-21 verification)
-- Issue #234: Identity bootstrapper implementation
-- Issue #235: Enrollment UI refactor
-- Issue #237: Membership session instrumentation
-- Issue #239: October 2025 reset guide
-- Issue #242: Public-page authentication design (this ADR)
-- `docs/auth-and-progress.md`: Current authentication architecture
-- `docs/auth-public-login-alternative.md`: Initial design notes
-- `docs/hubspot-project-apps-agent-guide.md`: HubSpot platform constraints
+- `verification-output/issue-274/IMPLEMENTATION-NOTES.md`
+- `verification-output/issue-274/course-authoring-101-anonymous-2025-10-28.html`
+- `verification-output/issue-274/course-authoring-101-authenticated-2025-10-28.html`
+- `docs/auth-and-progress.md`
+- `docs/hubspot-project-apps-agent-guide.md`
+- `HUBSPOT-AUTH-QUICK-SUMMARY.md`
+- `HUBSPOT-AUTH-RESEARCH-REPORT.md`
 
 ---
 
 **Decision Date**: 2025-10-26
 **Approvers**: [To be filled during review]
-**Implementation Start**: [To be scheduled]
+**Implementation Start**: 2025-10-26

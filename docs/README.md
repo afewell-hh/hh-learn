@@ -2,8 +2,8 @@
 title: Hedgehog Learn Documentation Index
 owner: hh-learn project lead
 status: living
-last-reviewed: 2025-10-19
-last-updated: 2025-10-19
+last-reviewed: 2025-10-28
+last-updated: 2025-10-28
 ---
 
 # Documentation Index
@@ -37,7 +37,7 @@ This folder only contains long-lived references that should stay accurate as the
 
 ### Verification & Access Tokens
 - **[`hubspot-project-apps-agent-guide.md`](hubspot-project-apps-agent-guide.md)** – **AI agent training guide** for HubSpot Project Apps (2025.2) platform, authentication patterns, and common pitfalls (read this first if you're an AI agent).
-- [`auth-and-progress.md`](auth-and-progress.md) – overview of authenticated beacons, CRM persistence, and feature flags.
+- [`auth-and-progress.md`](auth-and-progress.md) – membership-first authentication & CRM persistence baseline (see Issue #274 evidence).
 - [`issue-60-verification-guide.md`](issue-60-verification-guide.md) – step-by-step instructions to complete the Projects Access Token migration.
 - [`phase2-authenticated-beacons.md`](phase2-authenticated-beacons.md) – membership and event-definition prerequisites for Phase 2.
 - [`phase2-contact-properties.md`](phase2-contact-properties.md) – schema reference for progress properties stored on contacts.

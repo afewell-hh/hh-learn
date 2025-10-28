@@ -7,10 +7,15 @@ const ENROLLMENT_SCRIPT = readFileSync('clean-x-hedgehog-templates/assets/js/enr
 // Read actual constants to get configured login URLs
 const CONSTANTS = JSON.parse(readFileSync('clean-x-hedgehog-templates/config/constants.json', 'utf8'));
 
-function baseTemplate(attrs: Record<string, string>) {
+function authContext(attrs: Record<string, string>) {
   const attrString = Object.entries(attrs)
     .map(([key, value]) => `${key}="${value}"`)
     .join(' ');
+  return `<div id="hhl-auth-context" ${attrString}></div>`;
+}
+
+function anonymousTemplate(attrs: Record<string, string>) {
+  const loginUrl = attrs['data-login-url'] || CONSTANTS.LOGIN_URL || '/_hcms/mem/login';
   return `
     <!DOCTYPE html>
     <html>
@@ -19,11 +24,36 @@ function baseTemplate(attrs: Record<string, string>) {
         <title>Enrollment CTA Test</title>
       </head>
       <body>
-        <div id="hhl-auth-context" ${attrString}></div>
+        ${authContext(attrs)}
         <div class="enrollment-cta-block" id="hhl-enrollment-cta">
           <div class="enrollment-cta-title">Ready?</div>
           <div class="enrollment-cta-description">Test description</div>
-          <button type="button" class="enrollment-button" id="hhl-enroll-button">Start Course</button>
+          <a id="hhl-enroll-login" class="enrollment-button" href="${loginUrl}?redirect_url=%2Fmock-course">
+            Sign in to start course
+          </a>
+          <p class="enrollment-cta-helper" id="hhl-enroll-helper">Already registered? <a href="${loginUrl}?redirect_url=%2Fmock-course">Sign in</a> to continue.</p>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+function authenticatedTemplate(attrs: Record<string, string>) {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Enrollment CTA Test</title>
+      </head>
+      <body>
+        ${authContext(attrs)}
+        <div class="enrollment-cta-block" id="hhl-enrollment-cta">
+          <div class="enrollment-cta-title">Ready?</div>
+          <div class="enrollment-cta-description">Test description</div>
+          <button type="button" class="enrollment-button" id="hhl-enroll-button" data-content-type="course" data-content-slug="${COURSE_SLUG}">
+            Start Course
+          </button>
           <p class="enrollment-cta-helper" id="hhl-enroll-helper" style="display:none;"></p>
         </div>
       </body>
@@ -43,14 +73,41 @@ async function loadPage(page, body: string, origin: string) {
 }
 
 test.describe('Enrollment CTA (DOM)', () => {
-  test('shows sign-in prompt for anonymous visitors', async ({ page }) => {
+  test('leaves server-rendered login link intact for anonymous visitors', async ({ page }) => {
     const origin = 'https://enrollment.test';
-    await loadPage(page, baseTemplate({
+    await loadPage(page, anonymousTemplate({
       'data-email': '',
       'data-contact-id': '',
-      'data-enable-crm': 'true',
+      'data-enable-crm': 'false',
       'data-constants-url': '',
-      'data-login-url': CONSTANTS.LOGIN_URL || '/_hcms/mem/login'
+      'data-login-url': CONSTANTS.LOGIN_URL || '/_hcms/mem/login',
+      'data-authenticated': 'false'
+    }), origin);
+
+    await page.addScriptTag({ content: ENROLLMENT_SCRIPT });
+    await page.waitForFunction(() => typeof (window as any).hhInitEnrollment === 'function');
+    await page.evaluate((slug) => { (window as any).hhInitEnrollment('course', slug); }, COURSE_SLUG);
+
+    await expect(page.locator('#hhl-enroll-button')).toHaveCount(0);
+    const loginLink = page.locator('#hhl-enroll-login');
+    await expect(loginLink).toBeVisible();
+    await expect(loginLink).toHaveAttribute('href', /_hcms\/mem\/login/);
+
+    const helper = page.locator('#hhl-enroll-helper');
+    await expect(helper).toBeVisible();
+    await expect(helper).toContainText(/sign in/i);
+  });
+
+  test('binds enrollment handler for authenticated visitors without CRM data', async ({ page }) => {
+    const origin = 'https://enrollment-authless.test';
+
+    await loadPage(page, authenticatedTemplate({
+      'data-email': 'learner@example.com',
+      'data-contact-id': '12345',
+      'data-enable-crm': 'false',
+      'data-constants-url': '',
+      'data-login-url': CONSTANTS.LOGIN_URL || '/_hcms/mem/login',
+      'data-authenticated': 'true'
     }), origin);
 
     await page.addScriptTag({ content: ENROLLMENT_SCRIPT });
@@ -60,11 +117,7 @@ test.describe('Enrollment CTA (DOM)', () => {
     const button = page.locator('#hhl-enroll-button');
     await expect(button).toBeVisible();
     await expect(button).toBeEnabled();
-    await expect(button).toHaveText(/sign in/i);
-
-    const helper = page.locator('#hhl-enroll-helper');
-    await expect(helper).toBeVisible();
-    await expect(helper).toContainText(/sign in/i);
+    await expect(button).toHaveText(/start course/i);
   });
 
   test.skip('uses CRM enrollment data when available (needs JWT auth flow update)', async ({ page }) => {
@@ -104,12 +157,13 @@ test.describe('Enrollment CTA (DOM)', () => {
       });
     });
 
-    await loadPage(page, baseTemplate({
+    await loadPage(page, authenticatedTemplate({
       'data-email': 'learner@example.com',
       'data-contact-id': '12345',
       'data-enable-crm': 'true',
       'data-constants-url': constantsUrl,
-      'data-login-url': CONSTANTS.LOGIN_URL || '/_hcms/mem/login'
+      'data-login-url': CONSTANTS.LOGIN_URL || '/_hcms/mem/login',
+      'data-authenticated': 'true'
     }), origin);
 
     // Set up mock JWT token in localStorage (Issue #253 - enrollment.js uses JWT headers)

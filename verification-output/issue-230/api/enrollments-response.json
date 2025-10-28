@@ -1,0 +1,20 @@
+{
+  "mode": "authenticated",
+  "enrollments": {
+    "pathways": [
+      {
+        "slug": "api-test-pathway",
+        "enrolled_at": "2025-10-26T04:02:46.075Z",
+        "enrollment_source": "api_smoke_test"
+      }
+    ],
+    "courses": [
+      {
+        "slug": "api-test-course",
+        "pathway_slug": null,
+        "enrolled_at": "2025-10-26T04:02:38.612Z",
+        "enrollment_source": "api_smoke_test"
+      }
+    ]
+  }
+}

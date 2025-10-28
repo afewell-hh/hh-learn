@@ -1,46 +1,15 @@
 import 'dotenv/config';
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { authenticateViaJWT } from '../helpers/auth';
 
 const COURSE_SLUG = process.env.COURSE_SLUG || 'course-authoring-101';
 const COURSE_URL = process.env.COURSE_URL || `https://hedgehog.cloud/learn/courses/${COURSE_SLUG}?hs_no_cache=1`;
 const MY_LEARNING_URL = 'https://hedgehog.cloud/learn/my-learning?hs_no_cache=1';
-const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com';
 const VERIFICATION_DIR = path.join(process.cwd(), 'verification-output', 'issue-242');
 
-/**
- * Helper function to authenticate via JWT
- * Calls /auth/login endpoint and stores token in localStorage
- */
-async function authenticateViaJWT(page: Page, email: string): Promise<void> {
-  const response = await page.request.post(`${API_BASE_URL}/auth/login`, {
-    headers: { 'Content-Type': 'application/json' },
-    data: { email }
-  });
-
-  expect(response.ok(), `JWT login should succeed for ${email}`).toBeTruthy();
-
-  const data = await response.json();
-
-  // Store token in localStorage
-  await page.evaluate((token) => {
-    localStorage.setItem('hhl_auth_token', token);
-    localStorage.setItem('hhl_auth_token_expires', String(Date.now() + (24 * 60 * 60 * 1000)));
-  }, data.token);
-
-  // Store identity for immediate use
-  await page.evaluate((identity) => {
-    localStorage.setItem('hhl_identity_from_jwt', JSON.stringify(identity));
-  }, {
-    email: data.email,
-    contactId: data.contactId,
-    firstname: data.firstname || '',
-    lastname: data.lastname || ''
-  });
-}
-
-test.describe('Course enrollment flow with JWT auth (Issue #242 - Phase 3)', () => {
+test.describe('Course enrollment flow with JWT automation helper (Issue #242 - Phase 3)', () => {
   test('should authenticate via JWT and enroll in course', async ({ page, context }) => {
     const testEmail = process.env.HUBSPOT_TEST_USERNAME as string;
     test.skip(!testEmail, 'HUBSPOT_TEST_USERNAME not provided');
@@ -95,7 +64,7 @@ test.describe('Course enrollment flow with JWT auth (Issue #242 - Phase 3)', () 
 
     // Step 2: Authenticate via JWT
     console.log('Authenticating via JWT with email:', testEmail);
-    await authenticateViaJWT(page, testEmail);
+    await authenticateViaJWT(page, { email: testEmail });
 
     // Verify token was stored
     const storedToken = await page.evaluate(() => localStorage.getItem('hhl_auth_token'));

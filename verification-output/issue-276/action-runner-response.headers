@@ -1,0 +1,50 @@
+HTTP/2 303 
+date: Tue, 28 Oct 2025 13:37:10 GMT
+location: https://hedgehog.cloud/_hcms/mem/login?membership_error=CSRF_FAILURE&redirect_url=/learn/action-runner?action%3Denroll_course%26slug%3Dcourse-authoring-101%26redirect_url%3D%2Flearn%2Fcourses%2Fcourse-authoring-101
+server: cloudflare
+cf-ray: 995ad3878c7725da-LAX
+cf-cache-status: DYNAMIC
+cache-control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+set-cookie: hs-membership-csrf=8fM83YxmqZ5Oa2BeFLtM7Q;Version=1;Path=/;SameSite=Lax;Secure;HttpOnly
+set-cookie: __cf_bm=XvIXYL1yenbj03OCKZY_b05w8KrxNA5.6Rd.XfudoWs-1761658630-1.0.1.1-AfgN6HMti2oPD.o8X4HNM5CIuR_pd9GRy_w9bKYx04SmzLCX7HBmpvIIYtRl9SM0kSm7HMeClTgUAnAPKqw9ytfd.gQfGMB0EsC9jeIYW0Y; path=/; expires=Tue, 28-Oct-25 14:07:10 GMT; domain=.hubspot.com; HttpOnly; Secure; SameSite=None
+set-cookie: __cf_bm=GdQn8iHXWp0ZwaOryUbilOfB0W4KbMwLZL9E3w2Z.hY-1761658630-1.0.1.1-XKJFUJEHhPCZYwZ1d7a0yhlT14i0bFajnnyB04GrAMkxhPUAJ4Jd0JQjDNw.k0eHX51VHY1fEZZfdjCY3Jna0K4kUuy2qkNFSB_sGSIFxew; path=/; expires=Tue, 28-Oct-25 14:07:10 GMT; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+set-cookie: _cfuvid=nZd.9KPdrrVMKfyPDeDxviw3sWYh.r5Fe56LJT3kgJI-1761658630483-0.0.1.1-604800000; path=/; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+strict-transport-security: max-age=31536000
+vary: origin
+access-control-allow-credentials: false
+content-security-policy: upgrade-insecure-requests
+x-content-type-options: nosniff
+x-hs-cfworker-meta: {"resolver":"ProxyMappingResolver"}
+x-hs-portal-id: 21430285
+x-hubspot-correlation-id: 6d24e868-c5c5-4c45-b97a-f8ee59720864
+x-robots-tag: none
+report-to: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=Wp56Uy%2BbEEMebGmnPINdFr9bPNfxNa9WyJoTXB4Rs%2F8j%2BVEO6yR3rgyykr%2Bvk%2FUxZAWemaHz6%2BM7nafOBOgGz3DmeBCHpDrTY%2BFpm6ATplOQMKBk3dWS5gPc6LFQi0y8"}],"group":"cf-nel","max_age":604800}
+nel: {"success_fraction":0.01,"report_to":"cf-nel","max_age":604800}
+alt-svc: h3=":443"; ma=86400
+
+HTTP/2 103 
+link: <//7528302.fs1.hubspotusercontent-na1.net/hubfs/7528302/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/source-serif-pro-600.woff2>; as=font; rel=preload, <//7528304.fs1.hubspotusercontent-na1.net/hubfs/7528304/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/source-serif-pro-600.woff>; as=font; rel=preload, <//7528302.fs1.hubspotusercontent-na1.net/hubfs/7528302/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/montserrat-regular.woff2>; as=font; rel=preload, <//7528311.fs1.hubspotusercontent-na1.net/hubfs/7528311/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/montserrat-regular.woff>; as=font; rel=preload, <//7528302.fs1.hubspotusercontent-na1.net/hubfs/7528302/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/montserrat-500.woff2>; as=font; rel=preload
+
+HTTP/2 200 
+date: Tue, 28 Oct 2025 13:37:10 GMT
+content-type: text/html; charset=UTF-8
+cf-ray: 995ad3889dbd25da-LAX
+cache-control: s-maxage=36000, max-age=5
+last-modified: Wed, 22 Oct 2025 12:57:38 GMT
+link: <//7528302.fs1.hubspotusercontent-na1.net/hubfs/7528302/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/source-serif-pro-600.woff2>; rel=preload; as=font,<//7528304.fs1.hubspotusercontent-na1.net/hubfs/7528304/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/source-serif-pro-600.woff>; rel=preload; as=font,<//7528302.fs1.hubspotusercontent-na1.net/hubfs/7528302/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/montserrat-regular.woff2>; rel=preload; as=font,<//7528311.fs1.hubspotusercontent-na1.net/hubfs/7528311/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/montserrat-regular.woff>; rel=preload; as=font,<//7528302.fs1.hubspotusercontent-na1.net/hubfs/7528302/raw_assets/public/mV0_d-CmsDefaultSystemPages_hubspot/CmsDefaultSystemPages/fonts/montserrat-500.woff2>; rel=preload; as=font
+strict-transport-security: max-age=31536000
+content-security-policy: upgrade-insecure-requests
+edge-cache-tag: CT-0,P-21430285,PGS-ALL,SW-3
+referrer-policy: no-referrer-when-downgrade
+x-hs-cache-config: BrowserCache-5s-EdgeCache-180s
+x-hs-cache-control: s-maxage=36000, max-age=0
+x-hs-cf-cache-status: HIT
+x-hs-cfworker-meta: {"contentType":"membership-page","resolver":"PreRenderedContentResolver"}
+x-hs-hub-id: 21430285
+x-hs-portal-id: 21430285
+x-hs-prerendered: Wed, 22 Oct 2025 12:57:38 GMT
+report-to: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=GQD55GwQ16dJxsX3nIhBllk5uymRt8FGPxQXjLuNFFkJt7S0O5v%2FLqDyUNmr0Y8NLycrYgWv%2F%2B44oSB%2F8pUe8Xv72KrfXeamUd6ioJpU%2Bx7DQ%2FTbyUDQdGZQBBbJFGuQ"}],"group":"cf-nel","max_age":604800}
+nel: {"success_fraction":0.01,"report_to":"cf-nel","max_age":604800}
+server: cloudflare
+alt-svc: h3=":443"; ma=86400
+

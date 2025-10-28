@@ -1,5 +1,8 @@
 # Implementation Plan: Public-Page Authentication (Issue #242)
 
+> **Deprecated 2025-10-28:** Superseded by Issues #270/#272/#274. Retain for historical reference only. Do not follow these steps for production updates. See docs/auth-and-progress.md for the current baseline.
+
+
 **Status**: READY FOR IMPLEMENTATION
 **Target**: Unblock Playwright tests and enable authenticated identity on public course pages
 **Approach**: JWT Session Token System (ADR 001)

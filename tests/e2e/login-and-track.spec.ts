@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { test, expect } from '@playwright/test';
+import { loginViaMembership } from '../helpers/auth';
 
 const MODULE_URL = process.env.MODULE_URL || 'https://hedgehog.cloud/learn/accessing-the-hedgehog-virtual-lab-with-google-cloud';
 
@@ -10,27 +11,17 @@ test('login and send track events', async ({ page, context }) => {
   test.skip(!username || !password, 'Test creds not provided');
 
   // Start at login with redirect back to the module
-  const loginUrl = 'https://hedgehog.cloud/_hcms/mem/login?redirect_url=' + encodeURIComponent(MODULE_URL);
-  await page.goto(loginUrl, { waitUntil: 'domcontentloaded' });
+  await loginViaMembership(page, {
+    loginUrl: `${process.env.E2E_BASE_URL || 'https://hedgehog.cloud'}/_hcms/mem/login?redirect_url=${encodeURIComponent(MODULE_URL)}`,
+    email: username,
+    password,
+    expectRedirectContains: MODULE_URL.replace(/^https?:\/\//, '')
+  });
 
-  // Membership login form (robust selectors)
-  const emailLocator = page.locator('input[type="email"], input[name="email"], input#email').first();
-  await emailLocator.waitFor({ state: 'visible', timeout: 30000 });
-  await emailLocator.fill(username);
-
-  const pwdLocator = page.locator('input[type="password"], input[name="password"], input#password').first();
-  await pwdLocator.fill(password);
-
-  const submitLocator = page.locator('button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in")').first();
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 45000 }),
-    submitLocator.click()
-  ]);
-
-  // On module page now (allow an intermediate loading/redirect page)
-  await page.waitForURL(/hedgehog\.cloud\/.+/, { timeout: 60000 });
-  // Ensure we land on the module URL explicitly
-  await page.goto(MODULE_URL, { waitUntil: 'domcontentloaded' });
+  // Ensure we land on the module URL explicitly (handle intermediate landing page)
+  if (page.url() !== MODULE_URL) {
+    await page.goto(MODULE_URL, { waitUntil: 'domcontentloaded' });
+  }
 
   // Enable lightweight debug in localStorage
   await page.evaluate(() => localStorage.setItem('HHL_DEBUG', 'true'));

@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-10-27T17:48:16.865Z",
+  "issue": "#268 - Replace CTA login flow with JWT helper",
+  "status": "DEPLOYED",
+  "results": {
+    "buttonText": "Sign in to start course",
+    "scripts": [
+      "template_auth-context.min.js",
+      "template_enrollment.min.js"
+    ],
+    "hasJWTHandler": false,
+    "helperTextVisible": true,
+    "hasClickHandler": true
+  }
+}

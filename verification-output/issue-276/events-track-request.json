@@ -1,0 +1,11 @@
+{
+  "eventName": "learning_course_enrolled",
+  "payload": {
+    "course_slug": "course-authoring-101",
+    "ts": "2025-10-28T13:36:59Z",
+    "enrollment_source": "validation_script"
+  },
+  "contactIdentifier": {
+    "email": "afewell@gmail.com"
+  }
+}
