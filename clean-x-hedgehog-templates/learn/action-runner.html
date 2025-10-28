@@ -4,6 +4,9 @@
   label: Action Runner (Private)
   description: Private action runner that executes enrollment and progress actions with membership context before redirecting back to the originating page. Issue #245.
 -->
+{% set _ = set_response_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0') %}
+{% set _ = set_response_header('Pragma', 'no-cache') %}
+{% set _ = set_response_header('Expires', '0') %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
