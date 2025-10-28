@@ -1,0 +1,19 @@
+HTTP/2 307 
+date: Tue, 21 Oct 2025 20:41:51 GMT
+location: https://hedgehog.cloud/_hcms/mem/login?redirect_url=https%3A%2F%2Fhedgehog.cloud%2Flearn%2Fauth-handshake
+cf-ray: 99239402ec31816b-LAX
+cache-control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+set-cookie: __hsmem=;Version=1;Path=/;HttpOnly;SameSite=Lax;Max-Age=0;Secure
+set-cookie: __cf_bm=bhHpN679z.U0pUhb4c.2uwqFiX_UUAlkfmxC_TJ30NA-1761079311-1.0.1.1-M2FWGQLdGaCB9BkYSIks8zdmtf84oKfJHlR8pU2zLxUfpoNyYthcwJuKQF06ZqdGLx0nB8Q4C79oBJznVHnCTDWLua0WBz8wJDSmRjAnLHE; path=/; expires=Tue, 21-Oct-25 21:11:51 GMT; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+set-cookie: _cfuvid=7QceQ08nVpelQ6yip_MtyIp.P6gPddd_IKJGOIXuCwM-1761079311965-0.0.1.1-604800000; path=/; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+strict-transport-security: max-age=31536000
+content-security-policy: upgrade-insecure-requests
+x-hs-cfworker-meta: {"contentType":"SITE_PAGE"}
+x-hs-content-id: 197951609258
+x-hs-content-membership-redirect: true
+x-hs-portal-id: 21430285
+report-to: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=2CMs2UiymmxStTvHENGx3ww0q%2Bc%2FOhFggUXRO%2BpQROolnOeeQ%2FEbH96ZCAeKGt8c%2F1Q%2BBzndwZbfTc%2FTOZRUyr2PlDn9NMM%2BvdD16iOS5%2BzJ1AimtfyDzgHu1Z0dw4wE"}],"group":"cf-nel","max_age":604800}
+nel: {"success_fraction":0.01,"report_to":"cf-nel","max_age":604800}
+server: cloudflare
+alt-svc: h3=":443"; ma=86400
+

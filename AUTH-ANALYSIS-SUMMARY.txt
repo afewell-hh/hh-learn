@@ -1,0 +1,487 @@
+================================================================================
+
+> **Deprecated 2025-10-28:** Superseded by the native membership baseline (Issues #270/#272/#274). Retain for historical context only; see docs/auth-and-progress.md for the current architecture.
+
+HH-LEARN AUTHENTICATION ANALYSIS - SUMMARY
+================================================================================
+
+ANALYSIS DATE: 2025-10-27
+THOROUGHNESS: VERY THOROUGH
+CONTEXT: Issue #270 - CTA Login Flow Problems
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+1. DUAL AUTHENTICATION SYSTEM
+   - Legacy HubSpot Membership (server-side, 404 on public pages)
+   - New JWT Authentication (client-side, works everywhere)
+   - Both systems active simultaneously = confusion and duplication
+
+2. FOUR COMPETING IDENTITY SOURCES (in auth-context.js)
+   - Priority 0: JWT in localStorage (24h expiry)
+   - Priority 1: sessionStorage from handshake (6h TTL)
+   - Priority 2: Server-rendered data attributes
+   - Priority 3: Membership API fallback
+
+3. INCOMPLETE JWT INTEGRATION
+   - ✓ Works for enrollment buttons (JWT prompt)
+   - ✗ action-runner.js doesn't check Authorization header
+   - ✗ left-nav.html doesn't show JWT login state
+   - Result: Users see "Sign In" even after JWT authentication
+
+4. CODE DUPLICATION
+   - buildAuthHeaders() implemented in 5 files
+   - CRM sync logic copied in 4 files (enrollment, pathways, courses, progress)
+   - Similar auth checks repeated across components
+
+5. BROKEN REDIRECT CHAIN
+   - Double-encoding of URLs causes /learn/%2Flearn/... 404s
+   - Pattern: encodeURIComponent called multiple times on same URL
+
+6. UX INCONSISTENCY
+   - JWT flow: Email-only prompt dialog
+   - Membership flow: Full HubSpot login page with password
+   - Users confused: "Which login should I use?"
+
+================================================================================
+AUTHENTICATION FLOWS IDENTIFIED
+================================================================================
+
+FLOW 1: JWT Authentication (Public Pages)
+─────────────────────────────────────────
+User clicks "Sign in to enroll"
+  → JavaScript prompt() asks for email
+  → POST /auth/login { email }
+  → Lambda validates in HubSpot CRM
+  → Returns JWT token
+  → Stored in localStorage (hhl_auth_token, hhl_auth_token_expires, hhl_identity_from_jwt)
+  → window.hhIdentity resolves with identity
+  → All API calls include Authorization: Bearer <token>
+
+Files involved:
+- Frontend: enrollment.js (lines 81-137: handleJWTLogin)
+- Backend: auth.ts (lines 95-150: login endpoint)
+- Resolution: auth-context.js (lines 342-376: Priority 0)
+- Usage: enrollment.js, pathways.js, courses.js, progress.js
+
+
+FLOW 2: HubSpot Membership (Private Pages)
+───────────────────────────────────────────
+User clicks "Sign In" (left-nav)
+  → Redirects to /_hcms/mem/login?redirect_url=...
+  → HubSpot login page (email + password)
+  → Session cookies set (__hstc, hubspotutk, request_contact.is_logged_in)
+  → Redirects to /learn/auth-handshake?redirect_url=...
+  → auth-handshake.html detects request_contact.is_logged_in
+  → Stores identity in sessionStorage: hhl_identity
+  → Redirects back to original page
+  → auth-context.js checks sessionStorage
+
+Files involved:
+- Entry: left-nav.html (lines 41-44, 50-53)
+- Redirect: enrollment.js (lines 69-75: buildLoginRedirect)
+- Handshake: auth-handshake.html (lines 82-103)
+- Resolution: auth-context.js (lines 378-423: Priority 1)
+
+
+FLOW 3: Server-Side Identity Bootstrap
+───────────────────────────────────────
+HubSpot template renders identity in data attributes:
+  <div id="hhl-auth-context"
+       data-email="{request_contact.email or personalization_token}"
+       data-contact-id="{request_contact.hs_object_id}"
+       data-enable-crm="true"
+       ...
+  </div>
+
+Files involved:
+- Template: module-page.html, courses-page.html, etc.
+- Resolution: auth-context.js (lines 425-439: Priority 2)
+
+================================================================================
+ALL AUTHENTICATION TOUCHPOINTS
+================================================================================
+
+FRONTEND FILES (7 total)
+───────────────────────
+
+auth-context.js (598 lines)
+  - Lines 336-469: Identity resolution with 4 priorities
+  - Lines 227-255: Token validation with 15-min refresh buffer
+  - Lines 540-561: window.hhIdentity.login() method
+  - Lines 570-587: window.hhIdentity.logout() method
+  - Complexity: HIGH (4 competing resolution paths)
+
+enrollment.js (562 lines)
+  - Lines 81-137: handleJWTLogin() - email prompt, JWT call
+  - Lines 15-57: getAuth() - reads window.hhIdentity
+  - Lines 234-245: buildAuthHeaders() - adds JWT token
+  - Lines 247-278: fetchEnrollmentFromCRM() - CRM progress check
+  - Complexity: MODERATE (2 auth methods supported)
+
+pathways.js (172 lines)
+  - Lines 45-56: getAuth() - reads window.hhIdentity
+  - Lines 15-26: buildAuthHeaders() - duplicate implementation
+  - Lines 75-110: fetchCRMProgress() - duplicate CRM sync logic
+
+courses.js (174 lines)
+  - Lines 45-56: getAuth() - reads window.hhIdentity
+  - Lines 15-26: buildAuthHeaders() - duplicate implementation
+  - Lines 77-112: fetchCRMProgress() - duplicate CRM sync logic
+
+progress.js (278 lines)
+  - Lines 64-81: getAuthContext() - reads window.hhIdentity
+  - Lines 21-32: buildAuthHeaders() - duplicate implementation
+
+action-runner.js (365 lines)
+  - Lines 237-241: contactIdentifier from data attributes only
+  - Lines 260-273: Authentication check (data attributes only)
+  - Issue: MISSING JWT support - checks Authorization header
+
+left-nav.html (145 lines)
+  - Lines 39-44: Shows logout if request_contact.is_logged_in
+  - Lines 46-53: Shows login if not logged in
+  - Issue: Doesn't check window.hhIdentity.isAuthenticated()
+  - Result: Shows "Sign In" on public pages even after JWT login
+
+
+BACKEND FILES (2 total)
+──────────────────────
+
+auth.ts (76 lines)
+  - Lines 16-26: signToken() - creates JWT
+  - Lines 32-53: verifyToken() - validates JWT signature
+  - Lines 58-75: extractContactFromToken() - extracts identity from header
+
+index.ts (lambda handler)
+  - Lines 92-150: POST /auth/login endpoint
+  - Lines 205-206, 311-312, 441-442, 548-549: JWT validation in endpoints
+
+
+CONFIGURATION FILES (2 total)
+────────────────────────────
+
+constants.json (15 lines)
+  - Line 9: LOGIN_URL: "/_hcms/mem/login"
+  - Line 10: AUTH_LOGIN_URL: "<lambda>/auth/login"
+  - Line 12: TRACK_EVENTS_URL: "<lambda>/events/track"
+  - Line 13: ACTION_RUNNER_URL: "/learn/action-runner"
+
+serverless.yml
+  - Line 16: JWT_SECRET environment variable
+
+
+STORAGE MECHANISMS
+──────────────────
+
+localStorage (Client-side JWT):
+  - hhl_auth_token: JWT token string
+  - hhl_auth_token_expires: Expiry timestamp (ms)
+  - hhl_identity_from_jwt: JSON identity object
+
+sessionStorage (Handshake bridge):
+  - hhl_identity: Identity from handshake page
+  - hhl_last_action: Action runner result
+  - hhl-module-state-*: Module completion flags
+  - hhl-enrollment-*-*: Enrollment state per item
+
+Cookies (HubSpot session):
+  - __hstc, hubspotutk: HubSpot tracking
+  - request_contact.*: Server-side membership
+
+Data Attributes (Server-rendered):
+  - data-email: Contact email or personalization token
+  - data-contact-id: Contact ID from request_contact
+  - data-enable-crm: CRM progress enabled flag
+
+================================================================================
+PAIN POINTS
+================================================================================
+
+PAIN POINT 1: Multiple Identity Sources (High Complexity)
+──────────────────────────────────────────────────────────
+Problem: Code must check 4 different sources in order
+  1. JWT (localStorage) with 24h expiry
+  2. sessionStorage (handshake) with 6h TTL
+  3. Server data attributes (page load only)
+  4. Membership API (fallback, network request)
+
+Impact: 
+  - 134 lines of conditional logic (auth-context.js:336-469)
+  - Each path has different validation rules
+  - Each path expires differently
+  - Bugs in one path don't appear until others fail
+  - Testing must cover all combinations
+
+Example issue: User logs in via JWT, then navigates to private page where
+              sessionStorage identity takes over, then that expires, then
+              falls back to Membership API - 3 different expiry times!
+
+
+PAIN POINT 2: Dual Login Flows (User Confusion)
+────────────────────────────────────────────────
+Problem: Same system, two completely different UX patterns
+
+JWT Login (Enrollment CTA):
+  - Simple JavaScript prompt("Enter email:")
+  - Email-only, no password
+  - Instant redirect if email exists in CRM
+  - localStorage persists across tabs
+
+HubSpot Membership Login (Left-Nav):
+  - Full page redirect to HubSpot
+  - Email + password form
+  - Browser session cookies
+  - Different login than enrollment
+
+User confusion: "Which one should I use?" "Why does enrollment not need password?"
+
+
+PAIN POINT 3: Broken Redirect Chain (Issue #270)
+─────────────────────────────────────────────────
+Problem: Double URL encoding causes 404s
+
+Code pattern:
+  var handshakeUrl = '/learn/auth-handshake?redirect_url=' + encodeURIComponent(window.location.pathname);
+  var target = handshakeUrl + '?redirect_url=' + encodeURIComponent(redirectUrl);
+  
+Result:
+  - First encodeURIComponent: /some/page → /some/page (no change for slash)
+  - wraps in ?redirect_url= → ?redirect_url=/some/page
+  - Second encodeURIComponent: ?redirect_url=/some/page → %3Fredirect_url%3D%2Fsome%2Fpage
+  
+Final URL: /learn/auth-handshake?redirect_url=%3Fredirect_url%3D%2Fsome%2Fpage
+           which decodes to: /learn/%2Flearn/... (404)
+
+
+PAIN POINT 4: Missing JWT Support in Key Components (Medium Complexity)
+──────────────────────────────────────────────────────────────────────
+Problem 1 - action-runner.js:
+  - Only checks data attributes for contactIdentifier
+  - Doesn't check Authorization: Bearer header for JWT
+  - Falls back to Membership login if data attributes missing
+  - Result: Users who logged in via JWT must do second login
+
+Problem 2 - left-nav.html:
+  - Only checks request_contact.is_logged_in (server-side)
+  - Doesn't check window.hhIdentity.isAuthenticated()
+  - Shows "Sign In" even after JWT authentication on public pages
+  - Result: Inconsistent UI state
+
+
+PAIN POINT 5: Session Management Inconsistency (High Complexity)
+────────────────────────────────────────────────────────────────
+Different expiry times across auth methods:
+
+  JWT Token:       24 hours (auth-context.js:294)
+  Membership:      Browser session (when cookies expire)
+  Handshake:       6 hours (auth-context.js:64, STORED_IDENTITY_TTL_MS)
+  Server data:     Page load only (single page)
+
+Issues:
+  - Users get logged out at different times
+  - No cache invalidation (if password changed in HubSpot)
+  - Token refresh only in one place (auth-context.js:238, 15-min buffer)
+  - No logout coordination (JWT.logout() doesn't clear cookies)
+
+
+PAIN POINT 6: CRM Progress Sync Code Duplication (Medium Complexity)
+────────────────────────────────────────────────────────────────────
+Same pattern repeated 4 times:
+
+  enrollment.js:lines 247-278
+  pathways.js:lines 75-110
+  courses.js:lines 77-112
+  progress.js:lines 199-276
+
+Each implements:
+  1. Check if CRM enabled and user authenticated
+  2. Build URL with email/contactId query params
+  3. fetch(url, { credentials: 'omit', headers: buildAuthHeaders() })
+  4. Parse response and handle authenticated mode
+
+Problems:
+  - 4 copies = 4x harder to fix bugs
+  - Inconsistent error handling
+  - Each implements buildAuthHeaders() slightly differently
+  - Makes refactoring risky
+
+
+PAIN POINT 7: No Unified Authentication State Management (Medium Complexity)
+──────────────────────────────────────────────────────────────────────────────
+Problem: Each component implements own auth checks
+
+  // enrollment.js
+  var identity = window.hhIdentity ? window.hhIdentity.get() : null;
+  
+  // pathways.js
+  var identity = (window.hhIdentity && typeof window.hhIdentity.get === 'function') ? window.hhIdentity.get() : null;
+  
+  // courses.js (same as pathways)
+  // progress.js (different pattern using getAuthContext)
+
+Issues:
+  - Defensive checks repeated
+  - No central auth service
+  - Each component implements retry logic independently
+  - Makes refactoring and testing harder
+  - Hard to add new features consistently
+
+================================================================================
+COMPLEXITY METRICS
+================================================================================
+
+Code Organization:
+  - Total auth files: 10 (7 frontend + 2 backend + 1 configuration)
+  - Total auth lines: ~2,500+
+  - Files with buildAuthHeaders(): 5 (duplication)
+  - Duplicate CRM sync: 4 files
+
+Decision Complexity:
+  - Priority levels in identity resolution: 4
+  - Major conditional branches: 12+
+  - Redirect chain hops: 3-4
+  - Error scenarios: 15+
+
+Testing Complexity:
+  - Independent flows: 4
+  - Page contexts: 2 (public/private)
+  - Storage combinations: localStorage + sessionStorage + cookies
+  - Token states: valid, expired, missing, invalid, refreshing
+
+Cyclomatic Complexity:
+  - auth-context.js (lines 336-469): HIGH (nested conditionals)
+  - action-runner.js (lines 260-315): MEDIUM (validation chain)
+  - enrollment.js (lines 438-531): MEDIUM (state transitions)
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+PHASE 1: QUICK WINS (2-3 hours, HIGH IMPACT)
+─────────────────────────────────────────────
+
+1. Add JWT support to action-runner.js
+   - Check Authorization: Bearer header in addition to data attributes
+   - Extract contactId from JWT if present
+   - Eliminates second login after JWT auth
+   - Effort: 30 minutes
+
+2. Add JWT awareness to left-nav.html
+   - Check window.hhIdentity.isAuthenticated() in addition to request_contact
+   - Shows correct "Sign Out" even on public pages after JWT login
+   - Effort: 30 minutes
+
+3. Fix URL encoding in redirects
+   - Create utility function buildRedirectUrl(base, target)
+   - Encode only once at final step, not intermediate steps
+   - Test with: /learn/auth-handshake?redirect_url=/some/page
+   - Effort: 1 hour
+
+Total effort: ~2 hours
+Impact: Solves Issue #270 symptoms
+
+
+PHASE 2: CONSOLIDATION (4 hours, MEDIUM IMPACT)
+────────────────────────────────────────────────
+
+4. Extract CRM sync logic into shared module
+   - Create window.hhCrmSync API
+   - Methods: fetchEnrollments(), fetchProgress(), trackEvent()
+   - Replace in enrollment.js, pathways.js, courses.js, progress.js
+   - Single source of truth for CRM operations
+   - Effort: 2-3 hours
+
+5. Unify authentication state access
+   - Create window.hhAuth API
+   - Methods: getIdentity(), isAuthenticated(), getToken()
+   - Replace duplicated defensive checks
+   - Effort: 1-2 hours
+
+Total effort: ~4 hours
+Impact: Reduces duplication, easier to maintain
+
+
+PHASE 3: MIGRATION (2-3 sprints, LONG-TERM)
+────────────────────────────────────────────
+
+6. Make JWT primary for all pages
+   - Keep HubSpot Membership as fallback for legacy compatibility
+   - Deprecate left-nav Membership redirect
+   - Remove sessionStorage handshake mechanism once JWT stable
+   - Timeline: 2-3 sprints with testing
+
+Benefits:
+  - Single authentication method
+  - Works on public and private pages
+  - Simpler code
+  - Better mobile experience
+
+================================================================================
+CURRENT STATUS CHECKLIST
+================================================================================
+
+Implemented:
+  ✓ JWT login endpoint (/auth/login)
+  ✓ Token signing and verification
+  ✓ localStorage persistence
+  ✓ Token expiry with 15-minute refresh buffer
+  ✓ CRM progress sync with JWT bearer token
+  ✓ Multi-source identity resolution
+
+Missing / Incomplete:
+  ✗ JWT support in action-runner.js (data attributes only)
+  ✗ JWT state visible in left-nav
+  ✗ Unified auth state API
+  ✗ Single CRM sync implementation
+  ✗ Logout coordination between systems
+  ✗ URL encoding fix for redirects
+
+================================================================================
+FILES REQUIRING ATTENTION
+================================================================================
+
+HIGH PRIORITY (Issue #270 fixes):
+  1. action-runner.js (add JWT header check)
+  2. left-nav.html (add JWT state visibility)
+  3. enrollment.js (fix URL encoding)
+
+MEDIUM PRIORITY (Code quality):
+  4. Refactor auth-context.js (134 lines of complex conditionals)
+  5. Extract CRM sync module (eliminate 4 copies)
+  6. Create unified auth API
+
+LOW PRIORITY (Nice to have):
+  7. Remove Membership flow for public pages
+  8. Deprecate sessionStorage handshake
+
+================================================================================
+CONCLUSION
+================================================================================
+
+The authentication system WORKS but is COMPLEX:
+
+Strengths:
+  ✓ Supports both public and private pages
+  ✓ JWT-based auth works well on public pages
+  ✓ Multiple fallback mechanisms
+  ✓ Good token validation and expiry handling
+
+Weaknesses:
+  ✗ Dual authentication modes cause confusion
+  ✗ 4 competing identity sources
+  ✗ Missing JWT support in key components
+  ✗ Code duplication (buildAuthHeaders, CRM sync)
+  ✗ Broken URL encoding in redirects
+
+Effort to significantly improve: ~6-7 hours total
+
+Priority roadmap:
+  1. Fix Issue #270 symptoms (Phase 1) - 2 hours
+  2. Eliminate code duplication (Phase 2) - 4 hours
+  3. Migrate to JWT-primary (Phase 3) - Multiple sprints
+
+Recommendation: Start with Phase 1 immediately (high ROI, fast delivery).
+
+================================================================================

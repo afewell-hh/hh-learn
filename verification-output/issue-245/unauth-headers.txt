@@ -1,0 +1,20 @@
+HTTP/2 307 
+date: Tue, 21 Oct 2025 16:00:34 GMT
+content-length: 0
+location: https://hedgehog.cloud/_hcms/mem/login?redirect_url=https%3A%2F%2Fhedgehog.cloud%2Flearn%2Faction-runner%3Faction%3Denroll_course
+cf-ray: 9921f7f5be4dcba4-LAX
+cache-control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+set-cookie: __hsmem=;Version=1;Path=/;HttpOnly;SameSite=Lax;Max-Age=0;Secure
+set-cookie: __cf_bm=GPkogVk4Znv.JILCUHYLDsNKsFbU39aDvtfNETet.Pk-1761062434-1.0.1.1-heLMwr9VNJuTfQcAiRJ4f5hX.CbQSLr1tTvf8X.3ra.S9rGj003bSt.nmuo3iyX5Hcpz8HO8Q4ESAmgM.tEqQ1VRvAkMtFGBaxh7GgobOC8; path=/; expires=Tue, 21-Oct-25 16:30:34 GMT; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+set-cookie: _cfuvid=6w4DpinvEmxc.fGBeaKtzW5nm3825hdrL4cIfByqDr0-1761062434526-0.0.1.1-604800000; path=/; domain=.hedgehog.cloud; HttpOnly; Secure; SameSite=None
+strict-transport-security: max-age=31536000
+content-security-policy: upgrade-insecure-requests
+x-hs-cfworker-meta: {"contentType":"SITE_PAGE"}
+x-hs-content-id: 197934199840
+x-hs-content-membership-redirect: true
+x-hs-portal-id: 21430285
+report-to: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=hcpPQfKn7q9ZsRrbDMxWEJ1UsCwxVnDE0uf817elSm2KDXBpDjcPopt2Hm6gEFSmgywEu1oe05lA5W8B3Hun2lhGlQF5%2F65cUWXFbiibOC6qQrKH%2B7IZdmErDpwjSr1W"}],"group":"cf-nel","max_age":604800}
+nel: {"success_fraction":0.01,"report_to":"cf-nel","max_age":604800}
+server: cloudflare
+alt-svc: h3=":443"; ma=86400
+
