@@ -646,13 +646,31 @@
           </div>
 
           {# Auth context for JS #}
+          {# Calculate total module count for course-based pathways #}
+          {% set total_modules = dynamic_page_hubdb_row.module_count|default(0) %}
+          {% if dynamic_page_hubdb_row.course_slugs_json and total_modules == 0 %}
+            {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+            {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 135381433 %}
+            {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+            {% set total_modules = 0 %}
+            {% for slug in course_slugs %}
+              {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% if rows and rows|length > 0 %}
+                {% set course = rows[0] %}
+                {% if course.module_slugs_json %}
+                  {% set module_count = course.module_slugs_json|fromjson|length %}
+                  {% set total_modules = total_modules + module_count %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
           <div id="hhl-auth-context"
                data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
                data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
                data-enable-crm="true"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-pathway-slug="{{ dynamic_page_hubdb_row.hs_path }}"
-               data-total-modules="{{ dynamic_page_hubdb_row.module_count|default(0) }}"
+               data-total-modules="{{ total_modules }}"
                data-login-url="{{ login_url }}"
                style="display:none"></div>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
