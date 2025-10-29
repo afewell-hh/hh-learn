@@ -152,6 +152,19 @@ async function getModuleEstimatedMinutes(moduleSlug: string): Promise<number> {
   }
 }
 
+// Helper: Read course JSON to get module count
+async function getCourseModuleCount(courseSlug: string): Promise<number> {
+  try {
+    const coursePath = join(process.cwd(), 'content/courses', `${courseSlug}.json`);
+    const fileContent = await readFile(coursePath, 'utf-8');
+    const course = JSON.parse(fileContent);
+    return course.modules?.length || 0;
+  } catch (err) {
+    console.warn(`  ⚠️  Could not read module count for course ${courseSlug}, defaulting to 0`);
+    return 0;
+  }
+}
+
 async function syncPathways(dryRun: boolean = false) {
   console.log('🔄 Starting pathways sync to HubDB...\n');
 
@@ -305,9 +318,18 @@ async function syncPathways(dryRun: boolean = false) {
       const metaDescription = pathway.meta_description
         || pathway.summary_markdown.replace(/<[^>]*>/g, '').substring(0, 160);
 
-      // Calculate module_count and total_estimated_minutes
-      // Note: course_count is calculated dynamically in templates from course_slugs_json
-      const moduleCount = pathway.modules?.length || 0;
+      // Calculate module_count: for course-based pathways, sum modules from all courses
+      let moduleCount = 0;
+      if (pathway.courses && pathway.courses.length > 0) {
+        // Sum module counts from all courses
+        for (const courseSlug of pathway.courses) {
+          const courseMod = await getCourseModuleCount(courseSlug);
+          moduleCount += courseMod;
+        }
+      } else if (pathway.modules) {
+        // Direct module references (legacy)
+        moduleCount = pathway.modules.length;
+      }
       const totalEstimatedMinutes = totalMinutes; // Alias for better clarity in templates
 
       // Serialize content_blocks_json if present
