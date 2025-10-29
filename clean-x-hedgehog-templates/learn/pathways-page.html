@@ -592,9 +592,14 @@
           <header class="pathway-detail-header">
             <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
             <div class="pathway-meta">
-              {% if dynamic_page_hubdb_row.module_count %}
+              {% if dynamic_page_hubdb_row.course_slugs_json %}
+                {% set course_count = dynamic_page_hubdb_row.course_slugs_json|fromjson|length %}
                 <span class="pathway-meta-item">
-                  <strong>{{ dynamic_page_hubdb_row.module_count }}</strong> modules
+                  <strong>{{ course_count }}</strong> course{% if course_count != 1 %}s{% endif %}
+                </span>
+              {% elif dynamic_page_hubdb_row.module_count %}
+                <span class="pathway-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.module_count }}</strong> module{% if dynamic_page_hubdb_row.module_count != 1 %}s{% endif %}
                 </span>
               {% endif %}
               {% if dynamic_page_hubdb_row.total_estimated_minutes %}
@@ -641,6 +646,7 @@
           </div>
 
           {# Auth context for JS #}
+          {# module_count is now precomputed in the sync script for both module-based and course-based pathways #}
           <div id="hhl-auth-context"
                data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
                data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
@@ -869,9 +875,14 @@
                   {% endif %}
 
                   <div class="pathway-meta">
-                    {% if pathway.module_count %}
+                    {% if pathway.course_slugs_json %}
+                      {% set course_count = pathway.course_slugs_json|fromjson|length %}
                       <span class="pathway-meta-item">
-                        <strong>{{ pathway.module_count }}</strong> modules
+                        <strong>{{ course_count }}</strong> course{% if course_count != 1 %}s{% endif %}
+                      </span>
+                    {% elif pathway.module_count %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ pathway.module_count }}</strong> module{% if pathway.module_count != 1 %}s{% endif %}
                       </span>
                     {% endif %}
                     {% if pathway.total_estimated_minutes %}
