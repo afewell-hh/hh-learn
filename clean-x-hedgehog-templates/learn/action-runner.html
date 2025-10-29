@@ -1,322 +1,207 @@
+<!--
+  templateType: page
+  isAvailableForNewContent: true
+  label: Action Runner (Private)
+  description: Private action runner that executes enrollment and progress actions with membership context before redirecting back to the originating page. Issue #245.
+-->
 <!DOCTYPE html>
 <html lang="en">
-<!--
-  Action Runner
-  Purpose: Server-rendered enrollment/progress event handler
-  Flow:
-    1. Receives URL params (action, slug, redirect_url, etc.)
-    2. Builds appropriate event payload for /events/track
-    3. POSTs to Lambda API with JWT auth
-    4. Saves result to sessionStorage for feedback
-    5. Redirects back to original page
-
-  Supported Actions:
-    - enroll_pathway: Triggers learning_pathway_enrolled event
-    - enroll_course: Triggers learning_course_enrolled event
-    - mark_module_started: Triggers learning_module_started event
-    - mark_module_completed: Triggers learning_module_completed event
-
-  Related: Issue #245, Issue #276
--->
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Processing...</title>
-
-  {# Load constants for API endpoints #}
-  {% set constants_url = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json") %}
-  {% set constants = constants_url|request_json %}
-
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-    .container {
-      text-align: center;
-      padding: 2rem;
-      max-width: 500px;
-    }
-    .spinner {
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top: 4px solid white;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1.5rem;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin: 0 0 0.5rem;
-      font-weight: 600;
-    }
-    p {
-      opacity: 0.9;
-      margin: 0;
-    }
-    .error {
-      background: #ff4444;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-top: 1rem;
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="spinner"></div>
-    <h1 id="status">Processing enrollment...</h1>
-    <p id="message">Please wait a moment</p>
-    <div id="error" class="error"></div>
-  </div>
-
-  <script>
-    (function() {
-      'use strict';
-
-      var debug = localStorage.getItem('HHL_DEBUG') === 'true';
-
-      // Constants from HubL
-      var constants = {{ constants|tojson }};
-      var trackUrl = constants.TRACK_EVENTS_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track';
-      var enableCrm = constants.ENABLE_CRM_PROGRESS || false;
-
-      // Parse URL parameters
-      var params = new URLSearchParams(window.location.search);
-      var action = params.get('action');
-      var slug = params.get('slug');
-      var redirectUrl = params.get('redirect_url') || '/learn';
-      var pathwaySlug = params.get('pathway_slug');
-      var courseSlug = params.get('course_slug');
-      var moduleSlug = params.get('module_slug');
-      var enrollmentSource = params.get('source') || 'action_runner';
-
-      if (debug) {
-        console.log('[action-runner] Params:', {
-          action: action,
-          slug: slug,
-          pathwaySlug: pathwaySlug,
-          courseSlug: courseSlug,
-          moduleSlug: moduleSlug,
-          source: enrollmentSource,
-          redirectUrl: redirectUrl
-        });
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Processing your request…</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a4e8a 0%, #2563eb 100%);
+        color: #fff;
       }
+      .runner-container {
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: 16px;
+        padding: 48px 40px;
+        max-width: 540px;
+        width: min(540px, calc(100% - 32px));
+        text-align: center;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
+      }
+      .runner-spinner {
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        border-top: 4px solid #fff;
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 24px;
+        animation: runner-spin 1s linear infinite;
+      }
+      @keyframes runner-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin: 0 0 12px 0;
+      }
+      p {
+        margin: 0;
+        font-size: 1rem;
+        opacity: 0.9;
+      }
+      .runner-details {
+        margin-top: 24px;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        opacity: 0.95;
+      }
+      .runner-actions {
+        display: none;
+        margin-top: 32px;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .runner-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 20px;
+        border-radius: 999px;
+        border: none;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      }
+      .runner-button.primary {
+        background: #fff;
+        color: #1a4e8a;
+      }
+      .runner-button.primary:hover {
+        transform: translateY(-1px);
+        background: #e0ecff;
+      }
+      .runner-button.secondary {
+        background: rgba(255, 255, 255, 0.12);
+        color: #f8fafc;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .runner-button.secondary:hover {
+        background: rgba(255, 255, 255, 0.22);
+      }
+      .runner-icon {
+        font-size: 2rem;
+        margin-bottom: 16px;
+      }
+      .runner-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: rgba(15, 23, 42, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        padding: 6px 12px;
+        margin-bottom: 16px;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    {{ standard_header_includes }}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+    {% set is_editor_mode = is_in_editor or is_in_page_preview or request.query_dict.hs_preview or request.query_dict.hs_builder %}
 
-      /**
-       * Build event payload based on action type
-       */
-      function buildEventPayload(action) {
-        var timestamp = new Date().toISOString();
-        var eventName = null;
-        var payload = { ts: timestamp };
+    {# Resolve membership identity using request_contact with personalization_token fallback (Issue #276) #}
+    {% set runner_email = '' %}
+    {% set runner_contact_id = '' %}
+    {% if request_contact.is_logged_in %}
+      {% set runner_email = request_contact.email|default('', true) %}
+      {% set runner_contact_id = request_contact.hs_object_id|default(request_contact.vid, true) %}
+    {% endif %}
 
-        if (action === 'enroll_pathway') {
-          eventName = 'learning_pathway_enrolled';
-          payload.pathway_slug = slug || pathwaySlug;
-          payload.enrollment_source = enrollmentSource;
-        } else if (action === 'enroll_course') {
-          eventName = 'learning_course_enrolled';
-          payload.course_slug = slug || courseSlug;
-          if (pathwaySlug) {
-            payload.pathway_slug = pathwaySlug;
+    {% if not runner_email %}
+      {% set runner_email = personalization_token('contact.email', '') %}
+    {% endif %}
+
+    {% if not runner_contact_id %}
+      {% set runner_contact_id = personalization_token('contact.hs_object_id', '') %}
+    {% endif %}
+
+    {% set is_logged_in = request_contact.is_logged_in or runner_email %}
+
+    <div class="runner-container" id="action-runner-container">
+      <div id="runner-icon" class="runner-icon">⚙️</div>
+      <div class="runner-badge" id="runner-badge">
+        Secure Action Runner
+      </div>
+      <div class="runner-spinner" id="action-runner-spinner"></div>
+      <h1 id="action-runner-title">Processing your request…</h1>
+      <p id="action-runner-message">Hold tight while we securely complete your action.</p>
+      <div class="runner-details" id="action-runner-details"></div>
+      <div class="runner-actions" id="action-runner-actions">
+        <a href="/learn" class="runner-button primary" id="action-runner-primary">Return to Learn</a>
+        <a href="#" class="runner-button secondary" id="action-runner-secondary">Back to previous page</a>
+      </div>
+    </div>
+
+    <div
+      id="hhl-action-runner"
+      data-is-editor="{{ 'true' if is_editor_mode else 'false' }}"
+      data-is-logged-in="{{ 'true' if is_logged_in else 'false' }}"
+      data-email="{{ runner_email|escapejs if runner_email else '' }}"
+      data-contact-id="{{ runner_contact_id|escapejs if runner_contact_id else '' }}"
+      data-track-url="{{ constants.TRACK_EVENTS_URL if constants else '' }}"
+      data-login-url="{{ login_url }}"
+      data-actions="{{ {
+        'enroll_pathway': {
+          'event': 'learning_pathway_enrolled',
+          'required': ['slug'],
+          'optional': ['source', 'course_slug']
+        },
+        'enroll_course': {
+          'event': 'learning_course_enrolled',
+          'required': ['slug'],
+          'optional': ['source', 'pathway_slug']
+        },
+        'record_progress': {
+          'event': 'learning_module_progress',
+          'required': ['module_slug', 'status'],
+          'optional': ['pathway_slug', 'course_slug']
+        }
+      }|tojson|escapehtml }}"
+    ></div>
+
+    {% if is_editor_mode %}
+      <script>
+        (function(){
+          var title = document.getElementById('action-runner-title');
+          var message = document.getElementById('action-runner-message');
+          var spinner = document.getElementById('action-runner-spinner');
+          if (spinner) spinner.style.display = 'none';
+          if (title) title.textContent = 'Editor Preview: Action Runner Disabled';
+          if (message) {
+            message.textContent = 'This private page executes enrollment and progress actions for signed-in learners. Redirect logic is paused while editing so you can update copy or layout safely.';
           }
-          payload.enrollment_source = enrollmentSource;
-        } else if (action === 'mark_module_started' || action === 'mark_started') {
-          eventName = 'learning_module_started';
-          payload.module_slug = slug || moduleSlug;
-          if (courseSlug) payload.course_slug = courseSlug;
-          if (pathwaySlug) payload.pathway_slug = pathwaySlug;
-        } else if (action === 'mark_module_completed' || action === 'mark_completed') {
-          eventName = 'learning_module_completed';
-          payload.module_slug = slug || moduleSlug;
-          if (courseSlug) payload.course_slug = courseSlug;
-          if (pathwaySlug) payload.pathway_slug = pathwaySlug;
-        }
-
-        if (!eventName) {
-          throw new Error('Unsupported action: ' + action);
-        }
-
-        // Build final event object
-        var event = {
-          eventName: eventName,
-          payload: payload
-        };
-
-        // Add top-level fields for enrollment events (required by validation schema)
-        if (eventName === 'learning_pathway_enrolled') {
-          event.pathway_slug = payload.pathway_slug;
-          event.enrollment_source = enrollmentSource;
-        } else if (eventName === 'learning_course_enrolled') {
-          event.course_slug = payload.course_slug;
-          if (pathwaySlug) {
-            event.pathway_slug = pathwaySlug;
-          }
-          event.enrollment_source = enrollmentSource;
-        }
-
-        return event;
-      }
-
-      /**
-       * Get JWT token from localStorage
-       */
-      function getAuthToken() {
-        try {
-          return localStorage.getItem('hhl_auth_token');
-        } catch (e) {
-          if (debug) console.warn('[action-runner] Cannot access localStorage:', e);
-          return null;
-        }
-      }
-
-      /**
-       * Build fetch headers with JWT if available
-       */
-      function buildHeaders() {
-        var headers = { 'Content-Type': 'application/json' };
-        var token = getAuthToken();
-        if (token) {
-          headers['Authorization'] = 'Bearer ' + token;
-        }
-        return headers;
-      }
-
-      /**
-       * Save result to sessionStorage for feedback on redirect
-       */
-      function saveResult(status, action, params) {
-        try {
-          var result = {
-            status: status,
-            action: action,
-            params: params,
-            timestamp: new Date().toISOString()
-          };
-          sessionStorage.setItem('hhl_last_action', JSON.stringify(result));
-          if (debug) console.log('[action-runner] Saved result:', result);
-        } catch (e) {
-          if (debug) console.warn('[action-runner] Cannot save result:', e);
-        }
-      }
-
-      /**
-       * Show error and allow retry
-       */
-      function showError(message) {
-        document.getElementById('status').textContent = 'Enrollment Failed';
-        document.getElementById('message').textContent = 'We encountered an error';
-        var errorEl = document.getElementById('error');
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-
-        // Redirect after 5 seconds
-        setTimeout(function() {
-          window.location.href = redirectUrl;
-        }, 5000);
-      }
-
-      /**
-       * Main execution
-       */
-      function run() {
-        // Validate required params
-        if (!action) {
-          showError('Missing action parameter');
-          saveResult('error', null, { error: 'missing_action' });
-          return;
-        }
-
-        if (!slug && !pathwaySlug && !courseSlug && !moduleSlug) {
-          showError('Missing slug parameter');
-          saveResult('error', action, { error: 'missing_slug' });
-          return;
-        }
-
-        try {
-          var eventPayload = buildEventPayload(action);
-
-          if (debug) {
-            console.log('[action-runner] Event payload:', eventPayload);
-          }
-
-          // Update UI
-          document.getElementById('status').textContent = 'Saving progress...';
-
-          // POST to /events/track
-          fetch(trackUrl, {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify(eventPayload),
-            credentials: 'omit'
-          })
-            .then(function(response) {
-              if (!response.ok) {
-                return response.json().then(function(error) {
-                  throw new Error(error.error || 'HTTP ' + response.status);
-                });
-              }
-              return response.json();
-            })
-            .then(function(data) {
-              if (debug) console.log('[action-runner] Success:', data);
-
-              // Save success result
-              saveResult('success', action, {
-                slug: slug,
-                pathway_slug: pathwaySlug,
-                course_slug: courseSlug,
-                module_slug: moduleSlug
-              });
-
-              // Update UI
-              document.getElementById('status').textContent = 'Success!';
-              document.getElementById('message').textContent = 'Redirecting...';
-
-              // Redirect back
-              setTimeout(function() {
-                window.location.href = redirectUrl;
-              }, 500);
-            })
-            .catch(function(error) {
-              console.error('[action-runner] Failed to track event:', error);
-
-              // Save error result (but still redirect)
-              saveResult('error', action, {
-                slug: slug,
-                error: error.message || String(error)
-              });
-
-              showError(error.message || 'Network error');
-            });
-
-        } catch (error) {
-          console.error('[action-runner] Error building payload:', error);
-          saveResult('error', action, { error: error.message });
-          showError(error.message || 'Invalid request');
-        }
-      }
-
-      // Execute when page loads
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', run);
-      } else {
-        run();
-      }
-    })();
-  </script>
-</body>
+          var badge = document.getElementById('runner-badge');
+          if (badge) badge.textContent = 'Editor Preview';
+        })();
+      </script>
+    {% else %}
+      <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
+      <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/action-runner.js') }}"></script>
+    {% endif %}
+    {{ standard_footer_includes }}
+  </body>
 </html>
