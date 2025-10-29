@@ -315,41 +315,126 @@
 
   /**
    * Handle enrollment button click
+   * Posts enrollment event directly to /events/track (Issue #276 fix)
    */
   function handleEnrollClick(button, contentType, slug, auth, constants) {
     if (button.disabled) return;
 
-    var runnerBase = getActionRunnerBase(constants);
-    var redirectPath = window.location.pathname + window.location.search + window.location.hash;
-    var actionKey = 'enroll_' + contentType;
     var source = deriveEnrollmentSource();
+    var timestamp = new Date().toISOString();
 
     // Persist local enrollment flag immediately for optimistic UI
-    setEnrollmentState(contentType, slug, true, new Date().toISOString());
+    setEnrollmentState(contentType, slug, true, timestamp);
 
     button.disabled = true;
     button.innerHTML = 'Enrolling...';
     button.style.cursor = 'wait';
     button.setAttribute('aria-disabled', 'true');
 
-    updateButtonUI(button, true, contentType);
-    unbindClick(button);
-
-    var params = {
-      action: actionKey,
-      slug: slug,
-      source: source
+    // Build enrollment event payload
+    var eventName = contentType === 'pathway' ? 'learning_pathway_enrolled' : 'learning_course_enrolled';
+    var eventPayload = {
+      eventName: eventName,
+      payload: {
+        ts: timestamp,
+        enrollment_source: source
+      }
     };
 
-    var courseContext = window.hhCourseContext && window.hhCourseContext.getContext ? window.hhCourseContext.getContext() : null;
-    if (courseContext && courseContext.courseSlug) {
-      params.course_slug = courseContext.courseSlug;
+    // Add slug fields
+    if (contentType === 'pathway') {
+      eventPayload.pathway_slug = slug;
+      eventPayload.payload.pathway_slug = slug;
+    } else {
+      eventPayload.course_slug = slug;
+      eventPayload.payload.course_slug = slug;
+
+      // Add pathway context if in a course within a pathway
+      var courseContext = window.hhCourseContext && window.hhCourseContext.getContext ? window.hhCourseContext.getContext() : null;
+      if (courseContext && courseContext.pathwaySlug) {
+        eventPayload.pathway_slug = courseContext.pathwaySlug;
+        eventPayload.payload.pathway_slug = courseContext.pathwaySlug;
+      }
     }
 
-    setTimeout(function() {
-      if (debug) console.log('[hhl-enroll] Redirecting to action runner', params);
-      window.location.href = buildRunnerUrl(runnerBase, redirectPath, params);
-    }, 150);
+    if (debug) console.log('[hhl-enroll] Posting enrollment event:', eventPayload);
+
+    // POST enrollment event directly to /events/track
+    var trackUrl = constants && constants.TRACK_EVENTS_URL;
+    if (!trackUrl) {
+      console.error('[hhl-enroll] TRACK_EVENTS_URL not configured');
+      updateButtonUI(button, true, contentType);
+      saveEnrollmentResult('error', contentType, slug, 'missing_track_url');
+      if (window.hhToast) {
+        window.hhToast.show('Enrollment configuration error', 'error', 5000);
+      }
+      return;
+    }
+
+    fetch(trackUrl, {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+      body: JSON.stringify(eventPayload),
+      credentials: 'omit'
+    })
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(error) {
+            throw new Error(error.error || 'HTTP ' + response.status);
+          });
+        }
+        return response.json();
+      })
+      .then(function(data) {
+        if (debug) console.log('[hhl-enroll] Enrollment event tracked:', data);
+
+        // Update UI to enrolled state
+        updateButtonUI(button, true, contentType);
+
+        // Save success result
+        saveEnrollmentResult('success', contentType, slug);
+
+        // Show success toast
+        if (window.hhToast) {
+          var message = contentType === 'pathway'
+            ? 'You are enrolled in this pathway.'
+            : 'Course enrollment confirmed.';
+          window.hhToast.show(message, 'success', 4200);
+        }
+      })
+      .catch(function(error) {
+        console.error('[hhl-enroll] Enrollment failed:', error);
+
+        // Keep optimistic UI but save error
+        updateButtonUI(button, true, contentType);
+        saveEnrollmentResult('error', contentType, slug, error.message);
+
+        // Show error toast
+        if (window.hhToast) {
+          window.hhToast.show('Enrollment saved locally. Will sync when online.', 'warning', 5000);
+        }
+      });
+  }
+
+  /**
+   * Save enrollment result to sessionStorage for feedback
+   */
+  function saveEnrollmentResult(status, contentType, slug, errorMessage) {
+    try {
+      var result = {
+        status: status,
+        action: 'enroll_' + contentType,
+        params: { slug: slug },
+        timestamp: new Date().toISOString()
+      };
+      if (errorMessage) {
+        result.error = errorMessage;
+      }
+      sessionStorage.setItem('hhl_last_action', JSON.stringify(result));
+      if (debug) console.log('[hhl-enroll] Saved enrollment result:', result);
+    } catch (e) {
+      if (debug) console.warn('[hhl-enroll] Cannot save result:', e);
+    }
   }
 
   /**
