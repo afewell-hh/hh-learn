@@ -3,8 +3,8 @@ import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const COURSE_SLUG = process.env.COURSE_SLUG || 'network-like-hyperscaler-101';
-const PATHWAY_SLUG = process.env.PATHWAY_SLUG || 'publish-network-like-hyperscaler-complete';
+const COURSE_SLUG = process.env.COURSE_SLUG || 'network-like-hyperscaler-foundations';
+const PATHWAY_SLUG = process.env.PATHWAY_SLUG || 'network-like-hyperscaler';
 const COURSE_URL = `https://hedgehog.cloud/learn/courses/${COURSE_SLUG}?hs_no_cache=1`;
 const PATHWAY_URL = `https://hedgehog.cloud/learn/pathways/${PATHWAY_SLUG}?hs_no_cache=1`;
 const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com';
