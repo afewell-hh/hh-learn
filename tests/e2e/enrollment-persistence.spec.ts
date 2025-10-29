@@ -7,8 +7,8 @@ const COURSE_SLUG = process.env.COURSE_SLUG || 'network-like-hyperscaler-101';
 const PATHWAY_SLUG = process.env.PATHWAY_SLUG || 'publish-network-like-hyperscaler-complete';
 const COURSE_URL = `https://hedgehog.cloud/learn/courses/${COURSE_SLUG}?hs_no_cache=1`;
 const PATHWAY_URL = `https://hedgehog.cloud/learn/pathways/${PATHWAY_SLUG}?hs_no_cache=1`;
-const ACTION_RUNNER_URL = 'https://hedgehog.cloud/learn/action-runner';
 const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com';
+const TRACK_EVENTS_URL = `${API_BASE_URL}/events/track`;
 const VERIFICATION_DIR = path.join(process.cwd(), 'verification-output', 'issue-276');
 
 /**
@@ -52,7 +52,7 @@ async function clearEnrollmentState(page: Page, contentType: 'course' | 'pathway
   }, { type: contentType, slug });
 }
 
-test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
+test.describe('Enrollment Persistence - Direct POST (Issue #276)', () => {
 
   test.beforeEach(async ({ page }) => {
     // Ensure verification directory exists
@@ -61,37 +61,12 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
     }
   });
 
-  test('action-runner page should exist and be accessible', async ({ page }) => {
-    // Verify the action-runner page exists (not 404)
-    const response = await page.goto(ACTION_RUNNER_URL, { waitUntil: 'domcontentloaded' });
-
-    expect(response?.status()).not.toBe(404);
-
-    const currentUrl = page.url();
-
-    if (currentUrl.includes('/_hcms/mem/login')) {
-      // Membership-gated page can redirect to login when unauthenticated
-      await expect(page.locator('#hs-membership-form')).toBeVisible({ timeout: 5000 });
-      console.log('ℹ️ Action runner is membership-gated – login form rendered as expected');
-    } else {
-      // Verify page contains expected elements
-      await expect(page.locator('#action-runner-container')).toBeVisible({ timeout: 5000 });
-
-      // Verify page title
-      const title = await page.title();
-      expect(title).toContain('Processing');
-    }
-
-    console.log('✅ Action runner page exists and loads successfully');
-  });
-
-  test('should redirect to action-runner and persist course enrollment to CRM', async ({ page, context }) => {
+  test('should POST course enrollment directly to /events/track and persist to CRM', async ({ page, context }) => {
     const testEmail = process.env.HUBSPOT_TEST_USERNAME as string;
     test.skip(!testEmail, 'HUBSPOT_TEST_USERNAME not provided');
 
     // Track network calls
-    const trackCalls: Array<{ url: string; payload: any }> = [];
-    const actionRunnerVisits: string[] = [];
+    const trackCalls: Array<{ url: string; payload: any; response: any }> = [];
 
     page.on('request', async req => {
       const url = req.url();
@@ -100,17 +75,27 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
       if (url.includes('/events/track') && req.method() === 'POST') {
         try {
           const payload = req.postDataJSON();
-          trackCalls.push({ url, payload });
-          console.log('[TRACK] Event:', payload?.eventName, 'Slug:', payload?.course_slug || payload?.slug);
+          trackCalls.push({ url, payload, response: null });
+          console.log('[TRACK POST] Event:', payload?.eventName, 'Course:', payload?.course_slug);
         } catch (e) {
-          trackCalls.push({ url, payload: null });
+          trackCalls.push({ url, payload: null, response: null });
         }
       }
+    });
 
-      // Track action-runner visits
-      if (url.includes('/learn/action-runner')) {
-        actionRunnerVisits.push(url);
-        console.log('[ACTION-RUNNER] Visit:', url);
+    page.on('response', async res => {
+      const url = res.url();
+      if (url.includes('/events/track') && res.request().method() === 'POST') {
+        try {
+          const data = await res.json();
+          const call = trackCalls.find(c => c.url === url && !c.response);
+          if (call) {
+            call.response = data;
+            console.log('[TRACK RESPONSE]', res.status(), data);
+          }
+        } catch (e) {
+          // Response might not be JSON
+        }
       }
     });
 
@@ -163,54 +148,49 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
       fullPage: true
     });
 
+    // Clear tracked calls before clicking
+    trackCalls.length = 0;
+
     // Click enrollment button
     console.log('Clicking enrollment button...');
     await ctaButton.click();
 
-    // Wait for redirect to action-runner
-    console.log('Waiting for action-runner redirect...');
-    await page.waitForURL(/\/learn\/action-runner/, { timeout: 15000 });
+    // Wait for POST to /events/track to complete
+    console.log('Waiting for POST to /events/track...');
+    await expect.poll(() => trackCalls.length, {
+      message: 'Expected POST to /events/track',
+      timeout: 10000
+    }).toBeGreaterThan(0);
 
-    // Verify we're on action-runner page
-    const currentUrl = page.url();
-    expect(currentUrl).toContain('/learn/action-runner');
-    console.log('✅ Redirected to action-runner:', currentUrl);
-
-    // Verify URL parameters
-    const url = new URL(currentUrl);
-    expect(url.searchParams.get('action')).toBe('enroll_course');
-    expect(url.searchParams.get('slug')).toBe(COURSE_SLUG);
-    expect(url.searchParams.has('redirect_url')).toBeTruthy();
-
-    console.log('✅ Action runner URL parameters correct');
-
-    // Wait for action-runner to process and redirect back
-    console.log('Waiting for redirect back to course page...');
-    await page.waitForURL(/\/learn\/courses\//i, { timeout: 20000 });
-
-    console.log('✅ Redirected back to course page');
-
-    // Take screenshot after enrollment
-    await page.screenshot({
-      path: path.join(VERIFICATION_DIR, 'test-2-after-enrollment.png'),
-      fullPage: true
-    });
-
-    // Verify enrollment event was tracked
-    await page.waitForTimeout(2000); // Allow time for network calls to complete
-
+    // Verify enrollment event was POSTed
     expect(trackCalls.length).toBeGreaterThan(0);
-    console.log(`✅ ${trackCalls.length} event(s) tracked`);
+    console.log(`✅ ${trackCalls.length} event(s) POSTed to /events/track`);
 
     // Verify learning_course_enrolled event was sent
     const enrollmentEvent = trackCalls.find(call =>
       call.payload?.eventName === 'learning_course_enrolled'
     );
 
-    expect(enrollmentEvent, 'learning_course_enrolled event should be sent').toBeTruthy();
+    expect(enrollmentEvent, 'learning_course_enrolled event should be POSTed').toBeTruthy();
     expect(enrollmentEvent?.payload?.course_slug || enrollmentEvent?.payload?.slug).toBe(COURSE_SLUG);
 
     console.log('✅ Enrollment event payload verified:', enrollmentEvent?.payload);
+
+    // Verify response was successful
+    if (enrollmentEvent?.response) {
+      expect(enrollmentEvent.response.status).toBe('persisted');
+      expect(enrollmentEvent.response.mode).toBe('authenticated');
+      console.log('✅ Server confirmed enrollment persisted:', enrollmentEvent.response);
+    }
+
+    // Wait for UI to update
+    await page.waitForTimeout(2000);
+
+    // Take screenshot after enrollment
+    await page.screenshot({
+      path: path.join(VERIFICATION_DIR, 'test-2-after-enrollment.png'),
+      fullPage: true
+    });
 
     // Verify button shows enrolled state
     await expect(ctaButton).toHaveText(/Enrolled/i, { timeout: 10000 });
@@ -233,44 +213,41 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
     // Save test report
     const report = {
       timestamp: new Date().toISOString(),
-      testType: 'course_enrollment_via_action_runner',
+      testType: 'course_enrollment_direct_post',
       testUser: testEmail,
       courseSlug: COURSE_SLUG,
       assertions: {
-        actionRunnerPageAccessible: true,
-        redirectedToActionRunner: actionRunnerVisits.length > 0,
-        urlParametersCorrect: true,
-        redirectedBackToCourse: true,
-        enrollmentEventTracked: !!enrollmentEvent,
+        postToTrackEvents: trackCalls.length > 0,
+        enrollmentEventSent: !!enrollmentEvent,
+        serverConfirmedPersisted: enrollmentEvent?.response?.status === 'persisted',
         buttonShowsEnrolled: true,
         sessionStorageHasSuccess: lastAction?.status === 'success'
       },
       networkCalls: {
-        actionRunnerVisits,
         trackCalls: trackCalls.map(c => ({
           eventName: c.payload?.eventName,
-          slug: c.payload?.course_slug || c.payload?.slug
+          slug: c.payload?.course_slug || c.payload?.slug,
+          response: c.response
         }))
       },
       sessionStorage: lastAction
     };
 
     fs.writeFileSync(
-      path.join(VERIFICATION_DIR, 'e2e-action-runner-course-test.json'),
+      path.join(VERIFICATION_DIR, 'e2e-enrollment-direct-post-test.json'),
       JSON.stringify(report, null, 2)
     );
 
-    console.log('\n✅ Course enrollment via action-runner test completed!');
-    console.log('Report saved to:', path.join(VERIFICATION_DIR, 'e2e-action-runner-course-test.json'));
+    console.log('\n✅ Course enrollment via direct POST test completed!');
+    console.log('Report saved to:', path.join(VERIFICATION_DIR, 'e2e-enrollment-direct-post-test.json'));
   });
 
-  test('should redirect to action-runner and persist pathway enrollment to CRM', async ({ page, context }) => {
+  test('should POST pathway enrollment directly to /events/track and persist to CRM', async ({ page, context }) => {
     const testEmail = process.env.HUBSPOT_TEST_USERNAME as string;
     test.skip(!testEmail, 'HUBSPOT_TEST_USERNAME not provided');
 
     // Track network calls
     const trackCalls: Array<{ url: string; payload: any }> = [];
-    const actionRunnerVisits: string[] = [];
 
     page.on('request', async req => {
       const url = req.url();
@@ -279,15 +256,10 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
         try {
           const payload = req.postDataJSON();
           trackCalls.push({ url, payload });
-          console.log('[TRACK] Event:', payload?.eventName, 'Slug:', payload?.pathway_slug || payload?.slug);
+          console.log('[TRACK POST] Event:', payload?.eventName, 'Pathway:', payload?.pathway_slug);
         } catch (e) {
           trackCalls.push({ url, payload: null });
         }
-      }
-
-      if (url.includes('/learn/action-runner')) {
-        actionRunnerVisits.push(url);
-        console.log('[ACTION-RUNNER] Visit:', url);
       }
     });
 
@@ -331,39 +303,27 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
       return;
     }
 
+    // Clear tracked calls
+    trackCalls.length = 0;
+
     // Click enrollment button
     console.log('Clicking pathway enrollment button...');
     await ctaButton.click();
 
-    // Wait for redirect to action-runner
-    console.log('Waiting for action-runner redirect...');
-    await page.waitForURL(/\/learn\/action-runner/, { timeout: 15000 });
-
-    const currentUrl = page.url();
-    expect(currentUrl).toContain('/learn/action-runner');
-
-    // Verify URL parameters for pathway enrollment
-    const url = new URL(currentUrl);
-    expect(url.searchParams.get('action')).toBe('enroll_pathway');
-    expect(url.searchParams.get('slug')).toBe(PATHWAY_SLUG);
-
-    console.log('✅ Pathway enrollment URL parameters correct');
-
-    // Wait for redirect back
-    await page.waitForURL(/\/learn\/pathways\//i, { timeout: 20000 });
-    console.log('✅ Redirected back to pathway page');
-
-    // Verify enrollment event
-    await page.waitForTimeout(2000);
+    // Wait for POST to /events/track
+    await expect.poll(() => trackCalls.length, { timeout: 10000 }).toBeGreaterThan(0);
 
     const enrollmentEvent = trackCalls.find(call =>
       call.payload?.eventName === 'learning_pathway_enrolled'
     );
 
-    expect(enrollmentEvent, 'learning_pathway_enrolled event should be sent').toBeTruthy();
+    expect(enrollmentEvent, 'learning_pathway_enrolled event should be POSTed').toBeTruthy();
     expect(enrollmentEvent?.payload?.pathway_slug || enrollmentEvent?.payload?.slug).toBe(PATHWAY_SLUG);
 
     console.log('✅ Pathway enrollment event verified');
+
+    // Wait for UI update
+    await page.waitForTimeout(2000);
 
     // Verify button state
     await expect(ctaButton).toHaveText(/Enrolled/i, { timeout: 10000 });
@@ -377,7 +337,7 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
 
     // Browser A: Enroll in course
     const contextA = await browser.newContext();
-    const pageA = contextA.newPage();
+    const pageA = await contextA.newPage();
 
     console.log('[Browser A] Authenticating and enrolling...');
 
@@ -406,9 +366,8 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
       console.log('[Browser A] Clicking enroll button...');
       await ctaButtonA.click();
 
-      // Wait for action-runner flow
-      await pageA.waitForURL(/\/learn\/action-runner/, { timeout: 15000 });
-      await pageA.waitForURL(/\/learn\/courses\//i, { timeout: 20000 });
+      // Wait for POST to complete
+      await pageA.waitForTimeout(3000);
 
       // Verify enrolled state
       await expect(ctaButtonA).toHaveText(/Enrolled/i, { timeout: 10000 });
@@ -424,12 +383,12 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
 
     await contextA.close();
 
-    // Wait a bit for CRM write to complete
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for CRM write to complete
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Browser B: New session, should see enrolled state from CRM
     const contextB = await browser.newContext();
-    const pageB = contextB.newPage();
+    const pageB = await contextB.newPage();
 
     console.log('[Browser B] Opening course in fresh browser...');
 
@@ -453,7 +412,7 @@ test.describe('Action Runner - Enrollment Persistence (Issue #276)', () => {
     await ctaButtonB.waitFor({ state: 'visible', timeout: 15000 });
 
     // Give time for CRM fetch
-    await pageB.waitForTimeout(3000);
+    await pageB.waitForTimeout(5000);
 
     await pageB.screenshot({
       path: path.join(VERIFICATION_DIR, 'test-4-browser-b-should-see-enrolled.png'),
