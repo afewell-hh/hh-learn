@@ -652,7 +652,8 @@
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
             {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 135381433 %}
             {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
-            {% set total_modules = 0 %}
+            {# Use namespace to accumulate sum across loop iterations #}
+            {% set ns = namespace(total=0) %}
             {% for slug in course_slugs %}
               {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
               {% if not rows or rows|length == 0 %}
@@ -663,10 +664,11 @@
                 {% set course = rows[0] %}
                 {% if course.module_slugs_json %}
                   {% set module_count = course.module_slugs_json|fromjson|length %}
-                  {% set total_modules = total_modules + module_count %}
+                  {% set ns.total = ns.total + module_count %}
                 {% endif %}
               {% endif %}
             {% endfor %}
+            {% set total_modules = ns.total %}
           {% endif %}
           <div id="hhl-auth-context"
                data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
