@@ -1,0 +1,304 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+  label: Learn Landing Page
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+
+  {# CSS dependencies - reuse catalog styles + new landing styles #}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/catalog.css')) }}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/learn-landing.css')) }}
+
+  {# JS dependencies - analytics and auth context #}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js'), { position: 'footer', defer: true }) }}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js'), { position: 'footer', defer: true }) }}
+
+  {# Load constants for HubDB table IDs and configuration #}
+  {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+  {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+  {# SEO metadata - TODO(#288): Replace placeholder copy with final approved copy #}
+  <title>Hedgehog Learn - Transform Your Cloud Networking Skills</title>
+  <meta name="description" content="Master hyperscale cloud networking with Hedgehog Learn. Explore curated learning pathways, hands-on labs, and expert-led courses designed for modern infrastructure teams.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn">
+
+  {# Open Graph tags #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Hedgehog Learn - Transform Your Cloud Networking Skills">
+  <meta property="og:description" content="Master hyperscale cloud networking with hands-on learning pathways and expert-led courses.">
+  <meta property="og:url" content="https://{{ request.domain }}/learn">
+  <meta property="og:image" content="{{ social_image }}">
+
+  {# Twitter Card tags #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hedgehog Learn - Transform Your Cloud Networking Skills">
+  <meta name="twitter:description" content="Master hyperscale cloud networking with hands-on learning pathways and expert-led courses.">
+  <meta name="twitter:image" content="{{ social_image }}">
+{% endblock head %}
+
+{% block body %}
+<main id="main-content" class="learn-landing">
+
+  {# ==================== HERO SECTION ==================== #}
+  {# TODO(#288): Replace all placeholder copy below with final approved copy #}
+  <section class="learn-header-section">
+    <div class="learn-header-content">
+      <h1 class="learn-page-title">Transform Your Skills with Hedgehog Learn</h1>
+      <p class="learn-page-subtitle">Master modern cloud networking through hands-on pathways, expert-led courses, and real-world labs designed for infrastructure teams.</p>
+
+      {# Primary and secondary CTA buttons #}
+      <div class="hero-ctas">
+        <a href="/learn/get-started" class="button button-primary">Get Started</a>
+        <a href="/learn/catalog" class="button button-secondary">Browse Catalog</a>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== MAIN CONTENT CONTAINER ==================== #}
+  <div class="landing-content-container">
+
+    {# ==================== FEATURED PATHWAYS SECTION ==================== #}
+    {# Data dependency: Requires pathways with display_order 1-3 or "featured" tag (Issue #289) #}
+    <section class="landing-section">
+      <div class="section-header">
+        <h2 class="section-title">Start Your Learning Journey</h2>
+        <p class="section-subtitle">Explore curated pathways designed to take you from fundamentals to mastery</p>
+      </div>
+
+      {% if constants and constants.HUBDB_PATHWAYS_TABLE_ID %}
+        {# Query for featured pathways - fallback to top 3 by display_order #}
+        {% set featured_pathways = hubdb_table_rows(
+          constants.HUBDB_PATHWAYS_TABLE_ID,
+          "display_order__lte=3&orderBy=display_order"
+        ) %}
+
+        {% if featured_pathways and featured_pathways|length > 0 %}
+          <div class="catalog-grid">
+            {% for pathway in featured_pathways %}
+              <article class="catalog-card">
+                <div class="catalog-card-header">
+                  <span class="catalog-type-badge catalog-type-pathway">Pathway</span>
+                  {% if pathway.difficulty %}
+                    <span class="catalog-level-badge">{{ pathway.difficulty }}</span>
+                  {% endif %}
+                </div>
+                <h3 class="catalog-card-title">
+                  <a href="/learn/pathways/{{ pathway.hs_path }}">{{ pathway.hs_name }}</a>
+                </h3>
+                <p class="catalog-card-summary">
+                  {{ pathway.summary_markdown|truncate(160, true, '...') if pathway.summary_markdown else 'Explore this learning pathway to master key concepts and practical skills.' }}
+                </p>
+                <div class="catalog-card-meta">
+                  {% if pathway.module_count %}
+                    <span class="catalog-meta-item">
+                      <span>📚</span>
+                      <span>{{ pathway.module_count }} modules</span>
+                    </span>
+                  {% endif %}
+                  {% if pathway.estimated_minutes %}
+                    <span class="catalog-meta-item">
+                      <span>⏱️</span>
+                      <span>{{ (pathway.estimated_minutes / 60)|round(1) }} hours</span>
+                    </span>
+                  {% endif %}
+                </div>
+                <a href="/learn/pathways/{{ pathway.hs_path }}" class="catalog-card-cta">
+                  Start Pathway →
+                </a>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          {# Graceful fallback when no pathway data available #}
+          <div class="empty-state">
+            <p>Featured pathways will appear here once content is published.</p>
+            <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
+          </div>
+        {% endif %}
+      {% else %}
+        {# Fallback when constants not available #}
+        <div class="empty-state">
+          <p>Loading featured pathways...</p>
+        </div>
+      {% endif %}
+    </section>
+
+    {# ==================== POPULAR COURSES SECTION ==================== #}
+    {# Data dependency: Requires courses with display_order 1-3 or "popular" tag (Issue #289) #}
+    <section class="landing-section">
+      <div class="section-header">
+        <h2 class="section-title">Popular Courses</h2>
+        <p class="section-subtitle">Dive into focused, hands-on courses that build practical expertise</p>
+      </div>
+
+      {% if constants and constants.HUBDB_COURSES_TABLE_ID %}
+        {# Query for popular courses - top 3 by display_order #}
+        {% set popular_courses = hubdb_table_rows(
+          constants.HUBDB_COURSES_TABLE_ID,
+          "display_order__lte=3&orderBy=display_order"
+        ) %}
+
+        {% if popular_courses and popular_courses|length > 0 %}
+          <div class="catalog-grid">
+            {% for course in popular_courses %}
+              <article class="catalog-card">
+                <div class="catalog-card-header">
+                  <span class="catalog-type-badge catalog-type-course">Course</span>
+                  {% if course.difficulty %}
+                    <span class="catalog-level-badge">{{ course.difficulty }}</span>
+                  {% endif %}
+                </div>
+                <h3 class="catalog-card-title">
+                  <a href="/learn/courses/{{ course.hs_path }}">{{ course.hs_name }}</a>
+                </h3>
+                <p class="catalog-card-summary">
+                  {{ course.summary_markdown|truncate(160, true, '...') if course.summary_markdown else 'Build hands-on skills through this focused course curriculum.' }}
+                </p>
+                <div class="catalog-card-meta">
+                  {% if course.module_count %}
+                    <span class="catalog-meta-item">
+                      <span>📚</span>
+                      <span>{{ course.module_count }} modules</span>
+                    </span>
+                  {% endif %}
+                  {% if course.estimated_minutes %}
+                    <span class="catalog-meta-item">
+                      <span>⏱️</span>
+                      <span>{{ (course.estimated_minutes / 60)|round(1) }} hours</span>
+                    </span>
+                  {% endif %}
+                </div>
+                <a href="/learn/courses/{{ course.hs_path }}" class="catalog-card-cta">
+                  Start Course →
+                </a>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          {# Graceful fallback when no course data available #}
+          <div class="empty-state">
+            <p>Popular courses will appear here once content is published.</p>
+            <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="empty-state">
+          <p>Loading popular courses...</p>
+        </div>
+      {% endif %}
+    </section>
+
+    {# ==================== LEARNING BY LEVEL SECTION ==================== #}
+    {# Static section - no HubDB dependency #}
+    <section class="landing-section">
+      <div class="section-header">
+        <h2 class="section-title">Choose Your Level</h2>
+        <p class="section-subtitle">Find content that matches your experience</p>
+      </div>
+
+      <div class="level-cards">
+        <article class="level-card level-card-beginner">
+          <div class="level-icon">🌱</div>
+          <h3 class="level-card-title">Beginner</h3>
+          <p class="level-card-description">New to the platform? Start here with foundational concepts and step-by-step guidance.</p>
+          <a href="/learn/catalog?level=beginner" class="catalog-card-cta">View Beginner Content →</a>
+        </article>
+
+        <article class="level-card level-card-intermediate">
+          <div class="level-icon">📈</div>
+          <h3 class="level-card-title">Intermediate</h3>
+          <p class="level-card-description">Build on your knowledge with advanced patterns, best practices, and real-world scenarios.</p>
+          <a href="/learn/catalog?level=intermediate" class="catalog-card-cta">View Intermediate Content →</a>
+        </article>
+
+        <article class="level-card level-card-advanced">
+          <div class="level-icon">🎓</div>
+          <h3 class="level-card-title">Advanced</h3>
+          <p class="level-card-description">Master complex architectures, optimization techniques, and expert-level troubleshooting.</p>
+          <a href="/learn/catalog?level=advanced" class="catalog-card-cta">View Advanced Content →</a>
+        </article>
+      </div>
+    </section>
+
+    {# ==================== RECENT MODULES SECTION ==================== #}
+    {# Data dependency: Requires modules in HubDB (Issue #289) #}
+    <section class="landing-section">
+      <div class="section-header">
+        <h2 class="section-title">Recently Added</h2>
+        <p class="section-subtitle">Explore the latest modules and stay up to date</p>
+      </div>
+
+      {% if constants and constants.HUBDB_MODULES_TABLE_ID %}
+        {# Query for recent modules - top 6 by creation date or display_order #}
+        {% set recent_modules = hubdb_table_rows(
+          constants.HUBDB_MODULES_TABLE_ID,
+          "orderBy=display_order&limit=6"
+        ) %}
+
+        {% if recent_modules and recent_modules|length > 0 %}
+          <div class="catalog-grid">
+            {% for module in recent_modules %}
+              <article class="catalog-card">
+                <div class="catalog-card-header">
+                  <span class="catalog-type-badge catalog-type-module">Module</span>
+                  {% if module.difficulty %}
+                    <span class="catalog-level-badge">{{ module.difficulty }}</span>
+                  {% endif %}
+                </div>
+                <h3 class="catalog-card-title">
+                  <a href="/learn/modules/{{ module.hs_path }}">{{ module.hs_name }}</a>
+                </h3>
+                <p class="catalog-card-summary">
+                  {{ module.meta_description|truncate(140, true, '...') if module.meta_description else 'Learn essential skills through this focused module.' }}
+                </p>
+                <div class="catalog-card-meta">
+                  {% if module.estimated_minutes %}
+                    <span class="catalog-meta-item">
+                      <span>⏱️</span>
+                      <span>{{ module.estimated_minutes }} min</span>
+                    </span>
+                  {% endif %}
+                </div>
+                <a href="/learn/modules/{{ module.hs_path }}" class="catalog-card-cta">
+                  Start Module →
+                </a>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          {# Graceful fallback when no module data available #}
+          <div class="empty-state">
+            <p>Recent modules will appear here once content is published.</p>
+            <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="empty-state">
+          <p>Loading recent modules...</p>
+        </div>
+      {% endif %}
+    </section>
+
+    {# ==================== FINAL CTA SECTION ==================== #}
+    {# TODO(#288): Replace placeholder copy with final approved copy #}
+    <section class="landing-cta-section">
+      <div class="cta-content">
+        <h2 class="cta-title">Ready to Start Learning?</h2>
+        <p class="cta-subtitle">Join infrastructure teams worldwide who are mastering modern cloud networking with Hedgehog.</p>
+        <div class="cta-buttons">
+          <a href="/learn/catalog" class="button button-primary button-large">Browse All Content</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  {# End landing-content-container #}
+
+  {# Build timestamp marker for deployment verification #}
+  <div class="hhl-build" data-build="2025-11-05T20:00Z"></div>
+
+</main>
+{% endblock body %}
