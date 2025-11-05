@@ -1,8 +1,9 @@
 ---
 title: Finalized Copy for /learn Landing Pages
 issue: 288
-status: draft-for-review
+status: approved-and-implemented
 created: 2025-11-05
+implemented: 2025-11-05
 owner: project lead
 reviewers: [product lead, marketing]
 ---
