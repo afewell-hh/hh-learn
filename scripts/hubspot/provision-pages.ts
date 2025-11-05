@@ -474,6 +474,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       tableEnvVar: 'STATIC'
     },
     {
+      name: 'Get Started',
+      slug: 'learn/get-started',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/get-started.html',
+      tableEnvVar: 'STATIC'
+    },
+    {
       name: 'Modules',
       slug: 'learn/modules',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/module-page.html',

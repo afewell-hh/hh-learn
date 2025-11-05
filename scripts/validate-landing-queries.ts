@@ -31,12 +31,10 @@ async function validateLandingQueries() {
 
   try {
     const featuredPathways = await hubspot.cms.hubdb.rowsApi.getTableRows(
-      PATHWAYS_TABLE_ID as string,
+      PATHWAYS_TABLE_ID as any,
       undefined,
       undefined,
-      'display_order',
-      undefined,
-      3
+      3 as any
     );
 
     const pathways = featuredPathways.results || [];
@@ -72,12 +70,10 @@ async function validateLandingQueries() {
 
   try {
     const popularCourses = await hubspot.cms.hubdb.rowsApi.getTableRows(
-      COURSES_TABLE_ID as string,
+      COURSES_TABLE_ID as any,
       undefined,
       undefined,
-      'display_order',
-      undefined,
-      3
+      3 as any
     );
 
     const courses = popularCourses.results || [];
@@ -110,12 +106,10 @@ async function validateLandingQueries() {
 
   try {
     const recentModules = await hubspot.cms.hubdb.rowsApi.getTableRows(
-      MODULES_TABLE_ID as string,
+      MODULES_TABLE_ID as any,
       undefined,
       undefined,
-      'display_order',
-      undefined,
-      6
+      6 as any
     );
 
     const modules = recentModules.results || [];
@@ -144,7 +138,7 @@ async function validateLandingQueries() {
 
   try {
     const flagshipPathway = await hubspot.cms.hubdb.rowsApi.getTableRows(
-      PATHWAYS_TABLE_ID as string,
+      PATHWAYS_TABLE_ID as any,
       undefined,
       undefined,
       undefined,
