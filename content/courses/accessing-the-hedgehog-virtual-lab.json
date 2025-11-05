@@ -7,6 +7,6 @@
     "accessing-the-hedgehog-virtual-lab-with-microsoft-azure",
     "accessing-the-hedgehog-virtual-lab-with-google-cloud"
   ],
-  "display_order": 1,
-  "tags": "getting-started,virtual-lab"
+  "display_order": 6,
+  "tags": "getting-started,virtual-lab,beginner"
 }

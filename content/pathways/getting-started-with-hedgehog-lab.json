@@ -3,6 +3,6 @@
   "title": "Getting Started with Hedgehog Lab",
   "summary_markdown": "Start here to get hands‑on in the Hedgehog Virtual Lab. Follow this guided pathway to access the lab in your preferred cloud and complete your introductory exercises.",
   "courses": ["accessing-the-hedgehog-virtual-lab"],
-  "display_order": 1,
-  "tags": "getting-started"
+  "display_order": 3,
+  "tags": "featured,getting-started,beginner,vlab,onboarding"
 }

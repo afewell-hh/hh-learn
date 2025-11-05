@@ -43,7 +43,7 @@
       "body_markdown": "After completing this course, you'll be ready to:\n\n- Create individual learning modules\n- Optimize content for discovery and engagement\n- Ensure quality through systematic QA\n\nTo take your skills further, continue with the **Pathway Assembly & Layouts** course to learn how to assemble modules into courses and comprehensive learning pathways."
     }
   ],
-  "display_order": 1,
-  "tags": "authoring",
+  "display_order": 10,
+  "tags": "authoring,beginner",
   "estimated_minutes": 26
 }

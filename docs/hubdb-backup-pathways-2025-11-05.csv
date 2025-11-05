@@ -1,0 +1,31 @@
+id,name,path,module_slugs_json,meta_description,total_estimated_minutes,badge_image_url,module_count,display_order,summary_markdown,content_blocks_json,estimated_minutes,social_image_url,course_slugs_json,tags
+197686107563,Network Like a Hyperscaler,network-like-hyperscaler,,"Transform your approach to network operations with Hedgehog's Kubernetes-native fabric platform. This comprehensive pathway teaches you to provision, monitor, a",0,,16,5,"<p>Transform your approach to network operations with Hedgehog&#39;s Kubernetes-native fabric platform. This comprehensive pathway teaches you to provision, monitor, and troubleshoot modern datacenter networks using the same declarative infrastructure-as-code principles that power the world&#39;s largest hyperscalers.</p>
+<p>Whether you&#39;re a cloud-native engineer learning networking or a traditional network engineer adopting Kubernetes, this pathway bridges both worlds—building confidence through hands-on labs, systematic workflows, and real-world operational scenarios. By the end, you&#39;ll operate Hedgehog fabrics with the same confidence you have managing Kubernetes workloads.</p>
+",,0,,"[""network-like-hyperscaler-foundations"",""network-like-hyperscaler-provisioning"",""network-like-hyperscaler-observability"",""network-like-hyperscaler-troubleshooting""]","hedgehog,fabric,networking,kubernetes,operations,observability,troubleshooting,certification"
+199132603492,Authoring Foundations,authoring-foundations,,"Learn how to author modules, assemble courses, and structure pathways. This pathway introduces core authoring skills and shows how individual pieces roll up int",0,,5,20,"<p>Learn how to author modules, assemble courses, and structure pathways. This pathway introduces core authoring skills and shows how individual pieces roll up into complete learning experiences.</p>
+",,0,,"[""course-authoring-101"",""pathway-assembly-and-layouts""]","authoring, foundations"
+199135708045,Hedgehog Learn: Course Authoring Pathway,course-authoring-expert,,"Become a Hedgehog Learn content authoring expert through this comprehensive pathway.
+Journey Overview:
+
+Master module creation with markdown and front matter
+Le",0,,5,1,"<p>Become a Hedgehog Learn content authoring expert through this comprehensive pathway.</p>
+<p><strong>Journey Overview:</strong></p>
+<ul>
+<li>Master module creation with markdown and front matter</li>
+<li>Learn media, metadata, and SEO optimization</li>
+<li>Assemble modules into structured courses</li>
+<li>Create comprehensive learning pathways with content blocks</li>
+<li>Implement quality assurance and troubleshooting practices</li>
+</ul>
+<p>This pathway takes you from beginner to expert content creator, ready to build complete learning experiences.</p>
+",,0,,"[""course-authoring-101"",""pathway-assembly-and-layouts""]","authoring,expert,pathways"
+199135708055,Getting Started (Courses Demo),getting-started-with-courses,,This is a demo pathway that references the Getting Started course instead of individual modules. This demonstrates the new Courses feature and how pathways can ,0,,3,999,"<p>This is a demo pathway that references the Getting Started course instead of individual modules. This demonstrates the new Courses feature and how pathways can now prefer courses over direct module references.</p>
+<p>This pathway is for testing and demonstration purposes, showing how course_slugs_json is populated when a pathway references courses.</p>
+",,0,,"[""getting-started-virtual-lab""]","demo,getting-started,courses"
+199132490365,Getting Started with Hedgehog Lab,getting-started-with-hedgehog-lab,,Start here to get hands‑on in the Hedgehog Virtual Lab. Follow this guided pathway to access the lab in your preferred cloud and complete your introductory exer,0,,3,1,"<p>Start here to get hands‑on in the Hedgehog Virtual Lab. Follow this guided pathway to access the lab in your preferred cloud and complete your introductory exercises.</p>
+",,0,,"[""accessing-the-hedgehog-virtual-lab""]",getting-started
+199132603509,Getting Started,getting-started,,Start your Hedgehog journey by setting up your virtual lab environment. This pathway guides you through creating a cloud-based virtual machine configured to run,0,,3,1,"<p>Start your Hedgehog journey by setting up your virtual lab environment. This pathway guides you through creating a cloud-based virtual machine configured to run the Hedgehog Virtual Lab, regardless of which cloud provider you prefer.</p>
+<p>You&#39;ll learn how to provision the right VM size, enable nested virtualization, and connect to your environment—all the essential prerequisites before installing and exploring Hedgehog Fabric in the VLAB.</p>
+",,0,,"[""getting-started-virtual-lab""]","getting-started,vlab,onboarding,cloud"
+199132672568,Lab Onboarding,lab-onboarding,,Access your Hedgehog VLAB and learn core environment setup. This pathway guides you from first login through essential configuration so you’re ready to start le,0,,7,30,"<p>Access your Hedgehog VLAB and learn core environment setup. This pathway guides you from first login through essential configuration so you’re ready to start learning.</p>
+",,0,,"[""getting-started-virtual-lab"",""hedgehog-lab-foundations""]","lab, onboarding"

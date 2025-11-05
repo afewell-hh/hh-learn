@@ -8,8 +8,8 @@
     "accessing-the-hedgehog-virtual-lab-with-microsoft-azure"
   ],
   "badge_image_url": "",
-  "display_order": 1,
-  "tags": "getting-started,vlab,onboarding,cloud",
+  "display_order": 5,
+  "tags": "getting-started,vlab,onboarding,cloud,beginner",
   "content_blocks": [
     {
       "id": "intro",

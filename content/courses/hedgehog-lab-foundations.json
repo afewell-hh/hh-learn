@@ -9,8 +9,8 @@
     "intro-to-kubernetes"
   ],
   "badge_image_url": "",
-  "display_order": 2,
-  "tags": "getting-started,vlab,kubernetes,foundations,onboarding",
+  "display_order": 7,
+  "tags": "getting-started,vlab,kubernetes,foundations,onboarding,beginner",
   "content_blocks": [
     {
       "id": "intro",
