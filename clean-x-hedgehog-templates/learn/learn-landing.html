@@ -20,22 +20,22 @@
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
 
-  {# SEO metadata - TODO(#288): Replace placeholder copy with final approved copy #}
-  <title>Hedgehog Learn - Transform Your Cloud Networking Skills</title>
-  <meta name="description" content="Master hyperscale cloud networking with Hedgehog Learn. Explore curated learning pathways, hands-on labs, and expert-led courses designed for modern infrastructure teams.">
+  {# SEO metadata #}
+  <title>Hedgehog Learn - Master Modern Cloud Networking</title>
+  <meta name="description" content="Master hyperscale cloud networking with Hedgehog Learn. Hands-on pathways, expert-led courses, and real-world labs for infrastructure teams.">
   <link rel="canonical" href="https://{{ request.domain }}/learn">
 
   {# Open Graph tags #}
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Hedgehog Learn - Transform Your Cloud Networking Skills">
-  <meta property="og:description" content="Master hyperscale cloud networking with hands-on learning pathways and expert-led courses.">
+  <meta property="og:title" content="Hedgehog Learn - Master Modern Cloud Networking">
+  <meta property="og:description" content="Transform your network operations with Kubernetes-native fabric skills through hands-on pathways designed for modern infrastructure teams.">
   <meta property="og:url" content="https://{{ request.domain }}/learn">
   <meta property="og:image" content="{{ social_image }}">
 
   {# Twitter Card tags #}
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Hedgehog Learn - Transform Your Cloud Networking Skills">
-  <meta name="twitter:description" content="Master hyperscale cloud networking with hands-on learning pathways and expert-led courses.">
+  <meta name="twitter:title" content="Hedgehog Learn - Master Modern Cloud Networking">
+  <meta name="twitter:description" content="Transform your network operations with Kubernetes-native fabric skills through hands-on pathways designed for modern infrastructure teams.">
   <meta name="twitter:image" content="{{ social_image }}">
 {% endblock head %}
 
@@ -43,11 +43,10 @@
 <main id="main-content" class="learn-landing">
 
   {# ==================== HERO SECTION ==================== #}
-  {# TODO(#288): Replace all placeholder copy below with final approved copy #}
   <section class="learn-header-section">
     <div class="learn-header-content">
-      <h1 class="learn-page-title">Transform Your Skills with Hedgehog Learn</h1>
-      <p class="learn-page-subtitle">Master modern cloud networking through hands-on pathways, expert-led courses, and real-world labs designed for infrastructure teams.</p>
+      <h1 class="learn-page-title">Network Like the Hyperscalers</h1>
+      <p class="learn-page-subtitle">Master Kubernetes-native datacenter networking through hands-on pathways and real-world labs. Whether you're a cloud engineer learning networking or a network engineer adopting Kubernetes—build confidence through practical experience.</p>
 
       {# Primary and secondary CTA buttons #}
       <div class="hero-ctas">
@@ -65,7 +64,7 @@
     <section class="landing-section">
       <div class="section-header">
         <h2 class="section-title">Start Your Learning Journey</h2>
-        <p class="section-subtitle">Explore curated pathways designed to take you from fundamentals to mastery</p>
+        <p class="section-subtitle">Transform your approach to network operations with curated pathways built for modern infrastructure teams</p>
         <a href="/learn/catalog?type=pathway" class="section-view-all">View All Pathways →</a>
       </div>
 
@@ -115,7 +114,7 @@
         {% else %}
           {# Graceful fallback when no pathway data available #}
           <div class="empty-state">
-            <p>Featured pathways will appear here once content is published.</p>
+            <p>Featured pathways coming soon. Discover available content in our full catalog.</p>
             <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
           </div>
         {% endif %}
@@ -132,7 +131,7 @@
     <section class="landing-section">
       <div class="section-header">
         <h2 class="section-title">Popular Courses</h2>
-        <p class="section-subtitle">Dive into focused, hands-on courses that build practical expertise</p>
+        <p class="section-subtitle">Build practical expertise through focused, hands-on courses designed for real-world operations</p>
         <a href="/learn/catalog?type=course" class="section-view-all">View All Courses →</a>
       </div>
 
@@ -182,7 +181,7 @@
         {% else %}
           {# Graceful fallback when no course data available #}
           <div class="empty-state">
-            <p>Popular courses will appear here once content is published.</p>
+            <p>Popular courses coming soon. Explore all available learning content in our catalog.</p>
             <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
           </div>
         {% endif %}
@@ -198,28 +197,28 @@
     <section class="landing-section">
       <div class="section-header">
         <h2 class="section-title">Choose Your Level</h2>
-        <p class="section-subtitle">Find content that matches your experience</p>
+        <p class="section-subtitle">Find content that matches your experience and goals</p>
       </div>
 
       <div class="level-cards">
         <article class="level-card level-card-beginner">
           <div class="level-icon">🌱</div>
           <h3 class="level-card-title">Beginner</h3>
-          <p class="level-card-description">New to the platform? Start here with foundational concepts and step-by-step guidance.</p>
+          <p class="level-card-description">New to Kubernetes networking? Start here with foundational concepts, guided workflows, and step-by-step labs that build confidence from day one.</p>
           <a href="/learn/catalog?level=beginner" class="catalog-card-cta">View Beginner Content →</a>
         </article>
 
         <article class="level-card level-card-intermediate">
           <div class="level-icon">📈</div>
           <h3 class="level-card-title">Intermediate</h3>
-          <p class="level-card-description">Build on your knowledge with advanced patterns, best practices, and real-world scenarios.</p>
+          <p class="level-card-description">Ready for production scenarios? Master advanced patterns, troubleshooting workflows, and real-world operations used by infrastructure teams worldwide.</p>
           <a href="/learn/catalog?level=intermediate" class="catalog-card-cta">View Intermediate Content →</a>
         </article>
 
         <article class="level-card level-card-advanced">
           <div class="level-icon">🎓</div>
           <h3 class="level-card-title">Advanced</h3>
-          <p class="level-card-description">Master complex architectures, optimization techniques, and expert-level troubleshooting.</p>
+          <p class="level-card-description">Push your expertise further with complex architectures, performance optimization, and expert-level operational strategies for hyperscale environments.</p>
           <a href="/learn/catalog?level=advanced" class="catalog-card-cta">View Advanced Content →</a>
         </article>
       </div>
@@ -230,7 +229,7 @@
     <section class="landing-section">
       <div class="section-header">
         <h2 class="section-title">Recently Added</h2>
-        <p class="section-subtitle">Explore the latest modules and stay up to date</p>
+        <p class="section-subtitle">Stay current with the latest modules and expand your skills</p>
         <a href="/learn/catalog?type=module" class="section-view-all">View All Modules →</a>
       </div>
 
@@ -274,7 +273,7 @@
         {% else %}
           {# Graceful fallback when no module data available #}
           <div class="empty-state">
-            <p>Recent modules will appear here once content is published.</p>
+            <p>New modules are added regularly. Check back soon or explore our current catalog.</p>
             <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
           </div>
         {% endif %}
@@ -286,8 +285,8 @@
     </section>
 
     {# ==================== VALUE PROPOSITION SECTION ==================== #}
-    {# TODO(#288): Replace placeholder copy with final approved copy #}
-    <section class="landing-section value-prop-section">
+    {# Note: This section is not in the approved copy from #288, but keeping for future use #}
+    <section class="landing-section value-prop-section" style="display: none;">
       <div class="section-header">
         <h2 class="section-title">Why Hedgehog Learn?</h2>
         <p class="section-subtitle">Built for infrastructure teams who demand excellence</p>
@@ -321,8 +320,8 @@
     </section>
 
     {# ==================== STAY CONNECTED SECTION ==================== #}
-    {# TODO(#288): Replace placeholder copy with final approved copy #}
-    <section class="landing-section stay-connected-section">
+    {# Note: This section is not in the approved copy from #288, but keeping for future use #}
+    <section class="landing-section stay-connected-section" style="display: none;">
       <div class="section-header">
         <h2 class="section-title">Stay Connected</h2>
         <p class="section-subtitle">Join the community and stay up to date with the latest content</p>
@@ -351,13 +350,12 @@
     </section>
 
     {# ==================== FINAL CTA SECTION ==================== #}
-    {# TODO(#288): Replace placeholder copy with final approved copy #}
     <section class="landing-cta-section">
       <div class="cta-content">
-        <h2 class="cta-title">Ready to Start Learning?</h2>
-        <p class="cta-subtitle">Join infrastructure teams worldwide who are mastering modern cloud networking with Hedgehog.</p>
+        <h2 class="cta-title">Ready to Transform Your Network Operations?</h2>
+        <p class="cta-subtitle">Join infrastructure teams worldwide who operate Kubernetes-native fabrics with confidence using Hedgehog Learn.</p>
         <div class="cta-buttons">
-          <a href="/learn/catalog" class="button button-primary button-large">Browse All Content</a>
+          <a href="/learn/get-started" class="button button-primary button-large">Start Learning</a>
         </div>
       </div>
     </section>
@@ -366,7 +364,7 @@
   {# End landing-content-container #}
 
   {# Build timestamp marker for deployment verification #}
-  <div class="hhl-build" data-build="2025-11-05T20:00Z"></div>
+  <div class="hhl-build" data-build="2025-11-05T22:30Z"></div>
 
 </main>
 {% endblock body %}
