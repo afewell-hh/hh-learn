@@ -113,10 +113,27 @@
 .section-subtitle {
   font-size: 1.125rem;
   color: #6B7280;
-  margin: 0;
+  margin: 0 0 16px 0;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.section-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #1a4e8a;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 0.2s;
+  margin-top: 8px;
+}
+
+.section-view-all:hover {
+  color: #0d2855;
+  text-decoration: underline;
 }
 
 /* ==================== LEVEL CARDS SECTION ==================== */
@@ -369,6 +386,81 @@
     font-size: 1rem;
     padding: 14px 28px;
   }
+}
+
+/* ==================== VALUE PROPOSITION SECTION ==================== */
+
+.value-props {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.value-prop-card {
+  text-align: center;
+  padding: 24px;
+}
+
+.value-prop-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.value-prop-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 12px 0;
+}
+
+.value-prop-description {
+  font-size: 1rem;
+  color: #6B7280;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ==================== STAY CONNECTED SECTION ==================== */
+
+.stay-connected-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.stay-connected-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.stay-connected-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px;
+  background: #fff;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #111827;
+  transition: all 0.3s ease;
+}
+
+.stay-connected-link:hover {
+  border-color: #1a4e8a;
+  box-shadow: 0 8px 20px rgba(26, 78, 138, 0.12);
+  transform: translateY(-4px);
+}
+
+.stay-connected-icon {
+  font-size: 2.5rem;
+}
+
+.stay-connected-label {
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 /* ==================== ACCESSIBILITY ==================== */

@@ -470,8 +470,8 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
     {
       name: 'Learn',
       slug: 'learn',
-      templatePath: 'CLEAN x HEDGEHOG/templates/learn/catalog.html',
-      tableEnvVar: 'HUBDB_CATALOG_TABLE_ID'
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/learn-landing.html',
+      tableEnvVar: 'STATIC'
     },
     {
       name: 'Modules',

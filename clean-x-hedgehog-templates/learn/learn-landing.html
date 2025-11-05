@@ -66,13 +66,14 @@
       <div class="section-header">
         <h2 class="section-title">Start Your Learning Journey</h2>
         <p class="section-subtitle">Explore curated pathways designed to take you from fundamentals to mastery</p>
+        <a href="/learn/catalog?type=pathway" class="section-view-all">View All Pathways →</a>
       </div>
 
       {% if constants and constants.HUBDB_PATHWAYS_TABLE_ID %}
-        {# Query for featured pathways - fallback to top 3 by display_order #}
+        {# Query for featured pathways - top 3 by display_order, exclude archived #}
         {% set featured_pathways = hubdb_table_rows(
           constants.HUBDB_PATHWAYS_TABLE_ID,
-          "display_order__lte=3&orderBy=display_order"
+          "orderBy=display_order&limit=3"
         ) %}
 
         {% if featured_pathways and featured_pathways|length > 0 %}
@@ -132,13 +133,14 @@
       <div class="section-header">
         <h2 class="section-title">Popular Courses</h2>
         <p class="section-subtitle">Dive into focused, hands-on courses that build practical expertise</p>
+        <a href="/learn/catalog?type=course" class="section-view-all">View All Courses →</a>
       </div>
 
       {% if constants and constants.HUBDB_COURSES_TABLE_ID %}
         {# Query for popular courses - top 3 by display_order #}
         {% set popular_courses = hubdb_table_rows(
           constants.HUBDB_COURSES_TABLE_ID,
-          "display_order__lte=3&orderBy=display_order"
+          "orderBy=display_order&limit=3"
         ) %}
 
         {% if popular_courses and popular_courses|length > 0 %}
@@ -229,10 +231,11 @@
       <div class="section-header">
         <h2 class="section-title">Recently Added</h2>
         <p class="section-subtitle">Explore the latest modules and stay up to date</p>
+        <a href="/learn/catalog?type=module" class="section-view-all">View All Modules →</a>
       </div>
 
       {% if constants and constants.HUBDB_MODULES_TABLE_ID %}
-        {# Query for recent modules - top 6 by creation date or display_order #}
+        {# Query for recent modules - top 6 by display_order #}
         {% set recent_modules = hubdb_table_rows(
           constants.HUBDB_MODULES_TABLE_ID,
           "orderBy=display_order&limit=6"
@@ -280,6 +283,71 @@
           <p>Loading recent modules...</p>
         </div>
       {% endif %}
+    </section>
+
+    {# ==================== VALUE PROPOSITION SECTION ==================== #}
+    {# TODO(#288): Replace placeholder copy with final approved copy #}
+    <section class="landing-section value-prop-section">
+      <div class="section-header">
+        <h2 class="section-title">Why Hedgehog Learn?</h2>
+        <p class="section-subtitle">Built for infrastructure teams who demand excellence</p>
+      </div>
+
+      <div class="value-props">
+        <article class="value-prop-card">
+          <div class="value-prop-icon">🎯</div>
+          <h3 class="value-prop-title">Practical & Hands-On</h3>
+          <p class="value-prop-description">Learn by doing with real-world labs, configuration examples, and production-ready patterns that you can apply immediately.</p>
+        </article>
+
+        <article class="value-prop-card">
+          <div class="value-prop-icon">📊</div>
+          <h3 class="value-prop-title">Structured Pathways</h3>
+          <p class="value-prop-description">Follow curated learning journeys that build knowledge progressively, from fundamentals to advanced architectures.</p>
+        </article>
+
+        <article class="value-prop-card">
+          <div class="value-prop-icon">⚡</div>
+          <h3 class="value-prop-title">Modern & Relevant</h3>
+          <p class="value-prop-description">Stay current with the latest technologies, best practices, and industry standards for cloud-native infrastructure.</p>
+        </article>
+
+        <article class="value-prop-card">
+          <div class="value-prop-icon">🔄</div>
+          <h3 class="value-prop-title">Self-Paced Learning</h3>
+          <p class="value-prop-description">Learn on your schedule with flexible modules and courses designed to fit into your workflow.</p>
+        </article>
+      </div>
+    </section>
+
+    {# ==================== STAY CONNECTED SECTION ==================== #}
+    {# TODO(#288): Replace placeholder copy with final approved copy #}
+    <section class="landing-section stay-connected-section">
+      <div class="section-header">
+        <h2 class="section-title">Stay Connected</h2>
+        <p class="section-subtitle">Join the community and stay up to date with the latest content</p>
+      </div>
+
+      <div class="stay-connected-content">
+        <div class="stay-connected-links">
+          <a href="https://docs.hedgehog.cloud" target="_blank" rel="noopener" class="stay-connected-link">
+            <span class="stay-connected-icon">📚</span>
+            <span class="stay-connected-label">Documentation</span>
+          </a>
+          <a href="https://github.com/githedgehog" target="_blank" rel="noopener" class="stay-connected-link">
+            <span class="stay-connected-icon">💻</span>
+            <span class="stay-connected-label">GitHub</span>
+          </a>
+          <a href="https://hedgehog.cloud/community" target="_blank" rel="noopener" class="stay-connected-link">
+            <span class="stay-connected-icon">👥</span>
+            <span class="stay-connected-label">Community</span>
+          </a>
+          <a href="https://hedgehog.cloud/blog" target="_blank" rel="noopener" class="stay-connected-link">
+            <span class="stay-connected-icon">✍️</span>
+            <span class="stay-connected-label">Blog</span>
+          </a>
+        </div>
+      </div>
     </section>
 
     {# ==================== FINAL CTA SECTION ==================== #}
