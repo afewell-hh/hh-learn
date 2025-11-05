@@ -34,10 +34,12 @@ This folder only contains long-lived references that should stay accurate as the
 - [`project-management.md`](project-management.md) – GitHub Projects best practices, labels, cadence, and automation.
 - [`roadmap.md`](roadmap.md) – phase-based milestones and acceptance criteria.
 - [`learn-launch-runbook.md`](learn-launch-runbook.md) – current MVP go-live checklist with evidence links (last verified 2025-10-17).
+- [`issue-285-landing-pages-plan.md`](issue-285-landing-pages-plan.md) – comprehensive implementation plan for `/learn` landing and `/learn/get-started` pages (created 2025-11-05).
 
 ### Verification & Access Tokens
-- **[`hubspot-project-apps-agent-guide.md`](hubspot-project-apps-agent-guide.md)** – **AI agent training guide** for HubSpot Project Apps (2025.2) platform, authentication patterns, and common pitfalls (read this first if you're an AI agent).
-- [`auth-and-progress.md`](auth-and-progress.md) – overview of authenticated beacons, CRM persistence, and feature flags.
+- **[`hubspot-project-apps-agent-guide.md`](hubspot-project-apps-agent-guide.md)** – **AI agent training guide** for HubSpot Project Apps (2025.2). *Authentication sections are historical; check the status doc below first.*
+- [`authentication-status.md`](authentication-status.md) – Source of truth for the current authentication stance (public pages remain anonymous; SSO pending).
+- [`auth-and-progress.md`](auth-and-progress.md) – Historical overview of authenticated beacons, CRM persistence, and feature flags.
 - [`issue-60-verification-guide.md`](issue-60-verification-guide.md) – step-by-step instructions to complete the Projects Access Token migration.
 - [`phase2-authenticated-beacons.md`](phase2-authenticated-beacons.md) – membership and event-definition prerequisites for Phase 2.
 - [`phase2-contact-properties.md`](phase2-contact-properties.md) – schema reference for progress properties stored on contacts.
