@@ -1,0 +1,49 @@
+{
+  "slug": "course-authoring-101",
+  "title": "Course Authoring 101",
+  "summary_markdown": "<p>Master the fundamentals of content authoring for Hedgehog Learn.</p>\n<p><strong>What You&#39;ll Learn:</strong></p>\n<ul>\n<li>Create learning modules with proper front matter and markdown</li>\n<li>Add images, social previews, and SEO metadata</li>\n<li>Implement effective tagging strategies</li>\n<li>Test and troubleshoot your content with QA best practices</li>\n</ul>\n<p>This course takes you from zero to confidently authoring production-ready learning content.</p>\n",
+  "modules": [
+    "authoring-basics",
+    "authoring-media-and-metadata",
+    "authoring-qa-and-troubleshooting"
+  ],
+  "badge_image_url": "",
+  "content_blocks": [
+    {
+      "id": "intro",
+      "type": "text",
+      "title": "Welcome to Course Authoring 101",
+      "body_markdown": "This course teaches you everything you need to start creating high-quality learning content for Hedgehog Learn.\n\nWhether you're a subject matter expert looking to share your knowledge or a content creator building comprehensive learning paths, this course gives you the foundational skills you need."
+    },
+    {
+      "id": "prereqs",
+      "type": "callout",
+      "title": "Prerequisites",
+      "body_markdown": "**Required:**\n- Basic text editor or IDE familiarity\n- Understanding of markdown syntax\n- Git and GitHub basics\n\n**Helpful but not required:**\n- Command line experience\n- JSON familiarity\n- Content creation or technical writing background"
+    },
+    {
+      "id": "module1",
+      "type": "module_ref",
+      "module_slug": "authoring-basics"
+    },
+    {
+      "id": "module2",
+      "type": "module_ref",
+      "module_slug": "authoring-media-and-metadata"
+    },
+    {
+      "id": "module3",
+      "type": "module_ref",
+      "module_slug": "authoring-qa-and-troubleshooting"
+    },
+    {
+      "id": "next-steps",
+      "type": "text",
+      "title": "What's Next?",
+      "body_markdown": "After completing this course, you'll be ready to:\n\n- Create individual learning modules\n- Optimize content for discovery and engagement\n- Ensure quality through systematic QA\n\nTo take your skills further, continue with the **Pathway Assembly & Layouts** course to learn how to assemble modules into courses and comprehensive learning pathways."
+    }
+  ],
+  "display_order": 1,
+  "tags": "authoring",
+  "estimated_minutes": 26
+}

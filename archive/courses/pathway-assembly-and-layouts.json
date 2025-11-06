@@ -1,0 +1,43 @@
+{
+  "slug": "pathway-assembly-and-layouts",
+  "title": "Pathway Assembly & Layouts",
+  "summary_markdown": "<p>Take your authoring skills to the next level by learning to create courses and pathways.</p>\n<p><strong>What You&#39;ll Learn:</strong></p>\n<ul>\n<li>Assemble modules into structured courses</li>\n<li>Design learning progressions and sequencing</li>\n<li>Create pathways that combine multiple courses</li>\n<li>Use content blocks to build rich, guided learning experiences</li>\n</ul>\n<p>This course focuses on the architecture and organization of learning content at scale.</p>\n",
+  "modules": [
+    "authoring-assembly-courses",
+    "authoring-pathways-and-content-blocks"
+  ],
+  "badge_image_url": "",
+  "content_blocks": [
+    {
+      "id": "intro",
+      "type": "text",
+      "title": "Welcome to Pathway Assembly",
+      "body_markdown": "In this course, you'll learn the higher-level skills of content organization: assembling modules into courses and courses into pathways.\n\nThese skills are essential for creating comprehensive, structured learning experiences that guide learners from beginner to expert."
+    },
+    {
+      "id": "prereqs",
+      "type": "callout",
+      "title": "Prerequisites",
+      "body_markdown": "**Required:**\n- Complete **Course Authoring 101** first\n- Ability to create learning modules\n- Understanding of JSON syntax\n- Familiarity with markdown\n\n**Helpful but not required:**\n- Instructional design principles\n- Learning path architecture\n- Content strategy experience"
+    },
+    {
+      "id": "module1",
+      "type": "module_ref",
+      "module_slug": "authoring-assembly-courses"
+    },
+    {
+      "id": "module2",
+      "type": "module_ref",
+      "module_slug": "authoring-pathways-and-content-blocks"
+    },
+    {
+      "id": "next-steps",
+      "type": "text",
+      "title": "You're Now a Content Architect!",
+      "body_markdown": "Congratulations! You now have the skills to:\n\n- Design and implement complete courses\n- Create comprehensive learning pathways\n- Use content blocks to enhance the learning experience\n- Structure content from individual modules to expert-level journeys\n\n## Next Steps\n\nApply your skills:\n- Create courses for your subject area\n- Design pathways that guide learners to mastery\n- Share your content with the community\n- Help others learn by creating clear, well-structured learning experiences"
+    }
+  ],
+  "display_order": 2,
+  "tags": "authoring,pathways",
+  "estimated_minutes": 24
+}

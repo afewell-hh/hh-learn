@@ -1,0 +1,12 @@
+{
+  "slug": "accessing-the-hedgehog-virtual-lab",
+  "title": "Accessing the Hedgehog Virtual Lab",
+  "summary_markdown": "Learn how to access the Hedgehog Virtual Lab across AWS, Azure, and Google Cloud. This course walks you through prerequisites, login, and environment setup so you can start learning fast.",
+  "modules": [
+    "accessing-the-hedgehog-virtual-lab-with-amazon-web-services",
+    "accessing-the-hedgehog-virtual-lab-with-microsoft-azure",
+    "accessing-the-hedgehog-virtual-lab-with-google-cloud"
+  ],
+  "display_order": 1,
+  "tags": "getting-started,virtual-lab"
+}
