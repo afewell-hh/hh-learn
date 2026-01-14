@@ -31,3 +31,6 @@ verification-output/LINKED-*.md
 verification-output/issue-242/*.png
 verification-output/issue-242/*-test-report.json
 verification-output/issue-242/api-smoke-test-output.log
+
+# Temporary working directories
+tmp-hubspot-base/
