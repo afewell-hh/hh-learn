@@ -1,0 +1,19 @@
+/**
+ * Auth UI Toggle Styles (Issue #284)
+ *
+ * Hides authentication-dependent UI when ENABLE_AUTH_UI is false in constants.json.
+ * This allows the site to launch with all auth features hidden while keeping the
+ * code intact for easy re-enablement when SSO is ready.
+ *
+ * Usage: Add class="hhl-auth-gated" to any element that should be hidden when auth is disabled.
+ */
+
+/* Hide all auth-gated elements when auth UI is disabled */
+body[data-auth-ui="disabled"] .hhl-auth-gated {
+  display: none !important;
+}
+
+/* Collapse spacing for hidden sections to prevent awkward gaps */
+body[data-auth-ui="disabled"] .hhl-auth-gated + * {
+  margin-top: 0;
+}
