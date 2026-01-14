@@ -40,6 +40,11 @@
 {% endblock head %}
 
 {% block body %}
+{# Re-declare constants for body block scope (HubL variables are block-scoped) #}
+{% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+{% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID if constants and constants.HUBDB_PATHWAYS_TABLE_ID else "135381504" %}
+{% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else "135381433" %}
+
 <main id="main-content" class="learn-landing">
 
   {# ==================== HERO SECTION ==================== #}
@@ -75,10 +80,10 @@
         <p class="section-subtitle">Master the essentials through our curated Network Like a Hyperscaler pathway</p>
       </div>
 
-      {% if constants and constants.HUBDB_PATHWAYS_TABLE_ID and constants.HUBDB_COURSES_TABLE_ID %}
+      {% if pathways_table_id and courses_table_id %}
         {# Query for the flagship pathway by slug #}
         {% set flagship_pathway = hubdb_table_rows(
-          constants.HUBDB_PATHWAYS_TABLE_ID,
+          pathways_table_id,
           "hs_path__eq=network-like-hyperscaler"
         ) %}
 
@@ -90,15 +95,14 @@
             {% set course_slugs = pathway.course_slugs_json|fromjson %}
 
             {# Fetch all courses to build a lookup map #}
-            {% set all_courses = hubdb_table_rows(constants.HUBDB_COURSES_TABLE_ID) %}
-            {% set courses_by_slug = {} %}
-            {% for course in all_courses %}
-              {% do courses_by_slug.update({course.hs_path: course}) %}
-            {% endfor %}
 
             <div class="catalog-grid">
               {% for course_slug in course_slugs %}
-                {% set course = courses_by_slug[course_slug] %}
+                {% set course_result = hubdb_table_rows(
+                  courses_table_id,
+                  "hs_path__eq=" ~ course_slug ~ "&tags__not__icontains=archived"
+                ) %}
+                {% set course = course_result[0] if course_result and course_result|length > 0 else None %}
                 {% if course %}
                   <article class="catalog-card">
                     <div class="catalog-card-header">
@@ -111,7 +115,7 @@
                       <a href="/learn/courses/{{ course.hs_path }}">{{ course.hs_name }}</a>
                     </h3>
                     <p class="catalog-card-summary">
-                      {{ course.summary_markdown|truncate(160, true, '...') if course.summary_markdown else 'Build hands-on skills through this focused course curriculum.' }}
+                      {{ course.summary_markdown|striptags|truncate(160, true, '...') if course.summary_markdown else 'Build hands-on skills through this focused course curriculum.' }}
                     </p>
                     <div class="catalog-card-meta">
                       {% if course.module_count %}
@@ -151,7 +155,7 @@
       {% else %}
         {# Fallback when constants not available #}
         <div class="empty-state">
-          <p>Loading featured topics...</p>
+          <p>Featured topics are loading.</p>
         </div>
       {% endif %}
     </section>
@@ -201,8 +205,8 @@
   </div>
   {# End landing-content-container #}
 
-  {# Build timestamp marker for deployment verification (Issue #287) #}
-  <div class="hhl-build" data-build="2025-11-05T19:35Z"></div>
+  {# Build timestamp marker for deployment verification (Issue #293) #}
+  <div class="hhl-build" data-build="2025-11-06T02:55Z"></div>
 
 </main>
 {% endblock body %}

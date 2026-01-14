@@ -12,9 +12,11 @@ const api_client_1 = require("@hubspot/api-client");
 const get_hubspot_token_js_1 = require("./get-hubspot-token.js");
 const ACCESS_TOKEN = (0, get_hubspot_token_js_1.getHubSpotToken)();
 const hubspot = new api_client_1.Client({ accessToken: ACCESS_TOKEN });
-// Page IDs from provisioning output (Issues #59, #142, #133)
+// Page IDs from provisioning output (Issues #59, #142, #133, #286, #287, #294)
 const PAGES_TO_PUBLISH = [
     { slug: 'learn', id: '197177162603' },
+    { slug: 'learn/get-started', id: '199131903002' },
+    { slug: 'learn/catalog', id: '199213356141' },
     { slug: 'learn/modules', id: '197624622201' },
     { slug: 'learn/courses', id: '197280289288' },
     { slug: 'learn/pathways', id: '197280289546' },
