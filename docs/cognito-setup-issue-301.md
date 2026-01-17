@@ -143,7 +143,7 @@ This page will display:
 
 A test user has been created for email/password testing:
 - Username: `test-user@hedgehog.cloud`
-- Temporary password: `TestPass123!` (will be prompted to change on first login)
+- Temporary password: stored in secure credentials manager (rotate if shared)
 
 ## References
 
