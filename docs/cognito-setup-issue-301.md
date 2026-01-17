@@ -1,7 +1,8 @@
 # Cognito Setup Documentation - Issue #301
 
-**Status:** In Progress
+**Status:** ✅ Complete
 **Created:** 2026-01-17
+**Completed:** 2026-01-17
 **Phase:** Phase 1 - External SSO Setup
 
 ## Summary
@@ -40,7 +41,7 @@ Configuration:
 - OAuth scopes: `openid`, `email`, `profile`
 - Callback URL: `https://hedgehog.cloud/auth/callback`
 - Logout URL: `https://hedgehog.cloud/`
-- Supported Identity Providers: COGNITO (email/password)
+- Supported Identity Providers: COGNITO, Google, GitHub
 - Prevent user existence errors: Enabled
 - Explicit auth flows:
   - `ALLOW_USER_SRP_AUTH` (Secure Remote Password)
@@ -60,78 +61,44 @@ Logout URL:
 https://hedgehog-learn.auth.us-west-2.amazoncognito.com/logout?client_id=2um886mpdk65cbbb6pgsvqkchf&logout_uri=https://hedgehog.cloud/
 ```
 
-## Pending Steps
+### 4. Google OAuth App Created ✓
 
-### 4. Google OAuth App Setup
+**Google Cloud Project:** `teched-473722`
+**Client ID:** `22685701361-hi94ud33evapaddtmn4429hhfcops6sm.apps.googleusercontent.com`
 
-To enable Google login, you need to:
+Configuration:
+- Application name: Hedgehog Learn Web Client
+- Application type: Web application
+- Authorized redirect URI: `https://hedgehog-learn.auth.us-west-2.amazoncognito.com/oauth2/idpresponse`
+- OAuth scopes: openid, email, profile
+- Consent screen configured
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Navigate to "APIs & Services" > "Credentials"
-4. Click "Create Credentials" > "OAuth 2.0 Client ID"
-5. Configure the OAuth consent screen if not already done
-6. Select "Web application" as the application type
-7. Add the following to "Authorized redirect URIs":
-   ```
-   https://hedgehog-learn.auth.us-west-2.amazoncognito.com/oauth2/idpresponse
-   ```
-8. Click "Create" and save the Client ID and Client Secret
+**Identity Provider Added to Cognito:**
+- Provider Name: Google
+- Provider Type: Google
+- Attribute Mapping: email→email, name→name, username→sub
 
-**Required Information:**
-- Google OAuth Client ID
-- Google OAuth Client Secret
+### 5. GitHub OAuth App Created ✓
 
-### 5. GitHub OAuth App Setup
+**Client ID:** `Ov23liQUIhF61UREWADB`
 
-To enable GitHub login, you need to:
+Configuration:
+- Application name: Hedgehog Learn
+- Homepage URL: `https://hedgehog.cloud`
+- Authorization callback URL: `https://hedgehog-learn.auth.us-west-2.amazoncognito.com/oauth2/idpresponse`
+- Scopes: openid, user:email, read:user
 
-1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Click "New OAuth App"
-3. Fill in the application details:
-   - Application name: `Hedgehog Learn`
-   - Homepage URL: `https://hedgehog.cloud`
-   - Authorization callback URL:
-     ```
-     https://hedgehog-learn.auth.us-west-2.amazoncognito.com/oauth2/idpresponse
-     ```
-4. Click "Register application"
-5. Generate a new client secret
-6. Save the Client ID and Client Secret
+**Identity Provider Added to Cognito:**
+- Provider Name: GitHub
+- Provider Type: OIDC
+- Attribute Mapping: email→email, name→name, username→sub
 
-**Required Information:**
-- GitHub OAuth Client ID
-- GitHub OAuth Client Secret
+### 6. All Providers Enabled ✓
 
-## Next Steps
-
-Once you have the Google and GitHub OAuth credentials:
-
-1. Add Google as an identity provider in Cognito:
-   ```bash
-   aws cognito-idp create-identity-provider \
-     --user-pool-id us-west-2_XWB9UclRK \
-     --provider-name Google \
-     --provider-type Google \
-     --provider-details client_id="YOUR_GOOGLE_CLIENT_ID",client_secret="YOUR_GOOGLE_CLIENT_SECRET",authorize_scopes="openid email profile"
-   ```
-
-2. Add GitHub as an identity provider in Cognito:
-   ```bash
-   aws cognito-idp create-identity-provider \
-     --user-pool-id us-west-2_XWB9UclRK \
-     --provider-name GitHub \
-     --provider-type GitHub \
-     --provider-details client_id="YOUR_GITHUB_CLIENT_ID",client_secret="YOUR_GITHUB_CLIENT_SECRET",authorize_scopes="openid user:email read:user"
-   ```
-
-3. Update the app client to support the new identity providers:
-   ```bash
-   aws cognito-idp update-user-pool-client \
-     --user-pool-id us-west-2_XWB9UclRK \
-     --client-id 2um886mpdk65cbbb6pgsvqkchf \
-     --supported-identity-providers COGNITO Google GitHub
-   ```
+App client updated to support all three identity providers:
+- ✅ COGNITO (email/password)
+- ✅ Google
+- ✅ GitHub
 
 ## Environment Variables
 
@@ -147,7 +114,22 @@ COGNITO_REDIRECT_URI=https://hedgehog.cloud/auth/callback
 COGNITO_ISSUER=https://cognito-idp.us-west-2.amazonaws.com/us-west-2_XWB9UclRK
 ```
 
-## Testing Checklist
+## Testing
+
+### Login URL (All Providers)
+
+Access the Cognito Hosted UI to test all authentication methods:
+
+```
+https://hedgehog-learn.auth.us-west-2.amazoncognito.com/login?client_id=2um886mpdk65cbbb6pgsvqkchf&response_type=code&scope=openid+email+profile&redirect_uri=https://hedgehog.cloud/auth/callback
+```
+
+This page will display:
+- Email/password login form
+- "Sign in with Google" button
+- "Sign in with GitHub" button
+
+### Testing Checklist
 
 - [ ] Email/password registration works
 - [ ] Email verification works
@@ -156,6 +138,12 @@ COGNITO_ISSUER=https://cognito-idp.us-west-2.amazonaws.com/us-west-2_XWB9UclRK
 - [ ] GitHub login works
 - [ ] Callback redirects to `https://hedgehog.cloud/auth/callback` with code
 - [ ] Logout works and clears session
+
+### Test User
+
+A test user has been created for email/password testing:
+- Username: `test-user@hedgehog.cloud`
+- Temporary password: `TestPass123!` (will be prompted to change on first login)
 
 ## References
 
