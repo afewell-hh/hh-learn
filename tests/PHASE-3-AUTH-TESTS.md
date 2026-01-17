@@ -163,6 +163,15 @@ npm run test:api -- tests/api/auth-me.spec.ts
 npm run test:api -- tests/api/auth-endpoints-negative.spec.ts
 ```
 
+### Environment Variables
+```bash
+# Base URL for public site pages
+E2E_BASE_URL=https://hedgehog.cloud
+
+# Auth endpoints base URL (proxy option expects hedgehog.cloud)
+AUTH_BASE_URL=https://hedgehog.cloud
+```
+
 ### Individual Test Suites
 ```bash
 # E2E auth flow
@@ -203,10 +212,11 @@ The following critical issues were identified and fixed before implementation:
 - **Files Updated:** `tests/api/auth-me.spec.ts`, `tests/api/auth-endpoints-negative.spec.ts`
 
 ### 3. Cookie Domain Consistency ✅
-- **Issue:** E2E tests set cookies for `hedgehog.cloud` but called API Gateway domain
-- **Fix:** Updated all cookie domains to match `API_BASE_URL` (API Gateway)
-- **Files Updated:** `tests/e2e/cognito-auth-flow.spec.ts`, `tests/api/auth-endpoints-negative.spec.ts`
-- **Production Note:** See "Cookie Domain Architecture" section below
+- **Issue:** Cookies must be set on the same domain as the frontend.
+- **Decision:** Option B (reverse proxy via HubSpot) for MVP.
+- **Fix:** Tests now use `AUTH_BASE_URL`, which defaults to `E2E_BASE_URL`.
+- **Files Updated:** `tests/e2e/cognito-auth-flow.spec.ts`, `tests/api/auth-me.spec.ts`, `tests/api/auth-endpoints-negative.spec.ts`
+- **Production Note:** `/auth/*` should be served from `https://hedgehog.cloud` via proxy.
 
 ### 4. Mock Auth Code Tests Skipped ✅
 - **Issue:** Tests using `MOCK_AUTH_CODE` won't work without test bypass
@@ -223,7 +233,7 @@ The following critical issues were identified and fixed before implementation:
 
 ## Cookie Domain Architecture (Production Consideration)
 
-**Current Test Setup:** Cookies are scoped to API Gateway domain for testing purposes.
+**Current Test Setup:** Cookies are scoped to `AUTH_BASE_URL`, defaulting to `https://hedgehog.cloud`.
 
 **Production Requirement:** For cookies to work between the frontend (hedgehog.cloud) and API,
 the auth endpoints must be accessible from the same domain. Two options:
@@ -238,11 +248,11 @@ Cookies: domain=.hedgehog.cloud (shared across subdomains)
 **Option B: Reverse Proxy through HubSpot CMS**
 ```
 Frontend: https://hedgehog.cloud
-API Proxy: https://hedgehog.cloud/api/* -> API Gateway
+API Proxy: https://hedgehog.cloud/auth/* -> API Gateway
 Cookies: domain=hedgehog.cloud (same domain)
 ```
 
-**Recommendation:** Option B (reverse proxy) is simpler and doesn't require API Gateway custom domain setup.
+**Decision:** Option B (reverse proxy) for MVP.
 
 ---
 

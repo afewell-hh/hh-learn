@@ -14,7 +14,8 @@
 
 import { test, expect } from '@playwright/test';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com';
+const BASE_URL = process.env.E2E_BASE_URL || 'https://hedgehog.cloud';
+const AUTH_BASE_URL = process.env.AUTH_BASE_URL || BASE_URL;
 
 test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
@@ -26,7 +27,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -34,7 +35,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(200);
 
@@ -53,7 +54,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -61,7 +62,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
       const profile = await response.json();
 
       // Required fields
@@ -90,7 +91,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -98,10 +99,10 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response1 = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response1 = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
       const profile1 = await response1.json();
 
-      const response2 = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response2 = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
       const profile2 = await response2.json();
 
       // Should return same userId and email
@@ -114,7 +115,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
     test('should return 401 when access token cookie is missing', async ({ page }) => {
       // No cookies set
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -128,7 +129,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'invalid.jwt.token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -136,7 +137,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -152,7 +153,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: expiredJWT,
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -160,7 +161,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -173,7 +174,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'not-a-jwt-token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -181,7 +182,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
     });
@@ -194,7 +195,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: wrongIssuerJWT,
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -202,7 +203,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
     });
@@ -211,7 +212,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
   test.describe('Error Response Format', () => {
 
     test('401 errors should have consistent error shape', async ({ page }) => {
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -228,7 +229,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
     });
 
     test('should include WWW-Authenticate header on 401', async ({ page }) => {
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -245,7 +246,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -253,7 +254,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`, {
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`, {
         headers: {
           'Origin': 'https://hedgehog.cloud'
         }
@@ -266,7 +267,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
     });
 
     test('should reject requests from unapproved origins', async ({ page }) => {
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`, {
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`, {
         headers: {
           'Origin': 'https://evil.com'
         }
@@ -287,7 +288,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -295,7 +296,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
       const profile = await response.json();
 
       // userId should be Cognito sub from JWT
@@ -313,7 +314,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: newUserJWT,
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -321,7 +322,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       // Could be 404 (user not found) or auto-create and return 200
       // Depends on implementation decision
@@ -336,7 +337,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -345,7 +346,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       ]);
 
       const startTime = Date.now();
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
       const duration = Date.now() - startTime;
 
       expect(response.status()).toBe(200);
@@ -359,7 +360,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_test_jwt_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -367,7 +368,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${AUTH_BASE_URL}/auth/me`);
 
       const headers = response.headers();
 

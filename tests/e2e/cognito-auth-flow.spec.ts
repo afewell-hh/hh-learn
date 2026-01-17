@@ -14,8 +14,8 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
 import * as crypto from 'crypto';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com';
 const BASE_URL = process.env.E2E_BASE_URL || 'https://hedgehog.cloud';
+const AUTH_BASE_URL = process.env.AUTH_BASE_URL || BASE_URL;
 
 // Cognito configuration from Phase 1
 const COGNITO_DOMAIN = 'hedgehog-learn.auth.us-west-2.amazoncognito.com';
@@ -28,9 +28,9 @@ const COGNITO_CLIENT_ID = '2um886mpdk65cbbb6pgsvqkchf';
  * from the same domain as the frontend (hedgehog.cloud). This requires either:
  *
  * Option A: Custom domain for API Gateway (e.g., api.hedgehog.cloud)
- * Option B: Reverse proxy through HubSpot CMS (hedgehog.cloud/api/* -> API Gateway)
+ * Option B: Reverse proxy through HubSpot CMS (hedgehog.cloud/auth/* -> API Gateway)
  *
- * For testing purposes, we set cookies to match the API_BASE_URL domain.
+ * For testing purposes, AUTH_BASE_URL should match the public domain (hedgehog.cloud).
  */
 
 test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
@@ -39,7 +39,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
 
     test('should redirect to Cognito Hosted UI with PKCE parameters', async ({ page }) => {
       // Navigate to login endpoint
-      const loginUrl = `${API_BASE_URL}/auth/login?redirect_url=${encodeURIComponent('/learn/pathways')}`;
+      const loginUrl = `${AUTH_BASE_URL}/auth/login?redirect_url=${encodeURIComponent('/learn/pathways')}`;
 
       // Expect redirect to Cognito
       const [response] = await Promise.all([
@@ -69,7 +69,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
 
     test('should preserve redirect_url in state parameter', async ({ page }) => {
       const originalPath = '/learn/courses/my-course';
-      const loginUrl = `${API_BASE_URL}/auth/login?redirect_url=${encodeURIComponent(originalPath)}`;
+      const loginUrl = `${AUTH_BASE_URL}/auth/login?redirect_url=${encodeURIComponent(originalPath)}`;
 
       await page.goto(loginUrl, { waitUntil: 'networkidle' });
 
@@ -82,7 +82,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
     });
 
     test('should handle missing redirect_url with default', async ({ page }) => {
-      const loginUrl = `${API_BASE_URL}/auth/login`;
+      const loginUrl = `${AUTH_BASE_URL}/auth/login`;
 
       await page.goto(loginUrl, { waitUntil: 'networkidle' });
 
@@ -106,7 +106,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
       // In a real scenario, we'd need to complete the Cognito login flow
       // For now, we'll test the callback endpoint's behavior with a mock code
 
-      const callbackUrl = `${API_BASE_URL}/auth/callback?code=MOCK_AUTH_CODE&state=MOCK_STATE`;
+      const callbackUrl = `${AUTH_BASE_URL}/auth/callback?code=MOCK_AUTH_CODE&state=MOCK_STATE`;
 
       await page.goto(callbackUrl);
 
@@ -135,7 +135,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
     // TODO: Skipping until test bypass is implemented
     test.skip('should validate state parameter (CSRF protection)', async ({ page }) => {
       // Callback with mismatched state should fail
-      const callbackUrl = `${API_BASE_URL}/auth/callback?code=MOCK_AUTH_CODE&state=INVALID_STATE`;
+      const callbackUrl = `${AUTH_BASE_URL}/auth/callback?code=MOCK_AUTH_CODE&state=INVALID_STATE`;
 
       const response = await page.goto(callbackUrl);
 
@@ -144,7 +144,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
     });
 
     test('should handle missing code parameter', async ({ page }) => {
-      const callbackUrl = `${API_BASE_URL}/auth/callback?state=MOCK_STATE`;
+      const callbackUrl = `${AUTH_BASE_URL}/auth/callback?state=MOCK_STATE`;
 
       const response = await page.goto(callbackUrl);
 
@@ -156,7 +156,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
     test.skip('should redirect to original page after successful auth', async ({ page }) => {
       // Mock a successful callback with redirect state
       const originalPath = '/learn/pathways';
-      const callbackUrl = `${API_BASE_URL}/auth/callback?code=MOCK_AUTH_CODE&state=MOCK_STATE_WITH_REDIRECT`;
+      const callbackUrl = `${AUTH_BASE_URL}/auth/callback?code=MOCK_AUTH_CODE&state=MOCK_STATE_WITH_REDIRECT`;
 
       // In implementation, state will encode the redirect_url
       // For now, we test that some redirect happens
@@ -177,7 +177,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'mock_access_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -186,7 +186,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
         {
           name: 'hhl_refresh_token',
           value: 'mock_refresh_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/auth',
           httpOnly: true,
           secure: true,
@@ -195,7 +195,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
       ]);
 
       // Call logout endpoint
-      await page.goto(`${API_BASE_URL}/auth/logout`);
+      await page.goto(`${AUTH_BASE_URL}/auth/logout`);
 
       // Verify cookies were cleared
       const cookies = await context.cookies();
@@ -207,7 +207,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
     });
 
     test('should redirect to Cognito logout endpoint', async ({ page }) => {
-      await page.goto(`${API_BASE_URL}/auth/logout`);
+      await page.goto(`${AUTH_BASE_URL}/auth/logout`);
 
       await page.waitForLoadState('networkidle');
 
@@ -221,7 +221,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
 
     test('should handle logout when not authenticated', async ({ page }) => {
       // Logout without being logged in should not error
-      const response = await page.goto(`${API_BASE_URL}/auth/logout`);
+      const response = await page.goto(`${AUTH_BASE_URL}/auth/logout`);
 
       // Should handle gracefully (200 or redirect)
       expect([200, 302, 303, 307]).toContain(response?.status() || 0);
@@ -236,7 +236,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_mock_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -262,7 +262,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'valid_mock_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
@@ -288,7 +288,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
       // This will be set by the /auth/callback endpoint in implementation
       // For now, we verify the expected attributes
 
-      const callbackUrl = `${API_BASE_URL}/auth/callback?code=MOCK_CODE&state=MOCK_STATE`;
+      const callbackUrl = `${AUTH_BASE_URL}/auth/callback?code=MOCK_CODE&state=MOCK_STATE`;
       await page.goto(callbackUrl);
 
       const cookies = await context.cookies();
@@ -304,7 +304,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
 
     // TODO: Skipping until test bypass is implemented
     test.skip('refresh token cookie should be scoped to /auth path', async ({ page, context }) => {
-      const callbackUrl = `${API_BASE_URL}/auth/callback?code=MOCK_CODE&state=MOCK_STATE`;
+      const callbackUrl = `${AUTH_BASE_URL}/auth/callback?code=MOCK_CODE&state=MOCK_STATE`;
       await page.goto(callbackUrl);
 
       const cookies = await context.cookies();
@@ -323,7 +323,7 @@ test.describe('Cognito External SSO - Auth Flow (Issue #303)', () => {
         {
           name: 'hhl_access_token',
           value: 'test_token',
-          domain: new URL(API_BASE_URL).hostname,
+          domain: new URL(AUTH_BASE_URL).hostname,
           path: '/',
           httpOnly: true,
           secure: true,
