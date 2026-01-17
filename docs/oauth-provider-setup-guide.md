@@ -156,7 +156,7 @@ aws cognito-idp update-user-pool-client \
 1. Navigate to the login URL
 2. Use the test credentials:
    - Username: `test-user@hedgehog.cloud`
-   - Password: `TestPass123!` (you'll be prompted to change it on first login)
+   - Password: stored in secure credentials manager (rotate if shared)
 3. Verify you're redirected properly
 
 ## Step 5: Update Environment Variables (Optional)

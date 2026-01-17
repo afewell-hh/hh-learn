@@ -29,7 +29,7 @@
 
 4. **Test User Created**
    - Username: `test-user@hedgehog.cloud`
-   - Temporary password: `TestPass123!`
+   - Temporary password: stored in secure credentials manager (rotate if shared)
    - Status: FORCE_CHANGE_PASSWORD (will prompt on first login)
 
 5. **Environment Variables Updated**
@@ -97,7 +97,7 @@ This page displays:
 
 **Email/Password:**
 - Username: `test-user@hedgehog.cloud`
-- Password: `TestPass123!` (will be prompted to change on first login)
+- Password: stored in secure credentials manager (rotate if shared)
 
 **Google & GitHub:**
 - Use your own Google or GitHub account to test social login
