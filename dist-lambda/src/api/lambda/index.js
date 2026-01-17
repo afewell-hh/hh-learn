@@ -5,6 +5,7 @@ const hubspot_js_1 = require("../../shared/hubspot.js");
 const validation_js_1 = require("../../shared/validation.js");
 const completion_js_1 = require("./completion.js");
 const auth_js_1 = require("./auth.js");
+const cognito_auth_js_1 = require("./cognito-auth.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -118,27 +119,40 @@ const handler = async (event) => {
     try {
         const origin = event.headers?.origin || event.headers?.Origin;
         const path = (event.rawPath || '').toLowerCase();
+        const method = event.requestContext.http.method;
         // Handle OPTIONS preflight
-        if (event.requestContext.http.method === 'OPTIONS') {
+        if (method === 'OPTIONS') {
             return {
                 statusCode: 200,
                 headers: {
                     'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin : 'https://hedgehog.cloud',
                     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Credentials': 'true',
                 },
             };
         }
-        if (path.endsWith('/progress/read') && event.requestContext.http.method === 'GET')
+        // Cognito OAuth endpoints (Issue #303)
+        if (path.endsWith('/auth/login') && method === 'GET')
+            return await (0, cognito_auth_js_1.handleLogin)(event);
+        if (path.endsWith('/auth/callback') && method === 'GET')
+            return await (0, cognito_auth_js_1.handleCallback)(event);
+        if (path.endsWith('/auth/logout') && method === 'POST')
+            return await (0, cognito_auth_js_1.handleLogout)(event);
+        if (path.endsWith('/auth/me') && method === 'GET')
+            return await (0, cognito_auth_js_1.handleMe)(event);
+        // Existing GET endpoints
+        if (path.endsWith('/progress/read') && method === 'GET')
             return await readProgress(event, origin);
-        if (path.endsWith('/progress/aggregate') && event.requestContext.http.method === 'GET')
+        if (path.endsWith('/progress/aggregate') && method === 'GET')
             return await getAggregatedProgress(event, origin);
-        if (path.endsWith('/enrollments/list') && event.requestContext.http.method === 'GET')
+        if (path.endsWith('/enrollments/list') && method === 'GET')
             return await listEnrollments(event, origin);
-        if (event.requestContext.http.method !== 'POST')
-            return bad(405, 'POST only', origin);
+        // Legacy POST endpoints
+        if (method !== 'POST')
+            return bad(405, 'Method not allowed', origin);
         if (path.endsWith('/auth/login'))
-            return await login(event, origin);
+            return await login(event, origin); // Legacy email login
         if (path.endsWith('/events/track'))
             return await track(event, origin);
         if (path.endsWith('/quiz/grade'))

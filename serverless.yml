@@ -19,6 +19,14 @@ provider:
     DYNAMODB_ENROLLMENTS_TABLE: ${self:service}-enrollments-${sls:stage}
     DYNAMODB_PROGRESS_TABLE: ${self:service}-progress-${sls:stage}
     DYNAMODB_BADGES_TABLE: ${self:service}-badges-${sls:stage}
+    # Cognito configuration for External SSO (Issue #303)
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+    COGNITO_DOMAIN: ${env:COGNITO_DOMAIN}
+    COGNITO_REGION: ${env:COGNITO_REGION, env:AWS_REGION}
+    COGNITO_REDIRECT_URI: ${env:COGNITO_REDIRECT_URI}
+    COGNITO_ISSUER: ${env:COGNITO_ISSUER}
+    ENABLE_TEST_BYPASS: ${env:ENABLE_TEST_BYPASS, 'false'}
   iam:
     role:
       statements:
@@ -63,6 +71,20 @@ functions:
   api:
     handler: dist-lambda/src/api/lambda/index.handler
     events:
+      # Cognito OAuth endpoints (Issue #303)
+      - httpApi:
+          path: /auth/login
+          method: GET
+      - httpApi:
+          path: /auth/callback
+          method: GET
+      - httpApi:
+          path: /auth/logout
+          method: POST
+      - httpApi:
+          path: /auth/me
+          method: GET
+      # Legacy endpoints
       - httpApi:
           path: /auth/login
           method: POST
