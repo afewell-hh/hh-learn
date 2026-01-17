@@ -96,8 +96,9 @@ async function fetchJWKS(): Promise<JWKS> {
  * Convert JWK to PEM format for JWT verification
  */
 function jwkToPem(jwk: JWK): string {
-  const modulus = Buffer.from(jwk.n, 'base64');
-  const exponent = Buffer.from(jwk.e, 'base64');
+  // JWK n and e are base64url encoded (not standard base64)
+  const modulus = Buffer.from(jwk.n, 'base64url');
+  const exponent = Buffer.from(jwk.e, 'base64url');
 
   // Construct DER-encoded RSA public key
   const modulusLength = modulus.length;
@@ -137,8 +138,20 @@ function jwkToPem(jwk: JWK): string {
 
 /**
  * Verify JWT token using Cognito JWKS
+ * @param token JWT token to verify
+ * @param options Validation options
+ * @param options.audience Expected audience (for ID tokens)
+ * @param options.clientId Expected client_id (for access tokens)
+ * @param options.tokenUse Expected token_use ('id' or 'access')
  */
-async function verifyJWT(token: string, expectedAudience?: string): Promise<any> {
+async function verifyJWT(
+  token: string,
+  options?: {
+    audience?: string;
+    clientId?: string;
+    tokenUse?: 'id' | 'access';
+  }
+): Promise<any> {
   // Decode header to get kid
   const decodedHeader = jwt.decode(token, { complete: true });
 
@@ -166,14 +179,25 @@ async function verifyJWT(token: string, expectedAudience?: string): Promise<any>
   const decoded = jwt.verify(token, pem, {
     algorithms: ['RS256'],
     issuer: COGNITO_ISSUER,
-    ...(expectedAudience && { audience: expectedAudience }),
-  });
+    ...(options?.audience && { audience: options.audience }),
+  }) as any;
+
+  // Additional claim validation
+  if (options?.tokenUse && decoded.token_use !== options.tokenUse) {
+    throw new Error(`Invalid token_use: expected ${options.tokenUse}, got ${decoded.token_use}`);
+  }
+
+  if (options?.clientId && decoded.client_id !== options.clientId) {
+    throw new Error(`Invalid client_id: expected ${options.clientId}, got ${decoded.client_id}`);
+  }
 
   return decoded;
 }
 
 /**
  * CORS helper - get allowed origin from request
+ * Only allows hedgehog.cloud and www.hedgehog.cloud for auth endpoints
+ * (aligns with serverless.yml CORS configuration)
  */
 const ALLOWED_ORIGINS = [
   'https://hedgehog.cloud',
@@ -183,21 +207,8 @@ const ALLOWED_ORIGINS = [
 function getAllowedOrigin(origin: string | undefined): string {
   if (!origin) return 'https://hedgehog.cloud';
 
-  // Check exact matches
+  // Check exact matches only
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
-
-  // Check HubSpot CDN patterns
-  const hubspotPatterns = [
-    /^https:\/\/.*\.hubspotusercontent-na1\.net$/,
-    /^https:\/\/.*\.hubspotusercontent00\.net$/,
-    /^https:\/\/.*\.hubspotusercontent20\.net$/,
-    /^https:\/\/.*\.hubspotusercontent30\.net$/,
-    /^https:\/\/.*\.hubspotusercontent40\.net$/,
-  ];
-
-  if (hubspotPatterns.some(pattern => pattern.test(origin))) {
-    return origin;
-  }
 
   // Default fallback
   return 'https://hedgehog.cloud';
@@ -333,8 +344,11 @@ async function exchangeCodeForTokens(code: string, codeVerifier: string): Promis
  * Verify Cognito ID token JWT
  */
 async function verifyIdToken(idToken: string): Promise<any> {
-  // Verify signature, issuer, and expiration using JWKS
-  return await verifyJWT(idToken, COGNITO_CLIENT_ID);
+  // Verify signature, issuer, audience, and token_use for ID tokens
+  return await verifyJWT(idToken, {
+    audience: COGNITO_CLIENT_ID,
+    tokenUse: 'id',
+  });
 }
 
 /**
@@ -556,10 +570,13 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
 
     const accessToken = accessTokenMatch[1];
 
-    // Verify JWT signature, issuer, and expiration using JWKS
+    // Verify JWT signature, issuer, expiration, client_id, and token_use
     let decoded: any;
     try {
-      decoded = await verifyJWT(accessToken);
+      decoded = await verifyJWT(accessToken, {
+        clientId: COGNITO_CLIENT_ID,
+        tokenUse: 'access',
+      });
     } catch (verifyErr: any) {
       console.error('[Me] JWT verification failed:', verifyErr.message);
       return {
