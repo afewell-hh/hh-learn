@@ -263,7 +263,6 @@ resources:
             Projection:
               ProjectionType: ALL
         StreamSpecification:
-          StreamEnabled: true
           StreamViewType: NEW_AND_OLD_IMAGES
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
@@ -308,7 +307,6 @@ resources:
             Projection:
               ProjectionType: ALL
         StreamSpecification:
-          StreamEnabled: true
           StreamViewType: NEW_AND_OLD_IMAGES
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
@@ -340,7 +338,6 @@ resources:
           - AttributeName: SK
             KeyType: RANGE
         StreamSpecification:
-          StreamEnabled: true
           StreamViewType: NEW_AND_OLD_IMAGES
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
@@ -372,7 +369,6 @@ resources:
           - AttributeName: SK
             KeyType: RANGE
         StreamSpecification:
-          StreamEnabled: true
           StreamViewType: NEW_AND_OLD_IMAGES
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
