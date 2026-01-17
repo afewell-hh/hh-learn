@@ -14,7 +14,7 @@
 import * as crypto from 'crypto';
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import jwt from 'jsonwebtoken';
 
 // Cognito configuration from environment
@@ -30,13 +30,178 @@ const DYNAMODB_USERS_TABLE = process.env.DYNAMODB_USERS_TABLE!;
 // Session configuration
 const ACCESS_TOKEN_MAX_AGE = 3600; // 1 hour
 const REFRESH_TOKEN_MAX_AGE = 2592000; // 30 days
-const STATE_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+
+// STATE_SECRET is required for signing state parameters
+// Using a random value would break state verification across Lambda invocations
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required for state parameter signing');
+}
+const STATE_SECRET = process.env.JWT_SECRET;
 
 // Test bypass for mock auth codes
 const ENABLE_TEST_BYPASS = process.env.ENABLE_TEST_BYPASS === 'true';
 
 // DynamoDB client
 const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: COGNITO_REGION }));
+
+/**
+ * JWKS cache (Lambda global scope for reuse across warm invocations)
+ */
+interface JWK {
+  kid: string;
+  kty: string;
+  alg: string;
+  use: string;
+  n: string;
+  e: string;
+}
+
+interface JWKS {
+  keys: JWK[];
+}
+
+let jwksCache: JWKS | null = null;
+let jwksCacheExpiry = 0;
+const JWKS_CACHE_TTL = 3600000; // 1 hour in milliseconds
+
+/**
+ * Fetch Cognito JWKS for JWT signature verification
+ */
+async function fetchJWKS(): Promise<JWKS> {
+  const now = Date.now();
+
+  // Return cached JWKS if still valid
+  if (jwksCache && now < jwksCacheExpiry) {
+    return jwksCache;
+  }
+
+  const jwksUrl = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${process.env.COGNITO_USER_POOL_ID}/.well-known/jwks.json`;
+
+  console.log('[JWKS] Fetching from:', jwksUrl);
+
+  const response = await fetch(jwksUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch JWKS: ${response.status}`);
+  }
+
+  jwksCache = await response.json();
+  jwksCacheExpiry = now + JWKS_CACHE_TTL;
+
+  console.log('[JWKS] Cached successfully, expires in 1 hour');
+
+  return jwksCache!;
+}
+
+/**
+ * Convert JWK to PEM format for JWT verification
+ */
+function jwkToPem(jwk: JWK): string {
+  const modulus = Buffer.from(jwk.n, 'base64');
+  const exponent = Buffer.from(jwk.e, 'base64');
+
+  // Construct DER-encoded RSA public key
+  const modulusLength = modulus.length;
+  const exponentLength = exponent.length;
+
+  // ASN.1 DER encoding for RSA public key
+  const derPrefix = Buffer.from([
+    0x30, 0x82, // SEQUENCE
+    ((modulusLength + exponentLength + 32) >> 8) & 0xff,
+    (modulusLength + exponentLength + 32) & 0xff,
+    0x30, 0x0d, // SEQUENCE
+    0x06, 0x09, // OID
+    0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, // RSA encryption
+    0x05, 0x00, // NULL
+    0x03, 0x82, // BIT STRING
+    ((modulusLength + exponentLength + 9) >> 8) & 0xff,
+    (modulusLength + exponentLength + 9) & 0xff,
+    0x00, // no padding bits
+    0x30, 0x82, // SEQUENCE
+    ((modulusLength + exponentLength + 4) >> 8) & 0xff,
+    (modulusLength + exponentLength + 4) & 0xff,
+    0x02, 0x82, // INTEGER (modulus)
+    (modulusLength >> 8) & 0xff,
+    modulusLength & 0xff,
+  ]);
+
+  const exponentPrefix = Buffer.from([
+    0x02, // INTEGER (exponent)
+    exponentLength,
+  ]);
+
+  const der = Buffer.concat([derPrefix, modulus, exponentPrefix, exponent]);
+  const pem = `-----BEGIN PUBLIC KEY-----\n${der.toString('base64').match(/.{1,64}/g)?.join('\n')}\n-----END PUBLIC KEY-----\n`;
+
+  return pem;
+}
+
+/**
+ * Verify JWT token using Cognito JWKS
+ */
+async function verifyJWT(token: string, expectedAudience?: string): Promise<any> {
+  // Decode header to get kid
+  const decodedHeader = jwt.decode(token, { complete: true });
+
+  if (!decodedHeader || typeof decodedHeader === 'string') {
+    throw new Error('Invalid token format');
+  }
+
+  const kid = decodedHeader.header.kid;
+  if (!kid) {
+    throw new Error('Token missing kid in header');
+  }
+
+  // Fetch JWKS and find matching key
+  const jwks = await fetchJWKS();
+  const jwk = jwks.keys.find(key => key.kid === kid);
+
+  if (!jwk) {
+    throw new Error(`No matching JWK found for kid: ${kid}`);
+  }
+
+  // Convert JWK to PEM
+  const pem = jwkToPem(jwk);
+
+  // Verify signature and claims
+  const decoded = jwt.verify(token, pem, {
+    algorithms: ['RS256'],
+    issuer: COGNITO_ISSUER,
+    ...(expectedAudience && { audience: expectedAudience }),
+  });
+
+  return decoded;
+}
+
+/**
+ * CORS helper - get allowed origin from request
+ */
+const ALLOWED_ORIGINS = [
+  'https://hedgehog.cloud',
+  'https://www.hedgehog.cloud',
+];
+
+function getAllowedOrigin(origin: string | undefined): string {
+  if (!origin) return 'https://hedgehog.cloud';
+
+  // Check exact matches
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+
+  // Check HubSpot CDN patterns
+  const hubspotPatterns = [
+    /^https:\/\/.*\.hubspotusercontent-na1\.net$/,
+    /^https:\/\/.*\.hubspotusercontent00\.net$/,
+    /^https:\/\/.*\.hubspotusercontent20\.net$/,
+    /^https:\/\/.*\.hubspotusercontent30\.net$/,
+    /^https:\/\/.*\.hubspotusercontent40\.net$/,
+  ];
+
+  if (hubspotPatterns.some(pattern => pattern.test(origin))) {
+    return origin;
+  }
+
+  // Default fallback
+  return 'https://hedgehog.cloud';
+}
 
 /**
  * PKCE helpers
@@ -168,24 +333,8 @@ async function exchangeCodeForTokens(code: string, codeVerifier: string): Promis
  * Verify Cognito ID token JWT
  */
 async function verifyIdToken(idToken: string): Promise<any> {
-  // TODO: Fetch and cache Cognito JWKS for proper signature verification
-  // For MVP, decode without verification (tokens come directly from Cognito)
-  const decoded = jwt.decode(idToken);
-
-  if (!decoded || typeof decoded === 'string') {
-    throw new Error('Invalid ID token');
-  }
-
-  // Basic validation
-  if (decoded.iss !== COGNITO_ISSUER) {
-    throw new Error('Invalid token issuer');
-  }
-
-  if (decoded.exp && Date.now() >= decoded.exp * 1000) {
-    throw new Error('Token expired');
-  }
-
-  return decoded;
+  // Verify signature, issuer, and expiration using JWKS
+  return await verifyJWT(idToken, COGNITO_CLIENT_ID);
 }
 
 /**
@@ -385,6 +534,9 @@ export async function handleLogout(event: any): Promise<APIGatewayProxyResultV2>
  * Returns user profile from DynamoDB
  */
 export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
+  const origin = event.headers?.origin || event.headers?.Origin;
+  const allowedOrigin = getAllowedOrigin(origin);
+
   try {
     // Extract access token from cookie
     const cookies = event.headers?.cookie || event.headers?.Cookie || '';
@@ -395,7 +547,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
         statusCode: 401,
         headers: {
           'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
-          'Access-Control-Allow-Origin': 'https://hedgehog.cloud',
+          'Access-Control-Allow-Origin': allowedOrigin,
           'Access-Control-Allow-Credentials': 'true',
         },
         body: JSON.stringify({ error: 'Unauthorized: Missing access token' }),
@@ -404,22 +556,22 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
 
     const accessToken = accessTokenMatch[1];
 
-    // Decode and validate JWT (Cognito access token)
-    const decoded = jwt.decode(accessToken);
-
-    if (!decoded || typeof decoded === 'string') {
+    // Verify JWT signature, issuer, and expiration using JWKS
+    let decoded: any;
+    try {
+      decoded = await verifyJWT(accessToken);
+    } catch (verifyErr: any) {
+      console.error('[Me] JWT verification failed:', verifyErr.message);
       return {
         statusCode: 401,
         headers: {
           'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
-          'Access-Control-Allow-Origin': 'https://hedgehog.cloud',
+          'Access-Control-Allow-Origin': allowedOrigin,
           'Access-Control-Allow-Credentials': 'true',
         },
-        body: JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        body: JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }),
       };
     }
-
-    // TODO: Verify token signature with Cognito JWKS
 
     const userId = decoded.sub || decoded.username;
 
@@ -428,7 +580,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
         statusCode: 401,
         headers: {
           'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
-          'Access-Control-Allow-Origin': 'https://hedgehog.cloud',
+          'Access-Control-Allow-Origin': allowedOrigin,
           'Access-Control-Allow-Credentials': 'true',
         },
         body: JSON.stringify({ error: 'Unauthorized: Invalid token payload' }),
@@ -442,7 +594,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
       return {
         statusCode: 404,
         headers: {
-          'Access-Control-Allow-Origin': 'https://hedgehog.cloud',
+          'Access-Control-Allow-Origin': allowedOrigin,
           'Access-Control-Allow-Credentials': 'true',
         },
         body: JSON.stringify({ error: 'User not found' }),
@@ -454,7 +606,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
     return {
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': 'https://hedgehog.cloud',
+        'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Credentials': 'true',
         'Cache-Control': 'no-store, private',
       },
@@ -474,7 +626,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': 'https://hedgehog.cloud',
+        'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Credentials': 'true',
       },
       body: JSON.stringify({ error: 'Internal server error' }),
@@ -503,24 +655,37 @@ async function createOrUpdateUser(userId: string, email: string, idTokenPayload:
     cognitoUsername: idTokenPayload['cognito:username'] || userId,
   };
 
+  // Try to create new user (will fail if already exists)
   await dynamoClient.send(
     new PutCommand({
       TableName: DYNAMODB_USERS_TABLE,
       Item: item,
-      // Only set createdAt if new user
       ConditionExpression: 'attribute_not_exists(PK)',
     })
   ).catch(async (err) => {
     if (err.name === 'ConditionalCheckFailedException') {
-      // User exists, update only (omit createdAt)
-      const { createdAt, ...updateItem } = item;
-
+      // User exists, update without overwriting createdAt
       await dynamoClient.send(
-        new PutCommand({
+        new UpdateCommand({
           TableName: DYNAMODB_USERS_TABLE,
-          Item: updateItem,
+          Key: {
+            PK: `USER#${userId}`,
+            SK: 'PROFILE',
+          },
+          UpdateExpression: 'SET email = :email, displayName = :displayName, givenName = :givenName, familyName = :familyName, updatedAt = :updatedAt, cognitoUsername = :cognitoUsername, GSI1PK = :gsi1pk, GSI1SK = :gsi1sk',
+          ExpressionAttributeValues: {
+            ':email': email,
+            ':displayName': idTokenPayload.name || email.split('@')[0],
+            ':givenName': idTokenPayload.given_name || '',
+            ':familyName': idTokenPayload.family_name || '',
+            ':updatedAt': now,
+            ':cognitoUsername': idTokenPayload['cognito:username'] || userId,
+            ':gsi1pk': `EMAIL#${email}`,
+            ':gsi1sk': `USER#${userId}`,
+          },
         })
       );
+      console.log('[DynamoDB] User updated:', userId);
     } else {
       throw err;
     }
