@@ -1,0 +1,97 @@
+name: E2E Pathway Anti-Regression Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "content/pathways/**"
+      - "content/courses/**"
+      - "clean-x-hedgehog-templates/learn/pathways-page.html"
+      - "src/sync/pathways-to-hubdb.ts"
+      - "tests/e2e/pathway-courses-regression.spec.ts"
+      - ".github/workflows/e2e-pathway-regression.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "content/pathways/**"
+      - "content/courses/**"
+      - "clean-x-hedgehog-templates/learn/pathways-page.html"
+      - "src/sync/pathways-to-hubdb.ts"
+      - "tests/e2e/pathway-courses-regression.spec.ts"
+      - ".github/workflows/e2e-pathway-regression.yml"
+  schedule:
+    # Run daily at 10 AM UTC to catch any production regressions
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-pathway-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pathway-regression-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run pathway anti-regression tests
+        run: npx playwright test tests/e2e/pathway-courses-regression.spec.ts --reporter=list
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pathway-regression-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pathway-regression-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Slack notify on failure
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          payload=$(jq -n \
+            --arg text "🚨 Pathway regression detected in $GITHUB_WORKFLOW on $GITHUB_REF" \
+            --arg url "$JOB_URL" \
+            --arg context "Issue #279 anti-regression tests failed. Pathway course rendering may be broken." \
+            '{
+              text: $text,
+              attachments: [{
+                color: "danger",
+                title: "View Failed Run",
+                title_link: $url,
+                text: $context,
+                footer: "GitHub Actions",
+                footer_icon: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+              }]
+            }')
+          curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"

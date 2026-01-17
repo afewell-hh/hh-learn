@@ -592,9 +592,14 @@
           <header class="pathway-detail-header">
             <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
             <div class="pathway-meta">
-              {% if dynamic_page_hubdb_row.module_count %}
+              {% if dynamic_page_hubdb_row.course_slugs_json %}
+                {% set course_count = dynamic_page_hubdb_row.course_slugs_json|fromjson|length %}
                 <span class="pathway-meta-item">
-                  <strong>{{ dynamic_page_hubdb_row.module_count }}</strong> modules
+                  <strong>{{ course_count }}</strong> course{% if course_count != 1 %}s{% endif %}
+                </span>
+              {% elif dynamic_page_hubdb_row.module_count %}
+                <span class="pathway-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.module_count }}</strong> module{% if dynamic_page_hubdb_row.module_count != 1 %}s{% endif %}
                 </span>
               {% endif %}
               {% if dynamic_page_hubdb_row.total_estimated_minutes %}
@@ -605,35 +610,16 @@
             </div>
           </header>
 
-          {# Enrollment CTA Block #}
-          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
-          {% set contact_email = personalization_token('contact.email', '') %}
-          {% set is_logged_in = request_contact.is_logged_in or contact_email %}
-          <div class="enrollment-cta-block" id="hhl-enrollment-cta" data-content-type="pathway" data-build-id="cta-v3-20251028" data-request-contact="{{ 'true' if is_logged_in else 'false' }}">
+          <!-- Enrollment CTA Block -->
+          <div class="enrollment-cta-block" id="hhl-enrollment-cta">
             <div class="enrollment-cta-title">Ready to Begin This Learning Pathway?</div>
             <div class="enrollment-cta-description">
               Enroll to track your progress and receive personalized recommendations as you work through this pathway.
             </div>
-            {% if is_logged_in %}
-              <button type="button"
-                      class="enrollment-button"
-                      id="hhl-enroll-button"
-                      data-content-type="pathway"
-                      data-content-slug="{{ dynamic_page_hubdb_row.hs_path }}">
-                Enroll in Pathway
-              </button>
-              <p class="enrollment-cta-helper" id="hhl-enroll-helper" style="display:none;" aria-live="polite"></p>
-            {% else %}
-              <a class="enrollment-button"
-                 id="hhl-enroll-login"
-                 href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">
-                Sign in to enroll
-              </a>
-              <p class="enrollment-cta-helper" id="hhl-enroll-helper" aria-live="polite">
-                Already registered? <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to start this pathway.
-              </p>
-            {% endif %}
+            <button type="button" class="enrollment-button" id="hhl-enroll-button">
+              Enroll in Pathway
+            </button>
+            <p class="enrollment-cta-helper" id="hhl-enroll-helper" style="display:none;"></p>
           </div>
 
           <!-- Progress Tracker -->
@@ -659,25 +645,22 @@
             </div>
           </div>
 
-          {# Auth context for JS (Issue #272 - Native HubSpot membership only) #}
+          {# Auth context for JS #}
+          {# module_count is now precomputed in the sync script for both module-based and course-based pathways #}
           <div id="hhl-auth-context"
-               data-email="{% if is_logged_in %}{{ request_contact.email|default(contact_email, true) }}{% endif %}"
-               data-contact-id="{% if is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
-               data-firstname="{% if is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
-               data-lastname="{% if is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
+               data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
+               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
                data-enable-crm="true"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-pathway-slug="{{ dynamic_page_hubdb_row.hs_path }}"
                data-total-modules="{{ dynamic_page_hubdb_row.module_count|default(0) }}"
                data-login-url="{{ login_url }}"
-               data-authenticated="{{ 'true' if is_logged_in else 'false' }}"
                style="display:none"></div>
-          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pathways.js') }}"></script>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>
           <script>
-            // Initialize enrollment UI after DOM is ready; init handles login-link fallback
+            // Initialize enrollment UI when enrollment.js is loaded
             document.addEventListener('DOMContentLoaded', function() {
               if (window.hhInitEnrollment) {
                 window.hhInitEnrollment('pathway', '{{ dynamic_page_hubdb_row.hs_path }}');
@@ -892,9 +875,14 @@
                   {% endif %}
 
                   <div class="pathway-meta">
-                    {% if pathway.module_count %}
+                    {% if pathway.course_slugs_json %}
+                      {% set course_count = pathway.course_slugs_json|fromjson|length %}
                       <span class="pathway-meta-item">
-                        <strong>{{ pathway.module_count }}</strong> modules
+                        <strong>{{ course_count }}</strong> course{% if course_count != 1 %}s{% endif %}
+                      </span>
+                    {% elif pathway.module_count %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ pathway.module_count }}</strong> module{% if pathway.module_count != 1 %}s{% endif %}
                       </span>
                     {% endif %}
                     {% if pathway.total_estimated_minutes %}

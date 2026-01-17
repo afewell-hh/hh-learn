@@ -1,0 +1,72 @@
+{
+  "slug": "network-like-hyperscaler-provisioning",
+  "title": "Course 2: Provisioning & Day 1 Operations",
+  "summary_markdown": "Master the essential skills for day-one fabric operations! This course teaches you to provision VPCs, attach servers to the network, validate connectivity, and safely decommission resources—all using Kubernetes-native tools.\n\nYou'll work hands-on with the Hedgehog Virtual Lab to create real network infrastructure, building confidence with declarative provisioning patterns that eliminate manual configuration errors. By the end, you'll be ready to onboard production workloads to your Hedgehog fabric.",
+  "modules": [
+    "fabric-operations-vpc-provisioning",
+    "fabric-operations-vpc-attachments",
+    "fabric-operations-connectivity-validation",
+    "fabric-operations-decommission-cleanup"
+  ],
+  "badge_image_url": "",
+  "display_order": 2,
+  "tags": "hedgehog,fabric,provisioning,vpc,operations,kubernetes",
+  "content_blocks": [
+    {
+      "id": "intro",
+      "type": "text",
+      "title": "Welcome to Provisioning & Day 1 Operations",
+      "body_markdown": "This course builds on your foundational knowledge to teach practical provisioning workflows. You'll create VPCs, attach servers, validate connectivity, and manage the complete lifecycle of network resources."
+    },
+    {
+      "id": "section-provisioning",
+      "type": "text",
+      "title": "Part 1: VPC Provisioning",
+      "body_markdown": "Learn to create Virtual Private Clouds (VPCs) with IPv4 subnets and DHCP configurations. Master the declarative YAML approach that makes network provisioning safe and repeatable."
+    },
+    {
+      "id": "module-2-1",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-vpc-provisioning"
+    },
+    {
+      "id": "section-attachments",
+      "type": "text",
+      "title": "Part 2: Server Attachments",
+      "body_markdown": "Connect servers to your VPC using VPCAttachment resources. Understand how Hedgehog automates VLAN configuration, interface setup, and routing across the fabric."
+    },
+    {
+      "id": "module-2-2",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-vpc-attachments"
+    },
+    {
+      "id": "section-validation",
+      "type": "text",
+      "title": "Part 3: Connectivity Validation",
+      "body_markdown": "Verify that your provisioned infrastructure works correctly. Learn systematic validation techniques using kubectl, Grafana dashboards, and fabric-aware diagnostics."
+    },
+    {
+      "id": "module-2-3",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-connectivity-validation"
+    },
+    {
+      "id": "section-cleanup",
+      "type": "text",
+      "title": "Part 4: Decommission & Cleanup",
+      "body_markdown": "Safely remove resources from the fabric without impacting other workloads. Master the proper order of operations for graceful deprovisioning."
+    },
+    {
+      "id": "module-2-4",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-decommission-cleanup"
+    },
+    {
+      "id": "next-steps",
+      "type": "callout",
+      "title": "Next Steps",
+      "body_markdown": "Congratulations on completing Provisioning & Day 1 Operations! You're now ready to learn about observability and fabric health monitoring in Course 3."
+    }
+  ]
+}

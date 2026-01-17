@@ -1,0 +1,72 @@
+{
+  "slug": "network-like-hyperscaler-observability",
+  "title": "Course 3: Observability & Fabric Health",
+  "summary_markdown": "Learn to monitor fabric health using industry-standard observability tools! This course teaches you to interpret Grafana dashboards, track Kubernetes events, correlate metrics with configuration state, and collect comprehensive diagnostics before escalating to support.\n\nYou'll gain confidence in identifying normal vs. abnormal fabric behavior, using pre-built dashboards to answer operational questions, and developing systematic troubleshooting habits that accelerate problem resolution.",
+  "modules": [
+    "fabric-operations-telemetry-overview",
+    "fabric-operations-dashboard-interpretation",
+    "fabric-operations-events-status",
+    "fabric-operations-pre-support-diagnostics"
+  ],
+  "badge_image_url": "",
+  "display_order": 3,
+  "tags": "hedgehog,fabric,observability,grafana,prometheus,monitoring,troubleshooting",
+  "content_blocks": [
+    {
+      "id": "intro",
+      "type": "text",
+      "title": "Welcome to Observability & Fabric Health",
+      "body_markdown": "This course transforms you from a fabric provisioner into a confident operator who can monitor, diagnose, and maintain fabric health using Prometheus, Grafana, and kubectl-native diagnostics."
+    },
+    {
+      "id": "section-telemetry",
+      "type": "text",
+      "title": "Part 1: Understanding Fabric Telemetry",
+      "body_markdown": "Discover how Hedgehog collects and exposes metrics from switches, controllers, and fabric resources. Learn the architecture of the telemetry stack and what questions each data source can answer."
+    },
+    {
+      "id": "module-3-1",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-telemetry-overview"
+    },
+    {
+      "id": "section-dashboards",
+      "type": "text",
+      "title": "Part 2: Interpreting Grafana Dashboards",
+      "body_markdown": "Master the six core Hedgehog dashboards: Fabric Overview, Switch Details, BGP Status, VLAN Health, Connection Status, and Agent Health. Learn to read metrics and identify problems at a glance."
+    },
+    {
+      "id": "module-3-2",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-dashboard-interpretation"
+    },
+    {
+      "id": "section-events",
+      "type": "text",
+      "title": "Part 3: Events & Status Monitoring",
+      "body_markdown": "Correlate Kubernetes events with Grafana metrics for complete troubleshooting visibility. Learn to read Agent CRD status fields and track resource reconciliation state."
+    },
+    {
+      "id": "module-3-3",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-events-status"
+    },
+    {
+      "id": "section-diagnostics",
+      "type": "text",
+      "title": "Part 4: Pre-Support Diagnostic Collection",
+      "body_markdown": "Master the systematic diagnostic checklist used before escalating to support. Learn to collect comprehensive evidence that accelerates support case resolution."
+    },
+    {
+      "id": "module-3-4",
+      "type": "module_ref",
+      "module_slug": "fabric-operations-pre-support-diagnostics"
+    },
+    {
+      "id": "next-steps",
+      "type": "callout",
+      "title": "Next Steps",
+      "body_markdown": "Congratulations on completing Observability & Fabric Health! You're now ready to tackle advanced troubleshooting scenarios in Course 4."
+    }
+  ]
+}
