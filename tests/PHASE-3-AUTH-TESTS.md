@@ -1,7 +1,8 @@
 # Phase 3: Auth Endpoints Tests (Issue #303)
 
-**Status:** Test Scaffolding Complete (TDD Red Phase)
+**Status:** Test Scaffolding Complete - Ready for Implementation (TDD Red Phase)
 **Created:** 2026-01-17
+**Updated:** 2026-01-17 (Fixed critical test issues)
 **Phase:** Phase 3 - Auth Endpoints + PKCE Cookies
 
 ## Overview
@@ -45,7 +46,7 @@ This document describes the test suite for the Cognito-based External SSO authen
   - Refresh token: httpOnly, Secure, SameSite=Strict, path=/auth
   - Cookies not accessible via JavaScript
 
-**Total Tests:** 15 test cases
+**Total Tests:** 15 test cases (10 active, 5 skipped pending implementation)
 
 ---
 
@@ -141,13 +142,15 @@ This document describes the test suite for the Cognito-based External SSO authen
 
 ## Total Test Coverage
 
-**62+ test cases** covering:
+**62+ test cases** (57 active, 5 skipped) covering:
 - ✅ Happy path flows (login, callback, logout, profile)
 - ✅ Security (PKCE, CSRF, cookies, headers)
 - ✅ Error handling (401, 400, 404, 429)
 - ✅ Edge cases (malformed input, concurrency)
 - ✅ Performance (latency requirements)
 - ✅ CORS and cross-origin security
+
+**Note:** 5 tests are temporarily skipped pending test bypass implementation
 
 ---
 
@@ -185,6 +188,64 @@ This is the expected "Red" phase of Test-Driven Development:
 
 ---
 
+## Test Fixes Applied (2026-01-17)
+
+The following critical issues were identified and fixed before implementation:
+
+### 1. CORS allowCredentials Updated ✅
+- **Issue:** `serverless.yml` had `allowCredentials: false` but tests expected `true`
+- **Fix:** Updated `serverless.yml` to set `allowCredentials: true`
+- **Impact:** Cookies will now be sent with cross-origin requests from hedgehog.cloud
+
+### 2. Playwright Cookie Handling Fixed ✅
+- **Issue:** API tests used `request.get()` which doesn't access browser cookies
+- **Fix:** Changed all tests to use `page.request.get()` which is bound to browser context
+- **Files Updated:** `tests/api/auth-me.spec.ts`, `tests/api/auth-endpoints-negative.spec.ts`
+
+### 3. Cookie Domain Consistency ✅
+- **Issue:** E2E tests set cookies for `hedgehog.cloud` but called API Gateway domain
+- **Fix:** Updated all cookie domains to match `API_BASE_URL` (API Gateway)
+- **Files Updated:** `tests/e2e/cognito-auth-flow.spec.ts`, `tests/api/auth-endpoints-negative.spec.ts`
+- **Production Note:** See "Cookie Domain Architecture" section below
+
+### 4. Mock Auth Code Tests Skipped ✅
+- **Issue:** Tests using `MOCK_AUTH_CODE` won't work without test bypass
+- **Fix:** Marked 5 tests as `.skip()` with TODO comments
+- **Tests Skipped:**
+  - `should exchange code for tokens and set httpOnly cookies`
+  - `should validate state parameter (CSRF protection)`
+  - `should redirect to original page after successful auth`
+  - `access token cookie should have correct security attributes`
+  - `refresh token cookie should be scoped to /auth path`
+- **Implementation Note:** Add test bypass flag or use real Cognito auth to enable these tests
+
+---
+
+## Cookie Domain Architecture (Production Consideration)
+
+**Current Test Setup:** Cookies are scoped to API Gateway domain for testing purposes.
+
+**Production Requirement:** For cookies to work between the frontend (hedgehog.cloud) and API,
+the auth endpoints must be accessible from the same domain. Two options:
+
+**Option A: Custom Domain for API Gateway**
+```
+Frontend: https://hedgehog.cloud
+API: https://api.hedgehog.cloud (custom domain mapped to API Gateway)
+Cookies: domain=.hedgehog.cloud (shared across subdomains)
+```
+
+**Option B: Reverse Proxy through HubSpot CMS**
+```
+Frontend: https://hedgehog.cloud
+API Proxy: https://hedgehog.cloud/api/* -> API Gateway
+Cookies: domain=hedgehog.cloud (same domain)
+```
+
+**Recommendation:** Option B (reverse proxy) is simpler and doesn't require API Gateway custom domain setup.
+
+---
+
 ## Implementation Checklist
 
 Once endpoints are implemented, verify:
@@ -210,6 +271,29 @@ Once endpoints are implemented, verify:
 - **Phase 1 (Cognito Setup):** Issue #301
 - **Phase 2 (DynamoDB Schema):** Issue #302
 - **Phase 3 (Auth Endpoints):** Issue #303
+
+---
+
+## Implementation Requirements
+
+### Test Bypass for Mock Auth Codes (Optional but Recommended)
+
+To enable the 5 skipped tests, add a test-only bypass in `/auth/callback`:
+
+```typescript
+// In /auth/callback handler
+if (process.env.ENABLE_TEST_BYPASS === 'true' && code.startsWith('MOCK_')) {
+  // Skip Cognito token exchange
+  // Return mock tokens for testing
+  return {
+    accessToken: 'mock_access_token_for_testing',
+    refreshToken: 'mock_refresh_token_for_testing',
+    idToken: 'mock_id_token_for_testing'
+  };
+}
+```
+
+**Security:** Ensure `ENABLE_TEST_BYPASS` is ONLY set in test environments, never in staging or production.
 
 ---
 

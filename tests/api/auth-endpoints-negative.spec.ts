@@ -165,7 +165,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
       expect([200, 302]).toContain(response.status());
     });
 
-    test('should clear cookies even if Cognito logout fails', async ({ request, context }) => {
+    test('should clear cookies even if Cognito logout fails', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -178,7 +178,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
         }
       ]);
 
-      await request.post(`${API_BASE_URL}/auth/logout`);
+      await page.request.post(`${API_BASE_URL}/auth/logout`);
 
       // Cookies should be cleared regardless of Cognito response
       const cookies = await context.cookies();
@@ -187,7 +187,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
       expect(accessToken).toBeUndefined();
     });
 
-    test('should handle logout with invalid/expired token gracefully', async ({ request, context }) => {
+    test('should handle logout with invalid/expired token gracefully', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -200,7 +200,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.post(`${API_BASE_URL}/auth/logout`);
+      const response = await page.request.post(`${API_BASE_URL}/auth/logout`);
 
       // Should still logout successfully
       expect([200, 302]).toContain(response.status());
@@ -277,7 +277,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
 
   test.describe('Cookie Edge Cases', () => {
 
-    test('should handle oversized cookie values gracefully', async ({ context, request }) => {
+    test('should handle oversized cookie values gracefully', async ({ page, context }) => {
       // Set a cookie that exceeds browser limits
       const hugeCookieValue = 'x'.repeat(5000);
 
@@ -293,13 +293,13 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       // Should handle gracefully (likely 401 since it's invalid)
       expect([400, 401]).toContain(response.status());
     });
 
-    test('should handle cookie with special characters', async ({ context, request }) => {
+    test('should handle cookie with special characters', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -312,7 +312,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       // Should handle without crashing
       expect([200, 400, 401]).toContain(response.status());
@@ -321,7 +321,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
 
   test.describe('Concurrent Requests', () => {
 
-    test('should handle concurrent /auth/me requests correctly', async ({ request, context }) => {
+    test('should handle concurrent /auth/me requests correctly', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -336,7 +336,7 @@ test.describe('Auth Endpoints - Negative Tests (Issue #303)', () => {
 
       // Make 10 concurrent requests
       const requests = Array(10).fill(null).map(() =>
-        request.get(`${API_BASE_URL}/auth/me`)
+        page.request.get(`${API_BASE_URL}/auth/me`)
       );
 
       const responses = await Promise.all(requests);

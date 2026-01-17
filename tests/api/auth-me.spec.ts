@@ -20,7 +20,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
   test.describe('Successful Profile Retrieval', () => {
 
-    test('should return user profile with valid access token cookie', async ({ request, context }) => {
+    test('should return user profile with valid access token cookie', async ({ page, context }) => {
       // Set a valid mock access token cookie
       await context.addCookies([
         {
@@ -34,7 +34,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(200);
 
@@ -48,7 +48,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(profile.email).toContain('@');
     });
 
-    test('should include all expected profile fields', async ({ request, context }) => {
+    test('should include all expected profile fields', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -61,7 +61,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
       const profile = await response.json();
 
       // Required fields
@@ -85,7 +85,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       }
     });
 
-    test('should return consistent data on multiple requests', async ({ request, context }) => {
+    test('should return consistent data on multiple requests', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -98,10 +98,10 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response1 = await request.get(`${API_BASE_URL}/auth/me`);
+      const response1 = await page.request.get(`${API_BASE_URL}/auth/me`);
       const profile1 = await response1.json();
 
-      const response2 = await request.get(`${API_BASE_URL}/auth/me`);
+      const response2 = await page.request.get(`${API_BASE_URL}/auth/me`);
       const profile2 = await response2.json();
 
       // Should return same userId and email
@@ -112,9 +112,9 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
   test.describe('Authentication Failures (401)', () => {
 
-    test('should return 401 when access token cookie is missing', async ({ request }) => {
+    test('should return 401 when access token cookie is missing', async ({ page }) => {
       // No cookies set
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -123,7 +123,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(error.error).toContain('Unauthorized');
     });
 
-    test('should return 401 with invalid JWT signature', async ({ request, context }) => {
+    test('should return 401 with invalid JWT signature', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -136,7 +136,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -144,7 +144,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(error.error).toMatch(/invalid|unauthorized/i);
     });
 
-    test('should return 401 with expired JWT token', async ({ request, context }) => {
+    test('should return 401 with expired JWT token', async ({ page, context }) => {
       // JWT with expired timestamp (exp claim in past)
       const expiredJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwiZXhwIjoxNjAwMDAwMDAwfQ.invalid_signature';
 
@@ -160,7 +160,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -168,7 +168,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(error.error).toMatch(/expired|unauthorized/i);
     });
 
-    test('should return 401 with malformed JWT', async ({ request, context }) => {
+    test('should return 401 with malformed JWT', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -181,12 +181,12 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
     });
 
-    test('should return 401 when JWT is from wrong issuer', async ({ request, context }) => {
+    test('should return 401 when JWT is from wrong issuer', async ({ page, context }) => {
       // JWT with wrong issuer claim
       const wrongIssuerJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwiaXNzIjoiaHR0cHM6Ly93cm9uZy1pc3N1ZXIuY29tIiwiZXhwIjoxOTk5OTk5OTk5fQ.invalid_signature';
 
@@ -202,7 +202,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
     });
@@ -210,8 +210,8 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
   test.describe('Error Response Format', () => {
 
-    test('401 errors should have consistent error shape', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+    test('401 errors should have consistent error shape', async ({ page }) => {
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -227,8 +227,8 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       }
     });
 
-    test('should include WWW-Authenticate header on 401', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+    test('should include WWW-Authenticate header on 401', async ({ page }) => {
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       expect(response.status()).toBe(401);
 
@@ -240,7 +240,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
   test.describe('CORS and Security Headers', () => {
 
-    test('should include proper CORS headers', async ({ request, context }) => {
+    test('should include proper CORS headers', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -253,7 +253,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`, {
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Origin': 'https://hedgehog.cloud'
         }
@@ -265,8 +265,8 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(headers['access-control-allow-credentials']).toBe('true');
     });
 
-    test('should reject requests from unapproved origins', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/auth/me`, {
+    test('should reject requests from unapproved origins', async ({ page }) => {
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Origin': 'https://evil.com'
         }
@@ -282,7 +282,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
   test.describe('User Profile Data from DynamoDB', () => {
 
-    test('should fetch user from DynamoDB users table', async ({ request, context }) => {
+    test('should fetch user from DynamoDB users table', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -295,7 +295,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
       const profile = await response.json();
 
       // userId should be Cognito sub from JWT
@@ -305,7 +305,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(profile.email).toContain('@');
     });
 
-    test('should return 404 if user not found in DynamoDB', async ({ request, context }) => {
+    test('should return 404 if user not found in DynamoDB', async ({ page, context }) => {
       // Valid JWT but user doesn't exist in users table yet
       const newUserJWT = 'valid_jwt_for_new_user_not_in_db';
 
@@ -321,7 +321,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       // Could be 404 (user not found) or auto-create and return 200
       // Depends on implementation decision
@@ -331,7 +331,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
 
   test.describe('Performance and Caching', () => {
 
-    test('should respond within acceptable latency', async ({ request, context }) => {
+    test('should respond within acceptable latency', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -345,7 +345,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       ]);
 
       const startTime = Date.now();
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
       const duration = Date.now() - startTime;
 
       expect(response.status()).toBe(200);
@@ -354,7 +354,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
       expect(duration).toBeLessThan(500);
     });
 
-    test('should not cache user profile responses', async ({ request, context }) => {
+    test('should not cache user profile responses', async ({ page, context }) => {
       await context.addCookies([
         {
           name: 'hhl_access_token',
@@ -367,7 +367,7 @@ test.describe('GET /auth/me - User Profile Endpoint (Issue #303)', () => {
         }
       ]);
 
-      const response = await request.get(`${API_BASE_URL}/auth/me`);
+      const response = await page.request.get(`${API_BASE_URL}/auth/me`);
 
       const headers = response.headers();
 
