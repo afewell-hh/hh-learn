@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-10-27T17:26:00.156Z",
+  "issue": "#269 - Playwright JWT Login Helper",
+  "status": "VERIFIED",
+  "tests": {
+    "authenticateViaJWT": "PASS",
+    "isAuthenticated": "PASS",
+    "clearAuth": "PASS",
+    "customAPIBaseURL": "PASS",
+    "errorHandling": "PASS",
+    "completeWorkflow": "PASS"
+  },
+  "helperLocation": "tests/helpers/auth.ts",
+  "documentation": "tests/README.md"
+}

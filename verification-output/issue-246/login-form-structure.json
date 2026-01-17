@@ -1,0 +1,150 @@
+[
+  {
+    "action": "https://hedgehog.cloud/_hcms/mem/login?redirect_url=/tickets",
+    "method": "post",
+    "inputs": [
+      {
+        "name": "csrf_token",
+        "type": "hidden",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": ""
+      },
+      {
+        "name": "redirect_url",
+        "type": "hidden",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": ""
+      },
+      {
+        "name": "hubspotutk",
+        "type": "hidden",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": "hs-membership-form-hubspotutk"
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "value": "",
+        "required": false,
+        "id": "hs-login-widget-email"
+      },
+      {
+        "name": "password",
+        "type": "password",
+        "value": "",
+        "required": false,
+        "id": "hs-login-widget-password"
+      },
+      {
+        "name": "remember_me",
+        "type": "checkbox",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": "hs-login-widget-remember"
+      },
+      {
+        "name": "",
+        "type": "submit",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": ""
+      }
+    ],
+    "allElements": [
+      {
+        "tagName": "INPUT",
+        "name": "csrf_token",
+        "type": "hidden"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "redirect_url",
+        "type": "hidden"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "hubspotutk",
+        "type": "hidden"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "email",
+        "type": "text"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "password",
+        "type": "password"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "remember_me",
+        "type": "checkbox"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "",
+        "type": "submit"
+      }
+    ]
+  },
+  {
+    "action": "https://hedgehog.cloud/_hcms/mem/login/passwordless-auth/request?portalId=21430285",
+    "method": "post",
+    "inputs": [
+      {
+        "name": "redirect_url",
+        "type": "hidden",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": ""
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "value": "",
+        "required": false,
+        "id": "hs-login-widget-email"
+      },
+      {
+        "name": "explicit_consent",
+        "type": "checkbox",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": "hs-passwordless-auth-explicit-consent"
+      },
+      {
+        "name": "",
+        "type": "submit",
+        "value": "[REDACTED]",
+        "required": false,
+        "id": "hs-passwordless-submit"
+      }
+    ],
+    "allElements": [
+      {
+        "tagName": "INPUT",
+        "name": "redirect_url",
+        "type": "hidden"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "email",
+        "type": "text"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "explicit_consent",
+        "type": "checkbox"
+      },
+      {
+        "tagName": "INPUT",
+        "name": "",
+        "type": "submit"
+      }
+    ]
+  }
+]

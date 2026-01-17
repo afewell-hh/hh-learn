@@ -38,7 +38,7 @@ Only evergreen documentation lives in this repository. Historical decisions and 
 ### Platform & Operations
 - [`docs/architecture.md`](docs/architecture.md) – System boundaries and upcoming integrations.
 - [`docs/content-sync.md`](docs/content-sync.md) – Day-to-day operational guide for the sync script.
-- [`docs/auth-and-progress.md`](docs/auth-and-progress.md) – Authentication and progress persistence (v0.3).
+- [`docs/auth-and-progress.md`](docs/auth-and-progress.md) – Membership-first authentication & progress baseline (post-Issue-274).
 - [`docs/theme-development.md`](docs/theme-development.md) – Guardrails for customizing the Clean.Pro theme.
 - [`docs/project-management.md`](docs/project-management.md) – GitHub Projects best practices used by this repo.
 - [`docs/issue-60-verification-guide.md`](docs/issue-60-verification-guide.md) – Issue #60: HubSpot Projects Access Token migration verification.

@@ -1,0 +1,94 @@
+{
+  "TableName": "hedgehog-learn-enrollments-${stage}",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI1PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI1SK",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI1",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI1PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI1SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    }
+  ],
+  "StreamSpecification": {
+    "StreamEnabled": true,
+    "StreamViewType": "NEW_AND_OLD_IMAGES"
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "hedgehog-learn"
+    },
+    {
+      "Key": "Environment",
+      "Value": "${stage}"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "serverless-framework"
+    },
+    {
+      "Key": "Component",
+      "Value": "external-sso"
+    }
+  ],
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "SSESpecification": {
+    "Enabled": true,
+    "SSEType": "KMS"
+  },
+  "Schema": {
+    "PK": "USER#<userId>",
+    "SK": "ENROLLMENT#<courseSlug>",
+    "GSI1PK": "COURSE#<courseSlug>",
+    "GSI1SK": "USER#<userId>",
+    "attributes": {
+      "userId": "Cognito sub (references users table)",
+      "courseSlug": "Course slug identifier",
+      "enrolledAt": "ISO 8601 timestamp",
+      "status": "active | completed | withdrawn",
+      "completedAt": "ISO 8601 timestamp (optional)",
+      "updatedAt": "ISO 8601 timestamp",
+      "metadata": "Additional enrollment metadata (optional)"
+    }
+  }
+}

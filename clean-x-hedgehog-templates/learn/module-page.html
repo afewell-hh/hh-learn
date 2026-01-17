@@ -679,11 +679,13 @@
               {% endif %}
             </div>
 
-            {# Minimal pathway progress affordance (CSP-safe, authenticated) #}
+            {# Auth context for JS (Issue #272 - Native HubSpot membership only) #}
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
             <div id="hhl-auth-context"
-                 data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
-                 data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
+                 data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
+                 data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
+                 data-firstname="{% if request_contact.is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
+                 data-lastname="{% if request_contact.is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
                  data-enable-crm="true"
                  data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                  style="display:none"></div>
@@ -700,6 +702,7 @@
             {# Load external JS to avoid inline script CSP issues #}
             <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/toast.js') }}"></script>
             <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-context.js') }}"></script>
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-breadcrumbs.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-navigation.js') }}"></script>

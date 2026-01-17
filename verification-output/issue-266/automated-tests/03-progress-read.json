@@ -1,0 +1,82 @@
+{
+  "mode": "authenticated",
+  "progress": {
+    "kubernetes-foundations": {
+      "modules": {
+        "k8s-networking-fundamentals": {
+          "started": true,
+          "started_at": "2025-10-12T05:06:40.136Z",
+          "completed": true,
+          "completed_at": "2025-10-12T05:06:50.703Z"
+        }
+      }
+    },
+    "test-pathway-oauth": {
+      "modules": {
+        "test-module-oauth-1760315231": {
+          "started": true,
+          "started_at": "2025-10-13T00:27:12.814Z"
+        },
+        "test-module-oauth-1760326177": {
+          "started": true,
+          "started_at": "2025-10-13T03:29:38.600Z"
+        },
+        "test-module-oauth-1760326225": {
+          "started": true,
+          "started_at": "2025-10-13T03:30:25.909Z"
+        },
+        "test-module-oauth-1760331420": {
+          "started": true,
+          "started_at": "2025-10-13T04:57:01.500Z"
+        }
+      }
+    },
+    "unknown": {
+      "modules": {
+        "fabric-operations-welcome": {
+          "started": true,
+          "started_at": "2025-10-17T17:49:21.347Z"
+        }
+      }
+    },
+    "courses": {
+      "api-test-course": {
+        "modules": {
+          "api-test-module-started": {
+            "started": true,
+            "started_at": "2025-10-26T04:02:41.150Z"
+          },
+          "api-test-module-completed": {
+            "completed": true,
+            "completed_at": "2025-10-26T04:02:43.789Z"
+          }
+        },
+        "enrolled": true,
+        "enrolled_at": "2025-10-26T04:02:38.612Z",
+        "enrollment_source": "api_smoke_test",
+        "started": true,
+        "started_at": "2025-10-26T03:43:41.046Z"
+      }
+    },
+    "api-test-pathway": {
+      "modules": {
+        "api-test-pathway-module": {
+          "started": true,
+          "started_at": "2025-10-26T04:02:48.445Z"
+        }
+      },
+      "enrolled": true,
+      "enrolled_at": "2025-10-26T04:02:46.075Z",
+      "enrollment_source": "api_smoke_test",
+      "started": true,
+      "started_at": "2025-10-26T03:43:48.836Z"
+    }
+  },
+  "updated_at": "2025-10-26",
+  "summary": "kubernetes-foundations: 1/1 modules; test-pathway-oauth: 0/4 modules; unknown: 0/1 modules; api-test-course: 1/2 modules; api-test-pathway: 0/1 modules",
+  "last_viewed": {
+    "type": null,
+    "slug": null,
+    "at": null
+  }
+}
