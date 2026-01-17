@@ -1,0 +1,70 @@
+{
+  "TableName": "hedgehog-learn-badges-${stage}",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "StreamSpecification": {
+    "StreamEnabled": true,
+    "StreamViewType": "NEW_AND_OLD_IMAGES"
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "hedgehog-learn"
+    },
+    {
+      "Key": "Environment",
+      "Value": "${stage}"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "serverless-framework"
+    },
+    {
+      "Key": "Component",
+      "Value": "external-sso"
+    }
+  ],
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "SSESpecification": {
+    "Enabled": true,
+    "SSEType": "KMS"
+  },
+  "Schema": {
+    "PK": "USER#<userId>",
+    "SK": "BADGE#<badgeId>#<issuedAt>",
+    "attributes": {
+      "userId": "Cognito sub (references users table)",
+      "badgeId": "Badge type identifier",
+      "issuedAt": "ISO 8601 timestamp",
+      "metadata": {
+        "courseSlug": "Course slug if badge is course-specific (optional)",
+        "pathwaySlug": "Pathway slug if badge is pathway-specific (optional)",
+        "title": "Badge title",
+        "description": "Badge description (optional)",
+        "imageUrl": "Badge image URL (optional)",
+        "criteria": "Criteria met for badge issuance"
+      }
+    }
+  }
+}

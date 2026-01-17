@@ -14,6 +14,36 @@ provider:
     ENABLE_CRM_PROGRESS: ${env:ENABLE_CRM_PROGRESS, 'false'}
     PROGRESS_BACKEND: ${env:PROGRESS_BACKEND, 'properties'}
     JWT_SECRET: ${env:JWT_SECRET}
+    # DynamoDB table names for External SSO + Progress Store (Issue #302)
+    DYNAMODB_USERS_TABLE: ${self:service}-users-${sls:stage}
+    DYNAMODB_ENROLLMENTS_TABLE: ${self:service}-enrollments-${sls:stage}
+    DYNAMODB_PROGRESS_TABLE: ${self:service}-progress-${sls:stage}
+    DYNAMODB_BADGES_TABLE: ${self:service}-badges-${sls:stage}
+  iam:
+    role:
+      statements:
+        # DynamoDB access for External SSO + Progress Store (Issue #302)
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - Fn::GetAtt: [UsersTable, Arn]
+            - Fn::Join:
+              - '/'
+              - - Fn::GetAtt: [UsersTable, Arn]
+                - 'index/*'
+            - Fn::GetAtt: [EnrollmentsTable, Arn]
+            - Fn::Join:
+              - '/'
+              - - Fn::GetAtt: [EnrollmentsTable, Arn]
+                - 'index/*'
+            - Fn::GetAtt: [ProgressTable, Arn]
+            - Fn::GetAtt: [BadgesTable, Arn]
   httpApi:
     cors:
       allowedOrigins:
@@ -203,6 +233,161 @@ package:
 
 resources:
   Resources:
+    # DynamoDB Tables for External SSO + Progress Store (Issue #302)
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-users-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamEnabled: true
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: ${sls:stage}
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: external-sso
+
+    EnrollmentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-enrollments-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamEnabled: true
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: ${sls:stage}
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: external-sso
+
+    ProgressTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-progress-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        StreamSpecification:
+          StreamEnabled: true
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: ${sls:stage}
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: external-sso
+
+    BadgesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-badges-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        StreamSpecification:
+          StreamEnabled: true
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: ${sls:stage}
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: external-sso
+
     # CloudWatch Logs - 30 day retention for MVP launch
     ApiLogGroup:
       Type: AWS::Logs::LogGroup

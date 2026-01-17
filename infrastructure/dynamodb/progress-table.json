@@ -1,0 +1,68 @@
+{
+  "TableName": "hedgehog-learn-progress-${stage}",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "StreamSpecification": {
+    "StreamEnabled": true,
+    "StreamViewType": "NEW_AND_OLD_IMAGES"
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "hedgehog-learn"
+    },
+    {
+      "Key": "Environment",
+      "Value": "${stage}"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "serverless-framework"
+    },
+    {
+      "Key": "Component",
+      "Value": "external-sso"
+    }
+  ],
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "SSESpecification": {
+    "Enabled": true,
+    "SSEType": "KMS"
+  },
+  "Schema": {
+    "PK": "USER#<userId>#COURSE#<courseSlug>",
+    "SK": "MODULE#<moduleId>",
+    "attributes": {
+      "userId": "Cognito sub (references users table)",
+      "courseSlug": "Course slug identifier",
+      "moduleId": "Module identifier",
+      "completed": "Boolean completion status",
+      "completedAt": "ISO 8601 timestamp (when module was completed)",
+      "quizScore": "Quiz score (optional)",
+      "quizAttempts": "Number of quiz attempts (optional)",
+      "timeSpent": "Time spent in seconds (optional)",
+      "updatedAt": "ISO 8601 timestamp"
+    }
+  }
+}
