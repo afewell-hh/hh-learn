@@ -57,7 +57,7 @@ provider:
         - GET
         - POST
         - OPTIONS
-      allowCredentials: false
+      allowCredentials: true
 
 functions:
   api:
