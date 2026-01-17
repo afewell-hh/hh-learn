@@ -177,7 +177,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     // Cognito OAuth endpoints (Issue #303)
     if (path.endsWith('/auth/login') && method === 'GET') return await cognitoLogin(event);
     if (path.endsWith('/auth/callback') && method === 'GET') return await cognitoCallback(event);
-    if (path.endsWith('/auth/logout') && method === 'POST') return await cognitoLogout(event);
+    if (path.endsWith('/auth/logout') && (method === 'POST' || method === 'GET')) return await cognitoLogout(event);
     if (path.endsWith('/auth/me') && method === 'GET') return await cognitoMe(event);
 
     // Existing GET endpoints

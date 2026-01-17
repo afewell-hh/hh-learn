@@ -280,11 +280,11 @@ async function handleCallback(event) {
                 statusCode: 302,
                 headers: {
                     Location: stateData.redirect_url || '/learn',
-                    'Set-Cookie': [
-                        createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE),
-                        createCookieString('hhl_refresh_token', 'mock_refresh_token_for_testing', REFRESH_TOKEN_MAX_AGE, '/auth'),
-                    ].join(', '),
                 },
+                cookies: [
+                    createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE),
+                    createCookieString('hhl_refresh_token', 'mock_refresh_token_for_testing', REFRESH_TOKEN_MAX_AGE, '/auth'),
+                ],
             };
         }
         // Decode and validate state
@@ -314,8 +314,8 @@ async function handleCallback(event) {
             statusCode: 302,
             headers: {
                 Location: stateData.redirect_url || '/learn',
-                'Set-Cookie': cookies.join(', '),
             },
+            cookies,
         };
     }
     catch (err) {
@@ -346,8 +346,8 @@ async function handleLogout(event) {
             statusCode: 302,
             headers: {
                 Location: logoutUrl.toString(),
-                'Set-Cookie': cookies.join(', '),
             },
+            cookies,
         };
     }
     catch (err) {
@@ -357,11 +357,11 @@ async function handleLogout(event) {
             statusCode: 302,
             headers: {
                 Location: '/learn',
-                'Set-Cookie': [
-                    clearCookieString('hhl_access_token'),
-                    clearCookieString('hhl_refresh_token', '/auth'),
-                ].join(', '),
             },
+            cookies: [
+                clearCookieString('hhl_access_token'),
+                clearCookieString('hhl_refresh_token', '/auth'),
+            ],
         };
     }
 }

@@ -137,7 +137,7 @@ const handler = async (event) => {
             return await (0, cognito_auth_js_1.handleLogin)(event);
         if (path.endsWith('/auth/callback') && method === 'GET')
             return await (0, cognito_auth_js_1.handleCallback)(event);
-        if (path.endsWith('/auth/logout') && method === 'POST')
+        if (path.endsWith('/auth/logout') && (method === 'POST' || method === 'GET'))
             return await (0, cognito_auth_js_1.handleLogout)(event);
         if (path.endsWith('/auth/me') && method === 'GET')
             return await (0, cognito_auth_js_1.handleMe)(event);

@@ -80,6 +80,9 @@ functions:
           method: GET
       - httpApi:
           path: /auth/logout
+          method: GET
+      - httpApi:
+          path: /auth/logout
           method: POST
       - httpApi:
           path: /auth/me
