@@ -167,6 +167,44 @@ export const pathwayProgressStateSchema = z.object({
   modules: z.record(moduleProgressStateSchema).optional(),
 });
 
+// =============================================================================
+// Issue #304: Protected API Endpoints - Validation Schemas
+// =============================================================================
+
+// Slug validation (only lowercase letters, numbers, and hyphens)
+const slugRegex = /^[a-z0-9-]+$/;
+
+// POST /api/enrollments - Create new enrollment
+export const enrollmentCreateSchema = z.object({
+  courseSlug: z.string().min(1).max(MAX_SLUG_LENGTH).regex(slugRegex, {
+    message: 'courseSlug must contain only lowercase letters, numbers, and hyphens',
+  }),
+  pathwaySlug: z.string().min(1).max(MAX_SLUG_LENGTH).regex(slugRegex, {
+    message: 'pathwaySlug must contain only lowercase letters, numbers, and hyphens',
+  }).optional(),
+  enrollmentSource: z.string().min(1).max(MAX_STRING_LENGTH),
+});
+
+// DELETE /api/enrollments/:courseSlug - courseSlug path parameter validation
+export const courseSlugParamSchema = z.object({
+  courseSlug: z.string().min(1).max(MAX_SLUG_LENGTH).regex(slugRegex, {
+    message: 'courseSlug must contain only lowercase letters, numbers, and hyphens',
+  }),
+});
+
+// POST /api/progress - Update module progress
+export const progressUpdateSchema = z.object({
+  courseSlug: z.string().min(1).max(MAX_SLUG_LENGTH).regex(slugRegex, {
+    message: 'courseSlug must contain only lowercase letters, numbers, and hyphens',
+  }),
+  moduleId: z.string().min(1).max(MAX_SLUG_LENGTH).regex(slugRegex, {
+    message: 'moduleId must contain only lowercase letters, numbers, and hyphens',
+  }),
+  eventType: z.enum(['started', 'completed'], {
+    errorMap: () => ({ message: 'eventType must be "started" or "completed"' }),
+  }),
+});
+
 /**
  * Validation helper that returns descriptive error messages
  */

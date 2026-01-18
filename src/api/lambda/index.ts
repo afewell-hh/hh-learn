@@ -29,6 +29,15 @@ import {
   handleLogout as cognitoLogout,
   handleMe as cognitoMe,
 } from './cognito-auth.js';
+import {
+  listEnrollments,
+  createEnrollment,
+  deleteEnrollment,
+  getCourseProgress,
+  updateProgress,
+  listBadges,
+  healthCheck,
+} from './protected-api.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -180,10 +189,19 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (path.endsWith('/auth/logout') && (method === 'POST' || method === 'GET')) return await cognitoLogout(event);
     if (path.endsWith('/auth/me') && method === 'GET') return await cognitoMe(event);
 
-    // Existing GET endpoints
+    // Protected API endpoints (Issue #304)
+    if (path.endsWith('/api/health') && method === 'GET') return await healthCheck(event);
+    if (path.endsWith('/api/enrollments') && method === 'GET') return await listEnrollments(event);
+    if (path.endsWith('/api/enrollments') && method === 'POST') return await createEnrollment(event);
+    if (path.match(/\/api\/enrollments\/[^/]+$/) && method === 'DELETE') return await deleteEnrollment(event);
+    if (path.match(/\/api\/progress\/[^/]+$/) && method === 'GET') return await getCourseProgress(event);
+    if (path.endsWith('/api/progress') && method === 'POST') return await updateProgress(event);
+    if (path.endsWith('/api/badges') && method === 'GET') return await listBadges(event);
+
+    // Legacy GET endpoints
     if (path.endsWith('/progress/read') && method === 'GET') return await readProgress(event, origin);
     if (path.endsWith('/progress/aggregate') && method === 'GET') return await getAggregatedProgress(event, origin);
-    if (path.endsWith('/enrollments/list') && method === 'GET') return await listEnrollments(event, origin);
+    if (path.endsWith('/enrollments/list') && method === 'GET') return await listEnrollments_Legacy(event, origin);
 
     // Legacy POST endpoints
     if (method !== 'POST') return bad(405, 'Method not allowed', origin);
@@ -198,7 +216,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   }
 };
 
-async function listEnrollments(event: any, origin?: string) {
+async function listEnrollments_Legacy(event: any, origin?: string) {
   const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
   if (!enableCrmProgress) return bad(401, 'CRM progress not enabled', origin);
 

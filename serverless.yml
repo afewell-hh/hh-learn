@@ -64,6 +64,7 @@ provider:
       allowedMethods:
         - GET
         - POST
+        - DELETE
         - OPTIONS
       allowCredentials: true
 
@@ -86,6 +87,28 @@ functions:
           method: POST
       - httpApi:
           path: /auth/me
+          method: GET
+      # Protected API endpoints (Issue #304)
+      - httpApi:
+          path: /api/health
+          method: GET
+      - httpApi:
+          path: /api/enrollments
+          method: GET
+      - httpApi:
+          path: /api/enrollments
+          method: POST
+      - httpApi:
+          path: /api/enrollments/{courseSlug}
+          method: DELETE
+      - httpApi:
+          path: /api/progress/{courseSlug}
+          method: GET
+      - httpApi:
+          path: /api/progress
+          method: POST
+      - httpApi:
+          path: /api/badges
           method: GET
       # Legacy endpoints
       - httpApi:
