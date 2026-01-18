@@ -720,10 +720,8 @@ async function createLearningContact(
       properties: {
         email,
         lifecyclestage: 'lead',
-        hhl_enrolled_courses: '',
-        hhl_completed_courses: '',
-        hhl_total_progress: '0',
-        hhl_last_activity: dateOnly,
+        // Omit milestone properties on creation - will be set on first update
+        // HubSpot may reject empty strings even if regex allows them
         hhl_progress_state: '{}',
         hhl_progress_summary: 'No progress yet',
       },
