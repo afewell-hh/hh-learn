@@ -6,7 +6,6 @@ const validation_js_1 = require("../../shared/validation.js");
 const completion_js_1 = require("./completion.js");
 const auth_js_1 = require("./auth.js");
 const cognito_auth_js_1 = require("./cognito-auth.js");
-const protected_api_js_1 = require("./protected-api.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -142,28 +141,13 @@ const handler = async (event) => {
             return await (0, cognito_auth_js_1.handleLogout)(event);
         if (path.endsWith('/auth/me') && method === 'GET')
             return await (0, cognito_auth_js_1.handleMe)(event);
-        // Protected API endpoints (Issue #304)
-        if (path.endsWith('/api/health') && method === 'GET')
-            return await (0, protected_api_js_1.healthCheck)(event);
-        if (path.endsWith('/api/enrollments') && method === 'GET')
-            return await (0, protected_api_js_1.listEnrollments)(event);
-        if (path.endsWith('/api/enrollments') && method === 'POST')
-            return await (0, protected_api_js_1.createEnrollment)(event);
-        if (path.match(/\/api\/enrollments\/[^/]+$/) && method === 'DELETE')
-            return await (0, protected_api_js_1.deleteEnrollment)(event);
-        if (path.match(/\/api\/progress\/[^/]+$/) && method === 'GET')
-            return await (0, protected_api_js_1.getCourseProgress)(event);
-        if (path.endsWith('/api/progress') && method === 'POST')
-            return await (0, protected_api_js_1.updateProgress)(event);
-        if (path.endsWith('/api/badges') && method === 'GET')
-            return await (0, protected_api_js_1.listBadges)(event);
-        // Legacy GET endpoints
+        // Existing GET endpoints
         if (path.endsWith('/progress/read') && method === 'GET')
             return await readProgress(event, origin);
         if (path.endsWith('/progress/aggregate') && method === 'GET')
             return await getAggregatedProgress(event, origin);
         if (path.endsWith('/enrollments/list') && method === 'GET')
-            return await listEnrollments_Legacy(event, origin);
+            return await listEnrollments(event, origin);
         // Legacy POST endpoints
         if (method !== 'POST')
             return bad(405, 'Method not allowed', origin);
@@ -181,7 +165,7 @@ const handler = async (event) => {
     }
 };
 exports.handler = handler;
-async function listEnrollments_Legacy(event, origin) {
+async function listEnrollments(event, origin) {
     const enableCrmProgress = process.env.ENABLE_CRM_PROGRESS === 'true';
     if (!enableCrmProgress)
         return bad(401, 'CRM progress not enabled', origin);
@@ -788,14 +772,19 @@ async function persistViaContactProperties(hubspot, input) {
         'hhl_total_progress',
     ]);
     let progressState = {};
+    let hasExistingProgress = false;
     try {
         if (contact.properties.hhl_progress_state) {
             progressState = JSON.parse(contact.properties.hhl_progress_state);
+            hasExistingProgress = true;
         }
     }
     catch (err) {
-        console.warn('Failed to parse existing progress state, starting fresh:', err);
-        progressState = {};
+        // Parse failed - existing data is corrupted
+        // Cannot safely merge new event into corrupted state
+        // Throw error to trigger fallback mode (Issue #305 - preserve user experience)
+        console.error('[CRM] Failed to parse hhl_progress_state for contact', contactId, '- cannot merge new progress:', err);
+        throw new Error(`Cannot update progress: existing progress state is corrupted for contact ${contactId}`);
     }
     // Extract existing milestone values
     const existingEnrolled = contact.properties.hhl_enrolled_courses || '';

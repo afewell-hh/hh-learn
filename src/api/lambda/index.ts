@@ -873,14 +873,19 @@ async function persistViaContactProperties(hubspot: any, input: TrackEventInput)
     'hhl_total_progress',
   ]);
   let progressState: any = {};
+  let hasExistingProgress = false;
 
   try {
     if (contact.properties.hhl_progress_state) {
       progressState = JSON.parse(contact.properties.hhl_progress_state);
+      hasExistingProgress = true;
     }
   } catch (err) {
-    console.warn('Failed to parse existing progress state, starting fresh:', err);
-    progressState = {};
+    // Parse failed - existing data is corrupted
+    // Cannot safely merge new event into corrupted state
+    // Throw error to trigger fallback mode (Issue #305 - preserve user experience)
+    console.error('[CRM] Failed to parse hhl_progress_state for contact', contactId, '- cannot merge new progress:', err);
+    throw new Error(`Cannot update progress: existing progress state is corrupted for contact ${contactId}`);
   }
 
   // Extract existing milestone values
