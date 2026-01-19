@@ -627,48 +627,167 @@ function updatePathwayAggregates(pathwaySlug, pathway) {
     }
 }
 /**
+ * Create a new contact in HubSpot with minimal learning profile (Issue #305)
+ * Returns contactId on success, null on failure
+ */
+async function createLearningContact(hubspot, email) {
+    try {
+        const dateOnly = new Date().toISOString().split('T')[0];
+        const response = await hubspot.crm.contacts.basicApi.create({
+            properties: {
+                email,
+                lifecyclestage: 'lead',
+                // Omit milestone properties on creation - will be set on first update
+                // HubSpot may reject empty strings even if regex allows them
+                hhl_progress_state: '{}',
+                hhl_progress_summary: 'No progress yet',
+            },
+        });
+        console.log('[CRM] Created new learning contact:', email, 'contactId:', response.id);
+        return response.id;
+    }
+    catch (err) {
+        console.error('[CRM] Failed to create contact:', email, err.message || err);
+        return null;
+    }
+}
+/**
+ * Calculate and return milestone property updates (Issue #305)
+ * Returns delta updates for enrolled/completed courses and total progress
+ */
+function calculateMilestoneUpdates(progressState, existingEnrolled, existingCompleted, existingTotalProgress) {
+    const enrolledCourses = new Set(existingEnrolled ? existingEnrolled.split(';').filter(Boolean) : []);
+    const completedCourses = new Set(existingCompleted ? existingCompleted.split(';').filter(Boolean) : []);
+    let totalModulesCompleted = 0;
+    // Check if progressState is empty or invalid
+    const hasProgressData = progressState && Object.keys(progressState).length > 0;
+    if (!hasProgressData) {
+        // Progress state is empty - preserve existing milestone values
+        console.warn('[CRM] Progress state empty, preserving existing milestone values');
+        return {
+            hhl_enrolled_courses: existingEnrolled,
+            hhl_completed_courses: existingCompleted,
+            hhl_total_progress: existingTotalProgress.toString(),
+        };
+    }
+    // Parse progress state and extract enrolled/completed courses
+    for (const [key, value] of Object.entries(progressState)) {
+        if (key === 'courses') {
+            // Standalone courses
+            const courses = value;
+            for (const [courseSlug, courseData] of Object.entries(courses)) {
+                const course = courseData;
+                if (course.enrolled)
+                    enrolledCourses.add(courseSlug);
+                if (course.completed)
+                    completedCourses.add(courseSlug);
+                // Count completed modules
+                const modules = Object.values(course.modules || {});
+                totalModulesCompleted += modules.filter(m => m.completed).length;
+            }
+        }
+        else {
+            // Pathway
+            const pathway = value;
+            if (pathway.courses) {
+                // Hierarchical model
+                for (const [courseSlug, courseData] of Object.entries(pathway.courses)) {
+                    const course = courseData;
+                    if (course.enrolled)
+                        enrolledCourses.add(courseSlug);
+                    if (course.completed)
+                        completedCourses.add(courseSlug);
+                    const modules = Object.values(course.modules || {});
+                    totalModulesCompleted += modules.filter(m => m.completed).length;
+                }
+            }
+            else if (pathway.modules) {
+                // Flat model - count modules
+                const modules = Object.values(pathway.modules || {});
+                totalModulesCompleted += modules.filter(m => m.completed).length;
+            }
+        }
+    }
+    return {
+        hhl_enrolled_courses: Array.from(enrolledCourses).sort().join(';'),
+        hhl_completed_courses: Array.from(completedCourses).sort().join(';'),
+        hhl_total_progress: totalModulesCompleted.toString(),
+    };
+}
+/**
  * Persist progress via Contact Properties (MVP default)
  * Uses hhl_progress_state property to store JSON progress data
  */
 async function persistViaContactProperties(hubspot, input) {
     // Find contact by email or ID
-    let contactId;
+    let contactId = null;
     if (input.contactIdentifier?.contactId) {
         contactId = input.contactIdentifier.contactId;
     }
     else if (input.contactIdentifier?.email) {
+        const email = input.contactIdentifier.email;
         // Look up contact by email
         const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
             filterGroups: [{
                     filters: [{
                             propertyName: 'email',
                             operator: 'EQ',
-                            value: input.contactIdentifier.email,
+                            value: email,
                         }],
                 }],
-            properties: ['hhl_progress_state'],
+            properties: [
+                'hhl_progress_state',
+                'hhl_enrolled_courses',
+                'hhl_completed_courses',
+                'hhl_total_progress'
+            ],
             limit: 1,
         });
-        if (!searchResponse.results || searchResponse.results.length === 0) {
-            throw new Error(`Contact not found for email: ${input.contactIdentifier.email}`);
+        if (searchResponse.results && searchResponse.results.length > 0) {
+            contactId = searchResponse.results[0].id;
         }
-        contactId = searchResponse.results[0].id;
+        else {
+            // Contact not found - create new contact (Phase 5 / Issue #305)
+            console.log('[CRM] Contact not found, creating new contact:', email);
+            contactId = await createLearningContact(hubspot, email);
+            if (!contactId) {
+                // Contact creation failed - don't block user, just log
+                throw new Error(`Failed to create contact for email: ${email}`);
+            }
+        }
     }
     else {
         throw new Error('No contact identifier provided');
     }
-    // Read current progress state
-    const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['hhl_progress_state']);
+    if (!contactId) {
+        throw new Error('Unable to resolve contact');
+    }
+    // Read current progress state and milestone properties (Issue #305)
+    const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
+        'hhl_progress_state',
+        'hhl_enrolled_courses',
+        'hhl_completed_courses',
+        'hhl_total_progress',
+    ]);
     let progressState = {};
+    let hasExistingProgress = false;
     try {
         if (contact.properties.hhl_progress_state) {
             progressState = JSON.parse(contact.properties.hhl_progress_state);
+            hasExistingProgress = true;
         }
     }
     catch (err) {
-        console.warn('Failed to parse existing progress state, starting fresh:', err);
-        progressState = {};
+        // Parse failed - existing data is corrupted
+        // Cannot safely merge new event into corrupted state
+        // Throw error to trigger fallback mode (Issue #305 - preserve user experience)
+        console.error('[CRM] Failed to parse hhl_progress_state for contact', contactId, '- cannot merge new progress:', err);
+        throw new Error(`Cannot update progress: existing progress state is corrupted for contact ${contactId}`);
     }
+    // Extract existing milestone values
+    const existingEnrolled = contact.properties.hhl_enrolled_courses || '';
+    const existingCompleted = contact.properties.hhl_completed_courses || '';
+    const existingTotalProgress = parseInt(contact.properties.hhl_total_progress || '0', 10);
     // Extract pathway, course, and module info from payload or top-level fields
     const pathwaySlug = input.pathway_slug || input.payload?.pathway_slug || null;
     const courseSlug = input.course_slug || input.payload?.course_slug || null;
@@ -892,11 +1011,15 @@ async function persistViaContactProperties(hubspot, input) {
             console.warn(`[Completion] Pathway data not found for learning_pathway_completed: ${pathwaySlug}`);
         }
     }
+    // Calculate milestone updates (Issue #305)
+    const milestoneUpdates = calculateMilestoneUpdates(progressState, existingEnrolled, existingCompleted, existingTotalProgress);
     // Base properties to update
     const props = {
         hhl_progress_state: JSON.stringify(progressState),
         hhl_progress_updated_at: dateOnly, // Date-only format (YYYY-MM-DD) for HubSpot date property
         hhl_progress_summary: generateProgressSummary(progressState),
+        ...milestoneUpdates, // Add milestone properties
+        hhl_last_activity: dateOnly, // Always update last activity (Issue #305)
     };
     // Handle page view → last viewed properties
     if (input.eventName === 'learning_page_viewed') {
