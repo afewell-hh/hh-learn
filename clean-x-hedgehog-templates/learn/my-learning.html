@@ -10,7 +10,7 @@
   {# SEO metadata for My Learning dashboard #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
-  {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+  {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
 
   <title>My Learning - Learn Hedgehog AI Networking</title>
   <meta name="description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
@@ -35,10 +35,7 @@
 {% endblock head %}
 
 {% block body %}
-{# If user is not logged in, redirect to LOGIN_URL preserving return URL #}
-{% if not request_contact.is_logged_in %}
-  <meta http-equiv="refresh" content="0; url={{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">
-{% endif %}
+{# Client-side auth handles login for Cognito; avoid server-side redirects. #}
 <style>
   /* Header section styling */
   .learn-header-section {
@@ -510,14 +507,14 @@
             </div>
           </div>
           {# Show synced indicator when authenticated and CRM progress enabled #}
-          {% if request_contact.is_logged_in and constants.ENABLE_CRM_PROGRESS %}
+          {% if request_contact.is_logged_in and request_contact.email and constants.ENABLE_CRM_PROGRESS %}
           <div class="synced-indicator" style="display: flex;">
             <span class="synced-indicator-icon">✓</span>
             <span>Progress synced across devices</span>
           </div>
           {% else %}
           <div class="auth-prompt" id="auth-prompt">
-            {% if request_contact.is_logged_in %}
+            {% if request_contact.is_logged_in and request_contact.email %}
               ℹ️ Progress is saved locally in your browser. Enable CRM sync in settings to sync across devices.
             {% else %}
               ℹ️ Progress is saved locally in your browser. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
@@ -573,14 +570,15 @@
 {# Auth context for external JS and constants URL (Issue #272 - Native HubSpot membership only) #}
 {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
 <div id="hhl-auth-context"
-     data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
-     data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
-     data-firstname="{% if request_contact.is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
-     data-lastname="{% if request_contact.is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
+     data-email="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.email|default('', true) }}{% endif %}"
+     data-contact-id="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
+     data-firstname="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.firstname|default('', true) }}{% endif %}"
+     data-lastname="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.lastname|default('', true) }}{% endif %}"
      data-enable-crm="true"
      data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
      style="display:none"></div>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/my-learning.js') }}"></script>
 {% endblock body %}

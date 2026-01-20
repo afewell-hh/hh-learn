@@ -7,8 +7,8 @@
  *   node scripts/create-crm-properties.js
  *
  * Prerequisites:
- *   - HUBSPOT_PRIVATE_APP_TOKEN in environment
- *   - Private app must have crm.schemas.contacts.write scope
+ *   - HUBSPOT_PROJECT_ACCESS_TOKEN (preferred) or HUBSPOT_PRIVATE_APP_TOKEN (legacy fallback)
+ *   - Token must include crm.schemas.contacts.write scope
  */
 
 const hubspot = require('@hubspot/api-client');
@@ -91,11 +91,11 @@ async function createProperty(client, propertyDef) {
 }
 
 async function main() {
-  const token = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+  const token = process.env.HUBSPOT_PROJECT_ACCESS_TOKEN || process.env.HUBSPOT_PRIVATE_APP_TOKEN;
 
   if (!token) {
-    console.error('ERROR: HUBSPOT_PRIVATE_APP_TOKEN not set in environment');
-    console.error('Please set the token and try again.');
+    console.error('ERROR: No HubSpot access token set in environment');
+    console.error('Set HUBSPOT_PROJECT_ACCESS_TOKEN (preferred) or HUBSPOT_PRIVATE_APP_TOKEN (legacy).');
     process.exit(1);
   }
 

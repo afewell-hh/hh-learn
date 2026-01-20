@@ -2,11 +2,10 @@
 {% macro learning_left_nav(current_page, show_filters=true) %}
   {# Get constants for auth URLs #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-  {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
-  {% set logout_url = constants.LOGOUT_URL|default('/_hcms/mem/logout') if constants else '/_hcms/mem/logout' %}
+  {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+  {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
 
-  {% set contact_email = personalization_token('contact.email', '') %}
-  {% set is_logged_in = request_contact.is_logged_in or contact_email %}
+  {% set is_logged_in = request_contact.is_logged_in and request_contact.email %}
   <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation" data-request-contact="{{ 'true' if is_logged_in else 'false' }}">
     <div class="learn-left-nav-content">
       {# Navigation Links #}

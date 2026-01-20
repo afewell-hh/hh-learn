@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-01-19T23:00:15.200Z",
+  "phase": "Phase 6 - Frontend Integration",
+  "issue": "#306",
+  "testEnvironment": {
+    "baseUrl": "https://hedgehog.cloud",
+    "testCourseSlug": "network-like-hyperscaler-foundations"
+  },
+  "testCategories": [
+    "Anonymous Browsing",
+    "Sign-in CTA",
+    "Enrollment + Progress Display",
+    "Logout Flow",
+    "Cookie Handling",
+    "API Integration"
+  ],
+  "notes": [
+    "Tests verify end-to-end UX flows with Cognito OAuth integration",
+    "Auth cookies must be httpOnly, Secure, and SameSite=Strict",
+    "/auth/me endpoint provides user profile data",
+    "UI must gracefully handle both authenticated and anonymous states"
+  ]
+}

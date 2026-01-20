@@ -109,7 +109,7 @@
           <div class="registration-footer">
             <p>Already have an account?
               {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-              {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+              {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
               <a href="{{ login_url }}?redirect_url=/learn">Sign in here</a>
             </p>
           </div>

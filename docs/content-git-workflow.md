@@ -30,7 +30,7 @@ Authoring flow
 
 Environment
 - Required `.env` vars (see `.env.example`):
-  - `HUBSPOT_PRIVATE_APP_TOKEN`, `HUBSPOT_ACCOUNT_ID`
+  - `HUBSPOT_PROJECT_ACCESS_TOKEN`, `HUBSPOT_ACCOUNT_ID`
   - `HUBDB_MODULES_TABLE_ID`, `HUBDB_COURSES_TABLE_ID`, `HUBDB_PATHWAYS_TABLE_ID`
 
 Finding content
@@ -44,4 +44,3 @@ Releases
 Branch hygiene
 - Delete feature branches after merge.
 - Stale branches (>30 days, no open PR) are pruned monthly.
-

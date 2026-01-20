@@ -546,9 +546,9 @@
 
           {# Enrollment CTA Block #}
           {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+          {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
           {% set contact_email = personalization_token('contact.email', '') %}
-          {% set is_logged_in = request_contact.is_logged_in or contact_email %}
+          {% set is_logged_in = request_contact.is_logged_in and request_contact.email %}
           <div class="enrollment-cta-block" id="hhl-enrollment-cta" data-content-type="course" data-build-id="cta-v3-20251028" data-request-contact="{{ 'true' if is_logged_in else 'false' }}">
             <div class="enrollment-cta-title">Ready to Start This Course?</div>
             <div class="enrollment-cta-description">
@@ -592,7 +592,7 @@
               <div class="progress-bar" id="progress-bar" style="background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%); height: 100%; border-radius: 8px; transition: width 0.3s ease; width: 0%;"></div>
             </div>
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-            {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+            {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
             <div class="progress-auth-prompt" style="display: none; margin-top: 12px; padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 0.875rem; color: #78350f; align-items: center; gap: 8px;" id="auth-prompt">
               ℹ️ Progress is saved locally. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}" style="color: #92400e; font-weight: 600; text-decoration: underline;">Sign in</a> to sync across devices.
             </div>
@@ -839,17 +839,18 @@
     {# Auth context for pageview beacon (Issue #272 - Native HubSpot membership only) #}
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
           <div id="hhl-auth-context"
-               data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
-               data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
-               data-firstname="{% if request_contact.is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
-               data-lastname="{% if request_contact.is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
+               data-email="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.email|default('', true) }}{% endif %}"
+               data-contact-id="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
+               data-firstname="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.firstname|default('', true) }}{% endif %}"
+               data-lastname="{% if request_contact.is_logged_in and request_contact.email %}{{ request_contact.lastname|default('', true) }}{% endif %}"
                data-enable-crm="{{ constants.ENABLE_CRM_PROGRESS if constants else 'true' }}"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-login-url="{{ login_url }}"
-               data-authenticated="{{ 'true' if request_contact.is_logged_in else 'false' }}"
+               data-authenticated="{{ 'true' if request_contact.is_logged_in and request_contact.email else 'false' }}"
                style="display:none"></div>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
+    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/courses.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
     <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>

@@ -13,4 +13,17 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
+  projects: [
+    {
+      name: 'setup',
+      testMatch: ['tests/e2e/auth.setup.ts'],
+    },
+    {
+      name: 'e2e',
+      dependencies: ['setup'],
+      use: {
+        storageState: 'tests/e2e/.auth/user.json',
+      },
+    },
+  ],
 });

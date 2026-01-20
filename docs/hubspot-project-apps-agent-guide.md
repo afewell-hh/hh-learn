@@ -600,6 +600,10 @@ grep -r "hubspot" src/ --include="*.ts"
 grep -r "HUBSPOT_PROJECT_ACCESS_TOKEN" .
 ```
 
+**Step 2b: Keep scripts aligned with Project App tokens**
+- Scripts should use `scripts/hubspot/get-hubspot-token.ts` (Project App token first).
+- Avoid hardcoding `HUBSPOT_PRIVATE_APP_TOKEN` in new tooling or docs.
+
 **Step 3: Test with HubSpot Node.js client first**
 
 The official `@hubspot/api-client` package handles auth correctly:

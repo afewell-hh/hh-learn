@@ -296,7 +296,7 @@ const props: Record<string, any> = {
 No new environment variables needed. Uses existing:
 - `ENABLE_CRM_PROGRESS=true`
 - `PROGRESS_BACKEND=properties`
-- `HUBSPOT_PRIVATE_APP_TOKEN`
+- `HUBSPOT_PROJECT_ACCESS_TOKEN`
 
 ### Step 4: Deploy and Test
 

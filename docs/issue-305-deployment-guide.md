@@ -12,7 +12,7 @@ Phase 5 adds:
 
 ## Prerequisites
 
-- [ ] HubSpot Private App token with scopes:
+- [ ] HubSpot Project App access token with scopes:
   - `crm.objects.contacts.read`
   - `crm.objects.contacts.write`
   - `crm.schemas.contacts.write` (for property creation)
@@ -24,11 +24,11 @@ Phase 5 adds:
 
 ### Step 1: Create HubSpot Contact Properties
 
-Run the property creation script:
+Run the property creation script (uses `HUBSPOT_PROJECT_ACCESS_TOKEN` when set):
 
 ```bash
 cd /home/ubuntu/afewell-hh/hh-learn
-node scripts/create-crm-properties.js
+npm run provision:crm-properties
 ```
 
 **Expected Output:**
@@ -103,7 +103,7 @@ aws lambda get-function-configuration \
 Confirm these variables are set:
 - `ENABLE_CRM_PROGRESS=true`
 - `PROGRESS_BACKEND=properties`
-- `HUBSPOT_PRIVATE_APP_TOKEN=(set)`
+- `HUBSPOT_PROJECT_ACCESS_TOKEN=(set)`
 
 #### Production Environment
 
@@ -431,13 +431,13 @@ Investigate any patterns or spikes.
 - Response: `{ "status": "logged", "mode": "fallback" }`
 
 **Possible Causes:**
-1. Invalid HubSpot Private App token
+1. Invalid HubSpot Project App token
 2. Missing `crm.objects.contacts.write` scope
 3. Email format validation failure
 4. HubSpot API rate limit
 
 **Resolution:**
-1. Verify token scopes in HubSpot Settings → Integrations → Private Apps
+1. Verify scopes in `src/app/app-hsmeta.json` and update the Project App installation
 2. Check HubSpot API status page
 3. Review CloudWatch logs for specific error message
 
@@ -453,7 +453,7 @@ Investigate any patterns or spikes.
 3. Lambda code not deployed
 
 **Resolution:**
-1. Run `node scripts/create-crm-properties.js` again
+1. Run `npm run provision:crm-properties` again
 2. Verify Lambda deployment: `aws lambda get-function --function-name hedgehog-learn-dev-api`
 3. Check Lambda logs for property update errors
 

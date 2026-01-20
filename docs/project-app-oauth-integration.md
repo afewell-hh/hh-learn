@@ -73,14 +73,14 @@ The project app generates long-lived static bearer tokens that can be retrieved 
 2. **CLI context** (when running `hs` commands)
 3. **Project Settings UI** (manual extraction for external services like AWS Lambda)
 
-### Option B: Private App Token (Temporary Fallback)
+### Option B: Private App Token (Legacy Fallback Only)
 
-Keep existing Private App token as fallback until full migration is complete.
+Only use a Private App token as a temporary fallback if the Project App token is unavailable.
 
 **Environment Variable Priority**:
 ```javascript
 const token = process.env.HUBSPOT_PROJECT_ACCESS_TOKEN
-  || process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+  || process.env.HUBSPOT_PRIVATE_APP_TOKEN; // legacy fallback only
 ```
 
 ## Lambda Integration Strategy
@@ -200,22 +200,13 @@ curl -X POST "https://axo396gm7l.execute-api.us-west-2.amazonaws.com/events/trac
 ## Provisioning Scripts Update
 
 ### Current State
-Scripts use `HUBSPOT_PRIVATE_APP_TOKEN` directly:
-- `scripts/hubspot/upload-templates.ts`
-- `scripts/hubspot/provision-pages.ts`
-- `scripts/hubspot/publish-pages.ts`
+Provisioning scripts now use `scripts/hubspot/get-hubspot-token.ts`, which prefers
+`HUBSPOT_PROJECT_ACCESS_TOKEN` and only falls back to `HUBSPOT_PRIVATE_APP_TOKEN`
+for legacy compatibility.
 
-### Migration Strategy
-**Option A**: Update scripts to use project token (same as Lambda)
-```typescript
-const token = process.env.HUBSPOT_PROJECT_ACCESS_TOKEN ||
-              process.env.HUBSPOT_PRIVATE_APP_TOKEN;
-```
-
-**Option B**: Use `hs api` CLI commands (as suggested in Issue #60)
-- Delegate API calls to HubSpot CLI
-- CLI uses authenticated context automatically
-- No token management needed in scripts
+### Guidance
+- Keep scripts aligned with Project App tokens.
+- Avoid introducing new Private App–only instructions in docs or tooling.
 
 ## Testing Checklist
 

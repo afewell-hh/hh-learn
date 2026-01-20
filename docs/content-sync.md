@@ -31,7 +31,7 @@ Ensure the table uses `hs_path` for dynamic page routing when configuring the `/
 ## Local Workflow
 1. Copy `.env.example` → `.env` and provide:
    ```env
-   HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-...
+   HUBSPOT_PROJECT_ACCESS_TOKEN=pat-na1-...
    HUBDB_MODULES_TABLE_ID=<numeric id>
    ```
 2. Install dependencies: `npm install`.
@@ -47,7 +47,7 @@ The script automatically:
 GitHub Actions workflow `.github/workflows/sync-content.yml` runs `npm run sync:content` on pushes to `main` that touch `content/modules/**`.
 
 Required repository secrets:
-- `HUBSPOT_PRIVATE_APP_TOKEN`
+- `HUBSPOT_PROJECT_ACCESS_TOKEN`
 - `HUBDB_MODULES_TABLE_ID`
 
 After updating secrets, trigger the workflow manually from the Actions tab to validate access.
@@ -59,13 +59,13 @@ After updating secrets, trigger the workflow manually from the Actions tab to va
 4. **Publish** the page once list and detail views render as expected.
 
 ## Access Token & Scope Maintenance
-- **Scope changes**: If `app/app-hsmeta.json` scopes change, redeploy the project and click “Update installation” (or reinstall) in Developer Projects to grant new scopes.
-- **Token rotation**: Generate a fresh token from the Private App page whenever scopes change or a credential leak is suspected. Update the `.env`, GitHub secrets, and any CI secrets in other environments.
+- **Scope changes**: If `src/app/app-hsmeta.json` scopes change, redeploy the Project App and accept the updated installation so the new scopes are granted.
+- **Token rotation**: Generate a fresh **Project App access token** from the latest build distribution. Update `.env`, GitHub secrets, and any CI secrets in other environments.
 
-### Quick Regeneration Steps
-1. HubSpot **Settings → Integrations → Private Apps**.
-2. Select the Hedgehog Learn app, ensure HubDB read/write scopes are enabled.
-3. Click **Generate new token** and replace local/CI secrets.
+### Quick Regeneration Steps (Project App)
+1. Open Developer Projects → `hedgehog-learn-dev`.
+2. Open the latest build → Distribution → Install → copy the Access Token.
+3. Replace local/CI secrets (use `HUBSPOT_PROJECT_ACCESS_TOKEN`).
 4. Run `npm run sync:content` to confirm the token works.
 
 ### Updating the Installation
@@ -76,7 +76,7 @@ After updating secrets, trigger the workflow manually from the Actions tab to va
 ## Troubleshooting
 | Symptom | Likely Cause | Resolution |
 |---------|--------------|------------|
-| `requiredGranularScopes: ["hubdb"]` | Private app missing HubDB scope or installation not updated | Enable HubDB read/write scopes, update installation, regenerate token.
+| `requiredGranularScopes: ["hubdb"]` | Project App installation missing HubDB scope or not updated | Update Project App installation and regenerate the Project App token. |
 | `Authentication credentials not found` (401) | Token missing or incorrect | Confirm `.env`/secrets contain the active token and rerun.
 | `Cannot parse content. No Content-Type defined.` | Cloudflare block or transient API issue | Wait 5–10 minutes and retry; script handles retries automatically but persistent issues may require a new IP or contacting HubSpot support.
 | `Cloudflare block detected` on a specific module | HubSpot WAF rejected the rendered HTML (raw HTTP headers, `wget` commands, etc.) | Update the markdown to avoid suspicious strings (use `curl --resolve` instead of raw `Host:` headers, prefer `curl` over `wget`), then rerun the sync.
@@ -89,7 +89,7 @@ rg 'HUBDB_MODULES_TABLE_ID' .env
 
 # Test API connectivity (prefer Project token, fall back to Private App)
 TOKEN=${HUBSPOT_PROJECT_ACCESS_TOKEN:-$(grep -m1 HUBSPOT_PROJECT_ACCESS_TOKEN .env | cut -d'=' -f2)}
-TOKEN=${TOKEN:-$(grep -m1 HUBSPOT_PRIVATE_APP_TOKEN .env | cut -d'=' -f2)}
+TOKEN=${TOKEN:-$(grep -m1 HUBSPOT_PROJECT_ACCESS_TOKEN .env | cut -d'=' -f2)}
 TABLE_ID=$(grep HUBDB_MODULES_TABLE_ID .env | cut -d'=' -f2)
 curl -H "Authorization: Bearer $TOKEN" \
   "https://api.hubapi.com/cms/v3/hubdb/tables/${TABLE_ID}"
@@ -601,7 +601,7 @@ Page: Pathways
 Ensure these environment variables are set in your `.env` file:
 
 ```env
-HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-...
+HUBSPOT_PROJECT_ACCESS_TOKEN=pat-na1-...
 HUBDB_MODULES_TABLE_ID=<numeric id>
 HUBDB_COURSES_TABLE_ID=<numeric id>
 HUBDB_PATHWAYS_TABLE_ID=<numeric id>
@@ -695,7 +695,7 @@ After running `provision:all`, verify in HubSpot:
 
 | Symptom | Likely Cause | Resolution |
 |---------|--------------|------------|
-| `HUBSPOT_PRIVATE_APP_TOKEN environment variable not set` | Missing `.env` file or token | Ensure `.env` contains `HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-...` |
+| `HUBSPOT_PROJECT_ACCESS_TOKEN environment variable not set` | Missing `.env` file or token | Ensure `.env` contains `HUBSPOT_PROJECT_ACCESS_TOKEN=pat-na1-...` |
 | `HUBDB_COURSES_TABLE_ID environment variable not set` | Tables not provisioned yet | Run `provision:tables` first, then add IDs to `.env` |
 | `Error finding table` | API permissions or network issue | Check private app has HubDB read/write scopes; retry after delay |
 | `Error finding page with slug` | Pages API permissions | Check private app has CMS Pages read/write scopes |

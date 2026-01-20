@@ -257,7 +257,7 @@ cp .env.example .env
 
 Edit `.env` and add:
 ```env
-HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-your-token-here
+HUBSPOT_PROJECT_ACCESS_TOKEN=pat-na1-your-token-here
 HUBDB_MODULES_TABLE_ID=your-table-id
 ```
 
@@ -566,14 +566,13 @@ After publishing, verify:
 
 ### Issue: Sync Fails with "requiredGranularScopes: [hubdb]"
 
-**Cause**: HubSpot private app token missing HubDB scopes
+**Cause**: Project App installation missing HubDB scopes
 
 **Fix**:
-1. Go to HubSpot → Settings → Integrations → Private Apps
-2. Select the app
-3. Enable **HubDB** read/write scopes
-4. Regenerate token
-5. Update `.env` or CI secrets
+1. Update `src/app/app-hsmeta.json` with required scopes (if needed)
+2. Deploy the Project App and accept the updated installation scopes
+3. Regenerate the Project App access token
+4. Update `.env` or CI secrets
 
 ### Issue: Module Not Appearing on List Page
 

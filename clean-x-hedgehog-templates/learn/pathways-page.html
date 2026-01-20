@@ -639,7 +639,7 @@
               <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
             </div>
             {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-            {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+            {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
             <div class="progress-auth-prompt" style="display: none;" id="auth-prompt">
               ℹ️ Progress is saved locally. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
             </div>
@@ -648,8 +648,8 @@
           {# Auth context for JS #}
           {# module_count is now precomputed in the sync script for both module-based and course-based pathways #}
           <div id="hhl-auth-context"
-               data-email="{{ request_contact.email if request_contact.is_logged_in else personalization_token('contact.email') }}"
-               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in else personalization_token('contact.hs_object_id') }}"
+               data-email="{{ request_contact.email if request_contact.is_logged_in and request_contact.email else '' }}"
+               data-contact-id="{{ request_contact.hs_object_id if request_contact.is_logged_in and request_contact.email else '' }}"
                data-enable-crm="true"
                data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
                data-pathway-slug="{{ dynamic_page_hubdb_row.hs_path }}"
@@ -657,6 +657,7 @@
                data-login-url="{{ login_url }}"
                style="display:none"></div>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
+          <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pathways.js') }}"></script>
           <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/enrollment.js') }}"></script>
           <script>

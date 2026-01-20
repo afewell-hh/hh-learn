@@ -1,20 +1,20 @@
 # CLI-Only Provisioning Guide (Issue #59 Path A)
 
-This guide documents the CLI-only workflow for provisioning HubSpot CMS resources without requiring changes to Private App scopes beyond what's already configured.
+This guide documents the CLI-only workflow for provisioning HubSpot CMS resources using the Project App access token (preferred).
 
 ## Overview
 
 This approach uses:
 - HubSpot CMS Source Code API v3 for uploading templates and constants
 - HubSpot CMS Pages API v3 for creating/updating pages
-- Private App token with existing scopes (no additional scope changes needed)
+- Project App access token with required scopes (defined in `src/app/app-hsmeta.json`)
 - Node.js scripts via npm for all operations
 
 ## Prerequisites
 
 1. **Environment Variables** (.env file):
    ```bash
-   HUBSPOT_PRIVATE_APP_TOKEN=<your-token>
+   HUBSPOT_PROJECT_ACCESS_TOKEN=<your-token>
    HUBSPOT_ACCOUNT_ID=<your-account-id>
    HUBDB_MODULES_TABLE_ID=<modules-table-id>
    HUBDB_COURSES_TABLE_ID=<courses-table-id>
@@ -213,7 +213,7 @@ npm run provision:pages -- --publish
 **Solution:**
 1. Ensure templates are uploaded first: `npm run upload:templates`
 2. Check that files exist in `clean-x-hedgehog-templates/` locally
-3. Verify HubSpot Private App token has Source Code API access
+3. Verify the Project App token has Source Code API access
 
 ### Page Already Exists (Duplicate Pages)
 
@@ -258,7 +258,7 @@ Access to fetch at 'https://...amazonaws.com/events/track' from origin 'https://
    aws logs tail /aws/lambda/hedgehog-learn-dev-api --follow
    ```
 2. Verify environment variables are set correctly in AWS Lambda:
-   - `HUBSPOT_PRIVATE_APP_TOKEN`
+   - `HUBSPOT_PROJECT_ACCESS_TOKEN`
    - `HUBSPOT_ACCOUNT_ID`
    - `ENABLE_CRM_PROGRESS`
 3. Redeploy if needed: `npm run deploy:aws`
@@ -315,13 +315,12 @@ Access to fetch at 'https://...amazonaws.com/events/track' from origin 'https://
   - Request: `{"eventName": "...", "payload": {...}, "contactIdentifier": {...}}`
   - Response: `{"status": "logged|persisted", "mode": "anonymous|authenticated|fallback"}`
 
-## Next Steps (Issue #60 - Future Work)
+## Next Steps
 
-1. **Migrate to Project App Scopes**:
-   - Define `app/app-hsmeta.json` with required scopes
+1. **Keep Project App scopes current**:
+   - Update `src/app/app-hsmeta.json` with required scopes
    - Deploy project app: `hs project deploy`
-   - Update installation scopes in HubSpot
-   - Refactor scripts to use OAuth access token
+   - Accept updated installation scopes in the Project App
 
 2. **Phase 2: Authenticated Beacons**:
    - Enable HubSpot CMS Membership
@@ -333,7 +332,6 @@ Access to fetch at 'https://...amazonaws.com/events/track' from origin 'https://
 ## References
 
 - [Issue #59: Staging Validation v0.3 Auth & Progress](https://github.com/your-repo/issues/59)
-- [Issue #60: Migrate to Project App Scopes](https://github.com/your-repo/issues/60)
 - [HubSpot Source Code API Docs](https://developers.hubspot.com/docs/guides/api/cms/source-code)
 - [HubSpot Pages API Docs](https://developers.hubspot.com/docs/reference/api/cms/pages)
 - [Auth & Progress Architecture Docs](./auth-and-progress.md)

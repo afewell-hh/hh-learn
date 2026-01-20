@@ -180,16 +180,16 @@ curl -X GET https://api.hubapi.com/events/v3/event-definitions \
 
 You should see all 3 events listed.
 
-## Step 3: Configure HubSpot Private App Scopes
+## Step 3: Configure HubSpot Project App Scopes
 
-1. Navigate to **Settings** → **Integrations** → **Private Apps**
-2. Find your existing app or **Create private app**
-3. Add the following scopes:
+1. Update `src/app/app-hsmeta.json` with the required scopes
+2. Deploy the Project App and accept the updated installation
+3. Ensure the following scopes are present:
    - `behavioral_events.event_definitions.read_write`
    - `behavioral_events.send.write`
    - `crm.objects.contacts.read`
    - `crm.objects.contacts.write` (optional, for upserting)
-4. Click **Save** and copy your token
+4. Generate a new Project App access token from the latest build distribution
 
 ## Step 4: Configure Environment Variables
 
@@ -205,7 +205,7 @@ Edit `.env`:
 
 ```bash
 # HubSpot
-HUBSPOT_PRIVATE_APP_TOKEN=pat-na1-xxxxxxxxxxxx
+HUBSPOT_PROJECT_ACCESS_TOKEN=pat-na1-xxxxxxxxxxxx
 HUBSPOT_ACCOUNT_ID=12345678
 HUBDB_PATHWAYS_TABLE_ID=135381504
 HUBDB_COURSES_TABLE_ID=135381505

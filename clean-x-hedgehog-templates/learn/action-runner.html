@@ -117,13 +117,13 @@
   <body>
     {{ standard_header_includes }}
     {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-    {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+    {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
     {% set is_editor_mode = is_in_editor or is_in_page_preview or request.query_dict.hs_preview or request.query_dict.hs_builder %}
 
     {# Resolve membership identity using request_contact with personalization_token fallback (Issue #276) #}
     {% set runner_email = '' %}
     {% set runner_contact_id = '' %}
-    {% if request_contact.is_logged_in %}
+    {% if request_contact.is_logged_in and request_contact.email %}
       {% set runner_email = request_contact.email|default('', true) %}
       {% set runner_contact_id = request_contact.hs_object_id|default(request_contact.vid, true) %}
     {% endif %}
@@ -136,7 +136,7 @@
       {% set runner_contact_id = personalization_token('contact.hs_object_id', '') %}
     {% endif %}
 
-    {% set is_logged_in = request_contact.is_logged_in or runner_email %}
+    {% set is_logged_in = runner_email %}
 
     <div class="runner-container" id="action-runner-container">
       <div id="runner-icon" class="runner-icon">⚙️</div>

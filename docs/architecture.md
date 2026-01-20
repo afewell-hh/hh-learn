@@ -30,7 +30,7 @@ _Last updated: keep in sync when major platform or integration changes land._
 ### Prerequisites
 - Node.js 22+ and npm installed
 - AWS credentials configured (access key ID + secret)
-- HubSpot Private App token with required scopes
+- HubSpot Project App access token with required scopes
 - Serverless Framework installed (`npm install` includes it as dev dependency)
 
 ### Observability & Alarms (added Oct 13, 2025)
@@ -54,7 +54,7 @@ export AWS_REGION=us-west-2           # Target AWS region
 export APP_STAGE=dev                   # Stage (dev, staging, prod)
 export AWS_ACCESS_KEY_ID=<key>        # AWS credentials
 export AWS_SECRET_ACCESS_KEY=<secret> # AWS credentials
-export HUBSPOT_PRIVATE_APP_TOKEN=<token>  # HubSpot API token
+export HUBSPOT_PROJECT_ACCESS_TOKEN=<token>  # HubSpot Project App token
 export HUBSPOT_ACCOUNT_ID=<account-id>    # HubSpot account ID
 export ENABLE_CRM_PROGRESS=false      # Enable CRM persistence (optional)
 export PROGRESS_BACKEND=properties    # Backend type: properties or events (optional)
@@ -65,7 +65,7 @@ Set these as GitHub repository secrets:
 - `AWS_REGION`
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
-- `HUBSPOT_PRIVATE_APP_TOKEN`
+- `HUBSPOT_PROJECT_ACCESS_TOKEN`
 - `HUBSPOT_ACCOUNT_ID`
 
 ### Deployment Commands

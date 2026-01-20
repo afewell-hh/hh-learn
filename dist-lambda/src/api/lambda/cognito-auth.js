@@ -162,10 +162,10 @@ async function verifyJWT(token, options) {
     if (!jwk) {
         throw new Error(`No matching JWK found for kid: ${kid}`);
     }
-    // Convert JWK to PEM
-    const pem = jwkToPem(jwk);
+    // Use JWK directly to avoid PEM conversion pitfalls
+    const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
     // Verify signature and claims
-    const decoded = jsonwebtoken_1.default.verify(token, pem, {
+    const decoded = jsonwebtoken_1.default.verify(token, key, {
         algorithms: ['RS256'],
         issuer: COGNITO_ISSUER,
         ...(options?.audience && { audience: options.audience }),
@@ -260,7 +260,7 @@ function sanitizeRedirectUrl(redirectUrl) {
 /**
  * Cookie helpers
  */
-function createCookieString(name, value, maxAge, path = '/') {
+function createCookieString(name, value, maxAge, path = '/', domain) {
     const attributes = [
         `${name}=${value}`,
         `Max-Age=${maxAge}`,
@@ -269,10 +269,31 @@ function createCookieString(name, value, maxAge, path = '/') {
         'Secure',
         'SameSite=Strict',
     ];
+    if (domain) {
+        attributes.splice(3, 0, `Domain=${domain}`);
+    }
     return attributes.join('; ');
 }
-function clearCookieString(name, path = '/') {
-    return `${name}=; Max-Age=0; Path=${path}; HttpOnly; Secure; SameSite=Strict`;
+function clearCookieString(name, path = '/', domain) {
+    const attributes = [
+        `${name}=`,
+        'Max-Age=0',
+        `Path=${path}`,
+        'HttpOnly',
+        'Secure',
+        'SameSite=Strict',
+    ];
+    if (domain) {
+        attributes.splice(3, 0, `Domain=${domain}`);
+    }
+    return attributes.join('; ');
+}
+function getCookieDomain(event) {
+    const host = (event.headers?.host || event.headers?.Host || '').toLowerCase();
+    if (host === 'hedgehog.cloud' || host.endsWith('.hedgehog.cloud')) {
+        return '.hedgehog.cloud';
+    }
+    return undefined;
 }
 /**
  * Exchange authorization code for tokens with Cognito
@@ -391,6 +412,7 @@ async function handleCallback(event) {
                     body: JSON.stringify({ error: 'Invalid state parameter' }),
                 };
             }
+            const cookieDomain = getCookieDomain(event);
             // Set mock cookies for testing
             return {
                 statusCode: 302,
@@ -398,8 +420,8 @@ async function handleCallback(event) {
                     Location: stateData.redirect_url || '/learn',
                 },
                 cookies: [
-                    createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE),
-                    createCookieString('hhl_refresh_token', 'mock_refresh_token_for_testing', REFRESH_TOKEN_MAX_AGE, '/auth'),
+                    createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE, '/', cookieDomain),
+                    createCookieString('hhl_refresh_token', 'mock_refresh_token_for_testing', REFRESH_TOKEN_MAX_AGE, '/auth', cookieDomain),
                 ],
             };
         }
@@ -420,9 +442,10 @@ async function handleCallback(event) {
         // Create or update user in DynamoDB
         await createOrUpdateUser(userId, email, idTokenPayload);
         // Set httpOnly cookies
+        const cookieDomain = getCookieDomain(event);
         const cookies = [
-            createCookieString('hhl_access_token', tokens.access_token, ACCESS_TOKEN_MAX_AGE),
-            createCookieString('hhl_refresh_token', tokens.refresh_token, REFRESH_TOKEN_MAX_AGE, '/auth'),
+            createCookieString('hhl_access_token', tokens.access_token, ACCESS_TOKEN_MAX_AGE, '/', cookieDomain),
+            createCookieString('hhl_refresh_token', tokens.refresh_token, REFRESH_TOKEN_MAX_AGE, '/auth', cookieDomain),
         ];
         console.log('[Callback] Authentication successful for user:', userId);
         // Redirect to original page
@@ -453,9 +476,10 @@ async function handleLogout(event) {
         logoutUrl.searchParams.set('client_id', COGNITO_CLIENT_ID);
         logoutUrl.searchParams.set('logout_uri', 'https://hedgehog.cloud/learn');
         // Clear cookies
+        const cookieDomain = getCookieDomain(event);
         const cookies = [
-            clearCookieString('hhl_access_token'),
-            clearCookieString('hhl_refresh_token', '/auth'),
+            clearCookieString('hhl_access_token', '/', cookieDomain),
+            clearCookieString('hhl_refresh_token', '/auth', cookieDomain),
         ];
         console.log('[Logout] Clearing cookies and redirecting to Cognito logout');
         return {
@@ -475,8 +499,8 @@ async function handleLogout(event) {
                 Location: '/learn',
             },
             cookies: [
-                clearCookieString('hhl_access_token'),
-                clearCookieString('hhl_refresh_token', '/auth'),
+                clearCookieString('hhl_access_token', '/', getCookieDomain(event)),
+                clearCookieString('hhl_refresh_token', '/auth', getCookieDomain(event)),
             ],
         };
     }
@@ -490,7 +514,7 @@ async function handleMe(event) {
     const allowedOrigin = getAllowedOrigin(origin);
     try {
         // Extract access token from cookie
-        const cookies = event.headers?.cookie || event.headers?.Cookie || '';
+        const cookies = event.headers?.cookie || event.headers?.Cookie || (event.cookies ? event.cookies.join('; ') : '');
         const accessTokenMatch = cookies.match(/hhl_access_token=([^;]+)/);
         if (!accessTokenMatch) {
             return {

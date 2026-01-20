@@ -15,6 +15,9 @@ playwright-report/
 aws/
 awscliv2.zip
 module-page.html
+hubspot-functions/
+tests/e2e/.auth/
+dist-lambda/src/api/lambda/protected-api.js
 
 # Build output
 dist-cjs/

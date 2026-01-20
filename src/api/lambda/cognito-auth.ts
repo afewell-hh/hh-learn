@@ -172,11 +172,10 @@ async function verifyJWT(
     throw new Error(`No matching JWK found for kid: ${kid}`);
   }
 
-  // Convert JWK to PEM
-  const pem = jwkToPem(jwk);
+  const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
 
   // Verify signature and claims
-  const decoded = jwt.verify(token, pem, {
+  const decoded = jwt.verify(token, key, {
     algorithms: ['RS256'],
     issuer: COGNITO_ISSUER,
     ...(options?.audience && { audience: options.audience }),
@@ -288,7 +287,13 @@ function sanitizeRedirectUrl(redirectUrl: string | undefined): string {
 /**
  * Cookie helpers
  */
-function createCookieString(name: string, value: string, maxAge: number, path: string = '/'): string {
+function createCookieString(
+  name: string,
+  value: string,
+  maxAge: number,
+  path: string = '/',
+  domain?: string
+): string {
   const attributes = [
     `${name}=${value}`,
     `Max-Age=${maxAge}`,
@@ -298,11 +303,36 @@ function createCookieString(name: string, value: string, maxAge: number, path: s
     'SameSite=Strict',
   ];
 
+  if (domain) {
+    attributes.splice(3, 0, `Domain=${domain}`);
+  }
+
   return attributes.join('; ');
 }
 
-function clearCookieString(name: string, path: string = '/'): string {
-  return `${name}=; Max-Age=0; Path=${path}; HttpOnly; Secure; SameSite=Strict`;
+function clearCookieString(name: string, path: string = '/', domain?: string): string {
+  const attributes = [
+    `${name}=`,
+    'Max-Age=0',
+    `Path=${path}`,
+    'HttpOnly',
+    'Secure',
+    'SameSite=Strict',
+  ];
+
+  if (domain) {
+    attributes.splice(3, 0, `Domain=${domain}`);
+  }
+
+  return attributes.join('; ');
+}
+
+function getCookieDomain(event: any): string | undefined {
+  const host = (event.headers?.host || event.headers?.Host || '').toLowerCase();
+  if (host === 'hedgehog.cloud' || host.endsWith('.hedgehog.cloud')) {
+    return '.hedgehog.cloud';
+  }
+  return undefined;
 }
 
 /**
@@ -443,6 +473,7 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
         };
       }
 
+      const cookieDomain = getCookieDomain(event);
       // Set mock cookies for testing
       return {
         statusCode: 302,
@@ -450,8 +481,14 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
           Location: stateData.redirect_url || '/learn',
         },
         cookies: [
-          createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE),
-          createCookieString('hhl_refresh_token', 'mock_refresh_token_for_testing', REFRESH_TOKEN_MAX_AGE, '/auth'),
+          createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE, '/', cookieDomain),
+          createCookieString(
+            'hhl_refresh_token',
+            'mock_refresh_token_for_testing',
+            REFRESH_TOKEN_MAX_AGE,
+            '/auth',
+            cookieDomain
+          ),
         ],
       };
     }
@@ -477,9 +514,10 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
     await createOrUpdateUser(userId, email, idTokenPayload);
 
     // Set httpOnly cookies
+    const cookieDomain = getCookieDomain(event);
     const cookies = [
-      createCookieString('hhl_access_token', tokens.access_token, ACCESS_TOKEN_MAX_AGE),
-      createCookieString('hhl_refresh_token', tokens.refresh_token, REFRESH_TOKEN_MAX_AGE, '/auth'),
+      createCookieString('hhl_access_token', tokens.access_token, ACCESS_TOKEN_MAX_AGE, '/', cookieDomain),
+      createCookieString('hhl_refresh_token', tokens.refresh_token, REFRESH_TOKEN_MAX_AGE, '/auth', cookieDomain),
     ];
 
     console.log('[Callback] Authentication successful for user:', userId);
@@ -513,9 +551,10 @@ export async function handleLogout(event: any): Promise<APIGatewayProxyResultV2>
     logoutUrl.searchParams.set('logout_uri', 'https://hedgehog.cloud/learn');
 
     // Clear cookies
+    const cookieDomain = getCookieDomain(event);
     const cookies = [
-      clearCookieString('hhl_access_token'),
-      clearCookieString('hhl_refresh_token', '/auth'),
+      clearCookieString('hhl_access_token', '/', cookieDomain),
+      clearCookieString('hhl_refresh_token', '/auth', cookieDomain),
     ];
 
     console.log('[Logout] Clearing cookies and redirecting to Cognito logout');
@@ -536,8 +575,8 @@ export async function handleLogout(event: any): Promise<APIGatewayProxyResultV2>
         Location: '/learn',
       },
       cookies: [
-        clearCookieString('hhl_access_token'),
-        clearCookieString('hhl_refresh_token', '/auth'),
+        clearCookieString('hhl_access_token', '/', getCookieDomain(event)),
+        clearCookieString('hhl_refresh_token', '/auth', getCookieDomain(event)),
       ],
     };
   }
@@ -553,7 +592,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
 
   try {
     // Extract access token from cookie
-    const cookies = event.headers?.cookie || event.headers?.Cookie || '';
+    const cookies = event.headers?.cookie || event.headers?.Cookie || (event.cookies ? event.cookies.join('; ') : '');
     const accessTokenMatch = cookies.match(/hhl_access_token=([^;]+)/);
 
     if (!accessTokenMatch) {

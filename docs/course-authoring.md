@@ -252,7 +252,7 @@ This prevents merging PRs that introduce orphaned references.
 
 ## Sync to HubDB (Publish)
 - Local publish:
-  - `cp .env.example .env` and add `HUBSPOT_PRIVATE_APP_TOKEN` and `HUBDB_MODULES_TABLE_ID`
+  - `cp .env.example .env` and add `HUBSPOT_PROJECT_ACCESS_TOKEN` and `HUBDB_MODULES_TABLE_ID`
   - `npm run sync:content`
 - What happens:
   - **Phase 1**: References are validated (courses/pathways only)
