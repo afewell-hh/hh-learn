@@ -1,6 +1,37 @@
 # AGENTS.md
 
-IMPORTANT: IF THE 'HubSpot' MCP SERVER IS INSTALLED USE THE TOOLS BEFORE TRYING TO MANUALLY USE CLI COMMANDS OR BEFORE TRYING TO DO ANYTHING WITH HUBSPOT ASSETS
+THIS APP USES HUBSPOT PROJECTS! IT DOES NOT USE LEGACY HUBSPOT PRIVATE APPS! 
+THERE HAVE BEEN RECENT CHANGES TO HUBSPOT PROJECTS, YOUR EXISTING KNOWLEDGE IS OUTDATED, DO WEB RESEARCH AS NEEDED TO ENSURE YOU ARE USING CURRENT METHODS THAT ARE NOT OUTDATED!
+DO NOT USE HUBSPOT SERVERLESS FUNCTIONS, THIS PROJECT DOES NOT HAVE ACCESS TO USE THEM! INSTEAD, USE AWS LAMBDA!
+
+## How to use this file (best practice)
+- Treat this file as the source of truth for guardrails and workflow. If it conflicts with your memory, follow this file.
+- Keep changes small and explicit; document every attempt in a GitHub issue to prevent repeating failed approaches.
+- When uncertain, pause, research current HubSpot project docs, and write assumptions in the issue before changing code.
+
+## Process requirements (mandatory for every change)
+1. Research: verify current platform behavior and HubSpot project best practices (do not rely on legacy private-app knowledge).
+2. Architecture analysis: map impact, dependencies, and side effects.
+3. Tech spec: detailed plan with alternatives, risks, and rollback strategy.
+4. Test plan: define UX-level tests that prove the intended behavior.
+5. Review cycle: get approval on research + architecture + spec + tests.
+6. TDD implementation: write/adjust tests first, then implement, then re-run tests.
+7. Update the issue ticket frequently with all attempts and outcomes.
+
+## Project-specific orientation (avoid legacy assumptions)
+- This repo is a HubSpot Projects framework app with CMS templates. Use `hsproject.json` for platform rules.
+- Avoid legacy HubSpot private-app or serverless-function patterns unless explicitly approved in a spec.
+- CMS templates are vanilla HTML/JS and use `fetch` (not React UI extensions).
+- Prefer repo scripts (e.g., `publish:template`, `publish:constants`) over ad-hoc file uploads.
+- Keep auth and API routing decisions documented; changes can impact cookies, CORS, and UX state.
+
+## AWS operations (required)
+- AWS CLI is available and typically pre-authenticated; confirm `AWS_REGION` and stage before any change.
+- Use `.env` credentials only as needed and never echo secrets in logs or issue comments.
+- Prefer repo scripts (e.g., `npm run deploy:aws`) over ad-hoc CLI unless the spec explicitly allows it.
+- Default to `dev` stage; do not touch prod without explicit approval in the spec/review.
+- Log every AWS change in the issue: service, region, resource name/ID, and command used.
+- No destructive actions (delete/remove) without a reviewed rollback plan and approval.
 
 ## HubSpot Project Information
 - The project configuration is in the `hsproject.json` file
