@@ -1021,6 +1021,21 @@
         {% endif %}
       </div>
     </div>
+    {# Cognito auth context for nav auth state on list pages #}
+    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+    {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+    {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+    <div
+      id="hhl-auth-context"
+      data-auth-me-url="{{ auth_me_url }}"
+      data-auth-login-url="{{ login_url }}"
+      data-auth-logout-url="{{ logout_url }}"
+      data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+      data-enable-crm="true"
+      style="display:none"
+    ></div>
+    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
   {% endif %}
 </main>
 {% endblock body %}
