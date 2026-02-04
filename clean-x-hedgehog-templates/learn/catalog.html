@@ -115,9 +115,18 @@
                       </span>
                     {% endif %}
                     {% if item.tags %}
-                      <span class="catalog-meta-item">
-                        <span aria-hidden="true">🏷️</span> {{ item.tags }}
-                      </span>
+                      {% set tag_list = item.tags|split(',') %}
+                      {% if tag_list and tag_list|length > 0 %}
+                        <div class="catalog-tags">
+                          <span class="catalog-tags-icon" aria-hidden="true">🏷️</span>
+                          {% for tag in tag_list %}
+                            {% set clean_tag = tag|trim %}
+                            {% if clean_tag %}
+                              <span class="catalog-tag">{{ clean_tag }}</span>
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+                      {% endif %}
                     {% endif %}
                   </div>
 

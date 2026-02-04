@@ -10,7 +10,7 @@
   ],
   "badge_image_url": "",
   "display_order": 3,
-  "tags": "hedgehog,fabric,observability,grafana,prometheus,monitoring,troubleshooting",
+  "tags": "popular,hedgehog,fabric,observability,grafana,prometheus,monitoring,troubleshooting,intermediate",
   "content_blocks": [
     {
       "id": "intro",

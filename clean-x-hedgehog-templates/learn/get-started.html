@@ -1,0 +1,212 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+  label: Get Started - Orientation Page
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+
+  {# CSS dependencies - reuse catalog and landing styles #}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/catalog.css')) }}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/learn-landing.css')) }}
+
+  {# JS dependencies - analytics and auth context #}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js'), { position: 'footer', defer: true }) }}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js'), { position: 'footer', defer: true }) }}
+
+  {# Load constants for HubDB table IDs and configuration #}
+  {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+  {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+  {# SEO metadata #}
+  <title>Get Started with Hedgehog Learn - Your First Steps</title>
+  <meta name="description" content="New to Hedgehog? Start here. Explore our flagship Network Like a Hyperscaler pathway and discover curated topics for modern infrastructure teams.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn/get-started">
+
+  {# Open Graph tags #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Get Started with Hedgehog Learn">
+  <meta property="og:description" content="Your orientation guide to mastering Kubernetes-native networking with Hedgehog's curated learning pathways.">
+  <meta property="og:url" content="https://{{ request.domain }}/learn/get-started">
+  <meta property="og:image" content="{{ social_image }}">
+
+  {# Twitter Card tags #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Get Started with Hedgehog Learn">
+  <meta name="twitter:description" content="Your orientation guide to mastering Kubernetes-native networking with Hedgehog's curated learning pathways.">
+  <meta name="twitter:image" content="{{ social_image }}">
+{% endblock head %}
+
+{% block body %}
+{# Re-declare constants for body block scope (HubL variables are block-scoped) #}
+{% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+{% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID if constants and constants.HUBDB_PATHWAYS_TABLE_ID else "135381504" %}
+{% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else "135381433" %}
+
+<main id="main-content" class="learn-landing">
+
+  {# ==================== HERO SECTION ==================== #}
+  <section class="learn-header-section">
+    <div class="learn-header-content">
+      <h1 class="learn-page-title">Welcome to Hedgehog Learn</h1>
+      <p class="learn-page-subtitle">Transform your network operations with our flagship pathway. Learn to provision, monitor, and troubleshoot Kubernetes-native datacenter fabrics through hands-on labs and real-world scenarios—whether you're new to networking or new to Kubernetes.</p>
+
+      {# Primary CTA to flagship pathway #}
+      <div class="hero-ctas">
+        <a href="/learn/pathways/network-like-hyperscaler" class="button button-primary">Start Network Like a Hyperscaler →</a>
+        <a href="/learn/catalog" class="button button-secondary">Browse Full Catalog</a>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== MAIN CONTENT CONTAINER ==================== #}
+  <div class="landing-content-container">
+
+    {# ==================== KEY TOPICS SECTION ==================== #}
+    {#
+      Data Strategy: Query HubDB for "network-like-hyperscaler" pathway,
+      then display its courses as curated topic cards.
+
+      This keeps content dynamic and manageable through HubDB while
+      maintaining clear configuration in the pathway JSON source.
+
+      See: /content/pathways/network-like-hyperscaler.json
+    #}
+    <section class="landing-section">
+      <div class="section-header">
+        <h2 class="section-title">Start with These Key Topics</h2>
+        <p class="section-subtitle">Master the essentials through our curated Network Like a Hyperscaler pathway</p>
+      </div>
+
+      {% if pathways_table_id and courses_table_id %}
+        {# Query for the flagship pathway by slug #}
+        {% set flagship_pathway = hubdb_table_rows(
+          pathways_table_id,
+          "hs_path__eq=network-like-hyperscaler"
+        ) %}
+
+        {% if flagship_pathway and flagship_pathway|length > 0 %}
+          {% set pathway = flagship_pathway[0] %}
+
+          {# Parse course slugs from JSON and fetch course data #}
+          {% if pathway.course_slugs_json %}
+            {% set course_slugs = pathway.course_slugs_json|fromjson %}
+
+            {# Fetch all courses to build a lookup map #}
+
+            <div class="catalog-grid">
+              {% for course_slug in course_slugs %}
+                {% set course_result = hubdb_table_rows(
+                  courses_table_id,
+                  "hs_path__eq=" ~ course_slug ~ "&tags__not__icontains=archived"
+                ) %}
+                {% set course = course_result[0] if course_result and course_result|length > 0 else None %}
+                {% if course %}
+                  <article class="catalog-card">
+                    <div class="catalog-card-header">
+                      <span class="catalog-type-badge catalog-type-course">Course</span>
+                      {% if course.difficulty %}
+                        <span class="catalog-level-badge">{{ course.difficulty }}</span>
+                      {% endif %}
+                    </div>
+                    <h3 class="catalog-card-title">
+                      <a href="/learn/courses/{{ course.hs_path }}">{{ course.hs_name }}</a>
+                    </h3>
+                    <p class="catalog-card-summary">
+                      {{ course.summary_markdown|striptags|truncate(160, true, '...') if course.summary_markdown else 'Build hands-on skills through this focused course curriculum.' }}
+                    </p>
+                    <div class="catalog-card-meta">
+                      {% if course.module_count %}
+                        <span class="catalog-meta-item">
+                          <span>📚</span>
+                          <span>{{ course.module_count }} modules</span>
+                        </span>
+                      {% endif %}
+                      {% if course.estimated_minutes %}
+                        <span class="catalog-meta-item">
+                          <span>⏱️</span>
+                          <span>{{ (course.estimated_minutes / 60)|round(1) }} hours</span>
+                        </span>
+                      {% endif %}
+                    </div>
+                    <a href="/learn/courses/{{ course.hs_path }}" class="catalog-card-cta">
+                      Start Course →
+                    </a>
+                  </article>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% else %}
+            {# Fallback if course_slugs_json is missing #}
+            <div class="empty-state">
+              <p>Featured topics are being curated. Check out the full pathway to get started.</p>
+              <a href="/learn/pathways/network-like-hyperscaler" class="button button-secondary">View Full Pathway</a>
+            </div>
+          {% endif %}
+        {% else %}
+          {# Graceful fallback when pathway not found #}
+          <div class="empty-state">
+            <p>Featured topics are being curated. Check out the full pathway to get started.</p>
+            <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
+          </div>
+        {% endif %}
+      {% else %}
+        {# Fallback when constants not available #}
+        <div class="empty-state">
+          <p>Featured topics are loading.</p>
+        </div>
+      {% endif %}
+    </section>
+
+    {# ==================== NEXT STEPS SECTION ==================== #}
+    <section class="landing-section">
+      <div class="section-header">
+        <h2 class="section-title">Continue Your Learning Journey</h2>
+        <p class="section-subtitle">Explore more ways to build your skills and confidence</p>
+      </div>
+
+      <div class="level-cards">
+        <article class="level-card level-card-beginner">
+          <div class="level-icon">📖</div>
+          <h3 class="level-card-title">Browse Full Catalog</h3>
+          <p class="level-card-description">Discover all available modules, courses, and pathways. Filter by type, level, and duration to find the perfect next step for your learning goals.</p>
+          <a href="/learn/catalog" class="catalog-card-cta">Explore Catalog →</a>
+        </article>
+
+        <article class="level-card level-card-intermediate">
+          <div class="level-icon">🎯</div>
+          <h3 class="level-card-title">View All Pathways</h3>
+          <p class="level-card-description">Explore curated learning pathways designed to take you from fundamentals to mastery in Kubernetes-native networking and fabric operations.</p>
+          <a href="/learn/pathways" class="catalog-card-cta">Browse Pathways →</a>
+        </article>
+
+        <article class="level-card level-card-advanced">
+          <div class="level-icon">🌱</div>
+          <h3 class="level-card-title">Start with Basics</h3>
+          <p class="level-card-description">New to cloud networking? Filter the catalog to show only beginner-level content and build your foundation with guided, step-by-step modules.</p>
+          <a href="/learn/catalog?level=beginner" class="catalog-card-cta">View Beginner Content →</a>
+        </article>
+      </div>
+    </section>
+
+    {# ==================== FINAL CTA SECTION ==================== #}
+    <section class="landing-cta-section">
+      <div class="cta-content">
+        <h2 class="cta-title">Ready to Begin?</h2>
+        <p class="cta-subtitle">Join infrastructure teams worldwide mastering Kubernetes-native networking with Hedgehog Learn.</p>
+        <div class="cta-buttons">
+          <a href="/learn/pathways/network-like-hyperscaler" class="button button-primary button-large">Start Your Journey</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  {# End landing-content-container #}
+
+  {# Build timestamp marker for deployment verification (Issue #293) #}
+  <div class="hhl-build" data-build="2025-11-06T02:55Z"></div>
+
+</main>
+{% endblock body %}

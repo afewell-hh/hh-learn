@@ -10,7 +10,7 @@
   ],
   "badge_image_url": "",
   "display_order": 4,
-  "tags": "hedgehog,fabric,troubleshooting,recovery,support,incident-response,operations",
+  "tags": "hedgehog,fabric,troubleshooting,recovery,support,incident-response,operations,advanced",
   "content_blocks": [
     {
       "id": "intro",

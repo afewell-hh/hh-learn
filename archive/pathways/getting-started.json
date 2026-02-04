@@ -5,6 +5,6 @@
   "courses": [
     "getting-started-virtual-lab"
   ],
-  "display_order": 1,
-  "tags": "getting-started,vlab,onboarding,cloud"
+  "display_order": 2,
+  "tags": "featured,getting-started,beginner,vlab,onboarding,cloud"
 }

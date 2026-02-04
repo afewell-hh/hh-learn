@@ -8,6 +8,6 @@
     "network-like-hyperscaler-observability",
     "network-like-hyperscaler-troubleshooting"
   ],
-  "display_order": 5,
-  "tags": "hedgehog,fabric,networking,kubernetes,operations,observability,troubleshooting,certification"
+  "display_order": 1,
+  "tags": "featured,flagship,hedgehog,fabric,networking,kubernetes,operations,observability,troubleshooting,certification"
 }

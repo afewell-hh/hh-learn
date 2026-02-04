@@ -6,7 +6,7 @@
     "getting-started-virtual-lab",
     "hedgehog-lab-foundations"
   ],
-  "tags": "lab, onboarding",
-  "display_order": 30
+  "tags": "vlab,onboarding,getting-started",
+  "display_order": 12
 }
 
