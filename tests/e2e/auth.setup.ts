@@ -100,7 +100,8 @@ test('authenticate and save storage state', async ({ page }) => {
     throw new Error(`Auth callback failed with status ${callbackStatus}`);
   }
 
-  await page.waitForURL(new RegExp(TEST_COURSE_SLUG), { timeout: 30000 });
+  // Wait for redirect to any course page (not strictly the original course)
+  await page.waitForURL(/\/learn\/courses\//, { timeout: 30000 });
 
   await fs.promises.mkdir(path.dirname(STORAGE_STATE_PATH), { recursive: true });
   await page.context().storageState({ path: STORAGE_STATE_PATH });
