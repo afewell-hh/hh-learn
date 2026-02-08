@@ -14,7 +14,10 @@ const STORAGE_STATE_PATH = path.join(process.cwd(), 'tests', 'e2e', '.auth', 'us
 
 test('authenticate and save storage state', async ({ page }) => {
   if (!TEST_EMAIL || !TEST_PASSWORD) {
-    throw new Error('Missing HUBSPOT_TEST_EMAIL/HUBSPOT_TEST_PASSWORD for auth setup.');
+    console.log('⚠ Skipping auth setup: HUBSPOT_TEST_EMAIL/HUBSPOT_TEST_PASSWORD not provided');
+    console.log('  Tests requiring authentication will be skipped');
+    test.skip();
+    return;
   }
 
   await page.goto(LOGIN_START_URL, { waitUntil: 'domcontentloaded' });

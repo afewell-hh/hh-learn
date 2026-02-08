@@ -20,7 +20,7 @@ const API_BASE_URL = process.env.E2E_API_BASE_URL || 'https://api.hedgehog.cloud
 const TEST_COURSE_SLUG = process.env.TEST_COURSE_SLUG || 'network-like-hyperscaler-foundations';
 const CACHE_BUSTER = process.env.E2E_CACHE_BUSTER || Date.now().toString();
 const TEST_COURSE_URL = `${BASE_URL}/learn/courses/${TEST_COURSE_SLUG}?hsCacheBuster=${CACHE_BUSTER}`;
-const CATALOG_URL = `${BASE_URL}/learn?hsCacheBuster=${CACHE_BUSTER}`;
+const CATALOG_URL = `${BASE_URL}/learn/catalog?hsCacheBuster=${CACHE_BUSTER}`;
 const MY_LEARNING_URL = `${BASE_URL}/learn/my-learning?hsCacheBuster=${CACHE_BUSTER}`;
 
 // Cognito test user credentials (from environment)
@@ -409,14 +409,136 @@ test.describe('Phase 6: Frontend Integration - API Integration', () => {
   });
 });
 
+// ========================================================================
+// Issue #318: Regression Guard Tests
+// ========================================================================
+
+test.describe('Issue #318: Regression Guards', () => {
+  test('should NOT load legacy auth-context.js script on course detail page', async ({ page }) => {
+    await page.goto(TEST_COURSE_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+
+    // Get all script sources from the page
+    const scriptSources = await page.evaluate(() => {
+      const scripts = Array.from(document.querySelectorAll('script[src]'));
+      return scripts.map(s => (s as HTMLScriptElement).src);
+    });
+
+    // Verify NO script contains 'auth-context' (catches .js and .min.js)
+    const legacyScripts = scriptSources.filter(src => src.includes('auth-context'));
+
+    if (legacyScripts.length > 0) {
+      console.log('❌ REGRESSION DETECTED: Legacy auth-context script found:');
+      legacyScripts.forEach(url => console.log('  -', url));
+    }
+
+    expect(legacyScripts.length).toBe(0);
+    console.log('✓ Legacy auth-context.js is NOT loaded (regression prevented)');
+  });
+
+  test('should load cognito-auth-integration.js script on course detail page', async ({ page }) => {
+    await page.goto(TEST_COURSE_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+
+    // Get all script sources from the page
+    const scriptSources = await page.evaluate(() => {
+      const scripts = Array.from(document.querySelectorAll('script[src]'));
+      return scripts.map(s => (s as HTMLScriptElement).src);
+    });
+
+    // Verify at least one script contains 'cognito-auth-integration'
+    const cognitoScripts = scriptSources.filter(src => src.includes('cognito-auth-integration'));
+
+    if (cognitoScripts.length === 0) {
+      console.log('❌ ERROR: Cognito auth integration script NOT found');
+      console.log('All loaded scripts:', scriptSources);
+    }
+
+    expect(cognitoScripts.length).toBeGreaterThan(0);
+
+    // Verify window.hhCognitoAuth exists and is initialized
+    const cognitoAuthInitialized = await page.evaluate(() => {
+      return !!(window as any).hhCognitoAuth && !!(window as any).hhCognitoAuth.__initialized;
+    });
+
+    expect(cognitoAuthInitialized).toBe(true);
+    console.log('✓ cognito-auth-integration.js is loaded and initialized');
+  });
+
+  test('should verify window.hhIdentity is not overwritten after page load', async ({ page }) => {
+    // Use authenticated storage state for this test
+    const context = page.context();
+    const storageStateExists = fs.existsSync(STORAGE_STATE_PATH);
+
+    if (!storageStateExists) {
+      test.skip();
+      return;
+    }
+
+    const storageState = JSON.parse(fs.readFileSync(STORAGE_STATE_PATH, 'utf-8'));
+    await context.addCookies(storageState.cookies);
+
+    await page.goto(TEST_COURSE_URL, { waitUntil: 'domcontentloaded' });
+
+    // Wait for identity to resolve
+    await page.waitForFunction(
+      () => (window as any).hhIdentity && (window as any).hhIdentity.get,
+      { timeout: 10000 }
+    );
+
+    // Get identity immediately after load
+    const identityAfterLoad = await page.evaluate(() => {
+      return (window as any).hhIdentity?.get();
+    });
+
+    // Wait for potential legacy scripts to run (2 seconds)
+    await page.waitForTimeout(2000);
+
+    // Re-check identity - should still have the same data
+    const identityAfterDelay = await page.evaluate(() => {
+      return (window as any).hhIdentity?.get();
+    });
+
+    // If authenticated, email should persist
+    if (identityAfterLoad?.email) {
+      expect(identityAfterDelay?.email).toBe(identityAfterLoad.email);
+      console.log('✓ window.hhIdentity preserved (not overwritten by legacy scripts)');
+    } else {
+      console.log('⚠ Test ran in anonymous mode');
+    }
+  });
+});
+
+test.describe('Issue #318: Anonymous User Tests', () => {
+  test('should display sign-in CTA for anonymous users on course page', async ({ page, context }) => {
+    await context.clearCookies();
+    await page.goto(TEST_COURSE_URL, { waitUntil: 'domcontentloaded' });
+
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+
+    // Wait for sign-in link to be visible
+    const signInLink = page.locator('#hhl-enroll-login');
+    await signInLink.waitFor({ state: 'visible', timeout: 15000 });
+
+    const linkText = await signInLink.innerText();
+    expect(linkText.toLowerCase()).toMatch(/sign in|log in|login/);
+
+    console.log('✓ Sign-in CTA displayed for anonymous users');
+  });
+});
+
 // Generate test report
 test.afterAll(async () => {
   const report = {
     timestamp: new Date().toISOString(),
-    phase: 'Phase 6 - Frontend Integration',
-    issue: '#306',
+    phase: 'Phase 6 - Frontend Integration + Issue #318',
+    issues: ['#306', '#318'],
     testEnvironment: {
       baseUrl: BASE_URL,
+      apiBaseUrl: API_BASE_URL,
       testCourseSlug: TEST_COURSE_SLUG,
     },
     testCategories: [
@@ -426,12 +548,15 @@ test.afterAll(async () => {
       'Logout Flow',
       'Cookie Handling',
       'API Integration',
+      'Regression Guards (Issue #318)',
     ],
     notes: [
       'Tests verify end-to-end UX flows with Cognito OAuth integration',
       'Auth cookies must be httpOnly, Secure, and SameSite=Strict',
       '/auth/me endpoint provides user profile data',
       'UI must gracefully handle both authenticated and anonymous states',
+      'Regression guards prevent legacy auth-context.js from being reintroduced',
+      'Cognito integration script must be present and initialized',
     ],
   };
 
@@ -440,6 +565,6 @@ test.afterAll(async () => {
     JSON.stringify(report, null, 2)
   );
 
-  console.log('\n✅ Phase 6 UX Tests completed');
+  console.log('\n✅ Phase 6 + Issue #318 Tests completed');
   console.log('Report saved to:', path.join(VERIFICATION_DIR, 'test-report.json'));
 });
