@@ -16,6 +16,7 @@ import * as fs from 'fs';
 
 // Test configuration
 const BASE_URL = process.env.E2E_BASE_URL || 'https://hedgehog.cloud';
+const API_BASE_URL = process.env.E2E_API_BASE_URL || 'https://api.hedgehog.cloud';
 const TEST_COURSE_SLUG = process.env.TEST_COURSE_SLUG || 'network-like-hyperscaler-foundations';
 const CACHE_BUSTER = process.env.E2E_CACHE_BUSTER || Date.now().toString();
 const TEST_COURSE_URL = `${BASE_URL}/learn/courses/${TEST_COURSE_SLUG}?hsCacheBuster=${CACHE_BUSTER}`;
@@ -253,7 +254,7 @@ test.describe('Phase 6: Frontend Integration - Logout Flow', () => {
       await page.waitForTimeout(2000);
     } else {
       // Manually call logout endpoint
-      await page.goto(`${BASE_URL}/auth/logout`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${API_BASE_URL}/auth/logout`, { waitUntil: 'domcontentloaded' });
     }
 
     // Verify auth cookies are cleared
@@ -289,7 +290,7 @@ test.describe('Phase 6: Frontend Integration - Logout Flow', () => {
     test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not provided');
 
     // Logout (manual or via endpoint)
-    await page.goto(`${BASE_URL}/auth/logout`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${API_BASE_URL}/auth/logout`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
     // Navigate to a page that shows personalized content
@@ -358,10 +359,10 @@ test.describe('Phase 6: Frontend Integration - Cookie Handling', () => {
 });
 
 test.describe('Phase 6: Frontend Integration - API Integration', () => {
+  test.use({ storageState: STORAGE_STATE_PATH });
+
   test('should call /auth/me with credentials included', async ({ page }) => {
     test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not provided');
-
-    await loginWithCognito(page);
 
     // Track API calls
     const apiCalls: any[] = [];
