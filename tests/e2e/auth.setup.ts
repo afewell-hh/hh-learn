@@ -22,9 +22,19 @@ test('authenticate and save storage state', async ({ page }) => {
 
   await page.goto(LOGIN_START_URL, { waitUntil: 'domcontentloaded' });
 
+  // Try enrollment CTA sign-in link first, fallback to nav sign-in link
   const enrollLink = page.locator('#hhl-enroll-login').first();
-  await expect(enrollLink).toBeVisible({ timeout: 15000 });
-  await enrollLink.click();
+  const navSignInLink = page.locator('a:has-text("Sign In"), a:has-text("Sign in")').first();
+
+  const enrollVisible = await enrollLink.isVisible({ timeout: 5000 }).catch(() => false);
+
+  if (enrollVisible) {
+    await enrollLink.click();
+  } else {
+    // Fallback to navigation sign-in link
+    await expect(navSignInLink).toBeVisible({ timeout: 10000 });
+    await navSignInLink.click();
+  }
 
   await page.waitForURL(/cognito.*(oauth2\/authorize|\/login)/, { timeout: 30000 });
 

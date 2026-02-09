@@ -511,15 +511,28 @@ test.describe('Issue #318: Regression Guards', () => {
 
 test.describe('Issue #318: Anonymous User Tests', () => {
   test('should display sign-in CTA for anonymous users on course page', async ({ page, context }) => {
-    await context.clearCookies();
-    await page.goto(TEST_COURSE_URL, { waitUntil: 'domcontentloaded' });
+    // Explicitly clear BOTH HubSpot membership and Cognito API sessions
+    // This ensures server-side rendering sees anonymous state
 
+    // 1. Logout from HubSpot membership (clears server-side session)
+    await page.goto(`${BASE_URL}/_hcms/mem/logout?redirect_url=/learn`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1000);
+
+    // 2. Logout from Cognito API (clears auth cookies)
+    await page.goto(`${API_BASE_URL}/auth/logout`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1000);
+
+    // 3. Clear all cookies and storage
+    await context.clearCookies();
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
     });
 
-    // Wait for sign-in link to be visible
+    // 4. Navigate to course page (should now render anonymous UI)
+    await page.goto(TEST_COURSE_URL, { waitUntil: 'domcontentloaded' });
+
+    // 5. Assert sign-in link is visible
     const signInLink = page.locator('#hhl-enroll-login');
     await signInLink.waitFor({ state: 'visible', timeout: 15000 });
 
