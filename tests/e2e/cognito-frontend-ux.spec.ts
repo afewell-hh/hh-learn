@@ -22,6 +22,9 @@ const CACHE_BUSTER = process.env.E2E_CACHE_BUSTER || Date.now().toString();
 const TEST_COURSE_URL = `${BASE_URL}/learn/courses/${TEST_COURSE_SLUG}?hsCacheBuster=${CACHE_BUSTER}`;
 const CATALOG_URL = `${BASE_URL}/learn/catalog?hsCacheBuster=${CACHE_BUSTER}`;
 const MY_LEARNING_URL = `${BASE_URL}/learn/my-learning?hsCacheBuster=${CACHE_BUSTER}`;
+const TEST_PATHWAY_SLUG = process.env.TEST_PATHWAY_SLUG || 'network-like-hyperscaler';
+const TEST_PATHWAY_URL = `${BASE_URL}/learn/pathways/${TEST_PATHWAY_SLUG}?hsCacheBuster=${CACHE_BUSTER}`;
+const ACTION_RUNNER_URL = `${BASE_URL}/learn/action-runner?action=enroll_pathway&slug=${TEST_PATHWAY_SLUG}&source=pathway_page&redirect_url=%2Flearn%2Fpathways%2F${TEST_PATHWAY_SLUG}`;
 
 // Cognito test user credentials (from environment)
 const TEST_EMAIL = process.env.HUBSPOT_TEST_EMAIL || process.env.HUBSPOT_TEST_USERNAME;
@@ -545,12 +548,286 @@ test.describe('Issue #318: Anonymous User Tests', () => {
   });
 });
 
+test.describe('Issue #319 - SSO UX Regressions', () => {
+  test.describe('Bug #1: Enrollment Without Login', () => {
+    test('Issue #319: action runner shows sign-in required for anonymous users', async ({ page, context }) => {
+      await context.clearCookies();
+      await page.goto(ACTION_RUNNER_URL, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(3000);
+
+      const identityReady = await page.evaluate(() => {
+        return !!(window as any).hhIdentity && (window as any).hhIdentity.isReady();
+      });
+
+      if (!identityReady) {
+        test.skip();
+        return;
+      }
+
+      const isAuthenticated = await page.evaluate(() => {
+        return (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated();
+      });
+
+      if (isAuthenticated) {
+        test.skip();
+        return;
+      }
+
+      const runnerTitle = page.locator('#action-runner-title');
+      await runnerTitle.waitFor({ state: 'visible', timeout: 5000 });
+      const titleText = (await runnerTitle.innerText()).toLowerCase();
+
+      expect(titleText).toContain('sign in');
+      expect(titleText).not.toContain('unsupported');
+      expect(titleText).not.toContain('enrolled');
+    });
+
+    test('Issue #319: anonymous enroll CTA redirects to Cognito login', async ({ page, context }) => {
+      await context.clearCookies();
+      await page.goto(TEST_PATHWAY_URL, { waitUntil: 'domcontentloaded' });
+
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isReady(),
+        { timeout: 15000 }
+      );
+
+      const isAuthenticated = await page.evaluate(() => {
+        return (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated();
+      });
+
+      if (isAuthenticated) {
+        test.skip();
+        return;
+      }
+
+      const enrollCTA = page.locator('a:has-text(\"Enroll\"), button:has-text(\"Enroll\")').first();
+      await enrollCTA.waitFor({ state: 'visible', timeout: 10000 });
+
+      const [redirectPage] = await Promise.all([
+        page.waitForNavigation({ timeout: 10000 }),
+        enrollCTA.click()
+      ]);
+
+      const finalUrl = redirectPage.url();
+      expect(finalUrl).toContain(`${API_BASE_URL}/auth/login`);
+
+      const url = new URL(finalUrl);
+      const redirectParam = url.searchParams.get('redirect_url');
+      expect(redirectParam).toContain('https://hedgehog.cloud/');
+    });
+
+    test('Issue #319: authenticated users can enroll via action runner', async ({ page }) => {
+      test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not provided');
+
+      await page.goto(ACTION_RUNNER_URL, { waitUntil: 'domcontentloaded' });
+
+      const runnerTitle = page.locator('#action-runner-title');
+      await runnerTitle.waitFor({ state: 'visible', timeout: 10000 });
+
+      await page.waitForTimeout(3000);
+
+      const titleText = (await runnerTitle.innerText()).toLowerCase();
+      const enrolled = titleText.includes('enrolled') || titleText.includes('already enrolled');
+
+      expect(enrolled).toBe(true);
+      expect(titleText).not.toContain('sign in');
+    });
+  });
+
+  test.describe('Bug #2: Left Nav Auth State on Catalog', () => {
+    test('Issue #319: anonymous users see Sign In on catalog', async ({ page, context }) => {
+      await context.clearCookies();
+      await page.goto(CATALOG_URL, { waitUntil: 'domcontentloaded' });
+
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isReady(),
+        { timeout: 10000 }
+      );
+
+      const isAuthenticated = await page.evaluate(() => {
+        return (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated();
+      });
+
+      if (isAuthenticated) {
+        test.skip();
+        return;
+      }
+
+      const signInLink = page.locator('.learn-nav-auth a:has-text(\"Sign In\")');
+      await expect(signInLink).toBeVisible({ timeout: 5000 });
+
+      const signOutLink = page.locator('.learn-nav-auth a:has-text(\"Sign Out\")');
+      await expect(signOutLink).toBeHidden();
+    });
+
+    test('Issue #319: authenticated users see Sign Out on catalog', async ({ page }) => {
+      test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not provided');
+
+      await page.goto(CATALOG_URL, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated(),
+        { timeout: 15000 }
+      );
+
+      const signOutLink = page.locator('.learn-nav-auth a:has-text(\"Sign Out\")');
+      await expect(signOutLink).toBeVisible({ timeout: 10000 });
+
+      const signInLink = page.locator('.learn-nav-auth a:has-text(\"Sign In\")');
+      await expect(signInLink).toBeHidden();
+    });
+
+    test('Issue #319: catalog loads cognito-auth-integration.js', async ({ page }) => {
+      await page.goto(CATALOG_URL, { waitUntil: 'networkidle' });
+
+      const scriptLoaded = await page.evaluate(() => {
+        const scripts = Array.from(document.querySelectorAll('script'));
+        return scripts.some(s => s.src && s.src.includes('cognito-auth-integration.js'));
+      });
+
+      expect(scriptLoaded).toBe(true);
+
+      await page.waitForFunction(
+        () => typeof (window as any).hhIdentity === 'object',
+        { timeout: 10000 }
+      );
+    });
+  });
+
+  test.describe('Bug #3: Sign In Link URLs', () => {
+    test('Issue #319: sign-in link uses absolute redirect', async ({ page, context }) => {
+      await context.clearCookies();
+      await page.goto(CATALOG_URL, { waitUntil: 'domcontentloaded' });
+
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isReady(),
+        { timeout: 10000 }
+      );
+
+      const isAuthenticated = await page.evaluate(() => {
+        return (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated();
+      });
+
+      if (isAuthenticated) {
+        test.skip();
+        return;
+      }
+
+      const signInLink = page.locator('.learn-nav-auth a:has-text(\"Sign In\")');
+      await signInLink.waitFor({ state: 'visible', timeout: 10000 });
+
+      const href = await signInLink.getAttribute('href');
+      expect(href).toContain(`${API_BASE_URL}/auth/login`);
+      expect(href).toContain('redirect_url=https%3A%2F%2Fhedgehog.cloud');
+      expect(href).not.toContain('redirect_url=%2Flearn');
+    });
+
+    test('Issue #319: sign-in link navigates to Cognito login', async ({ page, context }) => {
+      await context.clearCookies();
+      await page.goto(CATALOG_URL, { waitUntil: 'domcontentloaded' });
+
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isReady(),
+        { timeout: 10000 }
+      );
+
+      const isAuthenticated = await page.evaluate(() => {
+        return (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated();
+      });
+
+      if (isAuthenticated) {
+        test.skip();
+        return;
+      }
+
+      const signInLink = page.locator('.learn-nav-auth a:has-text(\"Sign In\")');
+      await signInLink.waitFor({ state: 'visible', timeout: 10000 });
+
+      const [loginPage] = await Promise.all([
+        page.waitForNavigation({ timeout: 15000 }),
+        signInLink.click()
+      ]);
+
+      const finalUrl = loginPage.url();
+      expect(finalUrl).toContain('auth.us-west-2.amazoncognito.com');
+
+      const pageTitle = await page.title();
+      expect(pageTitle.toLowerCase()).not.toContain('not found');
+      expect(pageTitle.toLowerCase()).not.toContain('404');
+    });
+
+    test('Issue #319: sign-out link uses absolute redirect', async ({ page }) => {
+      test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not provided');
+
+      await page.goto(CATALOG_URL, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated(),
+        { timeout: 15000 }
+      );
+
+      const signOutLink = page.locator('.learn-nav-auth a:has-text(\"Sign Out\")');
+      await signOutLink.waitFor({ state: 'visible', timeout: 10000 });
+
+      const href = await signOutLink.getAttribute('href');
+      expect(href).toContain(`${API_BASE_URL}/auth/logout`);
+      expect(href).toContain('redirect_url=https%3A%2F%2Fhedgehog.cloud');
+    });
+  });
+
+  test('Issue #319: authenticated user can reach enrollment flow from pathway', async ({ page }) => {
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Test credentials not provided');
+
+    await page.goto(TEST_PATHWAY_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(
+      () => (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated(),
+      { timeout: 15000 }
+    );
+
+    const enrollCTA = page.locator('a:has-text(\"Enroll\"), button:has-text(\"Enroll\")').first();
+    await enrollCTA.waitFor({ state: 'visible', timeout: 10000 });
+
+    await Promise.all([
+      page.waitForURL(/action-runner/, { timeout: 15000 }),
+      enrollCTA.click()
+    ]);
+
+    const runnerTitle = page.locator('#action-runner-title');
+    await runnerTitle.waitFor({ state: 'visible', timeout: 10000 });
+  });
+
+  const regressionPages = [
+    { label: 'learn home', url: `${BASE_URL}/learn` },
+    { label: 'catalog', url: `${BASE_URL}/learn/catalog` },
+    { label: 'courses list', url: `${BASE_URL}/learn/courses` },
+    { label: 'pathways list', url: `${BASE_URL}/learn/pathways` },
+    { label: 'modules list', url: `${BASE_URL}/learn/modules` },
+    { label: 'my learning', url: `${BASE_URL}/learn/my-learning` },
+  ];
+
+  for (const pageInfo of regressionPages) {
+    test(`Issue #319: regression check loads ${pageInfo.label} page`, async ({ page }) => {
+      const consoleErrors: string[] = [];
+      page.on('console', msg => {
+        if (msg.type() === 'error') {
+          consoleErrors.push(msg.text());
+        }
+      });
+
+      await page.goto(pageInfo.url, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('.learn-left-nav')).toBeVisible();
+      await page.waitForTimeout(3000);
+
+      expect(consoleErrors.length).toBe(0);
+    });
+  }
+});
+
 // Generate test report
 test.afterAll(async () => {
   const report = {
     timestamp: new Date().toISOString(),
-    phase: 'Phase 6 - Frontend Integration + Issue #318',
-    issues: ['#306', '#318'],
+    phase: 'Phase 6 - Frontend Integration + Issues #318/#319',
+    issues: ['#306', '#318', '#319'],
     testEnvironment: {
       baseUrl: BASE_URL,
       apiBaseUrl: API_BASE_URL,
@@ -564,6 +841,7 @@ test.afterAll(async () => {
       'Cookie Handling',
       'API Integration',
       'Regression Guards (Issue #318)',
+      'SSO UX Regressions (Issue #319)',
     ],
     notes: [
       'Tests verify end-to-end UX flows with Cognito OAuth integration',
@@ -572,6 +850,7 @@ test.afterAll(async () => {
       'UI must gracefully handle both authenticated and anonymous states',
       'Regression guards prevent legacy auth-context.js from being reintroduced',
       'Cognito integration script must be present and initialized',
+      'SSO regression coverage includes catalog auth state and action runner enforcement',
     ],
   };
 
