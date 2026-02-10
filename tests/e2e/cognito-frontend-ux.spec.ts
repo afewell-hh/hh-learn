@@ -613,7 +613,7 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
 
       const url = new URL(finalUrl);
       const redirectParam = url.searchParams.get('redirect_url');
-      expect(redirectParam).toContain('https://hedgehog.cloud/');
+      expect(redirectParam).toContain(`${BASE_URL}/`);
     });
 
     test('Issue #319: authenticated users can enroll via action runner', async ({ page }) => {
@@ -717,7 +717,8 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
 
       const href = await signInLink.getAttribute('href');
       expect(href).toContain(`${API_BASE_URL}/auth/login`);
-      expect(href).toContain('redirect_url=https%3A%2F%2Fhedgehog.cloud');
+      // Check for absolute redirect URL (not relative)
+      expect(href).toContain('redirect_url=https%3A%2F%2F');
       expect(href).not.toContain('redirect_url=%2Flearn');
     });
 
@@ -769,7 +770,8 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
 
       const href = await signOutLink.getAttribute('href');
       expect(href).toContain(`${API_BASE_URL}/auth/logout`);
-      expect(href).toContain('redirect_url=https%3A%2F%2Fhedgehog.cloud');
+      // Check for absolute redirect URL (not relative)
+      expect(href).toContain('redirect_url=https%3A%2F%2F');
     });
   });
 

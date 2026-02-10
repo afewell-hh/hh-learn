@@ -283,6 +283,20 @@
     var secondaryBtn = document.getElementById('action-runner-secondary');
     if (secondaryBtn) secondaryBtn.href = redirectUrl;
 
+    // Check action validity BEFORE auth - preserve previous behavior
+    if (!actionKey || !allowedActions[actionKey]) {
+      setStatus({
+        icon: '⛔️',
+        badge: 'Action blocked',
+        title: 'Unsupported action requested',
+        message: 'The requested action is not on the approved whitelist.',
+        details: 'Double-check the link you used. If this keeps happening, contact support.',
+        showSpinner: false
+      });
+      showActions('Return to Learn', function(){ window.location.href = '/learn'; }, redirectUrl);
+      return;
+    }
+
     // Wait for Cognito identity to be ready
     // DO NOT use server-side dataset.isLoggedIn - it reflects HubSpot Membership, not Cognito
     if (!window.hhIdentity || !window.hhIdentity.ready) {
@@ -307,20 +321,9 @@
           contactId: identityData.contactId || ''
         };
 
-        if (!actionKey || !allowedActions[actionKey]) {
-      setStatus({
-        icon: '⛔️',
-        badge: 'Action blocked',
-        title: 'Unsupported action requested',
-        message: 'The requested action is not on the approved whitelist.',
-        details: 'Double-check the link you used. If this keeps happening, contact support.',
-        showSpinner: false
-      });
-      showActions('Return to Learn', function(){ window.location.href = '/learn'; }, redirectUrl);
-      return;
-    }
+        // Action already validated above - check auth state
 
-    if (!isLoggedIn) {
+        if (!isLoggedIn) {
       setStatus({
         icon: '🔒',
         badge: 'Sign-in required',
