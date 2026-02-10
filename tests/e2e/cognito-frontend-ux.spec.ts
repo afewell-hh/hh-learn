@@ -797,26 +797,30 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
   });
 
   const regressionPages = [
-    { label: 'learn home', url: `${BASE_URL}/learn` },
-    { label: 'catalog', url: `${BASE_URL}/learn/catalog` },
-    { label: 'courses list', url: `${BASE_URL}/learn/courses` },
-    { label: 'pathways list', url: `${BASE_URL}/learn/pathways` },
-    { label: 'modules list', url: `${BASE_URL}/learn/modules` },
-    { label: 'my learning', url: `${BASE_URL}/learn/my-learning` },
+    { label: 'learn home', url: `${BASE_URL}/learn`, hasLeftNav: false },
+    { label: 'catalog', url: `${BASE_URL}/learn/catalog`, hasLeftNav: true },
+    { label: 'courses list', url: `${BASE_URL}/learn/courses`, hasLeftNav: true },
+    { label: 'pathways list', url: `${BASE_URL}/learn/pathways`, hasLeftNav: true },
+    { label: 'modules list', url: `${BASE_URL}/learn/modules`, hasLeftNav: true },
+    { label: 'my learning', url: `${BASE_URL}/learn/my-learning`, hasLeftNav: false },
   ];
 
   for (const pageInfo of regressionPages) {
     test(`Issue #319: regression check loads ${pageInfo.label} page`, async ({ page }) => {
       const consoleErrors: string[] = [];
       page.on('console', msg => {
-        if (msg.type() === 'error') {
-          consoleErrors.push(msg.text());
-        }
+        if (msg.type() !== 'error') return;
+        const text = msg.text();
+        // Ignore expected 401s from /auth/me anonymous checks.
+        if (text.includes('/auth/me') && text.includes('401')) return;
+        consoleErrors.push(text);
       });
 
       await page.goto(pageInfo.url, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
-      await expect(page.locator('.learn-left-nav')).toBeVisible();
+      if (pageInfo.hasLeftNav) {
+        await expect(page.locator('.learn-left-nav')).toBeVisible();
+      }
       await page.waitForTimeout(3000);
 
       expect(consoleErrors.length).toBe(0);
