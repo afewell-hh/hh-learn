@@ -200,6 +200,38 @@
   }
 
   /**
+   * Toggle UI elements based on auth state
+   * Shows/hides elements with data-auth-state="authenticated|anonymous"
+   */
+  function applyAuthState(identity) {
+    var state = identity && identity.authenticated ? 'authenticated' : 'anonymous';
+    var nodes = document.querySelectorAll('[data-auth-state]');
+
+    nodes.forEach(function(node) {
+      var expectedState = node.getAttribute('data-auth-state');
+      if (expectedState === state) {
+        node.style.display = '';  // Show matching state
+      } else {
+        node.style.display = 'none';  // Hide non-matching state
+      }
+    });
+
+    // Update user greeting if authenticated
+    if (state === 'authenticated') {
+      var greetingNode = document.getElementById('auth-user-greeting');
+      if (greetingNode && identity.firstname) {
+        greetingNode.textContent = 'Hi, ' + identity.firstname + '!';
+      } else if (greetingNode) {
+        greetingNode.textContent = 'Hi there!';
+      }
+    }
+
+    if (debug) {
+      console.log('[cognito-auth] Applied auth state:', state);
+    }
+  }
+
+  /**
    * Emit hhl:identity event for downstream consumers
    */
   function emitIdentityEvent(identity) {
@@ -234,6 +266,9 @@
 
         // Update DOM
         updateAuthContextDom(identity);
+
+        // Toggle UI elements based on auth state
+        applyAuthState(identity);
 
         // Emit event
         emitIdentityEvent(identity);
