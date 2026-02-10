@@ -553,16 +553,12 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
     test('Issue #319: action runner shows sign-in required for anonymous users', async ({ page, context }) => {
       await context.clearCookies();
       await page.goto(ACTION_RUNNER_URL, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(3000);
 
-      const identityReady = await page.evaluate(() => {
-        return !!(window as any).hhIdentity && (window as any).hhIdentity.isReady();
-      });
-
-      if (!identityReady) {
-        test.skip();
-        return;
-      }
+      // Wait for hhIdentity to be ready
+      await page.waitForFunction(
+        () => (window as any).hhIdentity && (window as any).hhIdentity.isReady(),
+        { timeout: 10000 }
+      );
 
       const isAuthenticated = await page.evaluate(() => {
         return (window as any).hhIdentity && (window as any).hhIdentity.isAuthenticated();
@@ -573,8 +569,16 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
         return;
       }
 
+      // Wait for action runner to finish processing (spinner should disappear)
+      await page.waitForFunction(
+        () => {
+          const spinner = document.getElementById('action-runner-spinner');
+          return spinner && spinner.style.display === 'none';
+        },
+        { timeout: 10000 }
+      );
+
       const runnerTitle = page.locator('#action-runner-title');
-      await runnerTitle.waitFor({ state: 'visible', timeout: 5000 });
       const titleText = (await runnerTitle.innerText()).toLowerCase();
 
       expect(titleText).toContain('sign in');
@@ -609,11 +613,18 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
       ]);
 
       const finalUrl = redirectPage.url();
-      expect(finalUrl).toContain(`${API_BASE_URL}/auth/login`);
+      // URL should be either API login endpoint or Cognito login page
+      const isApiLogin = finalUrl.includes(`${API_BASE_URL}/auth/login`);
+      const isCognitoLogin = finalUrl.includes('cognito.com/login') || finalUrl.includes('/auth/login');
+      expect(isApiLogin || isCognitoLogin).toBe(true);
 
       const url = new URL(finalUrl);
-      const redirectParam = url.searchParams.get('redirect_url');
-      expect(redirectParam).toContain(`${BASE_URL}/`);
+      // Check redirect_url param or state param (Cognito uses state for redirect info)
+      const redirectParam = url.searchParams.get('redirect_url') || url.searchParams.get('state');
+      expect(redirectParam).toBeTruthy();
+      if (redirectParam) {
+        expect(redirectParam).toContain(`${BASE_URL}/`);
+      }
     });
 
     test('Issue #319: authenticated users can enroll via action runner', async ({ page }) => {
@@ -681,7 +692,10 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
 
       const scriptLoaded = await page.evaluate(() => {
         const scripts = Array.from(document.querySelectorAll('script'));
-        return scripts.some(s => s.src && s.src.includes('cognito-auth-integration.js'));
+        return scripts.some(s => s.src && (
+          s.src.includes('cognito-auth-integration.js') ||
+          s.src.includes('template_cognito-auth-integration')
+        ));
       });
 
       expect(scriptLoaded).toBe(true);
@@ -811,8 +825,11 @@ test.describe('Issue #319 - SSO UX Regressions', () => {
       page.on('console', msg => {
         if (msg.type() !== 'error') return;
         const text = msg.text();
+        const location = msg.location();
         // Ignore expected 401s from /auth/me anonymous checks.
-        if (text.includes('/auth/me') && text.includes('401')) return;
+        if (location && location.url && location.url.includes('/auth/me') && text.includes('401')) {
+          return;
+        }
         consoleErrors.push(text);
       });
 
