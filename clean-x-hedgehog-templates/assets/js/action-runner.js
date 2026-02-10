@@ -277,17 +277,13 @@
     var redirectUrl = sanitizeRedirect(params.get('redirect_url') || '/learn');
     var allowedActions = parseJSON(contextNode.dataset.actions, {});
     var trackUrl = contextNode.dataset.trackUrl || '';
-    var loginUrl = contextNode.dataset.loginUrl || '/_hcms/mem/login';
-    var isLoggedIn = contextNode.dataset.isLoggedIn === 'true';
-    var contactIdentifier = {
-      email: contextNode.dataset.email || '',
-      contactId: contextNode.dataset.contactId || ''
-    };
+    var loginUrl = contextNode.dataset.loginUrl || 'https://api.hedgehog.cloud/auth/login';
 
     // Ensure secondary button always points home page to keep exit path
     var secondaryBtn = document.getElementById('action-runner-secondary');
     if (secondaryBtn) secondaryBtn.href = redirectUrl;
 
+    // Check action validity BEFORE auth - preserve previous behavior
     if (!actionKey || !allowedActions[actionKey]) {
       setStatus({
         icon: '⛔️',
@@ -301,7 +297,33 @@
       return;
     }
 
-    if (!isLoggedIn) {
+    // Wait for Cognito identity to be ready
+    // DO NOT use server-side dataset.isLoggedIn - it reflects HubSpot Membership, not Cognito
+    if (!window.hhIdentity || !window.hhIdentity.ready) {
+      setStatus({
+        icon: '⚠️',
+        badge: 'Auth not ready',
+        title: 'Authentication system not loaded',
+        message: 'Please refresh the page to complete this action.',
+        showSpinner: false
+      });
+      showActions('Refresh page', function(){ window.location.reload(); }, redirectUrl);
+      return;
+    }
+
+    // Use window.hhIdentity.ready promise to wait for auth state
+    window.hhIdentity.ready
+      .then(function() {
+        var identityData = window.hhIdentity.get() || {};
+        var isLoggedIn = window.hhIdentity.isAuthenticated();
+        var contactIdentifier = {
+          email: identityData.email || '',
+          contactId: identityData.contactId || ''
+        };
+
+        // Action already validated above - check auth state
+
+        if (!isLoggedIn) {
       setStatus({
         icon: '🔒',
         badge: 'Sign-in required',
@@ -421,5 +443,22 @@
       });
       showActions('Try again', function(){ window.location.reload(); }, redirectUrl);
     });
+      })
+      .catch(function(error) {
+        // Handle auth initialization failure
+        setStatus({
+          icon: '⚠️',
+          badge: 'Auth failed',
+          title: 'Authentication check failed',
+          message: 'We could not verify your authentication status.',
+          details: 'Please try refreshing the page. If the problem persists, contact support.',
+          showSpinner: false
+        });
+        showActions('Refresh page', function(){ window.location.reload(); }, redirectUrl);
+
+        if (console && console.error) {
+          console.error('[action-runner] Auth initialization failed:', error);
+        }
+      });
   });
 })();

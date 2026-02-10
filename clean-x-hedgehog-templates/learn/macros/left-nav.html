@@ -1,9 +1,9 @@
 {# Left-side navigation and filter panel for learning list pages #}
 {% macro learning_left_nav(current_page, show_filters=true) %}
-  {# Get constants for auth URLs #}
+  {# Get constants for auth URLs (Cognito, not HubSpot Membership) #}
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-  {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
-  {% set logout_url = constants.LOGOUT_URL|default('/_hcms/mem/logout') if constants else '/_hcms/mem/logout' %}
+  {% set login_url = constants.AUTH_LOGIN_URL|default('https://api.hedgehog.cloud/auth/login') if constants else 'https://api.hedgehog.cloud/auth/login' %}
+  {% set logout_url = constants.AUTH_LOGOUT_URL|default('https://api.hedgehog.cloud/auth/logout') if constants else 'https://api.hedgehog.cloud/auth/logout' %}
 
   {% set contact_email = personalization_token('contact.email', '') %}
   {% set is_logged_in = request_contact.is_logged_in or contact_email %}
@@ -36,24 +36,29 @@
       {# Divider #}
       <div class="learn-nav-divider"></div>
 
-      {# Auth Links #}
+      {# Build absolute redirect URL for OAuth flow #}
+      {% set absolute_redirect = 'https://' ~ request.domain ~ request.path_and_query %}
+
+      {# Auth Links - Server renders both states; client-side JS toggles visibility based on Cognito #}
       <div class="learn-nav-auth" role="region" aria-label="User authentication">
-        {% if is_logged_in %}
-          <div class="learn-user-greeting" aria-live="polite">Hi, {{ request_contact.firstname|default('there') }}!</div>
-          <a href="{{ logout_url }}?redirect_url={{ request.path_and_query|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
+        <div data-auth-state="authenticated" style="display:none;">
+          <div class="learn-user-greeting" id="auth-user-greeting" aria-live="polite">Hi there!</div>
+          <a href="{{ logout_url }}?redirect_url={{ absolute_redirect|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
             <span class="learn-nav-icon" aria-hidden="true">🚪</span>
             <span class="learn-nav-text">Sign Out</span>
           </a>
-        {% else %}
+        </div>
+
+        <div data-auth-state="anonymous">
           <a href="/learn/register" class="learn-auth-link" aria-label="Create a Hedgehog Learn account">
             <span class="learn-nav-icon" aria-hidden="true">📝</span>
             <span class="learn-nav-text">Register</span>
           </a>
-          <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
+          <a href="{{ login_url }}?redirect_url={{ absolute_redirect|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
             <span class="learn-nav-icon" aria-hidden="true">🔐</span>
             <span class="learn-nav-text">Sign In</span>
           </a>
-        {% endif %}
+        </div>
       </div>
 
       {# Filter Panel (optional) #}

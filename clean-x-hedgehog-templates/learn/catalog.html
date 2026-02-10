@@ -18,6 +18,12 @@
   {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
 
+  {# Auth URLs for Cognito integration #}
+  {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+  {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+  {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+  {% set constants_url = get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') %}
+
   <title>Learning Catalog - Browse All Content - Learn Hedgehog</title>
   <meta name="description" content="Browse all learning content in one place - modules, courses, and pathways. Filter by type, difficulty, tags, and duration to find exactly what you need.">
   <link rel="canonical" href="https://{{ request.domain }}/learn/catalog">
@@ -141,5 +147,16 @@
       </div>
     </div>
   </div>
+
+  <!-- Cognito Auth Integration -->
+  <div id="hhl-auth-context"
+       data-auth-me-url="{{ auth_me_url }}"
+       data-auth-login-url="{{ login_url }}"
+       data-auth-logout-url="{{ logout_url }}"
+       data-constants-url="{{ constants_url }}"
+       data-enable-crm="true"
+       style="display:none">
+  </div>
+  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
 </main>
 {% endblock body %}
