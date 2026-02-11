@@ -24,6 +24,7 @@
     "publish:pages": "npm run build && node dist/scripts/hubspot/publish-pages.js",
     "publish:template": "npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/publish-template.js",
     "validate:template": "npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/validate-template.js",
+    "validate:inline-constants": "npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/validate-inline-constants.js",
     "redirect:add": "npm run build && node dist/scripts/hubspot/add-url-redirect.js",
     "export:authoring": "npm run build && node dist/scripts/hubspot/export-course-authoring.js",
     "provision:all": "npm run build && npm run provision:tables && npm run sync:courses && npm run sync:pathways && npm run provision:constants",

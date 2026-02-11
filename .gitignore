@@ -18,6 +18,7 @@ module-page.html
 
 # Build output
 dist-cjs/
+dist-lambda/**/*.js
 
 # Debug and test scripts (temporary)
 scripts/debug-*.js
