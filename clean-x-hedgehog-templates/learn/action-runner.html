@@ -116,8 +116,28 @@
   </head>
   <body>
     {{ standard_header_includes }}
-    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-    {% set login_url = constants.AUTH_LOGIN_URL|default('https://api.hedgehog.cloud/auth/login') if constants else 'https://api.hedgehog.cloud/auth/login' %}
+    {#
+      Issue #326 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+      HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+      Source: clean-x-hedgehog-templates/config/constants.json
+    #}
+    {% set constants = {
+      'HUBDB_MODULES_TABLE_ID': '135621904',
+      'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+      'HUBDB_COURSES_TABLE_ID': '135381433',
+      'HUBDB_CATALOG_TABLE_ID': '136199186',
+      'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+      'ENABLE_CRM_PROGRESS': true,
+      'LOGOUT_URL': '/_hcms/mem/logout',
+      'LOGIN_URL': '/_hcms/mem/login',
+      'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
+      'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
+      'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
+      'TRACK_EVENTS_ENABLED': true,
+      'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
+      'ACTION_RUNNER_URL': '/learn/action-runner'
+    } %}
+    {% set login_url = constants.AUTH_LOGIN_URL %}
     {% set is_editor_mode = is_in_editor or is_in_page_preview or request.query_dict.hs_preview or request.query_dict.hs_builder %}
 
     {# Resolve membership identity using request_contact with personalization_token fallback (Issue #276) #}
@@ -163,31 +183,32 @@
          style="display:none">
     </div>
 
+    {% set action_config = {
+      'enroll_pathway': {
+        'event': 'learning_pathway_enrolled',
+        'required': ['slug'],
+        'optional': ['source', 'course_slug']
+      },
+      'enroll_course': {
+        'event': 'learning_course_enrolled',
+        'required': ['slug'],
+        'optional': ['source', 'pathway_slug']
+      },
+      'record_progress': {
+        'event': 'learning_module_progress',
+        'required': ['module_slug', 'status'],
+        'optional': ['pathway_slug', 'course_slug']
+      }
+    } %}
     <div
       id="hhl-action-runner"
       data-is-editor="{{ 'true' if is_editor_mode else 'false' }}"
       data-is-logged-in="{{ 'true' if is_logged_in else 'false' }}"
       data-email="{{ runner_email|escapejs if runner_email else '' }}"
       data-contact-id="{{ runner_contact_id|escapejs if runner_contact_id else '' }}"
-      data-track-url="{{ constants.TRACK_EVENTS_URL if constants else '' }}"
+      data-track-url="{{ constants.TRACK_EVENTS_URL }}"
       data-login-url="{{ login_url }}"
-      data-actions="{{ {
-        'enroll_pathway': {
-          'event': 'learning_pathway_enrolled',
-          'required': ['slug'],
-          'optional': ['source', 'course_slug']
-        },
-        'enroll_course': {
-          'event': 'learning_course_enrolled',
-          'required': ['slug'],
-          'optional': ['source', 'pathway_slug']
-        },
-        'record_progress': {
-          'event': 'learning_module_progress',
-          'required': ['module_slug', 'status'],
-          'optional': ['pathway_slug', 'course_slug']
-        }
-      }|tojson|escapehtml }}"
+      data-actions="{{ action_config|tojson|escape_attr }}"
     ></div>
 
     {% if is_editor_mode %}
