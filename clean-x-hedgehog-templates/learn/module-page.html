@@ -13,13 +13,35 @@
   <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/module-media.css') }}">
   <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
 
+  {#
+    Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+    HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+    Defined in shared scope so both detail and list views can access.
+    Source: clean-x-hedgehog-templates/config/constants.json
+  #}
+  {% set constants = {
+    'HUBDB_MODULES_TABLE_ID': '135621904',
+    'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+    'HUBDB_COURSES_TABLE_ID': '135381433',
+    'HUBDB_CATALOG_TABLE_ID': '136199186',
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+    'ENABLE_CRM_PROGRESS': true,
+    'LOGOUT_URL': '/_hcms/mem/logout',
+    'LOGIN_URL': '/_hcms/mem/login',
+    'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
+    'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
+    'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
+    'TRACK_EVENTS_ENABLED': true,
+    'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
+    'ACTION_RUNNER_URL': '/learn/action-runner'
+  } %}
+
   {% if dynamic_page_hubdb_row %}
     {# SEO metadata for detail pages #}
     {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Learn Hedgehog" %}
     {% set meta_desc = dynamic_page_hubdb_row.meta_description|striptags|truncate(160) if dynamic_page_hubdb_row.meta_description else "Learn " ~ dynamic_page_hubdb_row.hs_name %}
     {% set canonical_url = "https://" ~ request.domain ~ "/learn/modules/" ~ dynamic_page_hubdb_row.hs_path %}
-    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else (constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png") %}
+    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else constants.DEFAULT_SOCIAL_IMAGE_URL %}
 
     <title>{{ page_title }}</title>
     <meta name="description" content="{{ meta_desc }}">
@@ -41,8 +63,7 @@
     <meta name="hhl:module_slug" content="{{ dynamic_page_hubdb_row.hs_path }}">
   {% else %}
     {# SEO metadata for list pages #}
-    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL %}
 
     <title>Learning Modules - Learn Hedgehog</title>
     <meta name="description" content="Browse all learning modules. Build high-performance AI networks on open Ethernet and OCP hardware with hands-on learning content.">
@@ -67,7 +88,12 @@
     {% set head_prev_module = none %}
     {% set head_next_module = none %}
     {% set head_current_slug = dynamic_page_hubdb_row.hs_path %}
-    {% set head_constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {#
+      Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+      HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+      Source: clean-x-hedgehog-templates/config/constants.json
+    #}
+    
     {% set head_pathways_table_id = head_constants.HUBDB_PATHWAYS_TABLE_ID if head_constants else none %}
     {% set head_modules_table_id = head_constants.HUBDB_MODULES_TABLE_ID if head_constants else dynamic_page_hubdb_table_id %}
     {% set head_in_pathway = false %}
@@ -680,7 +706,12 @@
             </div>
 
             {# Auth context for JS (Issue #272 - Native HubSpot membership only) #}
-            {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+            {#
+              Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+              HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+              Source: clean-x-hedgehog-templates/config/constants.json
+            #}
+            
             <div id="hhl-auth-context"
                  data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
                  data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
@@ -772,7 +803,7 @@
                     {% if prereq is string %}
                       {# Internal module slug - resolve to link #}
                       {% set prereq_slug = prereq %}
-                      {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else dynamic_page_hubdb_table_id %}
+                      {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID or dynamic_page_hubdb_table_id %}
                       {% if modules_table_id %}
                         {% set prereq_rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ prereq_slug ~ "&tags__not__icontains=archived") %}
                         {% if prereq_rows and prereq_rows|length > 0 %}
@@ -818,9 +849,14 @@
           {% set current_slug = dynamic_page_hubdb_row.hs_path %}
 
           {# Try to find pathway context first - with fallback when constants missing #}
-          {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID if constants else none %}
-          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else dynamic_page_hubdb_table_id %}
+          {#
+            Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+            HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+            Source: clean-x-hedgehog-templates/config/constants.json
+          #}
+          
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID or dynamic_page_hubdb_table_id %}
           {% set in_pathway = false %}
 
           {% if pathways_table_id %}
@@ -1022,7 +1058,12 @@
       </div>
     </div>
     {# Cognito auth context for nav auth state on list pages #}
-    {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
+    {#
+      Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+      HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+      Source: clean-x-hedgehog-templates/config/constants.json
+    #}
+    
     {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
     {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
     {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}

@@ -13,7 +13,18 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const CONSTANTS_JSON_PATH = 'clean-x-hedgehog-templates/config/constants.json';
-const ACTION_RUNNER_PATH = 'clean-x-hedgehog-templates/learn/action-runner.html';
+const TEMPLATES_DIR = 'clean-x-hedgehog-templates/learn';
+
+// Templates that should have inline constants (Issue #327)
+const TEMPLATES_TO_CHECK = [
+  'action-runner.html',
+  'catalog.html',
+  'courses-page.html',
+  'module-page.html',
+  'my-learning.html',
+  'pathways-page.html',
+  'register.html'
+];
 
 interface Constants {
   [key: string]: string | number | boolean;
@@ -106,7 +117,7 @@ function compareConstants(jsonConstants: Constants, inlineConstants: Constants):
 }
 
 async function main() {
-  console.log('📋 Inline Constants Validation');
+  console.log('📋 Inline Constants Validation (Issue #327)');
   console.log('═'.repeat(60));
   console.log('');
 
@@ -114,36 +125,70 @@ async function main() {
     // Read constants.json
     const jsonConstants = parseConstantsJson();
     console.log(`📄 Loaded ${Object.keys(jsonConstants).length} constants from ${CONSTANTS_JSON_PATH}`);
+    console.log('');
 
-    // Read action-runner.html
-    const templateContent = readFileSync(ACTION_RUNNER_PATH, 'utf-8');
-    const inlineConstants = extractInlineConstants(templateContent);
+    let allValid = true;
+    const results: { template: string; valid: boolean }[] = [];
 
-    if (!inlineConstants) {
-      throw new Error('Failed to parse inline constants from template');
+    // Check each template
+    for (const templateName of TEMPLATES_TO_CHECK) {
+      const templatePath = `${TEMPLATES_DIR}/${templateName}`;
+      console.log(`\n📄 Checking: ${templateName}`);
+      console.log('─'.repeat(60));
+
+      try {
+        const templateContent = readFileSync(templatePath, 'utf-8');
+        const inlineConstants = extractInlineConstants(templateContent);
+
+        if (!inlineConstants) {
+          console.log('   ❌ No inline constants found in template');
+          allValid = false;
+          results.push({ template: templateName, valid: false });
+          continue;
+        }
+
+        console.log(`   Extracted ${Object.keys(inlineConstants).length} constants`);
+        console.log('');
+
+        const isValid = compareConstants(jsonConstants, inlineConstants);
+        results.push({ template: templateName, valid: isValid });
+
+        if (!isValid) {
+          allValid = false;
+        }
+
+      } catch (err: any) {
+        console.error(`   ❌ Error reading ${templateName}:`, err.message);
+        allValid = false;
+        results.push({ template: templateName, valid: false });
+      }
     }
 
-    console.log(`📄 Extracted ${Object.keys(inlineConstants).length} constants from ${ACTION_RUNNER_PATH}`);
-    console.log('');
-
-    // Compare
-    const isValid = compareConstants(jsonConstants, inlineConstants);
-
-    console.log('');
+    // Summary
+    console.log('\n' + '═'.repeat(60));
+    console.log('📊 Validation Summary');
     console.log('═'.repeat(60));
 
-    if (isValid) {
-      console.log('✅ Validation passed! Inline constants match constants.json');
+    for (const result of results) {
+      const icon = result.valid ? '✅' : '❌';
+      console.log(`${icon} ${result.template}`);
+    }
+
+    console.log('');
+
+    if (allValid) {
+      console.log('✅ All templates validated successfully!');
+      console.log('   Inline constants match constants.json across all templates.');
       console.log('');
       return true;
     } else {
-      console.log('❌ Validation failed! Inline constants are out of sync');
+      console.log('❌ Validation failed for one or more templates');
       console.log('');
       console.log('💡 To fix:');
-      console.log('   1. Update clean-x-hedgehog-templates/learn/action-runner.html');
+      console.log('   1. Update affected templates in clean-x-hedgehog-templates/learn/');
       console.log('   2. Copy values from clean-x-hedgehog-templates/config/constants.json');
       console.log('   3. Run this script again to verify');
-      console.log('   4. Publish the template: npm run publish:template');
+      console.log('   4. Publish templates: npm run publish:template');
       console.log('');
       throw new Error('Inline constants validation failed');
     }
