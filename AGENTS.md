@@ -79,3 +79,4 @@ IMPORTANT: IF THE 'HubSpot' MCP SERVER IS INSTALLED USE THE TOOLS BEFORE TRYING 
 - Use proper component structure based on component `type` in the `-hsmeta.json` file
 - Ensure configuration files follow HubSpot naming conventions
 - Always validate that components are placed in correct directories
+- HubL cannot fetch or parse external JSON from URLs; the `request_json` filter does not exist. Do not add new usages. Inline values in templates (or use HubDB/client-side fetch) and keep them in sync with `clean-x-hedgehog-templates/config/constants.json` when needed.
