@@ -66,22 +66,7 @@
       HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
       Source: clean-x-hedgehog-templates/config/constants.json
     #}
-    {% set constants = {
-      'HUBDB_MODULES_TABLE_ID': '135621904',
-      'HUBDB_PATHWAYS_TABLE_ID': '135381504',
-      'HUBDB_COURSES_TABLE_ID': '135381433',
-      'HUBDB_CATALOG_TABLE_ID': '136199186',
-      'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-      'ENABLE_CRM_PROGRESS': true,
-      'LOGOUT_URL': '/_hcms/mem/logout',
-      'LOGIN_URL': '/_hcms/mem/login',
-      'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-      'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-      'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
-      'TRACK_EVENTS_ENABLED': true,
-      'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
-      'ACTION_RUNNER_URL': '/learn/action-runner'
-    } %}
+    
     {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
 
     <title>Learning Modules - Learn Hedgehog</title>
@@ -112,22 +97,7 @@
       HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
       Source: clean-x-hedgehog-templates/config/constants.json
     #}
-    {% set constants = {
-      'HUBDB_MODULES_TABLE_ID': '135621904',
-      'HUBDB_PATHWAYS_TABLE_ID': '135381504',
-      'HUBDB_COURSES_TABLE_ID': '135381433',
-      'HUBDB_CATALOG_TABLE_ID': '136199186',
-      'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-      'ENABLE_CRM_PROGRESS': true,
-      'LOGOUT_URL': '/_hcms/mem/logout',
-      'LOGIN_URL': '/_hcms/mem/login',
-      'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-      'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-      'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
-      'TRACK_EVENTS_ENABLED': true,
-      'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
-      'ACTION_RUNNER_URL': '/learn/action-runner'
-    } %}
+    
     {% set head_pathways_table_id = head_constants.HUBDB_PATHWAYS_TABLE_ID if head_constants else none %}
     {% set head_modules_table_id = head_constants.HUBDB_MODULES_TABLE_ID if head_constants else dynamic_page_hubdb_table_id %}
     {% set head_in_pathway = false %}
@@ -745,22 +715,7 @@
               HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
               Source: clean-x-hedgehog-templates/config/constants.json
             #}
-            {% set constants = {
-              'HUBDB_MODULES_TABLE_ID': '135621904',
-              'HUBDB_PATHWAYS_TABLE_ID': '135381504',
-              'HUBDB_COURSES_TABLE_ID': '135381433',
-              'HUBDB_CATALOG_TABLE_ID': '136199186',
-              'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-              'ENABLE_CRM_PROGRESS': true,
-              'LOGOUT_URL': '/_hcms/mem/logout',
-              'LOGIN_URL': '/_hcms/mem/login',
-              'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-              'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-              'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
-              'TRACK_EVENTS_ENABLED': true,
-              'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
-              'ACTION_RUNNER_URL': '/learn/action-runner'
-            } %}
+            
             <div id="hhl-auth-context"
                  data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
                  data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
@@ -903,22 +858,7 @@
             HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
             Source: clean-x-hedgehog-templates/config/constants.json
           #}
-          {% set constants = {
-            'HUBDB_MODULES_TABLE_ID': '135621904',
-            'HUBDB_PATHWAYS_TABLE_ID': '135381504',
-            'HUBDB_COURSES_TABLE_ID': '135381433',
-            'HUBDB_CATALOG_TABLE_ID': '136199186',
-            'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-            'ENABLE_CRM_PROGRESS': true,
-            'LOGOUT_URL': '/_hcms/mem/logout',
-            'LOGIN_URL': '/_hcms/mem/login',
-            'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-            'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-            'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
-            'TRACK_EVENTS_ENABLED': true,
-            'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
-            'ACTION_RUNNER_URL': '/learn/action-runner'
-          } %}
+          
           {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID if constants else none %}
           {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants else dynamic_page_hubdb_table_id %}
           {% set in_pathway = false %}
@@ -1127,22 +1067,7 @@
       HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
       Source: clean-x-hedgehog-templates/config/constants.json
     #}
-    {% set constants = {
-      'HUBDB_MODULES_TABLE_ID': '135621904',
-      'HUBDB_PATHWAYS_TABLE_ID': '135381504',
-      'HUBDB_COURSES_TABLE_ID': '135381433',
-      'HUBDB_CATALOG_TABLE_ID': '136199186',
-      'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-      'ENABLE_CRM_PROGRESS': true,
-      'LOGOUT_URL': '/_hcms/mem/logout',
-      'LOGIN_URL': '/_hcms/mem/login',
-      'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-      'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-      'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
-      'TRACK_EVENTS_ENABLED': true,
-      'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
-      'ACTION_RUNNER_URL': '/learn/action-runner'
-    } %}
+    
     {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
     {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
     {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
