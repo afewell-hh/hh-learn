@@ -27,12 +27,13 @@ async function verifyPublishedTemplate() {
 
     const content = await response.text();
 
-    // Check for critical HubL code
+    // Check for critical HubL code (Issue #326: inline constants, not request_json)
     const checks = {
-      'Constants variable set': content.includes('{% set constants = get_asset_url'),
-      'request_json filter used': content.includes('|request_json'),
-      'data-track-url attribute': content.includes('data-track-url="{{ constants.TRACK_EVENTS_URL'),
-      'data-actions JSON structure': content.includes('data-actions="{{') && content.includes('|tojson|escapehtml'),
+      'Inline constants dictionary': content.includes('{% set constants = {') && content.includes("'TRACK_EVENTS_URL':"),
+      'NO request_json (invalid)': !content.includes('|request_json'),
+      'action_config variable set': content.includes('{% set action_config = {'),
+      'data-track-url uses constant': content.includes('data-track-url="{{ constants.TRACK_EVENTS_URL'),
+      'data-actions uses tojson|escape_attr': content.includes('action_config|tojson|escape_attr'),
       'enroll_pathway action': content.includes("'enroll_pathway':"),
       'enroll_course action': content.includes("'enroll_course':"),
       'record_progress action': content.includes("'record_progress':")
