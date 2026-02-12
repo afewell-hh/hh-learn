@@ -7,33 +7,36 @@
 
 {% block head %}
   {{ super() }}
+
+  {#
+    Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+    HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+    Defined in shared scope so both detail and list views can access.
+    Source: clean-x-hedgehog-templates/config/constants.json
+  #}
+  {% set constants = {
+    'HUBDB_MODULES_TABLE_ID': '135621904',
+    'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+    'HUBDB_COURSES_TABLE_ID': '135381433',
+    'HUBDB_CATALOG_TABLE_ID': '136199186',
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+    'ENABLE_CRM_PROGRESS': true,
+    'LOGOUT_URL': '/_hcms/mem/logout',
+    'LOGIN_URL': '/_hcms/mem/login',
+    'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
+    'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
+    'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
+    'TRACK_EVENTS_ENABLED': true,
+    'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
+    'ACTION_RUNNER_URL': '/learn/action-runner'
+  } %}
+
   {% if dynamic_page_hubdb_row %}
     {# SEO metadata for pathway detail pages #}
     {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Pathways - Learn Hedgehog" %}
     {% set meta_desc = dynamic_page_hubdb_row.meta_description|striptags|truncate(160) if dynamic_page_hubdb_row.meta_description else (dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) if dynamic_page_hubdb_row.summary_markdown else "Learn " ~ dynamic_page_hubdb_row.hs_name) %}
     {% set canonical_url = "https://" ~ request.domain ~ "/learn/pathways/" ~ dynamic_page_hubdb_row.hs_path %}
-    {#
-      Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
-      HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
-      Source: clean-x-hedgehog-templates/config/constants.json
-    #}
-    {% set constants = {
-      'HUBDB_MODULES_TABLE_ID': '135621904',
-      'HUBDB_PATHWAYS_TABLE_ID': '135381504',
-      'HUBDB_COURSES_TABLE_ID': '135381433',
-      'HUBDB_CATALOG_TABLE_ID': '136199186',
-      'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-      'ENABLE_CRM_PROGRESS': true,
-      'LOGOUT_URL': '/_hcms/mem/logout',
-      'LOGIN_URL': '/_hcms/mem/login',
-      'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-      'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-      'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
-      'TRACK_EVENTS_ENABLED': true,
-      'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
-      'ACTION_RUNNER_URL': '/learn/action-runner'
-    } %}
-    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else (constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png") %}
+    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else constants.DEFAULT_SOCIAL_IMAGE_URL %}
 
     <title>{{ page_title }}</title>
     <meta name="description" content="{{ meta_desc }}">
@@ -167,13 +170,7 @@
     </script>
   {% else %}
     {# SEO metadata for pathways list page #}
-    {#
-      Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
-      HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
-      Source: clean-x-hedgehog-templates/config/constants.json
-    #}
-    
-    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL %}
 
     {# Left nav CSS and JS for list pages #}
     {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css')) }}
@@ -213,7 +210,7 @@
             Source: clean-x-hedgehog-templates/config/constants.json
           #}
           
-          {% set pathways_table_id = (constants.HUBDB_PATHWAYS_TABLE_ID if constants else none) or 135381504 %}
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
         {% endif %}
         {% if pathways_table_id %}
           {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
@@ -679,7 +676,7 @@
               Source: clean-x-hedgehog-templates/config/constants.json
             #}
             
-            {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
+            {% set login_url = constants.LOGIN_URL %}
             <div class="progress-auth-prompt" style="display: none;" id="auth-prompt">
               ℹ️ Progress is saved locally. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
             </div>
@@ -896,7 +893,7 @@
             Source: clean-x-hedgehog-templates/config/constants.json
           #}
           
-          {% set pathways_table_id = (constants.HUBDB_PATHWAYS_TABLE_ID if constants else none) or 135381504 %}
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
         {% endif %}
         {# Debug banner - only show when ?debug=1 is present #}
         {% if request.query_dict.debug == '1' %}
