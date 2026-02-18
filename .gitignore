@@ -32,3 +32,13 @@ verification-output/LINKED-*.md
 verification-output/issue-242/*.png
 verification-output/issue-242/*-test-report.json
 verification-output/issue-242/api-smoke-test-output.log
+verification-output/issue-*/
+
+# E2E auth state (contains credentials, generated at runtime)
+tests/e2e/.auth/
+
+# Runtime artifacts
+upload-log.txt
+
+# Temporary debug test files
+tests/debug-*.spec.ts
