@@ -40,6 +40,11 @@ jobs:
           AWS_REGION: ${{ github.event.inputs.region || secrets.AWS_REGION }}
           APP_STAGE: ${{ github.event.inputs.stage }}
           ENABLE_CRM_PROGRESS: ${{ github.event.inputs.enable_crm_progress && 'true' || 'false' }}
+          COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+          COGNITO_DOMAIN: ${{ secrets.COGNITO_DOMAIN }}
+          COGNITO_REDIRECT_URI: ${{ secrets.COGNITO_REDIRECT_URI }}
+          COGNITO_ISSUER: ${{ secrets.COGNITO_ISSUER }}
 
       - name: Verify package size
         run: |
@@ -102,3 +107,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           APP_STAGE: ${{ github.event.inputs.stage }}
           ENABLE_CRM_PROGRESS: ${{ github.event.inputs.enable_crm_progress && 'true' || 'false' }}
+          COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+          COGNITO_DOMAIN: ${{ secrets.COGNITO_DOMAIN }}
+          COGNITO_REDIRECT_URI: ${{ secrets.COGNITO_REDIRECT_URI }}
+          COGNITO_ISSUER: ${{ secrets.COGNITO_ISSUER }}
