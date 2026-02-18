@@ -20,17 +20,14 @@
     'HUBDB_CATALOG_TABLE_ID': '136199186',
     'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
     'ENABLE_CRM_PROGRESS': true,
-    'LOGOUT_URL': '/_hcms/mem/logout',
-    'LOGIN_URL': '/_hcms/mem/login',
-    'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-    'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-    'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
     'TRACK_EVENTS_ENABLED': true,
-    'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
+    'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
     'ACTION_RUNNER_URL': '/learn/action-runner'
   } %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
-  {% set login_url = constants.LOGIN_URL|default('/_hcms/mem/login') if constants else '/_hcms/mem/login' %}
 
   <title>My Learning - Learn Hedgehog AI Networking</title>
   <meta name="description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
@@ -55,10 +52,7 @@
 {% endblock head %}
 
 {% block body %}
-{# If user is not logged in, redirect to LOGIN_URL preserving return URL #}
-{% if not request_contact.is_logged_in %}
-  <meta http-equiv="refresh" content="0; url={{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">
-{% endif %}
+{# Issue #345: Cognito handles auth client-side, no server-side redirect #}
 <style>
   /* Header section styling */
   .learn-header-section {
@@ -529,21 +523,14 @@
               <div class="progress-stat-label">Completed</div>
             </div>
           </div>
-          {# Show synced indicator when authenticated and CRM progress enabled #}
-          {% if request_contact.is_logged_in and constants.ENABLE_CRM_PROGRESS %}
-          <div class="synced-indicator" style="display: flex;">
+          {# Issue #345: Auth state and prompts driven by Cognito JS client-side #}
+          <div class="synced-indicator" style="display: none;">
             <span class="synced-indicator-icon">✓</span>
             <span>Progress synced across devices</span>
           </div>
-          {% else %}
-          <div class="auth-prompt" id="auth-prompt">
-            {% if request_contact.is_logged_in %}
-              ℹ️ Progress is saved locally in your browser. Enable CRM sync in settings to sync across devices.
-            {% else %}
-              ℹ️ Progress is saved locally in your browser. <a href="{{ login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
-            {% endif %}
+          <div class="auth-prompt" id="auth-prompt" style="display: none;">
+            ℹ️ Progress is saved locally in your browser. <a href="{{ constants.AUTH_LOGIN_URL }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
           </div>
-          {% endif %}
         </div>
 
         <!-- Resume Panel (authenticated only) -->
@@ -597,15 +584,21 @@
   Source: clean-x-hedgehog-templates/config/constants.json
 #}
 
+{# Issue #345: Cognito auth context with inlined constants #}
+{% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+{% set auth_login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+{% set auth_logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
 <div id="hhl-auth-context"
-     data-email="{% if request_contact.is_logged_in %}{{ request_contact.email|default('', true) }}{% endif %}"
-     data-contact-id="{% if request_contact.is_logged_in %}{{ request_contact.hs_object_id|default('', true) }}{% endif %}"
-     data-firstname="{% if request_contact.is_logged_in %}{{ request_contact.firstname|default('', true) }}{% endif %}"
-     data-lastname="{% if request_contact.is_logged_in %}{{ request_contact.lastname|default('', true) }}{% endif %}"
+     data-auth-me-url="{{ auth_me_url }}"
+     data-auth-login-url="{{ auth_login_url }}"
+     data-auth-logout-url="{{ auth_logout_url }}"
      data-enable-crm="true"
-     data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+     data-track-events-url="https://api.hedgehog.cloud/events/track"
+     data-hubdb-courses-table-id="135381433"
+     data-hubdb-modules-table-id="135621904"
      style="display:none"></div>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
-<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/auth-context.js') }}"></script>
+{# Line 609 - Cognito auth replaces membership auth (Issue #345) - NO defer to load before my-learning.js #}
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/my-learning.js') }}"></script>
 {% endblock body %}

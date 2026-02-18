@@ -6,12 +6,16 @@
  */
 (function(){
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
-  function fetchJSON(u){ return fetch(u).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }); }
+  function fetchJSON(u){ return fetch(u, { credentials: 'include' }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }); }
   function getConstants(){
     var ctx = document.getElementById('hhl-auth-context');
-    var url = ctx && ctx.getAttribute('data-constants-url');
-    if(!url) url = '/CLEAN x HEDGEHOG/templates/config/constants.json';
-    return fetchJSON(url).catch(function(){ return {}; });
+    var trackEventsUrl = ctx && ctx.getAttribute('data-track-events-url');
+    return Promise.resolve({
+      TRACK_EVENTS_URL: trackEventsUrl || null,
+      TRACK_EVENTS_ENABLED: !!trackEventsUrl,
+      HUBDB_COURSES_TABLE_ID: (ctx && ctx.getAttribute('data-hubdb-courses-table-id')) || null,
+      HUBDB_MODULES_TABLE_ID: (ctx && ctx.getAttribute('data-hubdb-modules-table-id')) || null
+    });
   }
   function getAuth(){
     // Use window.hhIdentity API for actual membership authentication
@@ -30,6 +34,15 @@
       enableCrm = enableAttr && enableAttr.toString().toLowerCase() === 'true';
     }
     return { enableCrm: enableCrm, email: email, contactId: contactId };
+  }
+
+  function waitForIdentityReady() {
+    try {
+      if (window.hhIdentity && window.hhIdentity.ready && typeof window.hhIdentity.ready.then === 'function') {
+        return window.hhIdentity.ready;
+      }
+    } catch (error) {}
+    return Promise.resolve(null);
   }
   function getReadUrl(constants){
     var track = (constants && constants.TRACK_EVENTS_URL) || '';
@@ -247,6 +260,46 @@
       var COURSES_TABLE_ID = constants.HUBDB_COURSES_TABLE_ID;
       var MODULES_TABLE_ID = constants.HUBDB_MODULES_TABLE_ID;
 
+      function getCourseProgress(courseSlug){
+        if (!progressData || !progressData.progress || !courseSlug) return null;
+        var prog = progressData.progress;
+        if (prog.courses && prog.courses[courseSlug]) return prog.courses[courseSlug];
+        var nested = null;
+        Object.keys(prog).forEach(function(pathwaySlug){
+          if (pathwaySlug !== 'courses' && prog[pathwaySlug] && prog[pathwaySlug].courses && prog[pathwaySlug].courses[courseSlug]) {
+            nested = prog[pathwaySlug].courses[courseSlug];
+          }
+        });
+        return nested;
+      }
+
+      function buildFallbackCourseMetadataMap(){
+        var fallback = {};
+        courses.forEach(function(course){
+          var courseSlug = (course && course.slug) || '';
+          if (!courseSlug) return;
+          var courseProgress = getCourseProgress(courseSlug);
+          var moduleProgressMap = (courseProgress && courseProgress.modules) || {};
+          var moduleSlugs = Object.keys(moduleProgressMap);
+          if (moduleSlugs.length === 0) return;
+          fallback[courseSlug] = {
+            modules: moduleSlugs.map(function(modSlug){
+              var modProgress = moduleProgressMap[modSlug] || {};
+              return {
+                slug: modSlug,
+                path: modSlug,
+                hs_path: modSlug,
+                name: modSlug.replace(/-/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); }),
+                hs_name: modSlug.replace(/-/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); }),
+                started: !!modProgress.started,
+                completed: !!modProgress.completed
+              };
+            })
+          };
+        });
+        return Object.keys(fallback).length ? fallback : null;
+      }
+
       // Fetch course metadata for all enrolled courses
       var coursePromises = courses.map(function(course){
         var courseSlug = course.slug || '';
@@ -285,8 +338,8 @@
         allModuleSlugs = Array.from(new Set(allModuleSlugs));
 
         if (allModuleSlugs.length === 0 || !MODULES_TABLE_ID) {
-          // No modules to fetch, render without module metadata
-          renderEnrolledCards(pathways, courses, null, null);
+          // No HubDB module metadata available; fall back to progress state module slugs.
+          renderEnrolledCards(pathways, courses, buildFallbackCourseMetadataMap(), progressData);
           return;
         }
 
@@ -350,11 +403,11 @@
           })
           .catch(function(err){
             console.error('[hhl-my-learning] Error fetching module metadata:', err);
-            renderEnrolledCards(pathways, courses, null, null);
+            renderEnrolledCards(pathways, courses, buildFallbackCourseMetadataMap(), progressData);
           });
       }).catch(function(err){
         console.error('[hhl-my-learning] Error fetching course metadata:', err);
-        renderEnrolledCards(pathways, courses, null, null);
+        renderEnrolledCards(pathways, courses, buildFallbackCourseMetadataMap(), progressData);
       });
 
       function renderEnrolledCards(pathways, courses, courseMetadataMap, progressData){
@@ -388,7 +441,8 @@
   }
 
   ready(function(){
-    Promise.resolve(getConstants()).then(function(constants){
+    waitForIdentityReady().finally(function(){
+      Promise.resolve(getConstants()).then(function(constants){
       var MODULES_TABLE_ID = constants.HUBDB_MODULES_TABLE_ID;
       var auth = getAuth();
       // default: localStorage fallback
@@ -454,6 +508,7 @@
       } else {
         renderFromSets(localSets);
       }
+    });
     });
   });
 })();
