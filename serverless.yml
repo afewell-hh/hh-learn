@@ -52,6 +52,13 @@ provider:
                 - 'index/*'
             - Fn::GetAtt: [ProgressTable, Arn]
             - Fn::GetAtt: [BadgesTable, Arn]
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminSetUserPassword
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminInitiateAuth
+          Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID}"
   httpApi:
     cors:
       allowedOrigins:
@@ -76,6 +83,9 @@ functions:
           path: /auth/login
           method: GET
       - httpApi:
+          path: /auth/signup
+          method: GET
+      - httpApi:
           path: /auth/callback
           method: GET
       - httpApi:
@@ -87,6 +97,12 @@ functions:
       - httpApi:
           path: /auth/me
           method: GET
+      - httpApi:
+          path: /auth/check-email
+          method: GET
+      - httpApi:
+          path: /auth/claim
+          method: POST
       # Legacy endpoints
       - httpApi:
           path: /auth/login

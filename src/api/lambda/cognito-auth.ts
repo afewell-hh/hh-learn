@@ -13,19 +13,39 @@
 
 import * as crypto from 'crypto';
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+import {
+  AdminCreateUserCommand,
+  AdminGetUserCommand,
+  CognitoIdentityProviderClient,
+} from '@aws-sdk/client-cognito-identity-provider';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import jwt from 'jsonwebtoken';
+import { getHubSpotClient } from '../../shared/hubspot.js';
 
 // Cognito configuration from environment
 const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN!;
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
 const COGNITO_REDIRECT_URI = process.env.COGNITO_REDIRECT_URI!;
 const COGNITO_ISSUER = process.env.COGNITO_ISSUER!;
+const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 const COGNITO_REGION = process.env.COGNITO_REGION || process.env.AWS_REGION || 'us-west-2';
 
 // DynamoDB configuration
 const DYNAMODB_USERS_TABLE = process.env.DYNAMODB_USERS_TABLE!;
+
+// Site base URL – the callback runs on api.hedgehog.cloud so all redirects back
+// to the CMS must be absolute; relative paths would resolve to api.hedgehog.cloud
+// and return {"message":"Not Found"} from API Gateway.
+const SITE_BASE_URL = (process.env.SITE_BASE_URL || 'https://hedgehog.cloud').replace(/\/$/, '');
+
+function toAbsoluteUrl(path: string): string {
+  if (path.startsWith('/')) {
+    return `${SITE_BASE_URL}${path}`;
+  }
+  // Already absolute (sanitizeRedirectUrl normally prevents this, but be safe)
+  return path;
+}
 
 // Session configuration
 const ACCESS_TOKEN_MAX_AGE = 3600; // 1 hour
@@ -43,6 +63,7 @@ const ENABLE_TEST_BYPASS = process.env.ENABLE_TEST_BYPASS === 'true';
 
 // DynamoDB client
 const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: COGNITO_REGION }));
+const cognitoClient = new CognitoIdentityProviderClient({ region: COGNITO_REGION });
 
 /**
  * JWKS cache (Lambda global scope for reuse across warm invocations)
@@ -96,44 +117,8 @@ async function fetchJWKS(): Promise<JWKS> {
  * Convert JWK to PEM format for JWT verification
  */
 function jwkToPem(jwk: JWK): string {
-  // JWK n and e are base64url encoded (not standard base64)
-  const modulus = Buffer.from(jwk.n, 'base64url');
-  const exponent = Buffer.from(jwk.e, 'base64url');
-
-  // Construct DER-encoded RSA public key
-  const modulusLength = modulus.length;
-  const exponentLength = exponent.length;
-
-  // ASN.1 DER encoding for RSA public key
-  const derPrefix = Buffer.from([
-    0x30, 0x82, // SEQUENCE
-    ((modulusLength + exponentLength + 32) >> 8) & 0xff,
-    (modulusLength + exponentLength + 32) & 0xff,
-    0x30, 0x0d, // SEQUENCE
-    0x06, 0x09, // OID
-    0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, // RSA encryption
-    0x05, 0x00, // NULL
-    0x03, 0x82, // BIT STRING
-    ((modulusLength + exponentLength + 9) >> 8) & 0xff,
-    (modulusLength + exponentLength + 9) & 0xff,
-    0x00, // no padding bits
-    0x30, 0x82, // SEQUENCE
-    ((modulusLength + exponentLength + 4) >> 8) & 0xff,
-    (modulusLength + exponentLength + 4) & 0xff,
-    0x02, 0x82, // INTEGER (modulus)
-    (modulusLength >> 8) & 0xff,
-    modulusLength & 0xff,
-  ]);
-
-  const exponentPrefix = Buffer.from([
-    0x02, // INTEGER (exponent)
-    exponentLength,
-  ]);
-
-  const der = Buffer.concat([derPrefix, modulus, exponentPrefix, exponent]);
-  const pem = `-----BEGIN PUBLIC KEY-----\n${der.toString('base64').match(/.{1,64}/g)?.join('\n')}\n-----END PUBLIC KEY-----\n`;
-
-  return pem;
+  const keyObject = crypto.createPublicKey({ key: jwk as unknown as crypto.JsonWebKey, format: 'jwk' });
+  return keyObject.export({ format: 'pem', type: 'spki' }).toString();
 }
 
 /**
@@ -212,6 +197,30 @@ function getAllowedOrigin(origin: string | undefined): string {
 
   // Default fallback
   return 'https://hedgehog.cloud';
+}
+
+function withCorsHeaders(origin: string | undefined, extra: Record<string, string> = {}): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': getAllowedOrigin(origin),
+    'Access-Control-Allow-Credentials': 'true',
+    ...extra,
+  };
+}
+
+function jsonResponse(
+  statusCode: number,
+  body: Record<string, any>,
+  origin: string | undefined
+): APIGatewayProxyResultV2 {
+  return {
+    statusCode,
+    headers: withCorsHeaders(origin, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  };
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 /**
@@ -305,6 +314,37 @@ function clearCookieString(name: string, path: string = '/'): string {
   return `${name}=; Max-Age=0; Path=${path}; HttpOnly; Secure; SameSite=Strict`;
 }
 
+function getCookieValue(rawCookies: string | string[] | undefined, name: string): string | null {
+  if (!rawCookies) return null;
+  const cookieString = Array.isArray(rawCookies) ? rawCookies.join('; ') : rawCookies;
+  const match = cookieString.match(new RegExp(`${name}=([^;]+)`));
+  return match ? match[1] : null;
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  const tokenUrl = `https://${COGNITO_DOMAIN}/oauth2/token`;
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: COGNITO_CLIENT_ID,
+    refresh_token: refreshToken,
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Refresh token failed: ${response.status} ${text}`);
+  }
+
+  return response.json();
+}
+
 /**
  * Exchange authorization code for tokens with Cognito
  */
@@ -351,6 +391,25 @@ async function verifyIdToken(idToken: string): Promise<any> {
   });
 }
 
+function buildHostedUiUrl(
+  path: '/oauth2/authorize' | '/signup',
+  redirectUrl: string
+): string {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = generateCodeChallenge(codeVerifier);
+  const state = encodeState(redirectUrl, codeVerifier);
+
+  const authUrl = new URL(`https://${COGNITO_DOMAIN}${path}`);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('client_id', COGNITO_CLIENT_ID);
+  authUrl.searchParams.set('redirect_uri', COGNITO_REDIRECT_URI);
+  authUrl.searchParams.set('scope', 'openid email profile');
+  authUrl.searchParams.set('code_challenge', codeChallenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+  authUrl.searchParams.set('state', state);
+  return authUrl.toString();
+}
+
 /**
  * GET /auth/login
  * Redirects to Cognito Hosted UI with PKCE parameters
@@ -360,30 +419,14 @@ export async function handleLogin(event: any): Promise<APIGatewayProxyResultV2> 
     // Extract and sanitize redirect_url
     const rawRedirectUrl = event.queryStringParameters?.redirect_url;
     const redirectUrl = sanitizeRedirectUrl(rawRedirectUrl);
+    const authUrl = buildHostedUiUrl('/oauth2/authorize', redirectUrl);
 
-    // Generate PKCE parameters
-    const codeVerifier = generateCodeVerifier();
-    const codeChallenge = generateCodeChallenge(codeVerifier);
-
-    // Encode state (includes redirect_url and code_verifier)
-    const state = encodeState(redirectUrl, codeVerifier);
-
-    // Build Cognito authorization URL
-    const authUrl = new URL(`https://${COGNITO_DOMAIN}/oauth2/authorize`);
-    authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('client_id', COGNITO_CLIENT_ID);
-    authUrl.searchParams.set('redirect_uri', COGNITO_REDIRECT_URI);
-    authUrl.searchParams.set('scope', 'openid email profile');
-    authUrl.searchParams.set('code_challenge', codeChallenge);
-    authUrl.searchParams.set('code_challenge_method', 'S256');
-    authUrl.searchParams.set('state', state);
-
-    console.log('[Login] Redirecting to Cognito:', authUrl.toString());
+    console.log('[Login] Redirecting to Cognito:', authUrl);
 
     return {
       statusCode: 302,
       headers: {
-        Location: authUrl.toString(),
+        Location: authUrl,
       },
     };
   } catch (err: any) {
@@ -391,6 +434,33 @@ export async function handleLogin(event: any): Promise<APIGatewayProxyResultV2> 
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Login failed' }),
+    };
+  }
+}
+
+/**
+ * GET /auth/signup
+ * Redirects to Cognito Hosted UI sign-up flow with PKCE/state.
+ */
+export async function handleSignup(event: any): Promise<APIGatewayProxyResultV2> {
+  try {
+    const rawRedirectUrl = event.queryStringParameters?.redirect_url;
+    const redirectUrl = sanitizeRedirectUrl(rawRedirectUrl);
+    const signupUrl = buildHostedUiUrl('/signup', redirectUrl);
+
+    console.log('[Signup] Redirecting to Cognito signup:', signupUrl);
+
+    return {
+      statusCode: 302,
+      headers: {
+        Location: signupUrl,
+      },
+    };
+  } catch (err: any) {
+    console.error('[Signup] Error:', err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Signup redirect failed' }),
     };
   }
 }
@@ -411,7 +481,7 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
       return {
         statusCode: 302,
         headers: {
-          Location: `/learn?auth_error=${encodeURIComponent(error)}`,
+          Location: toAbsoluteUrl(`/learn?auth_error=${encodeURIComponent(error)}`),
         },
       };
     }
@@ -447,7 +517,7 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
       return {
         statusCode: 302,
         headers: {
-          Location: stateData.redirect_url || '/learn',
+          Location: toAbsoluteUrl(stateData.redirect_url || '/learn'),
         },
         cookies: [
           createCookieString('hhl_access_token', 'mock_access_token_for_testing', ACCESS_TOKEN_MAX_AGE),
@@ -476,6 +546,16 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
     // Create or update user in DynamoDB
     await createOrUpdateUser(userId, email, idTokenPayload);
 
+    // Sync HubSpot contact and persist contact ID (non-fatal to auth flow)
+    try {
+      const hubspotContactId = await syncHubSpotContact(email);
+      if (hubspotContactId) {
+        await updateUserHubspotContactId(userId, hubspotContactId);
+      }
+    } catch (syncError: any) {
+      console.error('[Callback] HubSpot contact sync failed (non-fatal):', syncError?.message || syncError);
+    }
+
     // Set httpOnly cookies
     const cookies = [
       createCookieString('hhl_access_token', tokens.access_token, ACCESS_TOKEN_MAX_AGE),
@@ -484,11 +564,12 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
 
     console.log('[Callback] Authentication successful for user:', userId);
 
-    // Redirect to original page
+    // Redirect to original page – must be absolute because this callback runs on
+    // api.hedgehog.cloud; a relative path would resolve there and return 404.
     return {
       statusCode: 302,
       headers: {
-        Location: stateData.redirect_url || '/learn',
+        Location: toAbsoluteUrl(stateData.redirect_url || '/learn'),
       },
       cookies,
     };
@@ -533,7 +614,7 @@ export async function handleLogout(event: any): Promise<APIGatewayProxyResultV2>
     return {
       statusCode: 302,
       headers: {
-        Location: '/learn',
+        Location: toAbsoluteUrl('/learn'),
       },
       cookies: [
         clearCookieString('hhl_access_token'),
@@ -553,41 +634,63 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
 
   try {
     // Extract access token from cookie
-    const cookies = event.headers?.cookie || event.headers?.Cookie || '';
-    const accessTokenMatch = cookies.match(/hhl_access_token=([^;]+)/);
-
-    if (!accessTokenMatch) {
-      return {
-        statusCode: 401,
-        headers: {
-          'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
-          'Access-Control-Allow-Origin': allowedOrigin,
-          'Access-Control-Allow-Credentials': 'true',
-        },
-        body: JSON.stringify({ error: 'Unauthorized: Missing access token' }),
-      };
-    }
-
-    const accessToken = accessTokenMatch[1];
+    const cookies = event.cookies && event.cookies.length ? event.cookies : (event.headers?.cookie || event.headers?.Cookie || '');
+    const refreshToken = getCookieValue(cookies, 'hhl_refresh_token');
+    let accessToken = getCookieValue(cookies, 'hhl_access_token');
+    const refreshedCookies: string[] = [];
 
     // Verify JWT signature, issuer, expiration, client_id, and token_use
     let decoded: any;
     try {
+      if (!accessToken) {
+        throw new Error('Missing access token');
+      }
       decoded = await verifyJWT(accessToken, {
         clientId: COGNITO_CLIENT_ID,
         tokenUse: 'access',
       });
     } catch (verifyErr: any) {
-      console.error('[Me] JWT verification failed:', verifyErr.message);
-      return {
-        statusCode: 401,
-        headers: {
-          'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
-          'Access-Control-Allow-Origin': allowedOrigin,
-          'Access-Control-Allow-Credentials': 'true',
-        },
-        body: JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }),
-      };
+      if (!refreshToken) {
+        console.error('[Me] JWT verification failed and no refresh token present:', verifyErr.message);
+        return {
+          statusCode: 401,
+          headers: {
+            'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
+            'Access-Control-Allow-Origin': allowedOrigin,
+            'Access-Control-Allow-Credentials': 'true',
+          },
+          body: JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }),
+        };
+      }
+
+      try {
+        const refreshed = await refreshAccessToken(refreshToken);
+        accessToken = refreshed.access_token;
+        if (!accessToken) {
+          throw new Error('Missing access_token in refresh response');
+        }
+
+        refreshedCookies.push(createCookieString('hhl_access_token', accessToken, ACCESS_TOKEN_MAX_AGE));
+        if (refreshed.refresh_token) {
+          refreshedCookies.push(createCookieString('hhl_refresh_token', refreshed.refresh_token, REFRESH_TOKEN_MAX_AGE, '/auth'));
+        }
+
+        decoded = await verifyJWT(accessToken, {
+          clientId: COGNITO_CLIENT_ID,
+          tokenUse: 'access',
+        });
+      } catch (refreshErr: any) {
+        console.error('[Me] Refresh token failed:', refreshErr.message);
+        return {
+          statusCode: 401,
+          headers: {
+            'WWW-Authenticate': 'Bearer realm="Hedgehog Learn"',
+            'Access-Control-Allow-Origin': allowedOrigin,
+            'Access-Control-Allow-Credentials': 'true',
+          },
+          body: JSON.stringify({ error: 'Unauthorized: Invalid or expired token' }),
+        };
+      }
     }
 
     const userId = decoded.sub || decoded.username;
@@ -627,6 +730,7 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
         'Access-Control-Allow-Credentials': 'true',
         'Cache-Control': 'no-store, private',
       },
+      cookies: refreshedCookies.length ? refreshedCookies : undefined,
       body: JSON.stringify({
         userId: user.userId,
         email: user.email,
@@ -648,6 +752,124 @@ export async function handleMe(event: any): Promise<APIGatewayProxyResultV2> {
       },
       body: JSON.stringify({ error: 'Internal server error' }),
     };
+  }
+}
+
+async function checkCognitoUserExists(email: string): Promise<boolean> {
+  try {
+    await cognitoClient.send(
+      new AdminGetUserCommand({
+        UserPoolId: COGNITO_USER_POOL_ID,
+        Username: email,
+      })
+    );
+    return true;
+  } catch (err: any) {
+    if (err?.name === 'UserNotFoundException') return false;
+    throw err;
+  }
+}
+
+async function checkHubSpotContactExists(email: string): Promise<boolean> {
+  const hubspot = getHubSpotClient() as any;
+  const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+    filterGroups: [{
+      filters: [{
+        propertyName: 'email',
+        operator: 'EQ',
+        value: email,
+      }],
+    }],
+    properties: ['email'],
+    limit: 1,
+  });
+
+  return !!(searchResponse.results && searchResponse.results.length > 0);
+}
+
+/**
+ * GET /auth/check-email?email=<email>
+ * Pre-auth helper to determine whether user exists in Cognito and HubSpot.
+ */
+export async function handleCheckEmail(event: any): Promise<APIGatewayProxyResultV2> {
+  const origin = event.headers?.origin || event.headers?.Origin;
+  const email = (event.queryStringParameters?.email || '').trim().toLowerCase();
+
+  if (!email || !isValidEmail(email)) {
+    return jsonResponse(400, { error: 'invalid_email' }, origin);
+  }
+
+  try {
+    const [existsInCognito, existsInHubSpot] = await Promise.all([
+      checkCognitoUserExists(email),
+      checkHubSpotContactExists(email),
+    ]);
+
+    return jsonResponse(200, {
+      exists_in_cognito: existsInCognito,
+      exists_in_hubspot: existsInHubSpot,
+    }, origin);
+  } catch (err: any) {
+    console.error('[CheckEmail] Error:', err?.message || err);
+    return jsonResponse(500, { error: 'lookup_failed' }, origin);
+  }
+}
+
+function generateTemporaryPassword(): string {
+  // Meets common Cognito policy defaults: upper/lower/number/symbol.
+  return `Hh!${crypto.randomBytes(12).toString('base64url')}9a`;
+}
+
+/**
+ * POST /auth/claim
+ * Creates a Cognito invited user for HubSpot CRM contacts without Cognito credentials.
+ */
+export async function handleClaim(event: any): Promise<APIGatewayProxyResultV2> {
+  const origin = event.headers?.origin || event.headers?.Origin;
+
+  let email = '';
+  try {
+    const body = JSON.parse(event.body || '{}');
+    email = String(body.email || '').trim().toLowerCase();
+  } catch {
+    return jsonResponse(400, { error: 'invalid_body' }, origin);
+  }
+
+  if (!email || !isValidEmail(email)) {
+    return jsonResponse(400, { error: 'invalid_email' }, origin);
+  }
+
+  try {
+    const hasHubSpotContact = await checkHubSpotContactExists(email);
+    if (!hasHubSpotContact) {
+      return jsonResponse(404, { error: 'no_crm_contact' }, origin);
+    }
+
+    const existsInCognito = await checkCognitoUserExists(email);
+    if (existsInCognito) {
+      return jsonResponse(200, { status: 'already_exists' }, origin);
+    }
+
+    await cognitoClient.send(
+      new AdminCreateUserCommand({
+        UserPoolId: COGNITO_USER_POOL_ID,
+        Username: email,
+        TemporaryPassword: generateTemporaryPassword(),
+        DesiredDeliveryMediums: ['EMAIL'],
+        UserAttributes: [
+          { Name: 'email', Value: email },
+          { Name: 'email_verified', Value: 'true' },
+        ],
+      })
+    );
+
+    return jsonResponse(200, { status: 'invite_sent' }, origin);
+  } catch (err: any) {
+    if (err?.name === 'UsernameExistsException') {
+      return jsonResponse(200, { status: 'already_exists' }, origin);
+    }
+    console.error('[Claim] Error:', err?.message || err);
+    return jsonResponse(500, { error: 'claim_failed' }, origin);
   }
 }
 
@@ -709,6 +931,76 @@ async function createOrUpdateUser(userId: string, email: string, idTokenPayload:
   });
 
   console.log('[DynamoDB] User created/updated:', userId);
+}
+
+/**
+ * Find or create HubSpot contact by email.
+ * Returns HubSpot contact ID on success, or null on any HubSpot error.
+ */
+async function syncHubSpotContact(email: string): Promise<string | null> {
+  if (!email) {
+    console.warn('[HubSpot] Missing email, skipping contact sync');
+    return null;
+  }
+
+  try {
+    const hubspot = getHubSpotClient() as any;
+    const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+      filterGroups: [{
+        filters: [{
+          propertyName: 'email',
+          operator: 'EQ',
+          value: email,
+        }],
+      }],
+      properties: ['email'],
+      limit: 1,
+    });
+
+    if (searchResponse.results && searchResponse.results.length > 0) {
+      const existingId = searchResponse.results[0].id;
+      console.log('[HubSpot] Found existing contact for', email, 'contactId:', existingId);
+      return existingId;
+    }
+
+    const created = await hubspot.crm.contacts.basicApi.create({
+      properties: {
+        email,
+        lifecyclestage: 'lead',
+      },
+    });
+
+    console.log('[HubSpot] Created contact for', email, 'contactId:', created.id);
+    return created.id;
+  } catch (err: any) {
+    console.error('[HubSpot] Contact sync failed for', email, err?.message || err);
+    return null;
+  }
+}
+
+/**
+ * Persist resolved HubSpot contact ID to the user's profile record.
+ */
+async function updateUserHubspotContactId(userId: string, hubspotContactId: string): Promise<void> {
+  const now = new Date().toISOString();
+
+  await dynamoClient.send(
+    new UpdateCommand({
+      TableName: DYNAMODB_USERS_TABLE,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: 'PROFILE',
+      },
+      UpdateExpression: 'SET hubspotContactId = :hubspotContactId, updatedAt = :updatedAt',
+      ExpressionAttributeValues: {
+        ':hubspotContactId': hubspotContactId,
+        ':updatedAt': now,
+      },
+      ConditionExpression: 'attribute_exists(PK)',
+    })
+  );
+
+  console.log('[DynamoDB] Updated hubspotContactId for user:', userId);
 }
 
 /**
