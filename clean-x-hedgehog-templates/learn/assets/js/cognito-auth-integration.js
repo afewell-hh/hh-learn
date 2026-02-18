@@ -42,7 +42,7 @@
   var debug = localStorage.getItem('HHL_DEBUG') === 'true';
 
   /**
-   * Get constants configuration from DOM or defaults
+   * Get constants configuration from DOM (Issue #345 - no more constants.json fetch)
    */
   function getConfig() {
     var authDiv = document.getElementById('hhl-auth-context');
@@ -50,37 +50,104 @@
       authMeUrl: '/auth/me',
       authLoginUrl: '/auth/login',
       authLogoutUrl: '/auth/logout',
-      constantsUrl: '/learn/config/constants.json',
     };
 
     if (authDiv) {
       config.authMeUrl = authDiv.getAttribute('data-auth-me-url') || config.authMeUrl;
       config.authLoginUrl = authDiv.getAttribute('data-auth-login-url') || config.authLoginUrl;
       config.authLogoutUrl = authDiv.getAttribute('data-auth-logout-url') || config.authLogoutUrl;
-      config.constantsUrl = authDiv.getAttribute('data-constants-url') || config.constantsUrl;
     }
 
-    // Load from constants.json if available
-    return new Promise(function(resolve) {
-      fetch(config.constantsUrl)
-        .then(function(res) {
-          if (!res.ok) throw new Error('Constants not found');
-          return res.json();
-        })
-        .then(function(constants) {
-          if (constants.AUTH_ME_URL) config.authMeUrl = constants.AUTH_ME_URL;
-          if (constants.AUTH_LOGIN_URL) config.authLoginUrl = constants.AUTH_LOGIN_URL;
-          if (constants.AUTH_LOGOUT_URL) config.authLogoutUrl = constants.AUTH_LOGOUT_URL;
-          resolve(config);
-        })
-        .catch(function() {
-          if (debug) {
-            console.log('[cognito-auth] Using default config (constants.json not found)');
-          }
-          resolve(config);
-        });
-    });
+    // Return config synchronously (no fetch)
+    return Promise.resolve(config);
   }
+
+  function ensureEnrollmentHelpers() {
+    if (typeof window.waitForIdentityReady === 'function' && typeof window.getAuth === 'function') {
+      return;
+    }
+
+    function parseBoolean(value) {
+      if (typeof value === 'boolean') return value;
+      if (!value) return false;
+      var normalized = value.toString().trim().toLowerCase();
+      return normalized === 'true' || normalized === '1' || normalized === 'yes';
+    }
+
+    window.waitForIdentityReady = window.waitForIdentityReady || function() {
+      try {
+        if (window.hhIdentity && window.hhIdentity.ready && typeof window.hhIdentity.ready.then === 'function') {
+          return window.hhIdentity.ready;
+        }
+      } catch (error) {}
+      return Promise.resolve(null);
+    };
+
+    window.getAuth = window.getAuth || function() {
+      var el = document.getElementById('hhl-auth-context');
+      var identity = (window.hhIdentity && typeof window.hhIdentity.get === 'function')
+        ? window.hhIdentity.get()
+        : null;
+      var authenticated = identity ? !!identity.authenticated : parseBoolean(el && el.getAttribute('data-authenticated'));
+      var email = identity && identity.email ? identity.email : (el && el.getAttribute('data-email')) || null;
+      var contactId = identity && identity.contactId ? identity.contactId : (el && el.getAttribute('data-contact-id')) || null;
+      return {
+        authenticated: authenticated,
+        email: email,
+        contactId: contactId,
+        enableCrm: parseBoolean(el && el.getAttribute('data-enable-crm')),
+        trackEventsUrl: el && el.getAttribute('data-track-events-url')
+      };
+    };
+
+    window.getActionRunnerBase = window.getActionRunnerBase || function(constants) {
+      if (constants && constants.ACTION_RUNNER_URL) return constants.ACTION_RUNNER_URL;
+      return '/learn/action-runner';
+    };
+
+    window.buildRunnerUrl = window.buildRunnerUrl || function(base, redirectUrl, params) {
+      var runner = base || '/learn/action-runner';
+      var search = new URLSearchParams();
+      Object.keys(params || {}).forEach(function(key) {
+        var value = params[key];
+        if (value !== undefined && value !== null && value !== '') {
+          search.set(key, value);
+        }
+      });
+      if (redirectUrl) search.set('redirect_url', redirectUrl);
+      return runner + '?' + search.toString();
+    };
+
+    window.deriveEnrollmentSource = window.deriveEnrollmentSource || function() {
+      var path = window.location.pathname || '';
+      if (path.indexOf('/pathways/') >= 0) return 'pathway_page';
+      if (path.indexOf('/courses/') >= 0) return 'course_page';
+      if (path.indexOf('/modules/') >= 0) return 'module_page';
+      return 'learn_page';
+    };
+
+    window.bindClick = window.bindClick || function(button, handler) {
+      if (!button || typeof handler !== 'function') return;
+      window.unbindClick && window.unbindClick(button);
+      var wrapped = function(event) {
+        if (event) event.preventDefault();
+        handler();
+      };
+      button.__hhlEnrollHandler = wrapped;
+      button.addEventListener('click', wrapped);
+    };
+
+    window.unbindClick = window.unbindClick || function(button) {
+      if (!button) return;
+      var existing = button.__hhlEnrollHandler;
+      if (existing) {
+        button.removeEventListener('click', existing);
+        button.__hhlEnrollHandler = null;
+      }
+    };
+  }
+
+  ensureEnrollmentHelpers();
 
   /**
    * Fetch user profile from /auth/me endpoint

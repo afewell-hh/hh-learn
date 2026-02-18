@@ -15,26 +15,9 @@
     }
   }
 
-  /**
-   * Build fetch headers with JWT token if available (Issue #251)
-   */
-  function buildAuthHeaders() {
-    var headers = { 'Content-Type': 'application/json' };
-    try {
-      var token = localStorage.getItem('hhl_auth_token');
-      if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-      }
-    } catch (e) {
-      // Ignore localStorage errors
-    }
-    return headers;
-  }
-
   function fetchJSON(url) {
     return fetch(url, {
-      credentials: 'omit',
-      headers: buildAuthHeaders()
+      credentials: 'include'
     }).then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + url);
       return r.json();
@@ -42,11 +25,13 @@
   }
 
   function getConstants() {
+    // Issue #345: Read constants from data attributes (no more CORS fetch)
     var ctx = document.getElementById('hhl-auth-context');
-    var url = ctx && ctx.getAttribute('data-constants-url');
-    // Fallback to a best‑effort path if not provided
-    if (!url) url = '/CLEAN x HEDGEHOG/templates/config/constants.json';
-    return fetchJSON(url)
+    var trackEventsUrl = ctx && ctx.getAttribute('data-track-events-url');
+    return Promise.resolve({
+      TRACK_EVENTS_URL: trackEventsUrl || null,
+      TRACK_EVENTS_ENABLED: !!trackEventsUrl
+    })
       .then(function (json) {
         return json || {};
       })
@@ -54,7 +39,7 @@
         // Hard fallback to known API gateway used by this project
         return {
           TRACK_EVENTS_ENABLED: true,
-          TRACK_EVENTS_URL: 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
+          TRACK_EVENTS_URL: 'https://api.hedgehog.cloud/events/track',
           ENABLE_CRM_PROGRESS: true,
           ACTION_RUNNER_URL: '/learn/action-runner'
         };

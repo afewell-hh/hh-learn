@@ -1,13 +1,16 @@
 {# Left-side navigation and filter panel for learning list pages #}
 {% macro learning_left_nav(current_page, show_filters=true) %}
-  {# Get constants for auth URLs (Cognito, not HubSpot Membership) #}
-  {% set constants = get_asset_url("/CLEAN x HEDGEHOG/templates/config/constants.json")|request_json %}
-  {% set login_url = constants.AUTH_LOGIN_URL|default('https://api.hedgehog.cloud/auth/login') if constants else 'https://api.hedgehog.cloud/auth/login' %}
-  {% set logout_url = constants.AUTH_LOGOUT_URL|default('https://api.hedgehog.cloud/auth/logout') if constants else 'https://api.hedgehog.cloud/auth/logout' %}
+  {# Inline constants (Issue #327/#345 fix: request_json doesn't exist in HubL) #}
+  {% set constants = {
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me'
+  } %}
+  {% set login_url = constants.AUTH_LOGIN_URL %}
+  {% set logout_url = constants.AUTH_LOGOUT_URL %}
 
-  {% set contact_email = personalization_token('contact.email', '') %}
-  {% set is_logged_in = request_contact.is_logged_in or contact_email %}
-  <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation" data-request-contact="{{ 'true' if is_logged_in else 'false' }}">
+  {# Issue #345: Auth state managed by Cognito client-side, no server-side HubSpot membership check #}
+  <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation">
     <div class="learn-left-nav-content">
       {# Navigation Links #}
       <nav class="learn-nav-links" aria-label="Learning sections">
@@ -53,6 +56,10 @@
           <a href="/learn/register" class="learn-auth-link" aria-label="Create a Hedgehog Learn account">
             <span class="learn-nav-icon" aria-hidden="true">📝</span>
             <span class="learn-nav-text">Register</span>
+          </a>
+          <a href="/learn/claim-account?redirect_url={{ absolute_redirect|urlencode }}" class="learn-auth-link" aria-label="Claim your account if you do not have a password yet">
+            <span class="learn-nav-icon" aria-hidden="true">✉️</span>
+            <span class="learn-nav-text">Claim Account</span>
           </a>
           <a href="{{ login_url }}?redirect_url={{ absolute_redirect|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
             <span class="learn-nav-icon" aria-hidden="true">🔐</span>

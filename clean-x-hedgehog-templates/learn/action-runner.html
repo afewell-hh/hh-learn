@@ -130,11 +130,11 @@
       'ENABLE_CRM_PROGRESS': true,
       'LOGOUT_URL': '/_hcms/mem/logout',
       'LOGIN_URL': '/_hcms/mem/login',
-      'AUTH_LOGIN_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/login',
-      'AUTH_ME_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/me',
-      'AUTH_LOGOUT_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout',
+      'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+      'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
+      'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
       'TRACK_EVENTS_ENABLED': true,
-      'TRACK_EVENTS_URL': 'https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track',
+      'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
       'ACTION_RUNNER_URL': '/learn/action-runner'
     } %}
     {% set login_url = constants.AUTH_LOGIN_URL %}
@@ -178,7 +178,7 @@
          data-auth-me-url="{{ constants.AUTH_ME_URL|default('https://api.hedgehog.cloud/auth/me') if constants else 'https://api.hedgehog.cloud/auth/me' }}"
          data-auth-login-url="{{ constants.AUTH_LOGIN_URL|default('https://api.hedgehog.cloud/auth/login') if constants else 'https://api.hedgehog.cloud/auth/login' }}"
          data-auth-logout-url="{{ constants.AUTH_LOGOUT_URL|default('https://api.hedgehog.cloud/auth/logout') if constants else 'https://api.hedgehog.cloud/auth/logout' }}"
-         data-constants-url="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') }}"
+         data-track-events-url="https://api.hedgehog.cloud/events/track"
          data-enable-crm="true"
          style="display:none">
     </div>
@@ -229,7 +229,6 @@
     {% else %}
       <!-- Cognito auth must load BEFORE action-runner -->
       <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
-      <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
       <!-- Action runner depends on window.hhIdentity -->
       <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/action-runner.js') }}"></script>
     {% endif %}

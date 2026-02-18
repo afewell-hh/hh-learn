@@ -36,10 +36,13 @@
   }
 
   function getConstants() {
+    // Issue #345: Read constants from data attributes (no more CORS fetch)
     var ctx = document.getElementById('hhl-auth-context');
-    var url = ctx && ctx.getAttribute('data-constants-url');
-    if (!url) url = '/CLEAN x HEDGEHOG/templates/config/constants.json';
-    return fetchJSON(url).catch(function(){ return { TRACK_EVENTS_ENABLED:false }; });
+    var trackEventsUrl = ctx && ctx.getAttribute('data-track-events-url');
+    return Promise.resolve({
+      TRACK_EVENTS_URL: trackEventsUrl || null,
+      TRACK_EVENTS_ENABLED: !!trackEventsUrl
+    });
   }
 
   function getAuth() {

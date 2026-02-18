@@ -206,7 +206,7 @@
         return fetch(trackUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'omit',
+          credentials: 'include',
           body: JSON.stringify(body)
         })
           .then(parseTrackResponse)

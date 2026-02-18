@@ -7,10 +7,13 @@
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
   function fetchJSON(u){ return fetch(u, { credentials:'omit' }).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }); }
   function getConstants(){
+    // Issue #345: Read constants from data attributes (no more CORS fetch)
     var ctx = document.getElementById('hhl-auth-context');
-    var url = ctx && ctx.getAttribute('data-constants-url');
-    if(!url) url = '/CLEAN x HEDGEHOG/templates/config/constants.json';
-    return fetchJSON(url).catch(function(){ return {}; });
+    var trackEventsUrl = ctx && ctx.getAttribute('data-track-events-url');
+    return Promise.resolve({
+      TRACK_EVENTS_URL: trackEventsUrl || null,
+      TRACK_EVENTS_ENABLED: !!trackEventsUrl
+    });
   }
   function getAuth(){
     // Use window.hhIdentity API for actual membership authentication
