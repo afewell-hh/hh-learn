@@ -135,12 +135,18 @@ const handler = async (event) => {
         // Cognito OAuth endpoints (Issue #303)
         if (path.endsWith('/auth/login') && method === 'GET')
             return await (0, cognito_auth_js_1.handleLogin)(event);
+        if (path.endsWith('/auth/signup') && method === 'GET')
+            return await (0, cognito_auth_js_1.handleSignup)(event);
         if (path.endsWith('/auth/callback') && method === 'GET')
             return await (0, cognito_auth_js_1.handleCallback)(event);
         if (path.endsWith('/auth/logout') && (method === 'POST' || method === 'GET'))
             return await (0, cognito_auth_js_1.handleLogout)(event);
         if (path.endsWith('/auth/me') && method === 'GET')
             return await (0, cognito_auth_js_1.handleMe)(event);
+        if (path.endsWith('/auth/check-email') && method === 'GET')
+            return await (0, cognito_auth_js_1.handleCheckEmail)(event);
+        if (path.endsWith('/auth/claim') && method === 'POST')
+            return await (0, cognito_auth_js_1.handleClaim)(event);
         // Existing GET endpoints
         if (path.endsWith('/progress/read') && method === 'GET')
             return await readProgress(event, origin);

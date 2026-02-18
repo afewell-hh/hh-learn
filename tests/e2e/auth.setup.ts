@@ -101,17 +101,48 @@ test('authenticate and save storage state', async ({ page }) => {
     { email: TEST_EMAIL, password: TEST_PASSWORD }
   );
 
-  const callbackResponse = await page.waitForResponse(
-    (res) => res.url().includes('/auth/callback'),
-    { timeout: 30000 }
-  );
-  const callbackStatus = callbackResponse.status();
-  if (callbackStatus >= 400) {
-    throw new Error(`Auth callback failed with status ${callbackStatus}`);
+  try {
+    const callbackResponse = await page.waitForResponse(
+      (res) => res.url().includes('/auth/callback'),
+      { timeout: 30000 }
+    );
+    const callbackStatus = callbackResponse.status();
+    if (callbackStatus >= 400) {
+      console.warn(`Auth callback returned ${callbackStatus}; waiting for final redirect before failing`);
+    }
+  } catch (error) {
+    console.warn('Auth callback response not captured; continuing to final redirect check');
   }
 
-  // Wait for redirect to any course page (not strictly the original course)
+  // Wait for redirect back to a /learn/courses/ page.
+  // IMPORTANT: also assert the host domain so this cannot silently pass if the callback
+  // redirects to api.hedgehog.cloud/learn/... (the {"message":"Not Found"} regression —
+  // see issue #361 / PR fix/callback-absolute-redirect-361).
   await page.waitForURL(/\/learn\/courses\//, { timeout: 30000 });
+
+  const postCallbackUrl = page.url();
+
+  // Must land on hedgehog.cloud, never on api.hedgehog.cloud
+  if (!postCallbackUrl.startsWith('https://hedgehog.cloud/') && !postCallbackUrl.startsWith('https://www.hedgehog.cloud/')) {
+    throw new Error(
+      `Auth callback redirect landed on wrong domain.\n` +
+      `Expected: https://hedgehog.cloud/learn/courses/...\n` +
+      `Actual:   ${postCallbackUrl}\n` +
+      `This means /auth/callback returned a relative Location header that resolved to api.hedgehog.cloud (issue #361).`
+    );
+  }
+
+  // Must not be an API Gateway error page
+  const pageContent = await page.content();
+  if (pageContent.includes('"message":"Not Found"') || pageContent.includes('{"message":"Not Found"}')) {
+    throw new Error(
+      `Auth callback redirect landed on an API Gateway error page ({"message":"Not Found"}).\n` +
+      `URL: ${postCallbackUrl}\n` +
+      `This is the regression described in issue #361.`
+    );
+  }
+
+  console.log(`✓ Auth setup: callback redirected to correct domain: ${postCallbackUrl}`);
 
   await fs.promises.mkdir(path.dirname(STORAGE_STATE_PATH), { recursive: true });
   await page.context().storageState({ path: STORAGE_STATE_PATH });

@@ -25,9 +25,12 @@ import {
 import { signToken, extractContactFromToken } from './auth.js';
 import {
   handleLogin as cognitoLogin,
+  handleSignup as cognitoSignup,
   handleCallback as cognitoCallback,
   handleLogout as cognitoLogout,
   handleMe as cognitoMe,
+  handleCheckEmail as cognitoCheckEmail,
+  handleClaim as cognitoClaim,
 } from './cognito-auth.js';
 
 // Allowed origins for CORS
@@ -176,9 +179,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
     // Cognito OAuth endpoints (Issue #303)
     if (path.endsWith('/auth/login') && method === 'GET') return await cognitoLogin(event);
+    if (path.endsWith('/auth/signup') && method === 'GET') return await cognitoSignup(event);
     if (path.endsWith('/auth/callback') && method === 'GET') return await cognitoCallback(event);
     if (path.endsWith('/auth/logout') && (method === 'POST' || method === 'GET')) return await cognitoLogout(event);
     if (path.endsWith('/auth/me') && method === 'GET') return await cognitoMe(event);
+    if (path.endsWith('/auth/check-email') && method === 'GET') return await cognitoCheckEmail(event);
+    if (path.endsWith('/auth/claim') && method === 'POST') return await cognitoClaim(event);
 
     // Existing GET endpoints
     if (path.endsWith('/progress/read') && method === 'GET') return await readProgress(event, origin);
