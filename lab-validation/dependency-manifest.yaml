@@ -1,0 +1,372 @@
+# NLH Lab Validation — Module Dependency Manifest
+# Phase 1: Dependency Map
+#
+# This manifest documents the exact Kubernetes/fabric state each of the 16 NLH
+# modules assumes at the start and leaves behind at the end. It is the primary
+# input for Phase 2 fast-forward script authoring.
+#
+# Sources:
+#   - lab-validation/RESUMPTION.md (Dependency Map captured during Phase 0)
+#   - lab-validation/reports/session-20260219-01.md (per-step Phase 0 outcomes)
+#   - content/modules/[slug]/README.md (lab steps, prerequisites, cleanup)
+#
+# Key conventions:
+#   fast_forward_needed: true  → a script must set up prerequisites before
+#                                a student can jump directly to this module
+#   is_read_only: true         → module creates no new K8s fabric resources
+#                                (may write to Gitea repo or local files)
+#   prerequisites              → K8s resources that must exist when the module
+#                                starts (independent of how they got there)
+#   creates                    → K8s resources left in the cluster after the
+#                                module's main lab path completes
+#   destroys                   → K8s resources the module deletes as part of
+#                                its normal lab path
+
+modules:
+
+  # ─── Course 1: Foundations & Interfaces ───────────────────────────────────
+
+  - slug: fabric-operations-welcome
+    course: 1
+    order: 1.1
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Pure exploration module. All lab steps are kubectl get/describe on
+      wiring-layer resources (switches, servers, connections). No VPCs or
+      VPCAttachments touched. Requires only an operational fabric.
+
+  - slug: fabric-operations-how-it-works
+    course: 1
+    order: 1.2
+    fast_forward_needed: false
+    is_read_only: false
+    prerequisites: []
+    creates:
+      - type: vpc
+        name: test-vpc
+        namespace: default
+        vlans: [1998, 1999]
+        subnets:
+          - name: default
+            subnet: "10.99.1.0/24"
+            gateway: "10.99.1.1"
+            vlan: 1999
+            dhcp: true
+            dhcp_range: "10.99.1.10-10.99.1.99"
+          - name: backend
+            subnet: "10.99.2.0/24"
+            gateway: "10.99.2.1"
+            vlan: 1998
+            dhcp: false
+    destroys: []
+    notes: >
+      Creates test-vpc in two steps: first with default subnet only (vlan 1999),
+      then adds backend subnet (vlan 1998) via optional Task 5 update. The
+      practical assessment instructs deletion, but for pathway continuity
+      test-vpc must persist — Module 1.3 (mastering-interfaces) explicitly
+      depends on it. Phase 0 validation left test-vpc in place.
+      Local YAML files created (test-vpc.yaml, test-vpc-updated.yaml) are
+      not K8s resources and are cleaned up by the student after the module.
+
+  - slug: fabric-operations-mastering-interfaces
+    course: 1
+    order: 1.3
+    fast_forward_needed: true
+    is_read_only: true
+    prerequisites:
+      - type: vpc
+        name: test-vpc
+        reason: >
+          Module content explicitly builds on test-vpc created in Module 1.2.
+          kubectl inspect tasks (get, describe, get -o yaml) target test-vpc.
+    creates: []
+    destroys: []
+    notes: >
+      Read-only exploration of all three operational interfaces: kubectl
+      (inspect test-vpc and fabric topology), Gitea (browse hedgehog-config
+      repo commit history), and Grafana (tour all 6 dashboards). No K8s
+      resources created or deleted. test-vpc must pre-exist.
+
+  - slug: fabric-operations-foundations-recap
+    course: 1
+    order: 1.4
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      No lab. Pure reflection/recap module. Students answer knowledge-check
+      questions using the vAIDC preamble block; no kubectl commands that
+      modify state. Requires only an operational fabric.
+
+  # ─── Course 2: Provisioning & Day 1 Operations ────────────────────────────
+
+  - slug: fabric-operations-vpc-provisioning
+    course: 2
+    order: 2.1
+    fast_forward_needed: false
+    is_read_only: false
+    prerequisites: []
+    creates:
+      - type: vpc
+        name: webapp-prod
+        namespace: default
+        vlans: [1010, 1020]
+        subnets:
+          - name: web-servers
+            subnet: "10.10.10.0/24"
+            gateway: "10.10.10.1"
+            vlan: 1010
+            dhcp: false
+          - name: worker-nodes
+            subnet: "10.10.20.0/24"
+            gateway: "10.10.20.1"
+            vlan: 1020
+            dhcp: true
+            dhcp_range: "10.10.20.10-10.10.20.250"
+    destroys: []
+    notes: >
+      Creates webapp-prod VPC from scratch. Does not require test-vpc (which
+      persists from Module 1.2 but is not used here). Local file
+      webapp-prod-vpc.yaml is created during the lab and is not a K8s resource.
+      Module 2.1 is a fresh-start provisioning module.
+
+  - slug: fabric-operations-vpc-attachments
+    course: 2
+    order: 2.2
+    fast_forward_needed: true
+    is_read_only: false
+    prerequisites:
+      - type: vpc
+        name: webapp-prod
+        reason: >
+          VPCAttachments reference webapp-prod/web-servers and
+          webapp-prod/worker-nodes subnets. Module intro states:
+          "In Module 2.1, you created the webapp-prod VPC... Your VPC is
+          fully configured and ready—but no servers can reach it yet."
+    creates:
+      - type: vpcattachment
+        name: server-01-web-servers
+        vpc: webapp-prod
+        subnet: web-servers
+        connection: server-01--mclag--leaf-01--leaf-02
+        namespace: default
+      - type: vpcattachment
+        name: server-05-worker-nodes
+        vpc: webapp-prod
+        subnet: worker-nodes
+        connection: server-05--eslag--leaf-03--leaf-04
+        namespace: default
+    destroys: []
+    notes: >
+      Attaches server-01 (MCLAG, web-servers subnet) and server-05 (ESLAG,
+      worker-nodes subnet) to webapp-prod. YAML files created locally during
+      lab are not K8s resources.
+
+  - slug: fabric-operations-connectivity-validation
+    course: 2
+    order: 2.3
+    fast_forward_needed: true
+    is_read_only: true
+    prerequisites:
+      - type: vpc
+        name: webapp-prod
+        reason: Module validates VPC configuration and status.
+      - type: vpcattachment
+        name: server-01-web-servers
+        reason: >
+          Module scenario: "existing webapp-prod VPC with 2 VPCAttachments
+          (server-01, server-05)". Both attachments are inspected with
+          kubectl get/describe.
+      - type: vpcattachment
+        name: server-05-worker-nodes
+        reason: Same as server-01-web-servers above.
+    creates: []
+    destroys: []
+    notes: >
+      Read-only validation module. Uses kubectl get vpcs, kubectl get
+      vpcattachments, kubectl describe, and Agent CRD inspection to verify
+      the webapp-prod deployment from Modules 2.1 and 2.2. No resources
+      created or deleted.
+
+  - slug: fabric-operations-decommission-cleanup
+    course: 2
+    order: 2.4
+    fast_forward_needed: true
+    is_read_only: false
+    prerequisites:
+      - type: vpc
+        name: webapp-prod
+        reason: Module explicitly deletes webapp-prod as the primary scenario.
+      - type: vpcattachment
+        name: server-01-web-servers
+        reason: >
+          Must exist so the deletion-order workflow (attachments first, then
+          VPC) can be demonstrated.
+      - type: vpcattachment
+        name: server-05-worker-nodes
+        reason: Same as server-01-web-servers above.
+    creates: []
+    destroys:
+      - type: vpcattachment
+        name: server-01-web-servers
+      - type: vpcattachment
+        name: server-05-worker-nodes
+      - type: vpc
+        name: webapp-prod
+    notes: >
+      Deletes all webapp-prod resources in safe dependency order:
+      VPCAttachments first, then VPC. After this module the cluster contains
+      only test-vpc (persisted from Module 1.2). Fabric returns to clean state.
+
+  # ─── Course 3: Observability ──────────────────────────────────────────────
+
+  - slug: fabric-operations-telemetry-overview
+    course: 3
+    order: 3.1
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Read-only Prometheus query module. Queries switch metrics
+      (fabric_agent_interface_in_utilization, fabric_agent_interface_out_octets,
+      fabric_agent_bgp_neighbor_session_state, etc.) via Prometheus UI at
+      YOUR_VM_IP:9090. Requires an operational fabric with Prometheus
+      collecting metrics. test-vpc persists from Module 1.2 but is not
+      referenced or required by this module.
+
+  - slug: fabric-operations-dashboard-interpretation
+    course: 3
+    order: 3.2
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Read-only Grafana dashboard tour covering all 6 dashboards: Hedgehog
+      Fabric, Hedgehog Switch Interface Counters, Hedgehog Fabric Platform
+      Stats, Hedgehog Fabric Logs, Hedgehog mod of Node Exporter Full, and
+      Hedgehog Switch Critical Resources. Requires operational fabric (switches
+      up, Prometheus scraping). test-vpc persists but is not required.
+
+  - slug: fabric-operations-events-status
+    course: 3
+    order: 3.3
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Read-only: teaches admission webhook validation patterns (errors surface
+      at kubectl apply time) and Agent CRD generation counter inspection
+      (APPLIEDG == CURRENTG). No VPCs or VPCAttachments created. Requires only
+      a fabric with running agents. Note: fabric CRDs do not emit K8s events
+      — this was the core fix during Phase 0 (complete module rewrite).
+
+  - slug: fabric-operations-pre-support-diagnostics
+    course: 3
+    order: 3.4
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Read-only: systematic 6-step pre-escalation diagnostic checklist. Uses
+      Prometheus queries, Grafana dashboards, kubectl (Agent CRD status,
+      admission webhook output), and log collection. Teaches support ticket
+      authoring. No K8s resources created or deleted.
+
+  # ─── Course 4: Troubleshooting ────────────────────────────────────────────
+
+  - slug: fabric-operations-troubleshooting-framework
+    course: 4
+    order: 4.1
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Conceptual module: hypothesis-driven troubleshooting methodology,
+      common failure modes, layered diagnostic workflow (Resource check →
+      Agent CRD → Grafana → Logs), and decision trees. No hands-on lab
+      steps that create or delete K8s resources. Requires only operational
+      fabric for the brief kubectl illustration commands.
+
+  - slug: fabric-operations-diagnosis-lab
+    course: 4
+    order: 4.2
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Applies troubleshooting methodology to a simulated VLAN-conflict
+      scenario (customer-app-vpc/server-07). Diagnostic commands run against
+      the real cluster's Agent CRD state and Grafana metrics. The specific
+      resources in the scenario (customer-app-vpc, customer-app-vpc-server-07)
+      are illustrative — the learning objective is methodology, not exact
+      resource matching. No new K8s VPCs or VPCAttachments are created.
+
+  - slug: fabric-operations-rollback-recovery
+    course: 4
+    order: 4.3
+    fast_forward_needed: false
+    is_read_only: false
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      GitOps rollback workflow module. Lab steps involve git revert and
+      ArgoCD sync against the student/hedgehog-config Gitea repository.
+      Modifies Gitea commit history but does not create or destroy K8s fabric
+      resources (VPCs, VPCAttachments). The scenario uses webapp-vpc as an
+      illustrative example for the git revert demonstration. Fabric state
+      is unchanged after this module.
+
+  - slug: fabric-operations-post-incident-review
+    course: 4
+    order: 4.4
+    fast_forward_needed: false
+    is_read_only: true
+    prerequisites: []
+    creates: []
+    destroys: []
+    notes: >
+      Pure process and SRE culture module. No hands-on lab steps or K8s
+      resource changes. Students work through a blameless post-incident review
+      template and document lessons learned. Requires only an operational
+      fabric for the vAIDC preamble block.
+
+# ─── Summary ──────────────────────────────────────────────────────────────────
+#
+# Modules requiring fast-forward scripts (Phase 2):
+#   Module 1.3 (mastering-interfaces): create test-vpc
+#   Module 2.2 (vpc-attachments):      create webapp-prod VPC
+#   Module 2.3 (connectivity-validation): create webapp-prod + both VPCAttachments
+#   Module 2.4 (decommission-cleanup):    create webapp-prod + both VPCAttachments
+#
+# All other modules (1.1, 1.2, 1.4, 2.1, 3.1–3.4, 4.1–4.4):
+#   No fast-forward script needed — start from fresh/operational fabric.
+#
+# Fabric state progression through the pathway:
+#   Start:     Fresh fabric (switches, servers, connections — no VPCs)
+#   After 1.2: test-vpc present (VLANs 1998/1999, subnets 10.99.x.0/24)
+#   After 2.1: test-vpc + webapp-prod (VLANs 1010/1020, subnets 10.10.x.0/24)
+#   After 2.2: test-vpc + webapp-prod + 2 VPCAttachments
+#   After 2.3: unchanged (read-only validation)
+#   After 2.4: test-vpc only (webapp-prod and attachments deleted)
+#   After 3.x: unchanged (read-only)
+#   After 4.x: unchanged (read-only or Gitea-only)
+#   End:       test-vpc present, everything else clean
