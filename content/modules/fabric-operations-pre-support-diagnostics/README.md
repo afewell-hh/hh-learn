@@ -26,9 +26,9 @@ order: 304
 You've completed Modules 3.1-3.3, learning to:
 - Query Prometheus metrics
 - Interpret Grafana dashboards
-- Check kubectl events and Agent CRD status
+- Check admission webhook errors and Agent CRD status
 
-These skills enable you to self-resolve **many** common issues: VLAN conflicts, connection misconfigurations, subnet overlaps, and invalid CIDRs. When Grafana shows no traffic and kubectl events reveal a VLAN conflict, you know to choose a different VLAN. When a VPCAttachment fails because a connection doesn't exist, you fix the connection name. These are configuration errors—fixable with your observability toolkit.
+These skills enable you to self-resolve **many** common issues: VLAN conflicts, connection misconfigurations, subnet overlaps, and invalid CIDRs. When Grafana shows no traffic and an admission webhook error reveals a VLAN conflict, you know to choose a different VLAN. When a VPCAttachment fails because a connection doesn't exist, you fix the connection name. These are configuration errors—fixable with your observability toolkit.
 
 But sometimes, despite your troubleshooting, you'll encounter issues that require **support escalation**:
 - Controller crashes repeatedly
@@ -60,7 +60,7 @@ This module teaches you to:
 ### What You'll Learn
 
 - **Pre-escalation diagnostic checklist** - Systematic 6-step health check before escalation
-- **Evidence collection** - What to gather (kubectl, logs, events, Agent status, Grafana screenshots)
+- **Evidence collection** - What to gather (kubectl, logs, Agent status, Grafana screenshots)
 - **Escalation triggers** - When to escalate versus self-resolve
 - **Support ticket best practices** - Clear problem statement with relevant diagnostics
 - **Diagnostic package creation** - Bundle diagnostics for support team
@@ -77,14 +77,14 @@ Module 3.3 (kubectl)     ──┘     Diagnostic
                                  Workflow
 ```
 
-You'll use Prometheus queries, Grafana dashboards, kubectl events, and Agent CRD status together in a systematic escalation workflow. This integrated approach is what separates novice operators from experienced ones who can confidently navigate the boundary between self-resolution and escalation.
+You'll use Prometheus queries, Grafana dashboards, admission webhook output, and Agent CRD status together in a systematic escalation workflow. This integrated approach is what separates novice operators from experienced ones who can confidently navigate the boundary between self-resolution and escalation.
 
 ## Learning Objectives
 
 By the end of this module, you will be able to:
 
 1. **Execute diagnostic checklist** - Run comprehensive 6-step health check before escalation
-2. **Collect fabric diagnostics systematically** - Gather kubectl outputs, logs, events, Agent status, and Grafana screenshots
+2. **Collect fabric diagnostics systematically** - Gather kubectl outputs, logs, Agent status, and Grafana screenshots
 3. **Identify escalation triggers** - Determine when to escalate versus self-resolve
 4. **Write effective support tickets** - Document issues clearly with relevant diagnostics
 5. **Package diagnostics** - Create diagnostic bundle for support team
@@ -109,8 +109,8 @@ By the end of this module, you will be able to:
 A user reports that their newly created VPC `customer-app-vpc` with VPCAttachment for `server-07` isn't working. Server-07 cannot reach other servers in the VPC. You'll execute the full diagnostic checklist, collect evidence, and determine if this requires escalation or self-resolution.
 
 **Environment Access:**
-- **Grafana:** http://localhost:3000
-- **Prometheus:** http://localhost:9090
+- **Grafana:** http://YOUR_VM_IP:3000
+- **Prometheus:** http://YOUR_VM_IP:9090
 - **kubectl:** Already configured
 
 ### Task 1: Execute Pre-Escalation Checklist (3 minutes)
@@ -132,19 +132,33 @@ kubectl get pods -n fab
 
 ---
 
-**Step 1.2: Check Events**
+**Step 1.2: Check Admission Webhook Errors and Agent Convergence**
 
 ```bash
-# Check VPC and VPCAttachment events
-kubectl get events --field-selector involvedObject.name=customer-app-vpc
+# Verify resources exist (if missing, they were rejected by admission webhook)
+kubectl get vpc customer-app-vpc
+kubectl get vpcattachment | grep server-07
+
+# Check Agent reconciliation convergence
+kubectl get agents
+# APPLIEDG == CURRENTG → config applied to all switches
+# APPLIEDG < CURRENTG → still reconciling (wait and recheck)
+
+# Describe resources (Events: <none> is expected for fabric CRDs)
 kubectl describe vpcattachment customer-app-vpc--server-07
 ```
 
-**Look for:**
-- ✅ `Normal` events: Created, VNIAllocated, SubnetsConfigured, Ready
-- ❌ `Warning` events: ValidationFailed, VLANConflict, SubnetOverlap, DependencyMissing
+> **Note:** Fabric CRDs (VPC, VPCAttachment) do not emit Kubernetes events. Validation errors
+> surface at `kubectl apply` time via admission webhooks. Check ArgoCD sync status for any
+> webhook errors that occurred when the resource was created.
 
-**Decision:** Warning events with clear config errors → self-resolve. No error events but issue persists → escalate.
+**Look for:**
+- ✅ Resource exists + APPLIEDG == CURRENTG → configuration applied
+- ❌ Resource missing → was rejected by admission webhook (check ArgoCD sync error)
+- ❌ APPLIEDG < CURRENTG (not converging after 5+ minutes) → possible agent/controller issue
+
+**Decision:** Admission webhook error with clear config error → self-resolve. Resource exists and
+agents converged but issue persists → continue checklist.
 
 ---
 
@@ -152,41 +166,41 @@ kubectl describe vpcattachment customer-app-vpc--server-07
 
 ```bash
 # Find switch for server-07
-kubectl get connections -n fab | grep server-07
+kubectl get connections | grep server-07
 
-# Check agent and interface
-kubectl get agent leaf-04 -n fab
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.interfaces.Ethernet8}' | jq
+# Check agent and interface (agents are in default namespace)
+kubectl get agent leaf-04
+kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'
 ```
 
 **Look for:**
 - ✅ `oper: "up"`, low error counters
-- ❌ `oper: "down"` or high errors → check cabling
+- ❌ `oper: "down"` or high `ind` (discards) counters → check cabling
 
 ---
 
 **Step 1.4: BGP Health**
 
 ```bash
-# Check BGP neighbors
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.bgpNeighbors}' | jq
+# Check BGP neighbors (agents in default namespace)
+kubectl get agent leaf-04 -o jsonpath='{.status.state.bgpNeighbors}' | jq
 
-# Alternative: Query Prometheus
-curl -s 'http://localhost:9090/api/v1/query?query=bgp_neighbor_state{state!="established"}' | jq
+# Alternative: Query Prometheus (state value 6 = Established)
+curl -s 'http://YOUR_VM_IP:9090/api/v1/query?query=fabric_agent_bgp_neighbor_session_state!=6' | jq
 ```
 
-**Look for:** All neighbors `state: "established"`. If down, check spine connectivity.
+**Look for:** All neighbors `state: "established"` (Agent CRD) or no results from PromQL (all sessions are 6=Established). If sessions are down, check spine connectivity.
 
 ---
 
 **Step 1.5: Grafana Dashboard Review**
 
-Review dashboards at http://localhost:3000:
-- **Fabric Dashboard:** BGP sessions, VPC count
-- **Interfaces Dashboard:** leaf-04/Ethernet8 state, VLAN, traffic
-- **Platform Dashboard:** CPU/memory, temperature, PSU/fans
-- **Logs Dashboard:** ERROR logs
-- **Critical Resources Dashboard:** ASIC resource utilization
+Review dashboards at http://YOUR_VM_IP:3000 (admin/admin):
+- **Hedgehog Fabric:** BGP sessions, switch health
+- **Hedgehog Switch Interface Counters:** leaf-04/E1/8 state, VLAN, traffic
+- **Hedgehog Fabric Platform Stats:** CPU/memory, temperature, fan speed
+- **Hedgehog Fabric Logs:** ERROR logs for leaf-04
+- **Hedgehog Switch Critical Resources:** ASIC route/nexthop utilization
 
 ---
 
@@ -194,10 +208,10 @@ Review dashboards at http://localhost:3000:
 
 ```bash
 # Controller logs
-kubectl logs -n fab deployment/fabric-controller-manager --tail=200 | grep -i error
+kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -i error
 
 # If crashed, get previous logs
-kubectl logs -n fab deployment/fabric-controller-manager --previous
+kubectl logs -n fab deployment/fabric-ctrl --previous
 ```
 
 **Look for:** ERROR/PANIC messages, reconciliation loops. Escalate if found.
@@ -233,23 +247,23 @@ echo "Issue: server-07 cannot reach other servers in customer-app-vpc" > ${OUTDI
 date >> ${OUTDIR}/diagnostic-timestamp.txt
 
 # Collect CRDs
-kubectl get vpc,vpcattachment,vpcpeering -A -o yaml > ${OUTDIR}/crds-vpc.yaml
-kubectl get switches,servers,connections -n fab -o yaml > ${OUTDIR}/crds-wiring.yaml
-kubectl get agents -n fab -o yaml > ${OUTDIR}/crds-agents.yaml
+kubectl get vpc,vpcattachment,vpcpeering -o yaml > ${OUTDIR}/crds-vpc.yaml
+kubectl get switches,servers,connections -o yaml > ${OUTDIR}/crds-wiring.yaml
+kubectl get agents -o yaml > ${OUTDIR}/crds-agents.yaml
 
-# Collect events and logs
+# Collect system events (fabric CRDs do not emit K8s events, but system events may help)
 kubectl get events --all-namespaces --sort-by='.lastTimestamp' > ${OUTDIR}/events.log
-kubectl logs -n fab deployment/fabric-controller-manager --tail=2000 > ${OUTDIR}/controller.log
-kubectl logs -n fab deployment/fabric-controller-manager --previous > ${OUTDIR}/controller-previous.log 2>/dev/null || echo "No previous logs" > ${OUTDIR}/controller-previous.log
+kubectl logs -n fab deployment/fabric-ctrl --tail=2000 > ${OUTDIR}/controller.log
+kubectl logs -n fab deployment/fabric-ctrl --previous > ${OUTDIR}/controller-previous.log 2>/dev/null || echo "No previous logs" > ${OUTDIR}/controller-previous.log
 
 # Collect status and versions
 kubectl get pods -n fab > ${OUTDIR}/pods-fab.txt
 kubectl version > ${OUTDIR}/kubectl-version.txt
-kubectl get agents -n fab -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.version}{"\n"}{end}' > ${OUTDIR}/agent-versions.txt
+kubectl get agents -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.version}{"\n"}{end}' > ${OUTDIR}/agent-versions.txt
 
 # Collect agent details for affected switch (leaf-04)
-kubectl get agent leaf-04 -n fab -o yaml > ${OUTDIR}/agent-leaf-04.yaml
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.interfaces}' | jq > ${OUTDIR}/agent-leaf-04-interfaces.json
+kubectl get agent leaf-04 -o yaml > ${OUTDIR}/agent-leaf-04.yaml
+kubectl get agent leaf-04 -o jsonpath='{.status.state.interfaces}' | jq > ${OUTDIR}/agent-leaf-04-interfaces.json
 
 # Compress
 tar czf ${OUTDIR}.tar.gz ${OUTDIR}
@@ -258,8 +272,8 @@ echo "Created: ${OUTDIR}.tar.gz"
 
 **Collect Grafana Screenshots:**
 
-1. Navigate to "Hedgehog Interfaces" dashboard, filter leaf-04/Ethernet8, screenshot
-2. Navigate to "Hedgehog Logs" dashboard, filter leaf-04, screenshot errors
+1. Navigate to "Hedgehog Switch Interface Counters" dashboard, filter leaf-04/E1/8, screenshot
+2. Navigate to "Hedgehog Fabric Logs" dashboard, filter leaf-04, screenshot errors
 3. Add to bundle: `cp grafana-*.png ${OUTDIR}/ && tar czf ${OUTDIR}.tar.gz ${OUTDIR}`
 
 **Success Criteria:**
@@ -316,7 +330,7 @@ echo "Reason: [Explanation]" >> ${OUTDIR}/diagnostic-timestamp.txt
 **Actual:** [What is happening]
 
 # Diagnostics Completed
-**Checklist:** [✅ kubectl events, Agent status, BGP health, Grafana, logs, CRDs]
+**Checklist:** [✅ admission webhook check, Agent convergence, BGP health, Grafana, logs, CRDs]
 **Troubleshooting Attempted:** [What you tried and results]
 **Findings:** [What you discovered]
 
@@ -357,7 +371,7 @@ tar czf ${OUTDIR}.tar.gz ${OUTDIR}
 **What You Accomplished:**
 
 You completed the full pre-escalation diagnostic workflow:
-- ✅ Executed systematic 6-step health check (Kubernetes, events, agents, BGP, Grafana, logs)
+- ✅ Executed systematic 6-step health check (Kubernetes resources, admission webhook errors, agents, BGP, Grafana, logs)
 - ✅ Collected comprehensive diagnostics (CRDs, events, logs, Agent status, versions, topology)
 - ✅ Made escalation decision (self-resolve vs escalate)
 - ✅ Wrote effective support ticket (clear, concise, with evidence)
@@ -405,9 +419,9 @@ The 6-step checklist ensures systematic troubleshooting before escalation.
 
 | Indicator | Self-Resolve | Escalate |
 |-----------|--------------|----------|
-| Events | VLAN conflict, connection not found | No events but issue persists |
+| Admission webhook | VLAN conflict, connection not found | Resource applied but config doesn't converge |
 | Pods | Running | CrashLoopBackOff |
-| Agents | Ready, recent heartbeat | Disconnecting repeatedly |
+| Agent convergence | APPLIEDG == CURRENTG | APPLIEDG stuck below CURRENTG |
 | BGP | Established | Flapping without cause |
 | Logs | Config validation errors | PANIC, fatal errors |
 
@@ -421,7 +435,7 @@ Complete diagnostic package includes:
 
 1. **Problem Statement:** What broke, when, what changed, expected vs actual
 2. **CRDs:** Full YAML of VPCs, wiring, agents, namespaces
-3. **Events:** All events sorted by timestamp, Warning events separately
+3. **System events:** `kubectl get events -n fab` (K8s system component events; fabric CRDs emit no events)
 4. **Logs:** Controller logs (current + previous if crashed)
 5. **Agent Status:** Per-switch YAML with BGP, interfaces, platform health
 6. **Versions:** Kubernetes, controller, agent versions
@@ -469,7 +483,7 @@ Issue → Checklist → Clear config error? YES → Self-resolve
                  → Operational question? YES → Check docs
 ```
 
-**Rule:** If events/logs clearly explain (config error) → Self-resolve. If unexpected errors or no explanation → Escalate.
+**Rule:** If admission webhook error or `kubectl get` clearly explains (config error) → Self-resolve. If no explanation found or unexpected behavior → Escalate.
 
 ---
 
@@ -521,22 +535,22 @@ echo "Issue: ${DESC}" > ${OUTDIR}/diagnostic-timestamp.txt
 date >> ${OUTDIR}/diagnostic-timestamp.txt
 
 # Collect CRDs, events, logs
-kubectl get vpc,vpcattachment,vpcpeering -A -o yaml > ${OUTDIR}/crds-vpc.yaml 2>&1
-kubectl get switches,servers,connections -n fab -o yaml > ${OUTDIR}/crds-wiring.yaml 2>&1
-kubectl get agents -n fab -o yaml > ${OUTDIR}/crds-agents.yaml 2>&1
+kubectl get vpc,vpcattachment,vpcpeering -o yaml > ${OUTDIR}/crds-vpc.yaml 2>&1
+kubectl get switches,servers,connections -o yaml > ${OUTDIR}/crds-wiring.yaml 2>&1
+kubectl get agents -o yaml > ${OUTDIR}/crds-agents.yaml 2>&1
 kubectl get events --all-namespaces --sort-by='.lastTimestamp' > ${OUTDIR}/events.log 2>&1
-kubectl logs -n fab deployment/fabric-controller-manager --tail=2000 > ${OUTDIR}/controller.log 2>&1
+kubectl logs -n fab deployment/fabric-ctrl --tail=2000 > ${OUTDIR}/controller.log 2>&1
 
 # Versions and status
 kubectl version > ${OUTDIR}/kubectl-version.txt 2>&1
 kubectl get pods -n fab > ${OUTDIR}/pods-fab.txt 2>&1
-kubectl get agents -n fab -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.version}{"\n"}{end}' > ${OUTDIR}/agent-versions.txt 2>&1
+kubectl get agents -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.version}{"\n"}{end}' > ${OUTDIR}/agent-versions.txt 2>&1
 
 # Per-switch details (prompt for affected switches)
 read -p "Affected switches (comma-separated): " SWITCHES
 for switch in ${SWITCHES//,/ }; do
-    kubectl get agent ${switch} -n fab -o yaml > ${OUTDIR}/agent-${switch}.yaml 2>&1
-    kubectl get agent ${switch} -n fab -o jsonpath='{.status.state.interfaces}' | jq > ${OUTDIR}/agent-${switch}-interfaces.json 2>&1
+    kubectl get agent ${switch} -o yaml > ${OUTDIR}/agent-${switch}.yaml 2>&1
+    kubectl get agent ${switch} -o jsonpath='{.status.state.interfaces}' | jq > ${OUTDIR}/agent-${switch}-interfaces.json 2>&1
 done
 
 # Compress
@@ -593,8 +607,8 @@ find ${OUTDIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
 **Symptom:** `kubectl get agent <switch>` shows `status: {}`
 
 **Troubleshooting:**
-1. Check if agent pod exists: `kubectl get pods -n fab | grep agent-<switch>`
-2. Check switch registered: `kubectl get switch <switch> -n fab`
+1. Check if agent pod exists: `kubectl get pods -n fab -l "wiring.githedgehog.com/agent=<switch>"`
+2. Check switch registered: `kubectl get switch <switch>`
 3. Check boot logs: `hhfab vlab serial <switch>`
 4. Check fabric-boot: `kubectl logs -n fab deployment/fabric-boot`
 
@@ -617,9 +631,9 @@ find ${DIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
 ### Issue: Support Requests Additional Data
 
 **Common requests:**
-1. Time-range metrics: `curl 'http://localhost:9090/api/v1/query_range?query=...'`
+1. Time-range metrics: `curl 'http://YOUR_VM_IP:9090/api/v1/query_range?query=...'`
 2. Switch CLI: `hhfab vlab ssh leaf-04 "show running-config"`
-3. Detailed interface stats: `kubectl get agent leaf-04 -o jsonpath='{.status.state.interfaces.Ethernet8}'`
+3. Detailed interface stats: `kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'`
 
 **Best practice:** Keep original bundle, add supplemental files to ticket
 
@@ -650,28 +664,30 @@ find ${DIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
 
 ```bash
 # 1. Kubernetes Resource Health
-kubectl get vpc,vpcattachment -A
-kubectl get switches,agents -n fab
+kubectl get vpc,vpcattachment
+kubectl get switches,agents
 kubectl get pods -n fab
 
-# 2. Events (Last Hour)
-kubectl get events --all-namespaces --field-selector type=Warning --sort-by='.lastTimestamp'
+# 2. Admission Webhook / Agent Convergence
+# Check ArgoCD for webhook errors at sync time
+kubectl get agents   # APPLIEDG == CURRENTG?
 
 # 3. Switch Agent Status
-kubectl get agents -n fab
-kubectl get agent <switch> -n fab -o yaml
+kubectl get agents
+kubectl get agent <switch> -o yaml
 
 # 4. BGP Health
-kubectl get agent <switch> -n fab -o jsonpath='{.status.state.bgpNeighbors}' | jq
+kubectl get agent <switch> -o jsonpath='{.status.state.bgpNeighbors}' | jq
+curl -s 'http://YOUR_VM_IP:9090/api/v1/query?query=fabric_agent_bgp_neighbor_session_state!=6' | jq
 
-# 5. Grafana Dashboards
-# - Fabric Dashboard (BGP, VPC health)
-# - Interfaces Dashboard (interface state, errors)
-# - Platform Dashboard (hardware health)
-# - Logs Dashboard (error logs)
+# 5. Grafana Dashboards (http://YOUR_VM_IP:3000, admin/admin)
+# - Hedgehog Fabric (BGP, switch health)
+# - Hedgehog Switch Interface Counters (interface state, errors)
+# - Hedgehog Fabric Platform Stats (hardware health)
+# - Hedgehog Fabric Logs (error logs)
 
 # 6. Controller Logs
-kubectl logs -n fab deployment/fabric-controller-manager --tail=200 | grep -i error
+kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -i error
 ```
 
 **Diagnostic Collection:**
@@ -684,10 +700,10 @@ kubectl logs -n fab deployment/fabric-controller-manager --tail=200 | grep -i er
 OUTDIR="hedgehog-diagnostics-$(date +%Y%m%d-%H%M%S)"
 mkdir -p ${OUTDIR}
 
-kubectl get vpc,vpcattachment -A -o yaml > ${OUTDIR}/crds-vpc.yaml
+kubectl get vpc,vpcattachment -o yaml > ${OUTDIR}/crds-vpc.yaml
 kubectl get events --all-namespaces --sort-by='.lastTimestamp' > ${OUTDIR}/events.log
-kubectl logs -n fab deployment/fabric-controller-manager --tail=2000 > ${OUTDIR}/controller.log
-kubectl get agent <switch> -n fab -o yaml > ${OUTDIR}/agent-<switch>.yaml
+kubectl logs -n fab deployment/fabric-ctrl --tail=2000 > ${OUTDIR}/controller.log
+kubectl get agent <switch> -o yaml > ${OUTDIR}/agent-<switch>.yaml
 
 tar czf ${OUTDIR}.tar.gz ${OUTDIR}
 ```
