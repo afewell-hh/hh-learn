@@ -22,13 +22,13 @@ order: 202
 
 ## Introduction
 
-In Module 2.1, you created the `web-app-prod` VPC with two subnets: `web-servers` (static IPs) and `worker-nodes` (DHCP). Your VPC is fully configured and ready—but there's one problem: **no servers can reach it yet**.
+In Module 2.1, you created the `webapp-prod` VPC with two subnets: `web-servers` (static IPs) and `worker-nodes` (DHCP). Your VPC is fully configured and ready—but there's one problem: **no servers can reach it yet**.
 
 A VPC without servers is like a road without cars—perfectly built but completely unused. To make your VPC operational, you need to **attach servers** to it. This is where **VPCAttachment** comes in.
 
 VPCAttachment bridges the virtual and physical layers of your infrastructure. It binds a VPC subnet (virtual network) to a server connection (physical wiring), automatically configuring the switches to enable connectivity. Once attached, your servers can communicate within the VPC, and your three-tier application network comes to life.
 
-In this module, you'll attach two servers to the `web-app-prod` VPC you created in Module 2.1, learning about different connection types and validating the complete connectivity workflow.
+In this module, you'll attach two servers to the `webapp-prod` VPC you created in Module 2.1, learning about different connection types and validating the complete connectivity workflow.
 
 ## Learning Objectives
 
@@ -43,14 +43,14 @@ By the end of this module, you will be able to:
 ## Prerequisites
 
 - Module 2.1 completion (VPC Provisioning Essentials)
-- Existing VPC (`web-app-prod` from Module 2.1)
+- Existing VPC (`webapp-prod` from Module 2.1)
 - Understanding of server-to-switch connections (from Module 1.1)
 - kubectl access to Hedgehog fabric
 - Basic familiarity with YAML syntax
 
 ## Scenario: Completing the Connectivity Workflow
 
-The `web-app-prod` VPC is ready, but no servers can reach it yet. Your task: attach two servers to the VPC—`server-01` (MCLAG connection) to the `web-servers` subnet for static IPs, and `server-05` (ESLAG connection) to the `worker-nodes` subnet for DHCP. This will complete the connectivity workflow and make the VPC operational, allowing your web application to serve traffic and your worker nodes to scale dynamically.
+The `webapp-prod` VPC is ready, but no servers can reach it yet. Your task: attach two servers to the VPC—`server-01` (MCLAG connection) to the `web-servers` subnet for static IPs, and `server-05` (ESLAG connection) to the `worker-nodes` subnet for DHCP. This will complete the connectivity workflow and make the VPC operational, allowing your web application to serve traffic and your worker nodes to scale dynamically.
 
 > **Before You Begin the Lab**
 >
@@ -69,79 +69,78 @@ Before attaching servers, confirm your infrastructure is ready. You'll verify th
 List switches in the fabric:
 
 ```bash
-kubectl get switches -n fab
+kubectl get switches
 ```
 
 Expected output (similar to):
 ```
-NAME      AGE
-leaf-01   2h
-leaf-02   2h
-leaf-03   2h
-leaf-04   2h
-leaf-05   2h
-spine-01  2h
-spine-02  2h
+NAME       PROFILE   ROLE          DESCR           GROUPS        AGE
+leaf-01    vs        server-leaf   VS-01 MCLAG 1   ["mclag-1"]   2h
+leaf-02    vs        server-leaf   VS-02 MCLAG 1   ["mclag-1"]   2h
+leaf-03    vs        server-leaf   VS-03 ESLAG 1   ["eslag-1"]   2h
+leaf-04    vs        server-leaf   VS-04 ESLAG 1   ["eslag-1"]   2h
+leaf-05    vs        server-leaf   VS-05                         2h
+spine-01   vs        spine         VS-06                         2h
+spine-02   vs        spine         VS-07                         2h
 ```
 
 List servers in the fabric:
 
 ```bash
-kubectl get servers -n fab
+kubectl get servers
 ```
 
 Expected output (similar to):
 ```
-NAME        AGE
-server-01   2h
-server-02   2h
-server-03   2h
-server-04   2h
-server-05   2h
-server-06   2h
-server-07   2h
-server-08   2h
-server-09   2h
-server-10   2h
+NAME        TYPE   DESCR                        AGE
+server-01          S-01 MCLAG leaf-01 leaf-02   2h
+server-02          S-02 MCLAG leaf-01 leaf-02   2h
+server-03          S-03 Unbundled leaf-01       2h
+server-04          S-04 Bundled leaf-02         2h
+server-05          S-05 ESLAG leaf-03 leaf-04   2h
+server-06          S-06 ESLAG leaf-03 leaf-04   2h
+server-07          S-07 Unbundled leaf-03       2h
+server-08          S-08 Bundled leaf-04         2h
+server-09          S-09 Unbundled leaf-05       2h
+server-10          S-10 Bundled leaf-05         2h
 ```
 
 List server connections:
 
 ```bash
-kubectl get connections -n fab | grep server-
+kubectl get connections | grep server-
 ```
 
 Expected output (similar to):
 ```
-NAME                                 AGE
-server-01--mclag--leaf-01--leaf-02   2h
-server-02--mclag--leaf-01--leaf-02   2h
-server-03--unbundled--leaf-01        2h
-server-04--bundled--leaf-02          2h
-server-05--eslag--leaf-03--leaf-04   2h
-server-06--eslag--leaf-03--leaf-04   2h
-server-07--unbundled--leaf-03        2h
-server-08--bundled--leaf-04          2h
-server-09--unbundled--leaf-05        2h
-server-10--bundled--leaf-05          2h
+server-01--mclag--leaf-01--leaf-02   mclag          2h
+server-02--mclag--leaf-01--leaf-02   mclag          2h
+server-03--unbundled--leaf-01        unbundled      2h
+server-04--bundled--leaf-02          bundled        2h
+server-05--eslag--leaf-03--leaf-04   eslag          2h
+server-06--eslag--leaf-03--leaf-04   eslag          2h
+server-07--unbundled--leaf-03        unbundled      2h
+server-08--bundled--leaf-04          bundled        2h
+server-09--unbundled--leaf-05        unbundled      2h
+server-10--bundled--leaf-05          bundled        2h
 ```
 
 Verify the VPC from Module 2.1 exists:
 
 ```bash
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 ```
 
 Expected output:
 ```
-NAME           AGE
-web-app-prod   15m
+NAME          IPV4NS    VLANNS    AGE
+webapp-prod   default   default   15m
 ```
 
 View VPC details to confirm subnets:
 
 ```bash
-kubectl get vpc web-app-prod -o yaml | grep -A 20 "subnets:"
+kubectl get vpc webapp-prod -o yaml | grep -A 20 "subnets:"
 ```
 
 You should see the two subnets you created: `web-servers` (10.10.10.0/24) and `worker-nodes` (10.10.20.0/24 with DHCP).
@@ -155,7 +154,7 @@ For this lab, you'll attach:
 **Success Criteria:**
 
 - ✅ Can list switches, servers, and connections
-- ✅ VPC `web-app-prod` exists with two subnets
+- ✅ VPC `webapp-prod` exists with two subnets
 - ✅ Identified server-01 (MCLAG) and server-05 (ESLAG) connection types
 
 ### Step 2: Create VPCAttachment for server-01 (MCLAG, Static IP)
@@ -173,7 +172,7 @@ metadata:
   namespace: default
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
-  subnet: web-app-prod/web-servers
+  subnet: webapp-prod/web-servers
 EOF
 ```
 
@@ -211,22 +210,29 @@ kubectl get vpcattachments
 kubectl describe vpcattachment server-01-web-servers
 ```
 
-Check for events showing reconciliation progress:
+Verify reconciliation by checking agent generation status (APPLIEDG should equal CURRENTG):
 
 ```bash
-kubectl get events --field-selector involvedObject.name=server-01-web-servers --sort-by='.lastTimestamp'
+kubectl get agents
 ```
 
-Look for events like:
-- `Normal  Created` - VPCAttachment created
-- `Normal  Reconciling` - Fabric controller processing
-- `Normal  Applied` - Configuration sent to switches
+Expected output once reconciliation is complete (leaf-01 and leaf-02 handle this MCLAG connection):
+```
+NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION   REBOOTREQ
+leaf-01    server-leaf   VS-01 MCLAG 1   30s       <N>        <N>        v0.96.2
+leaf-02    server-leaf   VS-02 MCLAG 1   30s       <N>        <N>        v0.96.2
+...
+```
+
+If APPLIEDG is lower than CURRENTG, wait 15–30 seconds and re-run. Convergence typically takes 15–60 seconds.
+
+Note: VPCAttachment events do not appear in `kubectl get events` — use agent generation counters to track reconciliation.
 
 **Success Criteria:**
 
 - ✅ VPCAttachment created successfully
-- ✅ Status shows reconciliation events
-- ✅ No error events in describe output
+- ✅ Agent APPLIEDG == CURRENTG on leaf-01 and leaf-02
+- ✅ No errors shown in `kubectl describe vpcattachment server-01-web-servers`
 
 ### Step 3: Create VPCAttachment for server-05 (ESLAG, DHCP)
 
@@ -243,7 +249,7 @@ metadata:
   namespace: default
 spec:
   connection: server-05--eslag--leaf-03--leaf-04
-  subnet: web-app-prod/worker-nodes
+  subnet: webapp-prod/worker-nodes
 EOF
 ```
 
@@ -308,28 +314,30 @@ kubectl describe vpcattachment server-01-web-servers
 kubectl describe vpcattachment server-05-worker-nodes
 ```
 
-View events for reconciliation progress:
+Verify reconciliation by checking agent generation status:
 
 ```bash
-# All VPCAttachment events
-kubectl get events --sort-by='.lastTimestamp' | grep vpcattachment
+# All agents should show APPLIEDG == CURRENTG once reconciliation is complete
+kubectl get agents
 ```
+
+Note: VPCAttachment events do not appear in `kubectl get events` — agent generation counters are the correct way to verify reconciliation.
 
 Verify connection types match expectations:
 
 ```bash
 # Verify server-01 uses MCLAG
-kubectl get connection server-01--mclag--leaf-01--leaf-02 -n fab -o yaml | grep -A 5 "mclag:"
+kubectl get connection server-01--mclag--leaf-01--leaf-02 -o yaml | grep -A 5 "mclag:"
 
 # Verify server-05 uses ESLAG
-kubectl get connection server-05--eslag--leaf-03--leaf-04 -n fab -o yaml | grep -A 5 "eslag:"
+kubectl get connection server-05--eslag--leaf-03--leaf-04 -o yaml | grep -A 5 "eslag:"
 ```
 
 **Success Criteria:**
 
 - ✅ Both attachments appear in list
-- ✅ Status shows successful reconciliation in events
-- ✅ No warning or error events
+- ✅ Agent APPLIEDG == CURRENTG (reconciliation complete)
+- ✅ No errors shown in kubectl describe for either attachment
 - ✅ Connection types confirmed (MCLAG vs ESLAG)
 
 ### Step 5: Understand Connection Type Impact
@@ -349,7 +357,7 @@ MCLAG (Multi-Chassis Link Aggregation) provides active-active redundancy:
 View the MCLAG connection details:
 
 ```bash
-kubectl get connection server-01--mclag--leaf-01--leaf-02 -n fab -o yaml
+kubectl get connection server-01--mclag--leaf-01--leaf-02 -o yaml
 ```
 
 **Server-05 (ESLAG) Configuration:**
@@ -366,7 +374,7 @@ ESLAG (EVPN ESI LAG) provides standards-based multi-homing:
 View the ESLAG connection details:
 
 ```bash
-kubectl get connection server-05--eslag--leaf-03--leaf-04 -n fab -o yaml
+kubectl get connection server-05--eslag--leaf-03--leaf-04 -o yaml
 ```
 
 **What happens during VPCAttachment reconciliation:**
@@ -430,7 +438,7 @@ Wiring Layer (Physical)
                     VPCAttachment CRD
                               ▼
 VPC Layer (Virtual)
-└─ VPC CRD ─────────────► web-app-prod
+└─ VPC CRD ─────────────► webapp-prod
    └─ Subnet ───────────► web-servers (10.10.10.0/24)
 ```
 
@@ -461,21 +469,18 @@ spec:
 - **metadata.name**: Choose a descriptive name like `webapp-frontend-server-01`
 - **metadata.namespace**: Usually `default` (matches VPC namespace)
 - **spec.connection**: MUST be the exact Connection CRD name (e.g., `server-01--mclag--leaf-01--leaf-02`)
-- **spec.subnet**: Format is `<vpc-name>/<subnet-name>` (e.g., `web-app-prod/web-servers`)
+- **spec.subnet**: Format is `<vpc-name>/<subnet-name>` (e.g., `webapp-prod/web-servers`)
 
 **Status Fields:**
 
-Like VPCs, VPCAttachment status is minimal. Use events to track reconciliation:
+VPCAttachment status is minimal — the Events section in `kubectl describe` is typically empty. Track reconciliation progress using agent generation counters:
 
 ```bash
-kubectl describe vpcattachment <name>
+# APPLIEDG should match CURRENTG after reconciliation (typically 15–60 seconds)
+kubectl get agents
 ```
 
-Look in the Events section for:
-- `Normal  Created` - Resource created
-- `Normal  Reconciling` - Controller processing
-- `Normal  Applied` - Configuration applied to switches
-- `Warning  Error` - Problems during reconciliation
+If APPLIEDG lags behind CURRENTG, reconciliation is still in progress. Once they match, the configuration has been applied to the switches. For a specific attachment, check which switches serve its connection (e.g., leaf-01 and leaf-02 for MCLAG, leaf-03 and leaf-04 for ESLAG) and verify those agents have converged.
 
 ### Connection Types and VPCAttachments
 
@@ -501,7 +506,7 @@ apiVersion: wiring.githedgehog.com/v1beta1
 kind: Connection
 metadata:
   name: server-01--mclag--leaf-01--leaf-02
-  namespace: fab
+  namespace: default
 spec:
   mclag:
     links:
@@ -530,7 +535,7 @@ metadata:
   name: server-01-web-servers
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
-  subnet: web-app-prod/web-servers
+  subnet: webapp-prod/web-servers
 ```
 
 From your perspective as an operator, the VPCAttachment is simple. The fabric automatically configures both switches.
@@ -556,7 +561,7 @@ apiVersion: wiring.githedgehog.com/v1beta1
 kind: Connection
 metadata:
   name: server-05--eslag--leaf-03--leaf-04
-  namespace: fab
+  namespace: default
 spec:
   eslag:
     links:
@@ -585,7 +590,7 @@ metadata:
   name: server-05-worker-nodes
 spec:
   connection: server-05--eslag--leaf-03--leaf-04
-  subnet: web-app-prod/worker-nodes
+  subnet: webapp-prod/worker-nodes
 ```
 
 Like MCLAG, the VPCAttachment syntax is identical—the fabric handles the EVPN complexity.
@@ -610,7 +615,7 @@ apiVersion: wiring.githedgehog.com/v1beta1
 kind: Connection
 metadata:
   name: server-10--bundled--leaf-05
-  namespace: fab
+  namespace: default
 spec:
   bundled:
     links:
@@ -639,7 +644,7 @@ metadata:
   name: server-10-workers
 spec:
   connection: server-10--bundled--leaf-05
-  subnet: web-app-prod/worker-nodes
+  subnet: webapp-prod/worker-nodes
 ```
 
 #### Unbundled (Single Link)
@@ -662,7 +667,7 @@ apiVersion: wiring.githedgehog.com/v1beta1
 kind: Connection
 metadata:
   name: server-09--unbundled--leaf-05
-  namespace: fab
+  namespace: default
 spec:
   unbundled:
     link:
@@ -688,7 +693,7 @@ metadata:
   name: server-09-database
 spec:
   connection: server-09--unbundled--leaf-05
-  subnet: web-app-prod/database
+  subnet: webapp-prod/database
 ```
 
 #### Connection Type Decision Tree
@@ -714,7 +719,7 @@ Do you need switch redundancy?
 
 2. **Validates references**
    - Does the Connection exist? (`server-01--mclag--leaf-01--leaf-02`)
-   - Does the VPC and subnet exist? (`web-app-prod/web-servers`)
+   - Does the VPC and subnet exist? (`webapp-prod/web-servers`)
 
 3. **Identifies switches**
    - Which switches serve this connection?
@@ -738,8 +743,8 @@ Do you need switch redundancy?
    - Configure ports, VLANs, VXLAN, BGP
 
 7. **Status reported**
-   - Success or errors shown in VPCAttachment events
-   - Agent CRD status shows applied configuration
+   - Agent CRD APPLIEDG increments to match CURRENTG once config is applied to switches
+   - Note: VPCAttachment events are typically empty — use `kubectl get agents` to track status
 
 **Timeline:**
 
@@ -759,7 +764,7 @@ metadata:
   name: server-01-web-servers
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
-  subnet: web-app-prod/web-servers
+  subnet: webapp-prod/web-servers
   staticAddress: 10.10.10.10  # Optional static IP assignment
 ```
 
@@ -792,7 +797,7 @@ metadata:
   name: server-01-web-servers
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
-  subnet: web-app-prod/web-servers
+  subnet: webapp-prod/web-servers
 ---
 # Attachment 2: server-01 to worker-nodes subnet
 apiVersion: vpc.githedgehog.com/v1beta1
@@ -801,7 +806,7 @@ metadata:
   name: server-01-workers
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
-  subnet: web-app-prod/worker-nodes
+  subnet: webapp-prod/worker-nodes
 ```
 
 **Result:**
@@ -837,7 +842,7 @@ When using multiple attachments, configure VLAN subinterfaces on the server OS:
 
 ```bash
 # List all connections to find the correct name
-kubectl get connections -n fab | grep server-01
+kubectl get connections | grep server-01
 
 # Expected output:
 # server-01--mclag--leaf-01--leaf-02   2h
@@ -854,7 +859,7 @@ kubectl apply -f server-01-attachment.yaml
 
 ### Issue: VPCAttachment fails with "Subnet not found"
 
-**Symptom:** Error during apply: `Subnet "web-servers" not found in VPC "web-app-prod"`
+**Symptom:** Error during apply: `Subnet "web-servers" not found in VPC "webapp-prod"`
 
 **Cause:** VPC/subnet format incorrect or subnet doesn't exist in VPC
 
@@ -862,10 +867,10 @@ kubectl apply -f server-01-attachment.yaml
 
 ```bash
 # Verify VPC exists
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 
 # Check subnet names in VPC
-kubectl get vpc web-app-prod -o yaml | grep -A 2 "subnets:"
+kubectl get vpc webapp-prod -o yaml | grep -A 2 "subnets:"
 
 # Expected output shows subnet names:
 #   subnets:
@@ -876,7 +881,7 @@ kubectl get vpc web-app-prod -o yaml | grep -A 2 "subnets:"
 
 # Ensure VPCAttachment uses correct format:
 # Format: <vpc-name>/<subnet-name>
-# Correct: web-app-prod/web-servers
+# Correct: webapp-prod/web-servers
 # Wrong: web-servers (missing VPC name)
 
 # Update YAML and reapply
@@ -895,9 +900,9 @@ kubectl apply -f server-01-attachment.yaml
 # Step 1: Verify VPCAttachment reconciled successfully
 kubectl describe vpcattachment server-01-web-servers
 
-# Look for:
-# Events:
-#   Normal  Applied  Configuration applied to leaf-01, leaf-02
+# Step 1b: Verify agent generation counters converged (APPLIEDG == CURRENTG)
+# leaf-01 and leaf-02 handle MCLAG connections
+kubectl get agents
 
 # Step 2: Check server OS network configuration
 # SSH to server and verify interface config
@@ -932,7 +937,7 @@ sudo dhclient eth0
 kubectl get vpcattachment server-05-worker-nodes -o yaml
 
 # Verify subnet has DHCP enabled:
-kubectl get vpc web-app-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
+kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 
 # Expected output:
 # {
@@ -952,7 +957,7 @@ sudo dhclient eth0
 
 # Step 3: Check for DHCP range exhaustion
 # If range is full, expand DHCP range in VPC:
-kubectl edit vpc web-app-prod
+kubectl edit vpc webapp-prod
 # Modify dhcp.range.end to larger value
 ```
 
@@ -973,7 +978,7 @@ kubectl get vpcattachments | grep server-01
 # server-01-workers         3m
 
 # Step 2: Identify VLANs for each attachment
-kubectl get vpc web-app-prod -o yaml | grep vlan
+kubectl get vpc webapp-prod -o yaml | grep vlan
 
 # Example output:
 # web-servers: vlan: 1010
@@ -1002,11 +1007,11 @@ sudo dhclient eth0.1020                         # worker-nodes (DHCP)
 
 ```bash
 # Check VPC namespace
-kubectl get vpc web-app-prod -A
+kubectl get vpc webapp-prod -A
 
 # Example output:
 # NAMESPACE   NAME           AGE
-# default     web-app-prod   1h
+# default     webapp-prod   1h
 
 # Ensure VPCAttachment uses same namespace
 # Edit VPCAttachment YAML:
@@ -1031,9 +1036,9 @@ kubectl apply -f server-01-attachment.yaml
 
 **Connection** - Server-to-switch wiring (from Module 1.1)
 
-- View all: `kubectl get connections -n fab`
-- View server connections: `kubectl get connections -n fab | grep server-`
-- View specific: `kubectl get connection <name> -n fab -o yaml`
+- View all: `kubectl get connections`
+- View server connections: `kubectl get connections | grep server-`
+- View specific: `kubectl get connection <name> -o yaml`
 
 **VPC** - Virtual network (from Module 2.1)
 
@@ -1043,8 +1048,8 @@ kubectl apply -f server-01-attachment.yaml
 
 **Server** - Physical server definition
 
-- View all: `kubectl get servers -n fab`
-- View specific: `kubectl get server <name> -n fab -o yaml`
+- View all: `kubectl get servers`
+- View specific: `kubectl get server <name> -o yaml`
 
 ### kubectl Commands
 
@@ -1066,8 +1071,8 @@ kubectl describe vpcattachment <name>
 # View as YAML
 kubectl get vpcattachment <name> -o yaml
 
-# View events for specific attachment
-kubectl get events --field-selector involvedObject.name=<name>
+# Check reconciliation status (events are empty; use agent generation counters)
+kubectl get agents
 
 # Delete VPCAttachment
 kubectl delete vpcattachment <name>
@@ -1080,16 +1085,14 @@ kubectl delete -f attachment.yaml
 
 ```bash
 # List servers
-kubectl get servers -n fab
-
+kubectl get servers
 # List connections
-kubectl get connections -n fab
-
+kubectl get connections
 # Filter for server connections
-kubectl get connections -n fab | grep server-
+kubectl get connections | grep server-
 
 # Get connection details
-kubectl get connection <connection-name> -n fab -o yaml
+kubectl get connection <connection-name> -o yaml
 
 # Verify VPC and subnets
 kubectl get vpc <vpc-name>
@@ -1099,17 +1102,15 @@ kubectl get vpc <vpc-name> -o yaml | grep -A 20 "subnets:"
 kubectl get vpc <vpc-name> -o jsonpath='{.spec.subnets.<subnet-name>.dhcp}' | jq
 ```
 
-**Event monitoring:**
+**Reconciliation monitoring:**
 
 ```bash
-# View all VPCAttachment events
-kubectl get events --sort-by='.lastTimestamp' | grep vpcattachment
+# VPCAttachment events are typically empty — use agent generation counters instead
+# Check all agents: APPLIEDG should equal CURRENTG after 15–60 seconds
+kubectl get agents
 
-# View events for specific attachment
-kubectl get events --field-selector involvedObject.name=<attachment-name>
-
-# Watch events in real-time
-kubectl get events --watch --field-selector involvedObject.name=<attachment-name>
+# Watch agents in real-time until converged
+kubectl get agents --watch
 ```
 
 ### Related Modules
