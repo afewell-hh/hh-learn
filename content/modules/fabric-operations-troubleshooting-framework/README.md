@@ -30,7 +30,7 @@ Beginners randomly check things, hoping to stumble on the issue. Experts use **h
 
 ### Building on Pre-Escalation Diagnostics
 
-In Module 3.4, you learned the **pre-escalation diagnostic checklist**—collecting evidence for support tickets. That checklist taught you *what* to collect: events, Agent CRD status, Grafana metrics, and logs.
+In Module 3.4, you learned the **pre-escalation diagnostic checklist**—collecting evidence for support tickets. That checklist taught you *what* to collect: admission webhook errors, Agent CRD status, Grafana metrics, and logs.
 
 Module 4.1a teaches you **how to diagnose issues independently** using that evidence:
 - **Form hypotheses** based on symptoms
@@ -52,7 +52,7 @@ Module 4.1a teaches you **how to diagnose issues independently** using that evid
 - Configuration drift (GitOps reconciliation failures)
 
 **Diagnostic Workflow:**
-- Layer 1: Kubernetes events (fastest check)
+- Layer 1: Resource existence + Agent convergence check (fastest)
 - Layer 2: Agent CRD status (detailed switch state)
 - Layer 3: Grafana dashboards (visual metrics and trends)
 - Layer 4: Controller logs (reconciliation details)
@@ -76,7 +76,7 @@ By the end of this module, you will be able to:
 
 1. **Apply systematic troubleshooting methodology** - Use hypothesis-driven investigation to diagnose fabric issues
 2. **Identify common failure modes** - Recognize VPC attachment issues, BGP problems, interface errors, and configuration drift
-3. **Construct diagnostic workflows** - Build investigation paths from events → Agent CRDs → Grafana metrics → logs
+3. **Construct diagnostic workflows** - Build investigation paths from resource checks → Agent CRDs → Grafana metrics → logs
 4. **Differentiate issue types** - Distinguish between configuration, connectivity, and platform issues
 5. **Use decision trees for diagnosis** - Follow structured decision paths to identify root causes
 
@@ -95,11 +95,11 @@ Before starting this module, you should have:
 - How VPCs and VPCAttachments should work (expected behavior)
 - Agent CRD structure and status fields
 - Grafana dashboard navigation
-- kubectl events and describe commands
+- kubectl describe and admission webhook error patterns
 
 **Environment:**
 - kubectl configured and authenticated
-- Grafana access (http://localhost:3000)
+- Grafana access (http://YOUR_VM_IP:3000)
 - Hedgehog fabric with at least one VPC deployed
 
 ---
@@ -118,7 +118,7 @@ A developer reports that **server-07** in VPC **customer-app-vpc** cannot reach 
 
 **Initial Investigation:**
 
-You run `kubectl describe vpcattachment customer-app-vpc-server-07` and see no error events. The resource exists, the controller processed it successfully, and there are no warnings.
+You run `kubectl describe vpcattachment customer-app-vpc-server-07` and see `Events: <none>` — which is expected for fabric CRDs. The resource exists. `kubectl get agents` shows all agents converged (APPLIEDG == CURRENTG).
 
 But the server still has no connectivity.
 
@@ -208,23 +208,23 @@ When one hypothesis is confirmed and others eliminated:
 **Hypothesis 1: VLAN not configured**
 ```bash
 # Check Agent CRD for leaf-04 (server-07 connects to leaf-04)
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.interfaces.Ethernet8}' | jq
+kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'
 
 # Look for: vlans field contains 1010
 ```
 
-**Result:** VLAN 1010 is configured on Ethernet8 ✅ (Hypothesis 1 eliminated)
+**Result:** VLAN 1010 is configured on E1/8 ✅ (Hypothesis 1 eliminated)
 
 **Hypothesis 2: Interface down**
 ```bash
-# Check Grafana Interface Dashboard for leaf-04/Ethernet8
+# Check Grafana Interface Dashboard for leaf-04/E1/8
 # Or check Agent CRD:
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.interfaces.Ethernet8.oper}'
+kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"].oper'
 
 # Look for: oper=up
 ```
 
-**Result:** Ethernet8 oper=up ✅ (Hypothesis 2 eliminated)
+**Result:** E1/8 oper=up ✅ (Hypothesis 2 eliminated)
 
 **Hypothesis 3: Server misconfigured**
 ```bash
@@ -239,7 +239,7 @@ ip link show enp2s1.1010
 **Hypothesis 4: BGP down**
 ```bash
 # Check Agent CRD bgpNeighbors
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.bgpNeighbors.default}' | jq
+kubectl get agent leaf-04 -o jsonpath='{.status.state.bgpNeighbors.default}' | jq
 
 # Look for: all neighbors state=established
 ```
@@ -307,7 +307,7 @@ Knowing common failure patterns helps you form hypotheses quickly. Here are the 
 ```
 Check VPCAttachment spec
   ↓
-Verify connection exists: kubectl get connection <name> -n fab
+Verify connection exists: kubectl get connection <name>
   ↓
 Verify subnet exists in VPC: kubectl get vpc <vpc> -o yaml | grep <subnet>
   ↓
@@ -406,7 +406,7 @@ If state = established but routes missing:
 ```
 Check Grafana Interface Dashboard: Which interface has errors?
   ↓
-Check Agent CRD interface counters: ine (input errors), oute (output errors)
+Check Agent CRD interface counters: ind (input discards), outbps (output bps)
   ↓
 Check interface speed and MTU configuration
   ↓
@@ -461,7 +461,7 @@ Check ArgoCD sync history: Last successful sync?
   ↓
 Check controller logs for reconciliation errors
   ↓
-Check kubectl events for VPC/VPCAttachment errors
+Check ArgoCD sync status for admission webhook errors at sync time
 ```
 
 **Resolution:**
@@ -476,34 +476,41 @@ Check kubectl events for VPC/VPCAttachment errors
 
 When facing an issue, collect evidence in this order for maximum efficiency:
 
-#### Layer 1: Kubernetes Events (Fastest Check)
+#### Layer 1: Resource Existence + Agent Convergence (Fastest Check)
 
-**Why first?** Events quickly reveal configuration errors, validation failures, and reconciliation issues.
+**Why first?** Quickly determines if resources were accepted and if reconciliation is complete.
+
+> **Note on Kubernetes events:** Hedgehog fabric controllers (VPC, VPCAttachment) do **not** emit
+> Kubernetes events. `kubectl describe vpc` will show `Events: <none>` — this is expected. Validation
+> errors surface at **apply time** via admission webhooks. System component events (pods, etc.) in
+> `kubectl get events -n fab` are unrelated to fabric CRD reconciliation.
 
 ```bash
-# Check for recent Warning events
-kubectl get events --field-selector type=Warning --sort-by='.lastTimestamp'
+# Check if resources exist (missing = rejected by admission webhook at apply time)
+kubectl get vpc webapp-vpc
+kubectl get vpcattachment webapp-vpc-server-07
 
-# Check events for specific resource
-kubectl describe vpc webapp-vpc
+# Check Agent convergence (APPLIEDG == CURRENTG means config applied)
+kubectl get agents
+
+# Describe resource (Events: <none> is expected)
 kubectl describe vpcattachment webapp-vpc-server-07
 ```
 
 **Look for:**
-- `VLANConflict`, `SubnetOverlap` (configuration errors)
-- `DependencyMissing` (VPC/Connection not found)
-- `ReconcileFailed` (controller errors)
-- `ValidationFailed` (spec validation errors)
+- **Resource missing:** Was rejected by admission webhook — check ArgoCD sync for error message
+- **APPLIEDG < CURRENTG:** Reconciliation in progress — wait and recheck in 60 seconds
+- **APPLIEDG == CURRENTG but issue persists:** Config applied, investigate at switch level (Layer 2)
+- **kubectl describe Events:** Always `<none>` for fabric CRDs — not an error indicator
 
-**What events tell you:**
-- Whether the controller accepted the configuration
-- If validation passed
-- If dependencies exist
-- If reconciliation succeeded
+**What this tells you:**
+- Whether the resource was accepted (exists or not)
+- Whether the admission webhook found a conflict (via ArgoCD sync error)
+- Whether reconciliation has converged (APPLIEDG == CURRENTG)
 
 **Time investment:** 10-30 seconds
 
-**When to move on:** If no Warning events exist, proceed to Layer 2.
+**When to move on:** If resources exist and agents are converged, proceed to Layer 2.
 
 ---
 
@@ -512,24 +519,24 @@ kubectl describe vpcattachment webapp-vpc-server-07
 **Why second?** Agent CRD is the source of truth for actual switch configuration and operational state.
 
 ```bash
-# Check agent readiness
-kubectl get agents -n fab
+# Check agent readiness (agents in default namespace)
+kubectl get agents
 
 # View detailed switch state
-kubectl get agent leaf-04 -n fab -o yaml
+kubectl get agent leaf-04 -o yaml
 
 # Check BGP neighbors
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.bgpNeighbors}' | jq
+kubectl get agent leaf-04 -o jsonpath='{.status.state.bgpNeighbors}' | jq
 
 # Check interface state
-kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.interfaces.Ethernet8}' | jq
+kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'
 ```
 
 **Look for:**
 - **BGP neighbor state:** `established` vs `idle` or `active`
 - **Interface oper state:** `up` vs `down`
 - **VLAN configuration:** Which VLANs are configured on which interfaces
-- **Interface counters:** `ine` (input errors), `oute` (output errors)
+- **Interface counters:** `ind` (input discards), `outbps` (output bps)
 - **Platform health:** PSU status, fan speeds, temperature
 
 **What Agent CRD tells you:**
@@ -587,13 +594,13 @@ kubectl get agent leaf-04 -n fab -o jsonpath='{.status.state.interfaces.Ethernet
 
 ```bash
 # Check controller logs for specific resource
-kubectl logs -n fab deployment/fabric-controller-manager | grep webapp-vpc-server-07
+kubectl logs -n fab deployment/fabric-ctrl | grep webapp-vpc-server-07
 
 # Check for errors
-kubectl logs -n fab deployment/fabric-controller-manager --tail=200 | grep -i error
+kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -i error
 
 # Follow logs live
-kubectl logs -n fab deployment/fabric-controller-manager -f
+kubectl logs -n fab deployment/fabric-ctrl -f
 ```
 
 **Look for:**
@@ -620,7 +627,7 @@ kubectl logs -n fab deployment/fabric-controller-manager -f
 
 | Layer | Tool | Purpose | Time | When to Use |
 |-------|------|---------|------|-------------|
-| 1 | kubectl events | Quick error check | 10-30s | Always first |
+| 1 | kubectl get + agents | Resource existence + convergence check | 10-30s | Always first |
 | 2 | Agent CRD | Switch state verification | 1-2min | After events |
 | 3 | Grafana | Trends and historical context | 2-3min | For intermittent issues or validation |
 | 4 | Controller logs | Reconciliation debugging | 2-5min | When reconciliation fails or behavior unclear |
@@ -644,11 +651,15 @@ Decision trees provide structured diagnostic paths for frequent issues. Follow t
 ```
 Server cannot ping gateway or other servers in VPC
   │
-  ├─ Check kubectl events for VPCAttachment
+  ├─ Check resources + Agent convergence
   │    │
-  │    ├─ Warning events present?
-  │    │    ├─ YES → Read error message, fix configuration
-  │    │    └─ NO → Continue investigation
+  │    ├─ Resource missing (admission webhook rejected)?
+  │    │    ├─ YES → Check ArgoCD sync error, fix configuration
+  │    │    └─ NO (resource exists)
+  │    │
+  │    ├─ APPLIEDG < CURRENTG?
+  │    │    ├─ YES → Wait for convergence (up to 5 min)
+  │    │    └─ NO (converged) → Continue investigation
   │
   ├─ Check Agent CRD for switch
   │    │
@@ -680,9 +691,9 @@ Server cannot ping gateway or other servers in VPC
 **Example Usage:**
 
 1. Server-07 cannot ping gateway 10.20.10.1
-2. Check events: No warnings → Continue
-3. Check Agent CRD leaf-04 Ethernet8: oper=up → Continue
-4. Check VLAN on Ethernet8: VLAN 1020 configured
+2. Resources exist, APPLIEDG == CURRENTG → Continue
+3. Check Agent CRD leaf-04 E1/8: oper=up → Continue
+4. Check VLAN on E1/8: VLAN 1020 configured
 5. VPC expects VLAN 1025 → **VLAN mismatch identified!**
 
 ---
@@ -692,11 +703,11 @@ Server cannot ping gateway or other servers in VPC
 ```
 Server in VPC-1 cannot reach server in VPC-2
   │
-  ├─ Check kubectl events for VPCPeering
+  ├─ Check VPCPeering exists + Agent convergence
   │    │
-  │    ├─ Warning events?
-  │    │    ├─ YES → Configuration error in permit list
-  │    │    └─ NO → Continue
+  │    ├─ VPCPeering missing (admission webhook rejected)?
+  │    │    ├─ YES → Check ArgoCD sync error, fix configuration
+  │    │    └─ NO (exists) → Continue
   │
   ├─ Verify VPCPeering permit includes both subnets
   │    │
@@ -771,7 +782,7 @@ kubectl describe shows no errors, but server has no connectivity
 1. VPCAttachment created, no events, but server has no connectivity
 2. Check connection: `server-07--unbundled--leaf-04` → Matches
 3. Check subnet exists: `customer-app-vpc/frontend` → Exists
-4. Check Agent CRD: VLAN 1020 configured
+4. Check Agent CRD leaf-04 interface E1/8: VLAN 1020 configured
 5. VPC expects VLAN 1025 → **VLAN mismatch (allocation conflict)**
 
 ---
@@ -794,7 +805,7 @@ You've mastered the systematic troubleshooting framework for Hedgehog fabric ope
 - Configuration drift (GitOps sync issues)
 
 **Diagnostic Workflow:**
-- Layer 1: kubectl events (fastest check)
+- Layer 1: Resource existence + Agent convergence check (fastest)
 - Layer 2: Agent CRD (detailed switch state)
 - Layer 3: Grafana (trends and historical context)
 - Layer 4: Controller logs (reconciliation details)
@@ -808,9 +819,9 @@ You've mastered the systematic troubleshooting framework for Hedgehog fabric ope
 
 1. **Systematic approach beats random checking** - Hypothesis-driven investigation saves time and ensures thorough diagnosis
 
-2. **Evidence collection order matters** - Start fast (events), then detailed (Agent CRD), then historical (Grafana)
+2. **Evidence collection order matters** - Start fast (resource check + convergence), then detailed (Agent CRD), then historical (Grafana)
 
-3. **"Success" doesn't mean "working"** - No error events doesn't guarantee correct configuration (e.g., VLAN mismatch)
+3. **"Accepted" doesn't mean "working"** - No admission webhook error and Events: <none> doesn't guarantee correct configuration (e.g., VLAN mismatch, wrong connection name)
 
 4. **Decision trees provide structure** - Follow diagnostic paths for common scenarios to avoid missing steps
 
