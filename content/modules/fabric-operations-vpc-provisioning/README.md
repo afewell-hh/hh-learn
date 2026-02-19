@@ -42,7 +42,7 @@ By the end of this module, you will be able to:
 
 ## Scenario: Onboarding a New Application
 
-Your company is deploying a new application called "web-app-prod" that requires network isolation. The application has two tiers: web servers that need static IP assignments (so you can configure load balancers), and worker nodes that can use DHCP (since they scale dynamically). You'll create a VPC with two subnets—one IPv4 subnet for static assignments and one DHCPv4 subnet for dynamic assignments—providing complete network segmentation for this workload.
+Your company is deploying a new application called "webapp-prod" that requires network isolation. The application has two tiers: web servers that need static IP assignments (so you can configure load balancers), and worker nodes that can use DHCP (since they scale dynamically). You'll create a VPC with two subnets—one IPv4 subnet for static assignments and one DHCPv4 subnet for dynamic assignments—providing complete network segmentation for this workload.
 
 > **Before You Begin the Lab**
 >
@@ -59,11 +59,11 @@ Your company is deploying a new application called "web-app-prod" that requires 
 Create the VPC manifest file:
 
 ```bash
-cat > web-app-prod-vpc.yaml <<'EOF'
+cat > webapp-prod-vpc.yaml <<'EOF'
 apiVersion: vpc.githedgehog.com/v1beta1
 kind: VPC
 metadata:
-  name: web-app-prod
+  name: webapp-prod
   namespace: default
 spec:
   ipv4Namespace: default
@@ -88,7 +88,7 @@ EOF
 **Understanding the YAML:**
 
 - **apiVersion/kind:** Defines this as a VPC resource
-- **metadata.name:** Unique identifier for this VPC ("web-app-prod")
+- **metadata.name:** Unique identifier for this VPC ("webapp-prod")
 - **ipv4Namespace/vlanNamespace:** Groups for managing IP and VLAN allocations (use "default" for most cases)
 - **subnets:** Dictionary of subnet definitions
   - **web-servers:** IPv4 subnet (no DHCP = static IPs only)
@@ -104,10 +104,10 @@ EOF
 
 ```bash
 # Verify YAML syntax (should show no errors)
-cat web-app-prod-vpc.yaml | grep -E '(apiVersion|kind|name|subnet|vlan)'
+cat webapp-prod-vpc.yaml | grep -E '(apiVersion|kind|name|subnet|vlan)'
 
 # Count subnets (should be 2)
-grep -c "subnet:" web-app-prod-vpc.yaml
+grep -c "subnet:" webapp-prod-vpc.yaml
 ```
 
 **Success Criteria:**
@@ -123,13 +123,13 @@ grep -c "subnet:" web-app-prod-vpc.yaml
 Apply the VPC manifest:
 
 ```bash
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 ```
 
 **Expected output:**
 
 ```
-vpc.vpc.githedgehog.com/web-app-prod created
+vpc.vpc.githedgehog.com/webapp-prod created
 ```
 
 **Immediately verify creation:**
@@ -140,25 +140,23 @@ kubectl get vpcs
 
 # Expected output (similar to):
 # NAME            AGE
-# web-app-prod    5s
+# webapp-prod    5s
 ```
 
-**Check for errors:**
+**Verify reconciliation via agent status:**
 
 ```bash
-# View recent events for this VPC
-kubectl get events --field-selector involvedObject.name=web-app-prod --sort-by='.lastTimestamp'
-
-# Look for:
-# - Normal events: Created, Reconciling, Ready
-# - Warning events: Configuration errors (if any)
+# Confirm agents applied the config (APPLIEDG should equal CURRENTG)
+kubectl get agents
 ```
+
+> **Note on events:** `kubectl get events --field-selector involvedObject.name=webapp-prod` will return no results — this is expected. The current version of Hedgehog Fabric does not emit Kubernetes events for VPC operations. Use agent status to verify reconciliation.
 
 **Success Criteria:**
 
 - ✅ VPC appears in `kubectl get vpcs` output
 - ✅ No error messages during apply
-- ✅ Events show "Created" or "Reconciling" (not warnings)
+- ✅ Agent APPLIEDG matches CURRENTG (reconciliation complete)
 
 ### Step 3: Inspect VPC Status
 
@@ -167,14 +165,14 @@ kubectl get events --field-selector involvedObject.name=web-app-prod --sort-by='
 Use kubectl describe to see comprehensive VPC details:
 
 ```bash
-kubectl describe vpc web-app-prod
+kubectl describe vpc webapp-prod
 ```
 
 **Key sections to review:**
 
 **1. Metadata section:**
 ```
-Name:         web-app-prod
+Name:         webapp-prod
 Namespace:    default
 Labels:       <none>
 Annotations:  <none>
@@ -205,21 +203,18 @@ Spec:
 
 **3. Events section (at the bottom):**
 ```
-Events:
-  Type    Reason      Age   From              Message
-  ----    ------      ----  ----              -------
-  Normal  Created     30s   fabric-controller VPC web-app-prod created
-  Normal  Reconciling 25s   fabric-controller Processing VPC configuration
+Events:  <none>
 ```
+
+> **Expected:** The Events section will be empty — this is normal. Hedgehog Fabric does not emit Kubernetes events for VPC operations. An empty Events section means no errors occurred.
 
 **Verification checklist:**
 
 ```bash
-# Get VPC in YAML format to see status
-kubectl get vpc web-app-prod -o yaml | grep -A 10 "status:"
+# Confirm agent applied the config
+kubectl get agents
 
-# Note: VPC status may be minimal or empty - that's normal!
-# Events tell the real story of what happened
+# APPLIEDG should equal CURRENTG for all agents
 ```
 
 **Success Criteria:**
@@ -227,49 +222,50 @@ kubectl get vpc web-app-prod -o yaml | grep -A 10 "status:"
 - ✅ VPC shows both subnets with correct CIDR blocks
 - ✅ VLANs assigned (1010 and 1020)
 - ✅ DHCP range visible for worker-nodes subnet
-- ✅ No error events in Events section
+- ✅ Events section is empty (no errors)
 
-### Step 4: View VPC Events for Reconciliation
+### Step 4: Verify Reconciliation via Agent Status
 
-**Objective:** Understand the reconciliation timeline
+**Objective:** Confirm reconciliation completed successfully
 
-View events in chronological order:
+Verify the fabric controllers applied the VPC configuration to switches:
 
 ```bash
-kubectl get events --field-selector involvedObject.name=web-app-prod --sort-by='.lastTimestamp'
+# Check all agents — APPLIEDG should equal CURRENTG
+kubectl get agents
 ```
 
-**Example event timeline:**
+**Expected output (APPLIEDG == CURRENTG for all agents = reconciliation complete):**
 
 ```
-LAST SEEN   TYPE     REASON          OBJECT                MESSAGE
-2m          Normal   Created         vpc/web-app-prod      VPC created
-2m          Normal   Reconciling     vpc/web-app-prod      Processing VPC configuration
-1m          Normal   AgentUpdate     vpc/web-app-prod      Updated agent specs for switches
-1m          Normal   Ready           vpc/web-app-prod      VPC reconciliation complete
+NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+leaf-01    server-leaf   VS-01 MCLAG 1   2m        7          7          v0.96.2
+leaf-02    server-leaf   VS-02 MCLAG 1   2m        7          7          v0.96.2
+...
+```
+
+**Inspect a specific agent for confirmation:**
+
+```bash
+# Check Applied condition = True
+kubectl get agent leaf-01 -o yaml | grep -A 5 "conditions:"
 ```
 
 **Understanding reconciliation flow:**
 
-1. **Created:** VPC object stored in Kubernetes
-2. **Reconciling:** Fabric Controller picked up the change
-3. **AgentUpdate:** Switch Agent CRDs updated with configuration
-4. **Ready:** Switch agents applied configuration successfully
+1. **VPC created:** Object stored in Kubernetes etcd
+2. **Fabric Controller detects change:** Computes new switch configurations
+3. **Agent specs updated:** Controller writes new config to each Agent CRD
+4. **Switch agents apply:** Agents detect spec change, apply via gNMI, increment APPLIEDG
+5. **Complete:** APPLIEDG == CURRENTG, Applied condition = True
 
-**Viewing events continuously (optional):**
-
-```bash
-# Watch events in real-time (useful when applying changes)
-kubectl get events --watch --field-selector involvedObject.name=web-app-prod
-
-# Press Ctrl+C to exit watch mode
-```
+> **Note on Kubernetes events:** `kubectl get events --field-selector involvedObject.name=webapp-prod` will return no results — the current version of Hedgehog Fabric does not emit K8s events for VPC operations. Agent status is the correct way to verify reconciliation.
 
 **Success Criteria:**
 
-- ✅ Can view VPC-specific events
-- ✅ Events show reconciliation progression
-- ✅ Understand event timeline from creation to ready
+- ✅ Agent APPLIEDG matches CURRENTG for all 7 agents
+- ✅ Agent conditions show `Applied=True`
+- ✅ Understand that reconciliation is verified through agent status, not VPC events
 
 ### Step 5: Validate Configuration Matches Desired State
 
@@ -279,10 +275,10 @@ Compare your YAML to the applied configuration:
 
 ```bash
 # View original YAML spec
-cat web-app-prod-vpc.yaml | grep -A 20 "subnets:"
+cat webapp-prod-vpc.yaml | grep -A 20 "subnets:"
 
 # View applied configuration
-kubectl get vpc web-app-prod -o yaml | grep -A 20 "subnets:"
+kubectl get vpc webapp-prod -o yaml | grep -A 20 "subnets:"
 
 # They should match exactly
 ```
@@ -291,7 +287,7 @@ kubectl get vpc web-app-prod -o yaml | grep -A 20 "subnets:"
 
 ```bash
 # Check that VPC exists and has no errors
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 
 # VPC should appear with no error indicators
 # (Status field may be empty - that's normal)
@@ -301,7 +297,7 @@ kubectl get vpc web-app-prod
 
 ```bash
 # Inspect DHCP settings for worker-nodes subnet
-kubectl get vpc web-app-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
+kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 
 # Expected output (similar to):
 # {
@@ -537,15 +533,18 @@ A VPC is ready when:
 
 ### VPC Naming Best Practices
 
-**Good VPC names:**
+**Important constraint:** VPC names must be **11 characters or fewer**. The fabric admission webhook enforces this limit.
 
-- `web-app-prod` - Application name + environment
-- `ml-training-dev` - Workload type + environment
-- `data-plane-1` - Function + identifier
-- `tenant-acme-prod` - Multi-tenant pattern
+**Good VPC names (≤ 11 chars):**
+
+- `webapp-prod` (11) - Application name + environment
+- `ml-train-dev` — too long (12); use `mltrain-dev` (11) instead
+- `data-plane1` (11) - Function + identifier
+- `acme-prod` (9) - Tenant + environment
 
 **Avoid:**
 
+- `web-app-prod` (12) — too long, will be rejected ❌
 - `vpc-1` - Not descriptive
 - `test` - Too generic
 - `johns-vpc` - Owner names (people change roles)
@@ -577,7 +576,7 @@ A VPC is ready when:
 
 ```bash
 # Check events for specific error
-kubectl describe vpc web-app-prod
+kubectl describe vpc webapp-prod
 
 # Look for error messages like:
 # - "VLAN 1010 already in use"
@@ -587,7 +586,7 @@ kubectl describe vpc web-app-prod
 # If VLAN conflict, change VLAN ID in YAML
 # If subnet overlap, choose different subnet range
 # Then reapply:
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 ```
 
 ### Issue: Subnet CIDR overlap error
@@ -605,16 +604,16 @@ kubectl get vpcs -o yaml | grep -E "(name:|subnet:)"
 # Example output:
 #   name: existing-vpc
 #     subnet: 10.10.0.0/16
-#   name: web-app-prod
+#   name: webapp-prod
 #     subnet: 10.10.10.0/24  # Overlaps with 10.10.0.0/16!
 
 # Solution: Choose non-overlapping subnet
-# Edit web-app-prod-vpc.yaml:
+# Edit webapp-prod-vpc.yaml:
 # Change: subnet: 10.10.10.0/24
 # To:     subnet: 10.20.10.0/24
 
 # Reapply:
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 ```
 
 ### Issue: DHCPv4 range too small
@@ -643,12 +642,12 @@ kubectl apply -f web-app-prod-vpc.yaml
 # Create worker-nodes-2 subnet with additional DHCP range
 
 # Reapply configuration:
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 ```
 
 ### Issue: "VPC not found" after creation
 
-**Symptom:** `kubectl get vpc web-app-prod` returns "not found" immediately after apply
+**Symptom:** `kubectl get vpc webapp-prod` returns "not found" immediately after apply
 
 **Cause:** Wrong namespace or kubectl context
 
@@ -659,13 +658,13 @@ kubectl apply -f web-app-prod-vpc.yaml
 kubectl config view --minify | grep namespace
 
 # If empty, you're in default namespace - verify VPC namespace matches
-cat web-app-prod-vpc.yaml | grep namespace
+cat webapp-prod-vpc.yaml | grep namespace
 
 # List VPCs in all namespaces
 kubectl get vpcs -A
 
 # If VPC is in different namespace, specify it:
-kubectl get vpc web-app-prod -n <namespace>
+kubectl get vpc webapp-prod -n <namespace>
 
 # Or set your default namespace:
 kubectl config set-context --current --namespace=<namespace>
@@ -684,11 +683,11 @@ kubectl config set-context --current --namespace=<namespace>
 # Create a VLAN allocation spreadsheet or use IPAM tool
 
 # Change VLAN to unused ID
-# Edit web-app-prod-vpc.yaml:
+# Edit webapp-prod-vpc.yaml:
 #   vlan: 1010  # Change to unused VLAN, e.g., 2010
 
 # Reapply:
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 
 # If you don't care about specific VLAN, omit it entirely:
 # Remove "vlan: 1010" line - Hedgehog will auto-assign
