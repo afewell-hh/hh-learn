@@ -39,12 +39,12 @@ Grafana dashboards answer these questions in seconds without writing queries.
 **What You'll Learn:**
 
 Hedgehog provides **6 pre-built Grafana dashboards**:
-1. **Fabric Dashboard** - BGP underlay health
-2. **Interfaces Dashboard** - Interface state and traffic
-3. **Platform Dashboard** - Hardware health (PSU, fans, temperature)
-4. **Logs Dashboard** - Switch logs and error filtering
-5. **Node Exporter Dashboard** - Linux system metrics
-6. **Switch Critical Resources Dashboard** - ASIC resource limits
+1. **Hedgehog Fabric** - BGP underlay health
+2. **Hedgehog Switch Interface Counters** - Interface state and traffic
+3. **Hedgehog Fabric Platform Stats** - Hardware health (PSU, fans, temperature)
+4. **Hedgehog Fabric Logs** - Switch logs and error filtering
+5. **Hedgehog mod of Node Exporter Full** - Linux system metrics
+6. **Hedgehog Switch Critical Resources** - ASIC resource limits
 
 You'll learn to **read** each dashboard (not build them), identify healthy vs unhealthy states, and create a morning health check workflow that takes less than 5 minutes.
 
@@ -85,7 +85,7 @@ By the end of this module, you will be able to:
 It's Monday morning, and you're the on-call fabric operator. Your first task: verify the fabric is healthy before the business day begins. You'll use Grafana dashboards to perform a systematic health check in under 5 minutes.
 
 **Environment Access:**
-- **Grafana:** http://localhost:3000 (username: `admin`, password: `prom-operator`)
+- **Grafana:** http://YOUR_VM_IP:3000 (username: `admin`, password: `admin`)
 
 ### Task 1: Check BGP Fabric Health (2 minutes)
 
@@ -94,42 +94,33 @@ It's Monday morning, and you're the on-call fabric operator. Your first task: ve
 **Steps:**
 
 1. **Open Grafana:**
-   - Navigate to http://localhost:3000
-   - Sign in (admin / prom-operator)
+   - Navigate to http://YOUR_VM_IP:3000
+   - Sign in (admin / admin)
 
 2. **Access Fabric Dashboard:**
    - Click **Dashboards** (left sidebar)
    - Select **"Hedgehog Fabric"** dashboard
 
-3. **Check BGP Sessions Overview Panel:**
-   - Locate "BGP Sessions" panel (top of dashboard)
-   - **Expected healthy state:**
-     ```
-     Total Sessions: 40
-     Established: 40
-     Down: 0
-     ```
-   - ✅ If Established = Total, fabric underlay is healthy
-   - ❌ If Down > 0, identify which neighbor is down
+3. **Check BGP Session State Panel:**
+   - Locate the **"BGP Session State"** status-history panel (in the "BGP Neighbor State" section)
+   - Each cell represents a switch+neighbor pair over time
+   - **Expected healthy state:** All cells show green (Established)
+   - ✅ If all cells are green, all BGP sessions are established
+   - ❌ If any cells are red or non-green, identify which switch/neighbor has an issue
 
-4. **Review BGP Neighbor Table:**
-   - Scroll to "BGP Neighbor Status" table
-   - Scan "State" column - all should say "established"
-   - Check "Prefixes Received" - should be > 0
-   - **Red flag:** Any row with State ≠ "established"
+   > **Note:** The status-history visualization shows state changes over time. A solid green row means a session has been consistently established. There are 62 BGP sessions in a healthy 7-switch fabric.
 
-   **Example healthy row:**
-   ```
-   Switch    Neighbor         State         Prefixes  Uptime
-   leaf-01   172.30.128.1    established   12        3d 5h
-   leaf-01   172.30.128.2    established   12        3d 5h
-   ```
+4. **Review BGP Neighbor Configuration Panel:**
+   - Locate the **"BGP Neighbor"** status-history panel
+   - Shows whether BGP neighbor configurations are applied correctly
+   - **Expected healthy state:** All entries show applied/configured state (green)
+   - **Red flag:** Any entries showing an error state
 
-5. **Check for Session Flaps:**
-   - Find "BGP Session Flaps" time series panel
+5. **Check BGP Dropped Connections:**
+   - Find the **"BGP Dropped connections"** time series panel (under the "BGP Neighbors Stats" section)
    - Set time range to "Last 24 hours"
-   - **Healthy:** Flat line (no state changes)
-   - **Unhealthy:** Spikes indicate sessions going up/down
+   - **Healthy:** Flat line near zero (no dropped connections)
+   - **Unhealthy:** Spikes indicate sessions dropping and reconnecting
 
 **Success Criteria:**
 - ✅ All BGP sessions established
@@ -148,36 +139,35 @@ It's Monday morning, and you're the on-call fabric operator. Your first task: ve
 **Steps:**
 
 1. **Access Interfaces Dashboard:**
-   - Click **Dashboards** → **"Hedgehog Interfaces"**
+   - Click **Dashboards** → **"Hedgehog Switch Interface Counters"**
+   - At the top of the dashboard, use the variable dropdowns to select a **node** (e.g., leaf-01) and an **interface** (e.g., E1/1)
 
-2. **Check Interface State Overview:**
-   - Locate "Interface Operational State" panel
-   - **Healthy:** Expected interfaces show green (Up)
-   - **Unhealthy:** Expected interfaces show red (Down)
-   - **Note:** Unused ports down = OK
+2. **Check Interface State:**
+   - Locate the **"$interface"** state-timeline panel (under the "Interface status" section)
+   - **Healthy:** Solid green bar — interface has been continuously up
+   - **Unhealthy:** Any gaps or red areas — interface went down during that period
+   - Repeat for each key interface (server ports, spine uplinks)
 
 3. **Check Error Counters:**
-   - Find "Interface Errors" panel or table
-   - **Healthy:** Error rate = 0 or flat line
-   - **Unhealthy:** Growing error count (indicates problem)
+   - Find the **"Errors and discards"** time series panel (under "Interface stats")
+   - **Healthy:** Flat line near zero
+   - **Unhealthy:** Rising values indicate cable or signal problems
 
-   **Example of problem:**
+   **Common error causes:**
    ```
-   Interface    CRC Errors   Frame Errors   Discards
-   Ethernet1    0            0              0          ← Healthy
-   Ethernet5    1,234        523            0          ← Cable problem
-   Ethernet7    0            0              52,341     ← Congestion (drops)
+   Growing CRC errors → Bad cable or dirty fiber
+   Growing discards   → Congestion (packet drops)
    ```
 
 4. **Check Interface Utilization:**
-   - Locate "Interface Utilization %" panel
+   - Locate the **"Interface Utilization"** time series panel
    - **Healthy:** < 70%
    - **Warning:** 70-90%
    - **Critical:** > 90%
    - **Action:** If > 90%, note for capacity planning
 
 **Success Criteria:**
-- ✅ All expected interfaces up
+- ✅ Key interfaces show solid green state-timeline
 - ✅ No growing error counters
 - ✅ Utilization < 90%
 
@@ -188,30 +178,30 @@ It's Monday morning, and you're the on-call fabric operator. Your first task: ve
 **Steps:**
 
 1. **Access Platform Dashboard:**
-   - Click **Dashboards** → **"Hedgehog Platform"**
+   - Click **Dashboards** → **"Hedgehog Fabric Platform Stats"**
+   - Select a **node** from the variable dropdown to inspect a specific switch
 
-2. **Check PSU Status:**
-   - Locate "PSU Status" panel
-   - **Healthy:** All PSUs = OK
-   - **Unhealthy:** Any PSU = Failed → Schedule replacement
-
-3. **Check Fan Speeds:**
-   - Find "Fan Speeds" panel
-   - **Healthy:** All fans > 0 RPM (e.g., > 3000 RPM)
-   - **Unhealthy:** Any fan = 0 RPM → Thermal risk
-
-4. **Check Temperature:**
-   - Locate "Temperature Sensors" panel
+2. **Check CPU and ASIC Temperatures:**
+   - Locate the **"CPU Temperature"** and **"Switch ASIC Temperature"** stat panels (under "Chip Temperatures")
    - **Healthy thresholds:**
      - CPU < 70°C
      - ASIC < 80°C
-     - Ambient < 45°C
-   - **Unhealthy:** Any sensor exceeding threshold → Investigate cooling
+   - **Unhealthy:** Approaching or exceeding threshold → Investigate cooling
+
+3. **Check Fan Speed:**
+   - Find the **"Fan Tray Speed"** stat panel (under "FRU Temp and RPM")
+   - **Healthy:** All fans reporting > 0 RPM (e.g., > 3000 RPM)
+   - **Unhealthy:** Fan = 0 RPM → Thermal risk
+
+4. **Check Air Temperatures:**
+   - Locate **"Front Fan Air Temp"** and **"PSU Air Temp"** gauge panels
+   - **Healthy:** Ambient < 45°C
+   - **Unhealthy:** High ambient temperatures → Investigate data center HVAC
 
 **Success Criteria:**
-- ✅ All PSUs operational
-- ✅ All fans running
-- ✅ Temperatures within limits
+- ✅ CPU and ASIC temperatures within limits
+- ✅ Fan tray speed > 0 RPM
+- ✅ Ambient temperatures < 45°C
 
 ### Task 4: Check for Recent Errors (1 minute)
 
@@ -220,28 +210,34 @@ It's Monday morning, and you're the on-call fabric operator. Your first task: ve
 **Steps:**
 
 1. **Access Logs Dashboard:**
-   - Click **Dashboards** → **"Hedgehog Logs"**
+   - Click **Dashboards** → **"Hedgehog Fabric Logs"**
+   - Select a **node** from the variable dropdown to see logs for a specific switch
 
-2. **Check Error Count:**
-   - Locate "Log Level Breakdown" panel
+2. **Check Syslog Errors:**
+   - Locate the **"Errors - $node"** log panel (under the "Syslog" section)
    - Set time range: "Last 1 hour"
-   - **Healthy:** ERROR count = 0 or very low (< 5)
-   - **Unhealthy:** ERROR count > 10 → Investigate
+   - **Healthy:** Empty or very few entries
+   - **Unhealthy:** Many error messages → Investigate
 
-3. **Review Error Logs (if present):**
-   - If errors present, locate "Syslog Stream" panel
-   - Filter by `level="error"`
-   - Read error messages to identify issues
+3. **Review BGP Log Entries:**
+   - Find the **"BGP Logs - $node"** panel
+   - Review for unexpected BGP state changes or error messages
+   - **Healthy:** No unexpected state changes
+   - **Unhealthy:** Repeated connection refused or neighbor down messages
 
-   **Example:**
+   **Example error to investigate:**
    ```
-   [leaf-02] ERROR: Interface Ethernet5 link down
+   [leaf-02] ERROR: Interface E1/5 link down
    [spine-01] ERROR: BGP neighbor 172.30.128.5 connection refused
    ```
 
+4. **Check Full Log (if needed):**
+   - Under "Full log" section, use the **"Full Output for $file on $node"** panel
+   - Select a specific log file from the `$file` dropdown for detailed review
+
 **Success Criteria:**
-- ✅ ERROR count near zero
-- ✅ No unexpected critical errors
+- ✅ Errors panel shows no unexpected errors
+- ✅ BGP Logs panel shows no connection failures
 
 ### Task 5: Optional - Check ASIC Resources (1 minute)
 
@@ -250,20 +246,28 @@ It's Monday morning, and you're the on-call fabric operator. Your first task: ve
 **Steps:**
 
 1. **Access Switch Critical Resources Dashboard:**
-   - Click **Dashboards** → **"Switch Critical Resources"**
+   - Click **Dashboards** → **"Hedgehog Switch Critical Resources"**
+   - Select a **node** (switch) from the variable dropdown
 
-2. **Scan Resource Utilization:**
-   - Review all panels (Route Table, ARP Table, FDB, ACL)
-   - **Healthy:** All < 80% capacity
-   - **Warning:** Any resource 80-90%
-   - **Critical:** Any resource > 90%
+2. **Scan IPv4 Resource Utilization:**
+   - Under "IPv4 Resource Usage", review gauge panels:
+     - **"$node Routes Available"** — IPv4 routing table capacity
+     - **"$node Nexthops"** — ECMP nexthop table capacity
+     - **"$node Neighbors Available"** — ARP/neighbor table capacity
+   - **Healthy:** Gauges show significant available capacity
+   - **Warning:** Any gauge approaching full
+   - **Critical:** Any resource nearing maximum
 
-3. **Note Resources for Capacity Planning:**
-   - If any resource > 70%, document for future planning
+3. **Check ACL and Misc Resources:**
+   - Expand the **"ACL Resources Available"** and **"Misc Critical Resources"** rows
+   - Verify no resources are near capacity
+
+4. **Note Resources for Capacity Planning:**
+   - If any resource > 70% used, document for future planning
    - ASIC resources are hardware limits and cannot be increased
 
 **Success Criteria:**
-- ✅ All ASIC resources < 90% capacity
+- ✅ All ASIC resources show healthy available capacity
 
 ### Lab Summary
 
@@ -310,39 +314,26 @@ The Fabric Dashboard is your primary tool for verifying that the BGP underlay—
 
 **Key Panels:**
 
-**1. BGP Sessions Overview**
+**1. BGP Session State** (status-history)
 
-- **Metric:** Count of BGP sessions (total, established, down)
-- **Healthy State:** All sessions = Established
-- **Unhealthy State:** Any sessions in Idle, Connect, or Active state
-- **Example:**
-  ```
-  Total Sessions: 40
-  Established: 40
-  Down: 0
-  ```
+- **Metric:** BGP session state per switch+neighbor pair over time
+- **Healthy State:** All cells green (Established, state=6)
+- **Unhealthy State:** Red or non-green cells indicate non-established sessions
+- **Interpretation:** Each row is a switch+neighbor pair; color coding shows state over time. A solid green row = consistently established.
 
-**2. BGP Neighbor Status Table**
+**2. BGP Neighbor** (status-history)
 
-- **Columns:** Switch, Neighbor IP, State, Prefixes Received, Uptime
-- **Healthy Row:** State = "established", Prefixes > 0, Uptime > 1 hour
-- **Unhealthy Row:** State ≠ "established", Prefixes = 0
-- **Example:**
-  ```
-  Switch    Neighbor         State         Prefixes  Uptime
-  leaf-01   172.30.128.1    established   12        3d 5h
-  leaf-01   172.30.128.2    established   12        3d 5h
-  leaf-02   172.30.128.1    Idle          0         0s      ← PROBLEM
-  ```
+- **Metric:** BGP neighbor configuration status
+- **Healthy State:** All entries show applied/configured (green)
+- **Unhealthy State:** Any entries in error state
 
-**3. BGP Session Flaps**
+**3. BGP Dropped Connections** (time series)
 
-- **Metric:** BGP session state changes over time
-- **Healthy State:** Flat line (no changes)
-- **Unhealthy State:** Spikes indicate session instability
-- **Interpretation:** Graph showing session going down and back up = flapping (investigate physical layer or BGP config)
+- **Metric:** Count of dropped BGP connections per neighbor over time
+- **Healthy State:** Flat line near zero (no drops)
+- **Unhealthy State:** Spikes indicate session instability (investigate physical layer or BGP config)
 
-**4. Prefixes Received/Advertised**
+**4. BGP Prefixes** (time series)
 
 - **Metric:** Number of routes exchanged per neighbor
 - **Healthy State:** Consistent count (e.g., 10-20 prefixes per neighbor)
@@ -350,7 +341,7 @@ The Fabric Dashboard is your primary tool for verifying that the BGP underlay—
 
 **Dashboard Actions:**
 
-- **Daily Health Check:** Verify BGP Sessions count matches expected (e.g., 40)
+- **Daily Health Check:** Verify BGP Sessions count matches expected (e.g., 62)
 - **Troubleshooting:** Identify which switch/neighbor has session down
 - **Trend Analysis:** Check for flapping patterns over last 24 hours
 - **Capacity Planning:** Monitor prefix counts as VPCs scale
@@ -375,30 +366,28 @@ The Interfaces Dashboard gives you visibility into the health of every network i
 
 **Key Panels:**
 
-**1. Interface Operational State**
+**1. $interface state-timeline** (under "Interface status")
 
-- **Metric:** Up (green) or Down (red) per interface
-- **Healthy State:** All configured interfaces up
-- **Unhealthy State:** Expected-up interfaces showing down
+- **Metric:** Interface operational state over time (up/down)
+- **How to use:** Select node and interface from variable dropdowns at top
+- **Healthy State:** Solid green bar (interface continuously up)
+- **Unhealthy State:** Gaps or red areas (interface went down)
 - **Example:**
   ```
-  leaf-01/Ethernet1: UP    (server connection)
-  leaf-01/Ethernet2: UP    (server connection)
-  leaf-01/Ethernet48: UP   (spine uplink)
-  leaf-01/Ethernet49: DOWN (unused port - OK)
+  leaf-01 / E1/1: [████████████] green = continuously up
+  leaf-01 / E1/5: [████░░░█████] gap at 10:15 = interface went down
   ```
 
-**2. Interface Traffic Rate**
+**2. Bits per second rate** (time series, under "Interface stats")
 
-- **Metric:** Bits per second (bps) or packets per second (pps)
-- **Visualization:** Time series graph per interface
+- **Metric:** Bits per second in/out over time
 - **Healthy State:** Consistent traffic matching workload
 - **Unhealthy State:** Unexpected spikes or drops to zero
 - **Example:**
   - Server interface: 2 Gbps steady (expected)
-  - Server interface: 10 Gbps sustained (possible saturation - investigate)
+  - Server interface: sustained 10 Gbps (possible saturation)
 
-**3. Interface Utilization**
+**3. Interface Utilization** (time series)
 
 - **Metric:** Percentage of link capacity used
 - **Healthy State:** < 70% utilization (headroom available)
@@ -406,16 +395,16 @@ The Interfaces Dashboard gives you visibility into the health of every network i
 - **Critical State:** > 90% (congestion risk)
 - **Example:**
   ```
-  Ethernet1: 45% (healthy)
-  Ethernet2: 85% (warning - consider upgrade)
-  Ethernet3: 95% (critical - likely packet drops)
+  E1/1: 45% (healthy)
+  E1/2: 85% (warning - consider upgrade)
+  E1/3: 95% (critical - likely packet drops)
   ```
 
-**4. Error Counters**
+**4. Errors and discards** (time series)
 
-- **Metric:** CRC errors, frame errors, discards per interface
-- **Healthy State:** 0 errors, or very low error rate
-- **Unhealthy State:** Growing error count (cable issue, duplex mismatch)
+- **Metric:** Error and discard counters per interface over time
+- **Healthy State:** Flat line near zero
+- **Unhealthy State:** Rising values indicate cable or signal problem
 
 **Understanding Error Types:**
 
@@ -428,20 +417,10 @@ The Interfaces Dashboard gives you visibility into the health of every network i
 **Example:**
 ```
 Interface    CRC Errors   Frame Errors   Discards
-Ethernet1    0            0              0          ← Healthy
-Ethernet2    1,234        523            0          ← Cable problem
-Ethernet3    0            0              52,341     ← Congestion (drops)
+E1/1         0            0              0          ← Healthy
+E1/2         1,234        523            0          ← Cable problem
+E1/3         0            0              52,341     ← Congestion (drops)
 ```
-
-**5. VLAN Configuration**
-
-- **Metric:** VLANs configured on each interface
-- **Use Case:** Verify VPCAttachment applied correct VLANs
-- **Example:**
-  ```
-  Ethernet1: VLAN 1010, 1020 (expected for server-01)
-  Ethernet2: VLAN 1030        (expected for server-02)
-  ```
 
 **Dashboard Actions:**
 
@@ -470,90 +449,55 @@ The Platform Dashboard provides visibility into the physical health of your swit
 
 **Key Panels:**
 
-**1. PSU Status**
+**1. CPU Temperature and Switch ASIC Temperature** (stat panels)
 
-- **Metric:** Operational state (OK/Failed) per PSU
-- **Healthy State:** All PSUs = OK
-- **Unhealthy State:** Any PSU = Failed or Not Present
+- **Metric:** Current temperature in Celsius
+- **Healthy State:** CPU < 70°C, ASIC < 80°C
+- **Unhealthy State:** Approaching or exceeding thresholds
 - **Example:**
   ```
-  Switch    PSU1   PSU2
-  leaf-01   OK     OK       ← Healthy
-  leaf-02   OK     FAILED   ← Replace PSU2
+  CPU Temperature: 55°C (OK)
+  Switch ASIC Temperature: 85°C (WARNING - check cooling)
   ```
 
-**2. PSU Voltage**
+**2. Fan Tray Speed** (stat)
 
-- **Metric:** Input/output voltage in volts
-- **Healthy State:** Within expected range (e.g., 11.5V - 12.5V for 12V rail)
-- **Unhealthy State:** Voltage outside range (power supply issue)
+- **Metric:** Fan RPM
+- **Healthy State:** All fans reporting > 0 RPM (e.g., > 3000 RPM)
+- **Unhealthy State:** Fan = 0 RPM (failed) → thermal risk
 - **Example:**
   ```
-  PSU1 Output: 12.1V (OK)
-  PSU2 Output: 10.2V (Low - failing PSU)
+  Fan Tray Speed: 5,200 RPM (OK)
+  Fan Tray Speed: 0 RPM     (FAILED - thermal risk)
   ```
 
-**3. Fan Speeds**
+**3. Front Fan Air Temp and PSU Air Temp** (gauge panels)
 
-- **Metric:** RPM (revolutions per minute) per fan
-- **Healthy State:** All fans > minimum threshold (e.g., > 3000 RPM)
-- **Unhealthy State:** Fan = 0 RPM (failed) or very low
+- **Metric:** Air temperature at fan tray and PSU in Celsius
+- **Healthy State:** Ambient < 45°C
+- **Unhealthy State:** High ambient temperature → investigate data center HVAC
 - **Example:**
   ```
-  Fan Tray 1: 5,200 RPM (OK)
-  Fan Tray 2: 5,100 RPM (OK)
-  Fan Tray 3: 0 RPM     (FAILED - thermal risk)
-  ```
-
-**4. Temperature Sensors**
-
-- **Metric:** Celsius per sensor (CPU, ASIC, ambient, PSU)
-- **Healthy State:** Below warning thresholds
-  - CPU: < 70°C
-  - ASIC: < 80°C
-  - Ambient: < 45°C
-- **Unhealthy State:** Approaching or exceeding limits
-- **Example:**
-  ```
-  CPU Temp: 55°C (OK)
-  ASIC Temp: 85°C (WARNING - check cooling)
-  Ambient: 48°C (WARNING - data center HVAC issue)
-  ```
-
-**5. Transceiver Optics (DOM)**
-
-- **Metric:** TX/RX power, temperature per optical interface
-- **Healthy State:** Within optic specifications
-- **Unhealthy State:** Low RX power (dirty/bad fiber), high temp (failing optic)
-- **Example:**
-  ```
-  Ethernet48 (Spine Uplink):
-    TX Power: -2.5 dBm (OK)
-    RX Power: -3.1 dBm (OK)
-    Temp: 45°C (OK)
-
-  Ethernet49:
-    RX Power: -15.2 dBm (CRITICAL - signal loss, check fiber)
+  Front Fan Air Temp: 35°C (OK)
+  PSU Air Temp: 48°C (WARNING - data center HVAC issue)
   ```
 
 **Dashboard Actions:**
 
-- **Daily Health Check:** Scan for failed PSUs, stopped fans, high temps
-- **Preventive Maintenance:** Schedule PSU/fan replacement before failure
+- **Daily Health Check:** Scan for stopped fans and high temperatures
+- **Preventive Maintenance:** Act on fan failures before thermal damage
 - **Capacity Planning:** Track temperature trends (data center cooling)
-- **Optics Validation:** After fiber installation, verify RX power in range
+- **Node Variable:** Select each switch to check hardware per-switch
 
 **What "Healthy" Looks Like:**
-- All PSUs operational
-- All fans running > minimum RPM
-- Temperatures well below limits
-- Optic power levels within spec
+- CPU and ASIC temperatures below thresholds
+- Fan tray speed > 0 RPM (fans running)
+- Ambient air temperatures < 45°C
 
 **What "Unhealthy" Looks Like:**
-- Failed PSU (single point of failure)
-- Fan failure (thermal risk)
-- High temperatures (cooling insufficient)
-- Low optical RX power (fiber issue)
+- Fan speed = 0 (fan failure, thermal risk)
+- CPU/ASIC temperatures approaching limits
+- High ambient temperatures (data center cooling issue)
 
 ### Concept 4: Logs Dashboard - Error Filtering
 
@@ -563,62 +507,50 @@ The Logs Dashboard gives you a centralized view of syslog messages from all swit
 
 **Key Panels:**
 
-**1. Syslog Stream**
+**1. Errors - $node** (log panel, under Syslog section)
 
-- **Content:** Live stream of syslog messages from all switches
-- **Use Case:** Watch log messages in real-time
-- **Filter By:** Log level, switch, time range
+- **Content:** Filtered syslog errors for the selected node
+- **Use Case:** Check if a specific switch has error-level syslog messages
 - **Example:**
   ```
-  [leaf-01] Oct 17 10:15:23 INFO: BGP neighbor 172.30.128.1 established
-  [leaf-02] Oct 17 10:15:45 ERROR: Interface Ethernet5 link down
-  [spine-01] Oct 17 10:16:02 WARNING: High CPU usage detected
+  [leaf-02] Oct 17 10:15:45 ERROR: Interface E1/5 link down
+  [leaf-02] Oct 17 10:16:02 ERROR: BGP neighbor 172.30.128.5 connection refused
   ```
+- **Healthy State:** Empty or very few entries
 
-**2. Log Level Breakdown**
+**2. BGP Logs - $node** (log panel, under Syslog section)
 
-- **Metric:** Count of logs by severity (ERROR, WARNING, INFO, DEBUG)
-- **Healthy State:** Few or no ERRORs
-- **Unhealthy State:** Spike in ERROR count
-- **Example:**
-  ```
-  Last 1 hour:
-    ERROR: 2
-    WARNING: 12
-    INFO: 523
-  ```
+- **Content:** BGP-related syslog messages for the selected node
+- **Use Case:** Monitor BGP state changes and adjacency events
+- **Healthy State:** No unexpected state changes or error messages
 
-**3. Error Rate Visualization**
+**3. Errors - $node / WARNINGS - $node** (log panels, under Agent section)
 
-- **Metric:** Errors per minute over time
-- **Healthy State:** Flat line near zero
-- **Unhealthy State:** Spike indicates incident
-- **Example:** Graph shows spike at 10:15 (correlate with interface down event)
+- **Content:** Fabric agent errors and warnings for the selected node
+- **Use Case:** Identify agent-level issues (CRD reconciliation errors, etc.)
 
-**4. Log Search / Filtering**
+**4. Full Output for $file on $node** (log panel, under Full log section)
 
-- **Capability:** Full-text search across all logs
-- **Use Cases:**
-  - Find all BGP-related errors: `bgp AND error`
-  - Find logs for specific switch: `switch="leaf-01"`
-  - Find interface events: `interface AND (up OR down)`
+- **Content:** Complete log file output for selected file and node
+- **Use Case:** Detailed investigation when errors are found above
+- **Select:** Use the `$file` variable dropdown to choose a specific log file
 
 **Dashboard Actions:**
 
-- **Daily Health Check:** Check ERROR count (should be 0 or near 0)
-- **Troubleshooting:** Search for specific error messages
-- **Incident Investigation:** Correlate log spike with metrics change
-- **Audit Trail:** Review configuration change logs
+- **Daily Health Check:** Select each node, check "Errors - $node" panel for syslog errors
+- **Troubleshooting:** Use "BGP Logs - $node" to investigate BGP-related events
+- **Incident Investigation:** Check error logs correlate with metrics anomalies
+- **Node Variable:** Must select a node — logs are shown per-switch
 
 **What "Healthy" Looks Like:**
-- ERROR count = 0 or very low
-- No unusual log patterns
-- Warnings are expected/known (e.g., unused ports)
+- "Errors - $node" panel is empty or shows very few entries
+- "BGP Logs - $node" shows no unexpected state changes
+- Agent errors panel is empty
 
 **What "Unhealthy" Looks Like:**
-- ERROR count > 10 in last hour
-- Repeating error messages
-- Unexpected critical errors
+- Repeated error messages in "Errors - $node"
+- BGP state changes or connection refused in "BGP Logs - $node"
+- Many agent errors (indicates reconciliation problems)
 
 ### Concept 5: Node Exporter Dashboard - System Metrics
 
@@ -822,7 +754,7 @@ Unlike CPU or memory, ASIC resources are **fixed at manufacture**:
 **Fix:**
 
 1. **Check Prometheus targets:**
-   - Navigate to http://localhost:9090/targets
+   - Navigate to http://YOUR_VM_IP:9090/targets
    - Verify fabric-proxy target is UP
    - Check last scrape time
 
@@ -892,8 +824,8 @@ Reference the healthy/unhealthy criteria in this module:
    - Should use `rate(metric[5m])` for counters
 
 2. **Adjust panel query:**
-   - For byte counters: `rate(interface_bytes_out[5m]) * 8` (converts to bps)
-   - For packet counters: `rate(interface_packets_out[5m])`
+   - For byte counters: `rate(fabric_agent_interface_out_octets[5m]) * 8` (converts to bps)
+   - For packet counters: `rate(fabric_agent_interface_out_pkts[5m])`
 
 3. **Reference Module 3.1:**
    - Review counter vs gauge concepts
@@ -922,18 +854,18 @@ Reference the healthy/unhealthy criteria in this module:
 ### Dashboard Quick Reference
 
 **Dashboard Access:**
-- URL: http://localhost:3000
-- Login: admin / prom-operator
+- URL: http://YOUR_VM_IP:3000
+- Login: admin / admin
 - Location: Dashboards → Browse
 
 **6 Hedgehog Dashboards:**
 
 1. **Hedgehog Fabric** - BGP underlay health
-2. **Hedgehog Interfaces** - Interface state, traffic, errors
-3. **Hedgehog Platform** - PSU, fans, temperature, optics
-4. **Hedgehog Logs** - Syslog aggregation and search
-5. **Node Exporter** - Linux system metrics (CPU, memory, disk)
-6. **Switch Critical Resources** - ASIC resource capacity
+2. **Hedgehog Switch Interface Counters** - Interface state, traffic, errors
+3. **Hedgehog Fabric Platform Stats** - PSU, fans, temperature, optics
+4. **Hedgehog Fabric Logs** - Syslog aggregation and search
+5. **Hedgehog mod of Node Exporter Full** - Linux system metrics (CPU, memory, disk)
+6. **Hedgehog Switch Critical Resources** - ASIC resource capacity
 
 **Common Time Ranges:**
 - Last 5 minutes (real-time monitoring)
