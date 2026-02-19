@@ -52,6 +52,12 @@ By the end of this module, you will be able to:
 
 The `web-app-prod` VPC is ready, but no servers can reach it yet. Your task: attach two servers to the VPC—`server-01` (MCLAG connection) to the `web-servers` subnet for static IPs, and `server-05` (ESLAG connection) to the `worker-nodes` subnet for DHCP. This will complete the connectivity workflow and make the VPC operational, allowing your web application to serve traffic and your worker nodes to scale dynamically.
 
+> **Before You Begin the Lab**
+>
+> The hands-on exercises in this module require the **Hedgehog Virtual AI Data Center (vAIDC)** — a pre-configured GCP lab environment that includes a complete Hedgehog fabric, Grafana observability dashboards, and all required services ready to use.
+>
+> **Ensure your vAIDC is running before proceeding.** If you haven't set it up yet, complete the [Accessing the Hedgehog vAIDC](https://hedgehog.cloud/learn/courses/accessing-the-hedgehog-vaidc) module first — it takes about 20 minutes and only needs to be done once.
+
 ## Lab Steps
 
 ### Step 1: Review Existing Infrastructure

@@ -50,6 +50,12 @@ By the end of this module, you will be able to:
 
 The `web-app-prod` application is being decommissioned after a successful migration to a new platform. Your task: safely remove the VPCAttachments and VPC without disrupting other fabric operations. You'll follow the proper cleanup order (attachments first, then VPC), validate each step, and verify the fabric returns to a clean state. This is your opportunity to complete the full lifecycle workflow and demonstrate Day 1 operations mastery.
 
+> **Before You Begin the Lab**
+>
+> The hands-on exercises in this module require the **Hedgehog Virtual AI Data Center (vAIDC)** — a pre-configured GCP lab environment that includes a complete Hedgehog fabric, Grafana observability dashboards, and all required services ready to use.
+>
+> **Ensure your vAIDC is running before proceeding.** If you haven't set it up yet, complete the [Accessing the Hedgehog vAIDC](https://hedgehog.cloud/learn/courses/accessing-the-hedgehog-vaidc) module first — it takes about 20 minutes and only needs to be done once.
+
 ## Lab Steps
 
 ### Step 1: Pre-Decommission Review

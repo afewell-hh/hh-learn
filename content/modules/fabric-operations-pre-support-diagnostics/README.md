@@ -98,6 +98,12 @@ By the end of this module, you will be able to:
 - Understanding of kubectl, Grafana, and Prometheus
 - Experience with VPC troubleshooting from Course 2
 
+> **Before You Begin the Lab**
+>
+> The hands-on exercises in this module require the **Hedgehog Virtual AI Data Center (vAIDC)** — a pre-configured GCP lab environment that includes a complete Hedgehog fabric, Grafana observability dashboards, and all required services ready to use.
+>
+> **Ensure your vAIDC is running before proceeding.** If you haven't set it up yet, complete the [Accessing the Hedgehog vAIDC](https://hedgehog.cloud/learn/courses/accessing-the-hedgehog-vaidc) module first — it takes about 20 minutes and only needs to be done once.
+
 ## Scenario: Complete Pre-Escalation Diagnostic Collection
 
 A user reports that their newly created VPC `customer-app-vpc` with VPCAttachment for `server-07` isn't working. Server-07 cannot reach other servers in the VPC. You'll execute the full diagnostic checklist, collect evidence, and determine if this requires escalation or self-resolution.

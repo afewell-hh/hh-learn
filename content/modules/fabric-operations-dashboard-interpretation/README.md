@@ -74,6 +74,12 @@ By the end of this module, you will be able to:
 - Familiarity with metric types (counters, gauges)
 - Basic Grafana navigation (from Module 1.3)
 
+> **Before You Begin the Lab**
+>
+> The hands-on exercises in this module require the **Hedgehog Virtual AI Data Center (vAIDC)** — a pre-configured GCP lab environment that includes a complete Hedgehog fabric, Grafana observability dashboards, and all required services ready to use.
+>
+> **Ensure your vAIDC is running before proceeding.** If you haven't set it up yet, complete the [Accessing the Hedgehog vAIDC](https://hedgehog.cloud/learn/courses/accessing-the-hedgehog-vaidc) module first — it takes about 20 minutes and only needs to be done once.
+
 ## Scenario: Morning Health Check Using Grafana Dashboards
 
 It's Monday morning, and you're the on-call fabric operator. Your first task: verify the fabric is healthy before the business day begins. You'll use Grafana dashboards to perform a systematic health check in under 5 minutes.

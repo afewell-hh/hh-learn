@@ -105,6 +105,12 @@ By the end of this module, you will be able to:
 - Understanding of Kubernetes events
 - Familiarity with VPC and VPCAttachment resources
 
+> **Before You Begin the Lab**
+>
+> The hands-on exercises in this module require the **Hedgehog Virtual AI Data Center (vAIDC)** — a pre-configured GCP lab environment that includes a complete Hedgehog fabric, Grafana observability dashboards, and all required services ready to use.
+>
+> **Ensure your vAIDC is running before proceeding.** If you haven't set it up yet, complete the [Accessing the Hedgehog vAIDC](https://hedgehog.cloud/learn/courses/accessing-the-hedgehog-vaidc) module first — it takes about 20 minutes and only needs to be done once.
+
 ## Scenario: Integrated Troubleshooting with kubectl and Grafana
 
 You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-03`. The server reports it's not getting DHCP. You'll use both Grafana and kubectl to diagnose the issue.

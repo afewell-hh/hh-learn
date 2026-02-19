@@ -1,0 +1,30 @@
+{
+  "slug": "accessing-the-hedgehog-vaidc",
+  "title": "Accessing the Hedgehog vAIDC",
+  "summary_markdown": "Set up the Hedgehog Virtual AI Data Center (vAIDC) — the pre-configured GCP lab environment used for all Network Like a Hyperscaler hands-on exercises.\n\nThis short course walks you through deploying the vAIDC, connecting to lab services (Grafana, ArgoCD, Gitea, Prometheus), and managing your lab VM's lifecycle. Complete this before starting any hands-on lab exercises in the Network Like a Hyperscaler pathway.",
+  "modules": [
+    "accessing-the-hedgehog-virtual-ai-data-center"
+  ],
+  "badge_image_url": "",
+  "display_order": 0,
+  "tags": "hedgehog,vaidc,gcp,onboarding,lab,network-like-hyperscaler",
+  "content_blocks": [
+    {
+      "id": "intro",
+      "type": "callout",
+      "title": "Before You Start the Network Like a Hyperscaler Labs",
+      "body_markdown": "All hands-on lab exercises in the Network Like a Hyperscaler pathway require the Hedgehog Virtual AI Data Center (vAIDC) to be running. Complete this module first — it takes about 20 minutes and only needs to be done once."
+    },
+    {
+      "id": "vaidc-module",
+      "type": "module_ref",
+      "module_slug": "accessing-the-hedgehog-virtual-ai-data-center"
+    },
+    {
+      "id": "next-steps",
+      "type": "text",
+      "title": "Ready to Begin",
+      "body_markdown": "Your vAIDC is running and all lab services are accessible. You're ready to start the Network Like a Hyperscaler pathway — head to Course 1: Foundations & Interfaces to begin."
+    }
+  ]
+}
