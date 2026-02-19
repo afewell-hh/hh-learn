@@ -14,7 +14,7 @@ tags:
   - events
   - troubleshooting
   - observability
-description: "Monitor fabric health using kubectl events and Agent CRD status, correlating with Grafana metrics for complete troubleshooting visibility."
+description: "Monitor fabric health using admission webhook validation, Agent CRD generation tracking, and Grafana metrics for complete troubleshooting visibility."
 order: 303
 ---
 
@@ -28,11 +28,12 @@ Dashboards show **what** is happening (metrics over time).
 
 But when something goes wrong, you need to know **why** it's happening.
 
-That's where **kubectl events and Agent CRD status** come in—they provide:
-- **Configuration errors:** "VLAN 1010 already in use"
-- **Reconciliation status:** "VPC successfully created"
-- **Dependency issues:** "Connection server-01--mclag not found"
+That's where **admission webhook errors and Agent CRD status** come in—they provide:
+- **Validation errors at apply time:** "admission webhook denied the request: VPC has attachments"
+- **Reconciliation tracking:** APPLIEDG == CURRENTG means config is fully applied
 - **Switch state details:** BGP neighbor state, interface status, platform health
+
+> **Note:** Hedgehog fabric controllers (VPC, VPCAttachment) do **not** emit Kubernetes events. `kubectl describe vpc` will show `Events: <none>`. Instead, validation errors surface immediately via admission webhooks at `kubectl apply` time, and reconciliation progress is tracked via Agent CRD generation counters.
 
 ### The Troubleshooting Question
 
@@ -44,58 +45,59 @@ A user reports: "My server can't reach the VPC."
 - VLAN is configured
 
 **But that's not enough. You need to know:**
-- Did VPCAttachment reconcile successfully? *(kubectl events)*
+- Did VPCAttachment reconcile successfully? *(Agent CRD: APPLIEDG == CURRENTG)*
 - Is the switch Agent ready? *(Agent CRD status)*
-- Was there a configuration error? *(kubectl events)*
+- Was there a configuration error at apply time? *(admission webhook error)*
 - What's the exact VLAN and interface? *(Agent CRD state)*
 
 ### What You'll Learn
 
-- How to monitor Kubernetes events for fabric resources
-- How to interpret Agent CRD status fields
-- How to track VPC lifecycle through events
-- Common error event patterns and their meanings
+- How admission webhook validation works for fabric resources
+- How to interpret Agent CRD status fields and generation counters
+- How to track VPC lifecycle using Agent CRD and admission webhook errors
+- Common error patterns and their meanings
 - How to correlate kubectl data with Grafana metrics
 
 ### The Integration
 
 ```
-Grafana:    "Interface Ethernet5 has no traffic"
+Grafana:    "Interface E1/5 has no traffic"
                         ↓
-kubectl events: "VPCAttachment failed: VLAN conflict"
+kubectl apply: admission webhook error (if misconfigured at apply time)
+kubectl get agents: APPLIEDG != CURRENTG (if still reconciling)
                         ↓
-Agent CRD:  "VLAN 1010 already used by VPC other-vpc"
+Agent CRD:  Interface state, VLAN status, generation counters
                         ↓
-Solution:   Change VLAN in VPC spec
+Solution:   Fix spec or wait for reconciliation to converge
 ```
 
 This module teaches you to use kubectl and Grafana **together** for complete observability.
 
 **The Complete Observability Picture:**
 
-Grafana dashboards are powerful—they show you metrics, trends, and anomalies. But they can't show you why a VPC failed to create or why a VPCAttachment didn't configure a VLAN. That requires Kubernetes events and the Agent CRD.
+Grafana dashboards are powerful—they show you metrics, trends, and anomalies. But they can't show you why a VPC failed to create or why a VPCAttachment didn't configure a VLAN. That requires understanding admission webhook errors and the Agent CRD.
 
 Think of it this way:
 - **Grafana** = Your speedometer and dashboard lights (symptoms)
-- **kubectl events** = Your engine diagnostic codes (what went wrong)
-- **Agent CRD** = Your engine control unit data (exact state)
+- **Admission webhooks** = Your engine error codes (validation failures at apply time)
+- **Agent CRD** = Your engine control unit data (exact switch state and reconciliation status)
 
-In production operations, you'll use all three together. This integrated troubleshooting approach is what separates novice operators from experienced ones. You'll start with a symptom in Grafana, use kubectl events to find configuration errors, check Agent CRD for exact switch state, and correlate all three to identify root cause.
+In production operations, you'll use all three together. This integrated troubleshooting approach is what separates novice operators from experienced ones. You'll start with a symptom in Grafana, use admission webhook output and Agent CRD to diagnose, and verify the fix in Grafana.
 
 **Why This Matters:**
 
-Modern fabric operations require correlation across multiple data sources. A single data source rarely tells the complete story. Learning to seamlessly move between Grafana, kubectl events, and Agent CRD queries will make you significantly more effective at troubleshooting and will prepare you for the diagnostic collection workflow in Module 3.4.
+Modern fabric operations require correlation across multiple data sources. A single data source rarely tells the complete story. Learning to seamlessly move between Grafana, admission webhook errors, and Agent CRD queries will make you significantly more effective at troubleshooting and will prepare you for the diagnostic collection workflow in Module 3.4.
 
 ## Learning Objectives
 
 By the end of this module, you will be able to:
 
-1. **Monitor kubectl events** - Track VPC lifecycle events and reconciliation status
+1. **Identify admission webhook errors** - Recognize validation failures at `kubectl apply` time
 2. **Interpret Agent CRD status** - Read switch operational state from Agent CRD status fields
-3. **Track VPC lifecycle** - Follow VPC creation, attachment, and deletion through events
-4. **Identify error patterns** - Recognize common failure events (VLAN conflicts, subnet overlaps, missing connections)
-5. **Correlate kubectl and Grafana** - Cross-reference events with metrics for complete troubleshooting picture
-6. **Apply integrated troubleshooting** - Use both kubectl events and Grafana dashboards together
+3. **Track VPC lifecycle** - Follow VPC creation, attachment, and deletion using Agent CRD generation counters
+4. **Identify error patterns** - Recognize common failure modes (VLAN conflicts, subnet overlaps, missing connections)
+5. **Correlate kubectl and Grafana** - Cross-reference Agent CRD data with Grafana metrics for complete troubleshooting picture
+6. **Apply integrated troubleshooting** - Use Agent CRD, admission webhook output, and Grafana dashboards together
 
 ## Prerequisites
 
@@ -116,7 +118,7 @@ By the end of this module, you will be able to:
 You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-03`. The server reports it's not getting DHCP. You'll use both Grafana and kubectl to diagnose the issue.
 
 **Environment Access:**
-- **Grafana:** http://localhost:3000
+- **Grafana:** http://YOUR_VM_IP:3000
 - **kubectl:** Already configured
 
 ### Task 1: Identify Symptom in Grafana (1 minute)
@@ -126,14 +128,14 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 **Steps:**
 
 1. **Open Grafana Interfaces Dashboard:**
-   - Navigate to http://localhost:3000
-   - Dashboards → "Hedgehog Interfaces"
+   - Navigate to http://YOUR_VM_IP:3000
+   - Dashboards → "Hedgehog Switch Interface Counters"
 
 2. **Find server-03 interface:**
    - Look for the leaf switch interface connected to server-03
    - In vlab, you can check Connection CRDs to identify the interface:
      ```bash
-     kubectl get connections -n fab | grep server-03
+     kubectl get connections | grep server-03
      ```
 
 3. **Observe symptoms:**
@@ -150,13 +152,15 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 - ✅ Identified symptom (e.g., interface UP but no traffic)
 - ✅ Noted which switch and interface
 
-### Task 2: Check VPC and VPCAttachment Events (2 minutes)
+### Task 2: Check VPC and VPCAttachment Status (2 minutes)
 
-**Objective:** Use kubectl to check resource reconciliation status
+**Objective:** Use kubectl to check resource existence and Agent reconciliation status
+
+> **Important note about Kubernetes events:** Hedgehog fabric controllers do **not** emit Kubernetes events for VPC/VPCAttachment operations — `kubectl get events` will return empty for these resources. Instead, the Hedgehog fabric uses **admission webhooks** for validation (errors are returned immediately at apply time) and **Agent generation counters** for reconciliation status.
 
 **Steps:**
 
-1. **List VPCs:**
+1. **Verify VPC exists:**
 
    ```bash
    kubectl get vpc testapp-vpc
@@ -164,89 +168,72 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 
    **Expected output:**
    ```
-   NAME           AGE
-   testapp-vpc    5m
+   NAME           IPV4NS    VLANNS    AGE
+   testapp-vpc    default   default   5m
    ```
 
-2. **Check VPC events:**
+   If the VPC doesn't exist, it was rejected by the admission webhook at creation time.
 
-   ```bash
-   kubectl get events --field-selector involvedObject.name=testapp-vpc --sort-by='.lastTimestamp'
-   ```
+2. **Check VPC spec (via describe):**
 
-   **Expected output (healthy):**
-   ```
-   LAST SEEN   TYPE     REASON              OBJECT            MESSAGE
-   5m          Normal   Created             vpc/testapp-vpc   VPC created successfully
-   5m          Normal   VNIAllocated        vpc/testapp-vpc   Allocated VNI 100010
-   5m          Normal   SubnetsConfigured   vpc/testapp-vpc   3 subnets configured
-   5m          Normal   Ready               vpc/testapp-vpc   VPC is ready
-   ```
-
-   **Or use describe for combined view:**
    ```bash
    kubectl describe vpc testapp-vpc
    ```
 
    **Look for:**
-   - ✅ Normal events: Created, VNIAllocated, SubnetsConfigured, Ready
-   - ❌ Warning events: ValidationFailed, VLANConflict, SubnetOverlap
+   - `Spec:` shows subnets with correct VLANs and CIDR ranges
+   - `Events: <none>` is normal — fabric controllers don't emit events
 
-3. **List VPCAttachments:**
+3. **Verify VPCAttachment exists:**
 
    ```bash
-   kubectl get vpcattachment -A | grep server-03
+   kubectl get vpcattachment | grep server-03
    ```
 
    **Expected output:**
    ```
-   NAMESPACE   NAME                    AGE
-   default     testapp-vpc-server-03   4m
+   NAME                    VPCSUBNET           CONNECTION                    NATIVEVLAN   AGE
+   testapp-vpc-server-03   testapp-vpc/app     server-03--unbundled--leaf-05              4m
    ```
 
-4. **Check VPCAttachment events:**
+4. **Check Agent generation counters — has config been applied?**
 
    ```bash
-   kubectl get events --field-selector involvedObject.kind=VPCAttachment --sort-by='.lastTimestamp' | grep server-03
+   kubectl get agents
    ```
 
-   **Or describe the attachment:**
-   ```bash
-   kubectl describe vpcattachment testapp-vpc-server-03
+   **Expected output (converged):**
+   ```
+   NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+   leaf-05    server-leaf   VS-05           2m        10         10         v0.96.2
    ```
 
-   **Expected output (healthy):**
-   ```
-   LAST SEEN   TYPE     REASON              OBJECT                          MESSAGE
-   4m          Normal   Created             vpcattachment/...server-03      VPCAttachment created
-   4m          Normal   ConnectionFound     vpcattachment/...server-03      Connection server-03--mclag found
-   4m          Normal   VLANConfigured      vpcattachment/...server-03      VLAN 1010 configured on leaf-05/Ethernet7
-   4m          Normal   Ready               vpcattachment/...server-03      VPCAttachment ready
-   ```
+   - ✅ `APPLIEDG == CURRENTG`: Configuration fully applied
+   - ❌ `APPLIEDG < CURRENTG`: Agent is still reconciling (wait for convergence)
 
-   **Example problem (VLAN conflict):**
-   ```
-   LAST SEEN   TYPE      REASON          OBJECT                          MESSAGE
-   4m          Normal    Created         vpcattachment/...server-03      VPCAttachment created
-   3m          Warning   VLANConflict    vpcattachment/...server-03      VLAN 1010 already in use by vpc-1/default
-   ```
+5. **Validate admission webhook errors (if resource creation failed):**
 
-   **Example problem (connection not found):**
+   If `kubectl apply -f vpc.yaml` returned an error, the message will indicate the issue:
+
    ```
-   LAST SEEN   TYPE      REASON              OBJECT                          MESSAGE
-   4m          Normal    Created             vpcattachment/...server-03      VPCAttachment created
-   3m          Warning   DependencyMissing   vpcattachment/...server-03      Connection server-03--mclag not found
+   # VLAN conflict example:
+   Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request:
+   VPC "testapp-vpc" subnet VLAN 1010 already in use
+
+   # Connection not found example:
+   Error from server (Forbidden): admission webhook "vvpcattachment.kb.io" denied the request:
+   Connection "server-03--mclag" not found
    ```
 
 **Success Criteria:**
-- ✅ Identified if VPC or VPCAttachment has errors
-- ✅ Found specific error event message
-- ✅ Determined next troubleshooting step
+- ✅ VPC and VPCAttachment exist in kubectl output
+- ✅ APPLIEDG == CURRENTG for the switch serving server-03
+- ✅ No admission webhook errors during resource creation
 
-**Common Issues to Find:**
-- VLAN conflict (VLAN already in use)
-- Connection not found (wrong connection name)
-- Subnet overlap (IP address conflict)
+**Common Issues to Diagnose:**
+- VLAN conflict (caught by admission webhook at apply time)
+- Connection not found (caught by admission webhook at apply time)
+- Agent not converging (APPLIEDG < CURRENTG for extended period)
 
 ### Task 3: Check Agent CRD for Switch State (2 minutes)
 
@@ -258,7 +245,7 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 
    ```bash
    # List connections to find server-03
-   kubectl get connections -n fab | grep server-03
+   kubectl get connections | grep server-03
    ```
 
    **Example output:**
@@ -266,27 +253,27 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
    server-03--unbundled--leaf-05
    ```
 
-   **Result:** server-03 connected to leaf-05, Ethernet7 (example)
+   **Result:** server-03 connected to leaf-05, E1/7 (example)
 
 2. **Check Agent status for leaf-05:**
 
    ```bash
-   kubectl get agent leaf-05 -n fab
+   kubectl get agent leaf-05
    ```
 
    **Expected output:**
    ```
-   NAME       ROLE          DESCR           APPLIED   VERSION
-   leaf-05    server-leaf   VS-05           2m        v0.87.4
+   NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+   leaf-05    server-leaf   VS-05           2m        10         10         v0.96.2
    ```
 
-   **Success:** Agent is present and has recent APPLIED time
+   **Success:** Agent is present, has recent APPLIED time, and APPLIEDG == CURRENTG (config converged)
 
 3. **Check interface state in Agent CRD:**
 
    ```bash
-   # View interface Ethernet7 state
-   kubectl get agent leaf-05 -n fab -o jsonpath='{.status.state.interfaces.Ethernet7}' | jq
+   # View interface E1/7 state
+   kubectl get agent leaf-05 -o json | jq \'.status.state.interfaces["E1/7"]\'
    ```
 
    **Expected output (healthy):**
@@ -301,8 +288,8 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
      "counters": {
        "inb": 123456789,
        "outb": 987654321,
-       "ine": 0,
-       "oute": 0
+       "ind": 2,
+       "outbps": 408
      }
    }
    ```
@@ -316,14 +303,14 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 
    ```bash
    # View all interfaces
-   kubectl get agent leaf-05 -n fab -o jsonpath='{.status.state.interfaces}' | jq
+   kubectl get agent leaf-05 -o jsonpath='{.status.state.interfaces}' | jq
    ```
 
 5. **Check configuration application status:**
 
    ```bash
    # When was config last applied?
-   kubectl get agent leaf-05 -n fab -o jsonpath='{.status.lastAppliedTime}'
+   kubectl get agent leaf-05 -o jsonpath='{.status.lastAppliedTime}'
    ```
 
    **Expected output:**
@@ -347,88 +334,114 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 **Analysis Template:**
 
 **Grafana Symptom:**
-- Interface: leaf-05/Ethernet7
+- Interface: leaf-05/E1/7
 - State: UP
 - VLAN: Not visible or wrong VLAN
 - Traffic: 0 bps
 
-**kubectl Events:**
-- VPC Event: [Normal/Warning] [Reason] [Message]
-- VPCAttachment Event: [Normal/Warning] [Reason] [Message]
+**Admission Webhook Check (at apply time):**
+- Was there an error when `kubectl apply` was run for the VPC or VPCAttachment?
+- Example error: `Error from server (Forbidden): admission webhook "vvpcattachment.kb.io" denied the request: ...`
 
-**Agent CRD Status:**
+**Agent CRD Convergence:**
+- `kubectl get agents` — is APPLIEDG == CURRENTG for leaf-05? (If not, reconciliation is still in progress)
+
+**Agent CRD Interface Status:**
 - Interface oper: [up/down]
 - Config applied: [timestamp]
 - VLANs: [list]
 
 **Root Cause:**
-- Example: VPCAttachment failed due to VLAN conflict → VLAN never configured → No DHCP
+- Example: VPCAttachment was rejected by admission webhook → VLAN never configured → No DHCP
 
 **Solution:**
 - Example: Change VPC VLAN from 1010 to 1011, commit to Gitea
 
 **Example Correlation Scenario 1:**
 
-**Grafana:** Interface Ethernet7 UP, 0 bps traffic
-**kubectl events:** Warning: VLANConflict - VLAN 1010 already in use by vpc-1/default
-**Agent CRD:** Interface operational, no VLANs configured
-**Root Cause:** VPCAttachment failed due to VLAN conflict, so VLAN never applied to interface
+**Grafana:** Interface E1/7 UP, 0 bps traffic
+**At apply time:** `Error from server (Forbidden): admission webhook "vvpcattachment.kb.io" denied the request: VLAN 1010 conflict`
+**Agent CRD:** APPLIEDG < CURRENTG (reconciliation pending) OR interface operational but no VLANs configured
+**Root Cause:** VPCAttachment rejected by admission webhook due to VLAN conflict — VLAN never applied to interface
 **Solution:** Change testapp-vpc VLAN to unused VLAN (check: `kubectl get vpc -o yaml | grep vlan:`)
 
 **Example Correlation Scenario 2:**
 
-**Grafana:** Interface Ethernet7 UP, 0 bps traffic
-**kubectl events:** Warning: DependencyMissing - Connection server-03--mclag not found
+**Grafana:** Interface E1/7 UP, 0 bps traffic
+**At apply time:** VPCAttachment applied successfully (no error), but `kubectl get agents` shows APPLIEDG < CURRENTG on leaf-05
 **Agent CRD:** Interface operational, no VLANs configured
-**Root Cause:** VPCAttachment references wrong connection name (server-03--mclag doesn't exist)
-**Solution:** Fix connection name in VPCAttachment (check: `kubectl get connections -n fab | grep server-03`)
+**Root Cause:** VPCAttachment references wrong connection name — verify with `kubectl get connections | grep server-03`
+**Solution:** Fix connection name in VPCAttachment spec, re-apply, wait for APPLIEDG to converge
 
 **Success Criteria:**
-- ✅ Identified root cause from event messages
+- ✅ Identified whether a webhook error occurred at apply time
+- ✅ Checked Agent APPLIEDG/CURRENTG convergence
 - ✅ Correlated kubectl findings with Grafana symptom
 - ✅ Proposed solution based on error type
 
 ### Task 5: Monitor Resolution (Optional, 1 minute)
 
-**Objective:** Verify fix by monitoring events and Grafana
+**Objective:** Verify fix by monitoring Agent CRD convergence and Grafana
+
+> **Note:** Hedgehog fabric controllers do not emit Kubernetes events for VPC/VPCAttachment operations.
+> `kubectl get events` will return empty for these resources. Monitor reconciliation via Agent CRD
+> generation counters instead.
 
 **Steps:**
 
-1. **Watch VPC/VPCAttachment events:**
-
-   ```bash
-   kubectl get events --field-selector involvedObject.kind=VPCAttachment --watch
-   ```
-
-2. **Apply fix:**
+1. **Apply fix:**
    - If VLAN conflict: Change VLAN in VPC YAML in Gitea, commit
    - If connection not found: Fix connection name in VPCAttachment YAML in Gitea, commit
-   - ArgoCD will sync changes automatically
+   - ArgoCD will sync changes automatically (30-60 seconds)
 
-3. **Observe events:**
-   - Wait for ArgoCD sync (30-60 seconds)
-   - Watch for Normal events appearing:
-     ```
-     TYPE     REASON              MESSAGE
-     Normal   ConnectionFound     Connection server-03--unbundled--leaf-05 found
-     Normal   VLANConfigured      VLAN 1011 configured on leaf-05/Ethernet7
-     Normal   Ready               VPCAttachment ready
-     ```
+2. **Verify the fix was accepted (no webhook error):**
 
-4. **Check Grafana Interfaces Dashboard:**
+   ```bash
+   kubectl get vpc
+   kubectl get vpcattachment
+   ```
+
+   If the resources are present with no error at apply time, the spec was accepted.
+
+3. **Monitor Agent generation convergence:**
+
+   ```bash
+   # Watch agents — wait for APPLIEDG to equal CURRENTG
+   kubectl get agents
+   ```
+
+   **Expected output (converged):**
+   ```
+   NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+   leaf-01    server-leaf   VS-01 MCLAG 1   2m        12         12         v0.96.2
+   leaf-05    server-leaf   VS-05           1m        11         11         v0.96.2
+   ```
+
+   When `APPLIEDG == CURRENTG` for the relevant switch (e.g., leaf-05), the configuration has been fully applied.
+
+4. **Verify in Agent CRD that VLAN is now configured:**
+
+   ```bash
+   kubectl get agent leaf-05 -o json | jq '.status.state.interfaces["E1/7"]'
+   ```
+
+   **Expected:** VLANs now present in interface output.
+
+5. **Check Grafana Interfaces Dashboard:**
    - VLAN now visible on interface
    - Traffic appearing (server gets DHCP and starts communicating)
 
-5. **Verify on server (optional):**
+6. **Verify on server (optional):**
    ```bash
    hhfab vlab ssh server-03
    ip addr show  # Should show DHCP IP address
    ```
 
 **Success Criteria:**
-- ✅ Events show successful reconciliation
+- ✅ No webhook error at apply time
+- ✅ Agent APPLIEDG == CURRENTG (reconciliation converged)
+- ✅ Agent CRD shows VLAN configured on interface
 - ✅ Grafana shows VLAN configured and traffic
-- ✅ Server receives DHCP address
 
 ### Lab Summary
 
@@ -436,135 +449,114 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 
 You performed integrated troubleshooting using kubectl and Grafana:
 - ✅ Identified symptom in Grafana (interface no traffic)
-- ✅ Checked kubectl events for configuration errors
-- ✅ Reviewed Agent CRD status for switch state
+- ✅ Checked admission webhook errors for validation failures at apply time
+- ✅ Reviewed Agent CRD generation counters (APPLIEDG/CURRENTG) for reconciliation status
+- ✅ Reviewed Agent CRD interface status for switch state
 - ✅ Correlated kubectl and Grafana data to find root cause
-- ✅ Proposed solution based on event messages
+- ✅ Proposed solution based on error type
 
 **Key Takeaways:**
 
 1. **Grafana shows "what"** (metrics, symptoms)
-2. **kubectl events show "why"** (configuration errors, reconciliation failures)
-3. **Agent CRD shows "exactly"** (precise switch state)
-4. **Integrated approach** (Grafana + kubectl) enables root cause analysis
-5. **Events expire after 1 hour** - check soon after operations
-6. **Event patterns are recognizable** (VLAN conflict, connection not found, etc.)
+2. **Admission webhook errors show validation failures** (at `kubectl apply` time — VLAN conflicts, invalid specs, etc.)
+3. **Agent CRD shows "exactly"** (precise switch state — interface status, BGP, platform health)
+4. **APPLIEDG == CURRENTG** means reconciliation is complete for that switch
+5. **`kubectl get events` returns empty for fabric CRDs** — this is expected; Hedgehog fabric controllers do not emit K8s events for VPC/VPCAttachment operations
+6. **Integrated approach** (Grafana + admission webhook output + Agent CRD) enables root cause analysis
 
 **Troubleshooting Workflow:**
 
 ```
 Symptom (Grafana)
       ↓
-Events (kubectl get events)
+Admission webhook error? (at kubectl apply time)
       ↓
-Agent CRD (kubectl get agent ... -o jsonpath)
+Agent APPLIEDG == CURRENTG? (kubectl get agents)
       ↓
-Controller Logs (if needed)
+Agent CRD interface/BGP status (kubectl get agent ... -o json | jq)
+      ↓
+Controller Logs (if needed: kubectl logs -n fab deployment/fabric-ctrl)
       ↓
 Root Cause → Solution
 ```
 
 ## Concepts & Deep Dive
 
-### Concept 1: Kubernetes Event Monitoring
+### Concept 1: Kubernetes Events and Hedgehog Fabric
 
 **What Are Kubernetes Events?**
 
-Events are timestamped records of actions taken by Kubernetes controllers. In Hedgehog, events track:
-- Resource creation/updates
-- Reconciliation success/failure
-- Configuration validation errors
-- Dependency resolution
+Events are timestamped records of actions taken by Kubernetes controllers. Standard Kubernetes components
+(pods, deployments, services) emit events you can see with `kubectl get events`.
 
-**Event Types:**
+**Hedgehog Fabric CRDs Do NOT Emit Kubernetes Events**
 
-**1. Normal Events (Informational)**
-- Successful operations
-- Reconciliation progress
-- State transitions
+> **Important:** Hedgehog fabric controllers (VPC, VPCAttachment, Switch, Connection) do **not** emit
+> Kubernetes events during reconciliation. If you run `kubectl describe vpc test-vpc`, you will see:
+> ```
+> Events:  <none>
+> ```
+> This is expected behavior — not a bug or missing data.
 
-**2. Warning Events (Errors/Issues)**
-- Validation failures
-- Dependency problems
-- Reconciliation errors
+**What to Use Instead**
 
-**Viewing All Events:**
+Hedgehog fabric provides two mechanisms for operational feedback:
+
+**1. Admission Webhook Validation (at apply time)**
+
+When you `kubectl apply` a VPC or VPCAttachment, the admission webhook validates the spec immediately.
+If there is a conflict or invalid spec, the error is returned synchronously:
 
 ```bash
-# All events, recent first
-kubectl get events --all-namespaces --sort-by='.lastTimestamp'
+kubectl apply -f myvpc.yaml
+# Error from server (Forbidden): error when applying patch to:
+# Resource: "wiring.githedgehog.com/v1beta1, Resource=vpcs"
+# admission webhook "vvpc.kb.io" denied the request: <reason>
+```
 
-# Events in specific namespace
-kubectl get events -n default --sort-by='.lastTimestamp'
+This is how you learn about VLAN conflicts, subnet overlaps, invalid CIDRs, and other validation errors —
+**at apply time**, not after polling for events.
 
-# Events in fab namespace (switches, agents)
+**2. Agent CRD Generation Counters (reconciliation status)**
+
+After a resource is applied successfully, reconciliation happens asynchronously. Monitor convergence via:
+
+```bash
+kubectl get agents
+```
+
+```
+NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+leaf-01    server-leaf   VS-01 MCLAG 1   2m        12         12         v0.96.2
+leaf-05    server-leaf   VS-05           1m        11         11         v0.96.2
+```
+
+- **APPLIEDG == CURRENTG:** Config fully applied to this switch
+- **APPLIEDG < CURRENTG:** Reconciliation in progress (wait and retry)
+
+**Kubernetes Events That DO Work in Hedgehog**
+
+Standard K8s system events (for pods, deployments, etc. in the `fab` namespace) are available:
+
+```bash
+# System events for pods and deployments
 kubectl get events -n fab --sort-by='.lastTimestamp'
 
-# Watch events live
-kubectl get events --all-namespaces --watch
+# All namespaces (system events only)
+kubectl get events --all-namespaces --sort-by='.lastTimestamp'
 ```
 
-**Filtering Events:**
+These show events like pod scheduling, container restarts, etc. — but NOT fabric CRD reconciliation.
 
-```bash
-# Only Warning events
-kubectl get events --all-namespaces --field-selector type=Warning
+**Summary: The Right Tool for Each Question**
 
-# Events for specific resource
-kubectl get events --field-selector involvedObject.name=myvpc
-
-# Events for specific resource type
-kubectl get events --field-selector involvedObject.kind=VPC
-
-# Combine filters
-kubectl get events --field-selector involvedObject.kind=VPC,type=Warning
-```
-
-**Event Fields:**
-
-```
-LAST SEEN   TYPE      REASON              OBJECT           MESSAGE
-2m          Normal    Created             vpc/myvpc        VPC created successfully
-1m          Normal    VNIAllocated        vpc/myvpc        Allocated VNI 100010
-30s         Warning   VLANConflict        vpc/test-vpc     VLAN 1010 already in use by vpc-1
-```
-
-- **LAST SEEN:** How long ago event occurred
-- **TYPE:** Normal or Warning
-- **REASON:** Short event reason code (VLANConflict, DependencyMissing, etc.)
-- **OBJECT:** Resource that triggered event
-- **MESSAGE:** Detailed human-readable message
-
-**Event Retention:**
-
-Kubernetes retains events for **1 hour by default**. After 1 hour, events are deleted.
-
-**Best Practice:** Check events soon after operations. For long-term audit, export events or use logging system.
-
-**Why Events Matter:**
-
-Events provide immediate feedback on what the controller is doing with your resources. When you create a VPC, events tell you:
-- Was the VPC created successfully?
-- Was a VNI allocated?
-- Did any validation fail?
-- Are there any conflicts?
-
-Without events, you'd have to guess why a resource isn't working. With events, the controller tells you exactly what happened.
-
-**Event Workflow Example:**
-
-```bash
-# Create a VPC
-kubectl apply -f vpc.yaml
-
-# Immediately check events
-kubectl get events --field-selector involvedObject.name=myvpc --watch
-
-# See real-time feedback:
-# 0s    Normal   Created        VPC created successfully
-# 2s    Normal   VNIAllocated   Allocated VNI 100010
-# 5s    Normal   Ready          VPC is ready
-```
+| Question | Tool |
+|----------|------|
+| Did VPC spec pass validation? | Check for admission webhook error at `kubectl apply` |
+| Is reconciliation complete? | `kubectl get agents` — APPLIEDG == CURRENTG? |
+| What is the exact switch state? | `kubectl get agent leaf-01 -o json \| jq ...` |
+| Are there pod/deployment issues? | `kubectl get events -n fab` |
+| Why is traffic 0? | Combine Grafana + Agent CRD interface status |
 
 ### Concept 2: Agent CRD Status - Switch State
 
@@ -587,25 +579,27 @@ While VPC, VPCAttachment, and Connection CRDs have minimal status (`status: {}`)
 
 ```bash
 # List all switch agents
-kubectl get agents -n fab
+kubectl get agents
 ```
 
 **Expected output:**
 ```
-NAME       ROLE          DESCR           APPLIED   VERSION
-leaf-01    server-leaf   VS-01 MCLAG 1   2m        v0.87.4
-leaf-02    server-leaf   VS-02 MCLAG 1   3m        v0.87.4
-spine-01   spine         VS-06           4m        v0.87.4
+NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION   REBOOTREQ
+leaf-01    server-leaf   VS-01 MCLAG 1   2m        10         10         v0.96.2
+leaf-02    server-leaf   VS-02 MCLAG 1   3m        10         10         v0.96.2
+spine-01   spine         VS-06           4m        8          8          v0.96.2
 ```
+
+> **Key columns:** `APPLIEDG` (applied generation) and `CURRENTG` (current generation) must be equal for config to be fully applied. If `APPLIEDG < CURRENTG`, the agent is still applying the latest configuration.
 
 **Get Full Agent Status:**
 
 ```bash
 # Full YAML output
-kubectl get agent leaf-01 -n fab -o yaml
+kubectl get agent leaf-01 -o yaml
 
 # Human-readable description
-kubectl describe agent leaf-01 -n fab
+kubectl describe agent leaf-01
 ```
 
 **Key Status Fields:**
@@ -614,11 +608,11 @@ kubectl describe agent leaf-01 -n fab
 
 ```bash
 # Last heartbeat timestamp
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.lastHeartbeat}'
+kubectl get agent leaf-01 -o jsonpath='{.status.lastHeartbeat}'
 # Output: 2025-10-17T10:30:00Z
 
 # Agent version
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.version}'
+kubectl get agent leaf-01 -o jsonpath='{.status.version}'
 # Output: v0.87.4
 ```
 
@@ -628,11 +622,11 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.version}'
 
 ```bash
 # When was config last applied?
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.lastAppliedTime}'
+kubectl get agent leaf-01 -o jsonpath='{.status.lastAppliedTime}'
 # Output: 2025-10-17T10:29:55Z
 
 # What generation was applied?
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.lastAppliedGen}'
+kubectl get agent leaf-01 -o jsonpath='{.status.lastAppliedGen}'
 # Output: 15
 ```
 
@@ -642,10 +636,10 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.lastAppliedGen}'
 
 ```bash
 # All interfaces
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.interfaces}' | jq
 
 # Specific interface
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
+kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
 ```
 
 **Example output:**
@@ -660,8 +654,8 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet
   "counters": {
     "inb": 123456789,
     "outb": 987654321,
-    "ine": 0,
-    "oute": 0
+    "ind": 2,
+    "outbps": 408
   }
 }
 ```
@@ -673,17 +667,17 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet
 - `speed`: Link speed
 - `counters.inb`: Input bytes
 - `counters.outb`: Output bytes
-- `counters.ine`: Input errors
-- `counters.oute`: Output errors
+- `counters.ind`: Input discards
+- `counters.outbps`: Output bits per second
 
 **4. BGP Neighbor State:**
 
 ```bash
 # All BGP neighbors
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.bgpNeighbors}' | jq
 
 # Check specific neighbor state
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors.default["172.30.128.10"].state}'
+kubectl get agent leaf-01 -o jsonpath='{.status.state.bgpNeighbors.default["172.30.128.10"].state}'
 # Output: established
 ```
 
@@ -697,13 +691,13 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors.defaul
 
 ```bash
 # PSU status
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.platform.psus}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.platform.psus}' | jq
 
 # Fan status
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.platform.fans}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.platform.fans}' | jq
 
 # Temperature
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.platform.temps}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.platform.temps}' | jq
 ```
 
 **Example PSU output:**
@@ -721,7 +715,7 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.platform.temps}' | 
 **6. ASIC Critical Resources:**
 
 ```bash
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.criticalResources}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.criticalResources}' | jq
 ```
 
 **Example output:**
@@ -743,7 +737,7 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.criticalResources}'
 
 ```bash
 # Check if agent is Ready
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
 # Output: True
 ```
 
@@ -757,120 +751,135 @@ Agent CRD status provides **source of truth for switch state** at Kubernetes lev
 **Grafana:** Interface up, no traffic
 **Agent CRD Check:**
 ```bash
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
+kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
 ```
 **Finding:** Interface operational but no VLANs configured
-**Next Step:** Check VPCAttachment events for why VLAN not configured
+**Next Step:** Check Agent APPLIEDG/CURRENTG convergence and admission webhook errors from when the VPCAttachment was applied
 
-### Concept 3: VPC Lifecycle Event Tracking
+### Concept 3: VPC Lifecycle Monitoring
 
-**VPC Creation Event Sequence**
+**How Hedgehog Tracks VPC Lifecycle**
 
-When you create a VPC via GitOps (Gitea commit → ArgoCD sync), events track the lifecycle:
+When you create a VPC via GitOps (Gitea commit → ArgoCD sync), the lifecycle progresses through these
+observable stages:
 
-**Successful VPC Creation:**
+> **Reminder:** Fabric controllers do NOT emit Kubernetes events. Lifecycle is tracked via:
+> 1. Admission webhook response (at apply time)
+> 2. Agent CRD generation counters (reconciliation progress)
+> 3. Resource existence and `kubectl describe` output
 
-```
-Time    Type    Reason              Object          Message
-0s      Normal  Created             vpc/myvpc       VPC created successfully
-2s      Normal  VNIAllocated        vpc/myvpc       Allocated VNI 100010
-5s      Normal  SubnetsConfigured   vpc/myvpc       3 subnets configured
-10s     Normal  Ready               vpc/myvpc       VPC is ready
-```
+**VPC Creation — Success Path**
 
-**How to watch this in real-time:**
 ```bash
-# Create VPC
+# 1. ArgoCD applies VPC to cluster
 kubectl apply -f vpc.yaml
+# Output: vpc.wiring.githedgehog.com/myvpc created  (or unchanged)
+# No error = webhook accepted the spec
 
-# Watch events
-kubectl get events --field-selector involvedObject.name=myvpc --watch
+# 2. Check resource exists
+kubectl get vpc
+# NAME      IPV4NS     VLANNS     AGE
+# myvpc     default    default    10s
+# test-vpc  default    default    5h
+
+# 3. Check Agent convergence (reconciliation complete?)
+kubectl get agents
+# When APPLIEDG == CURRENTG for all switches → VPC config propagated
 ```
 
-**Failed VPC Creation (VLAN Conflict):**
+**VPC Creation — Validation Failure**
 
-```
-Time    Type     Reason              Object          Message
-0s      Normal   Created             vpc/badVPC      VPC created successfully
-2s      Warning  ValidationFailed    vpc/badVPC      VLAN 1010 already in use by vpc-1/default
-```
-
-**What happens:** Controller creates VPC object but validation fails during reconciliation. VPC exists in Kubernetes but isn't operational.
-
-**VPCAttachment Event Sequence**
-
-**Successful Attachment:**
-
-```
-Time    Type    Reason              Object                      Message
-0s      Normal  Created             vpcattachment/vpc1-srv01    VPCAttachment created
-3s      Normal  ConnectionFound     vpcattachment/vpc1-srv01    Connection server-01--mclag found
-5s      Normal  VLANConfigured      vpcattachment/vpc1-srv01    VLAN 1010 configured on leaf-01/Ethernet5
-8s      Normal  Ready               vpcattachment/vpc1-srv01    VPCAttachment ready
-```
-
-**What this tells you:**
-- Controller found the Connection resource
-- VLAN was successfully configured on the switch interface
-- VPCAttachment is fully operational
-
-**Failed Attachment (Connection Not Found):**
-
-```
-Time    Type     Reason                  Object                      Message
-0s      Normal   Created                 vpcattachment/vpc1-srv05    VPCAttachment created
-2s      Warning  DependencyMissing       vpcattachment/vpc1-srv05    Connection server-05--mclag not found
-```
-
-**What this tells you:** VPCAttachment references a Connection that doesn't exist. Check Connection name and fix VPCAttachment spec.
-
-**VPC Deletion Event Sequence**
-
-**Successful Deletion:**
-
-```
-Time    Type    Reason              Object          Message
-0s      Normal  Deleting            vpc/myvpc       VPC deletion initiated
-2s      Normal  DetachingServers    vpc/myvpc       Removing VPCAttachments
-5s      Normal  ReleasingVNI        vpc/myvpc       VNI 100010 released
-8s      Normal  Deleted             vpc/myvpc       VPC deleted successfully
-```
-
-**Failed Deletion (Active Attachments):**
-
-```
-Time    Type     Reason                  Object          Message
-0s      Normal   Deleting                vpc/myvpc       VPC deletion initiated
-2s      Warning  DependencyExists        vpc/myvpc       Cannot delete: 2 VPCAttachments still active
-```
-
-**What this tells you:** You must delete all VPCAttachments before deleting the VPC.
-
-**Tracking VPC Lifecycle:**
+If the spec is invalid (VLAN conflict, subnet overlap, etc.), the admission webhook rejects it:
 
 ```bash
-# Watch VPC events live
-kubectl get events --field-selector involvedObject.name=myvpc --watch
-
-# Check VPC and related resources
-kubectl get events --field-selector involvedObject.kind=VPC
-kubectl get events --field-selector involvedObject.kind=VPCAttachment
-kubectl get events --field-selector involvedObject.kind=DHCPSubnet
+kubectl apply -f vpc.yaml
+# Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request: ...
+# VPC is NOT created — fix the spec and re-apply
 ```
 
-**Best Practice:** Always watch events when creating/deleting VPCs to see immediate feedback on success or failure.
+**VPCAttachment — Success Path**
 
-### Concept 4: Common Error Event Patterns
+```bash
+# 1. Apply VPCAttachment
+kubectl apply -f attachment.yaml
+# Output: vpcattachment.wiring.githedgehog.com/vpc1-srv01 created
+# No error = webhook accepted
+
+# 2. Confirm resource exists
+kubectl get vpcattachment
+# NAME           VPCSUBNET             CONNECTION                    NATIVEVLAN   AGE
+# vpc1-srv01     myvpc/default         server-01--mclag--leaf-01--leaf-02    false    15s
+
+# 3. Monitor Agent convergence
+kubectl get agents
+# Wait for APPLIEDG == CURRENTG on the relevant leaf switches
+```
+
+**VPCAttachment — Connection Not Found**
+
+If you reference a non-existent Connection, the attachment will apply but not converge:
+
+```bash
+# Check correct connection name
+kubectl get connections | grep server-05
+# server-05--unbundled--leaf-05   (not "server-05--mclag")
+
+# Then verify Agent convergence after fix
+kubectl get agents
+```
+
+**VPC Deletion — Guarded by Admission Webhook**
+
+You cannot delete a VPC that has active VPCAttachments:
+
+```bash
+kubectl delete vpc myvpc
+# Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request:
+# VPC has attachments
+```
+
+Delete VPCAttachments first:
+```bash
+kubectl delete vpcattachment vpc1-srv01 vpc1-srv05
+kubectl delete vpc myvpc
+# vpc.wiring.githedgehog.com "myvpc" deleted
+```
+
+**Tracking VPC Lifecycle — Summary:**
+
+```bash
+# Check VPC exists and was accepted
+kubectl get vpc
+
+# Confirm VPCAttachments exist
+kubectl get vpcattachment
+
+# Check kubectl describe (Events section will show <none> — this is normal)
+kubectl describe vpc myvpc
+
+# Monitor reconciliation convergence
+kubectl get agents
+
+# Verify config applied to switches
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
+```
+
+**Best Practice:** Always check Agent APPLIEDG/CURRENTG convergence after create/delete operations to
+confirm the change has been applied to all relevant switches.
+
+### Concept 4: Common Error Patterns
 
 Understanding common error patterns helps you quickly diagnose issues without guessing.
 
+> **Note:** These errors surface as **admission webhook errors at `kubectl apply` time** — not as
+> Kubernetes events after the fact. If `kubectl apply` returns no error, the spec was accepted.
+
 **Error Pattern 1: VLAN Conflict**
 
-**Event:**
+**Admission webhook error:**
 ```
-Type: Warning
-Reason: VLANConflict
-Message: VLAN 1010 already in use by vpc-1/default
+Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request:
+spec.vlans[0].vid: VLAN 1010 already allocated to vpc-1
 ```
 
 **Cause:** VPC subnet specifies VLAN already used by another VPC in same VLANNamespace
@@ -881,7 +890,7 @@ Message: VLAN 1010 already in use by vpc-1/default
 3. Update VPC YAML in Gitea
 4. Commit change
 
-**Grafana Correlation:** Interface shows no VLAN configured (VPC reconciliation failed)
+**Grafana Correlation:** Interface shows no VLAN configured (VPC was rejected)
 
 **Example workflow:**
 ```bash
@@ -895,18 +904,17 @@ kubectl get vpc -o yaml | grep "vlan:" | sort -u
 
 # Choose unused VLAN: 1011
 # Edit VPC in Gitea, change vlan: 1010 to vlan: 1011
-# Commit → ArgoCD syncs → VPC reconciles successfully
+# Commit → ArgoCD syncs → VPC applies successfully
 ```
 
 ---
 
 **Error Pattern 2: Subnet Overlap**
 
-**Event:**
+**Admission webhook error:**
 ```
-Type: Warning
-Reason: SubnetOverlap
-Message: Subnet 10.0.10.0/24 overlaps with existing VPC vpc-2/backend
+Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request:
+spec.subnets[0].subnet: 10.0.10.0/24 overlaps with existing VPC vpc-2/backend
 ```
 
 **Cause:** VPC subnet overlaps with another VPC in same IPv4Namespace
@@ -916,7 +924,7 @@ Message: Subnet 10.0.10.0/24 overlaps with existing VPC vpc-2/backend
 2. Choose non-overlapping subnet (e.g., 10.0.20.0/24)
 3. Update VPC YAML in Gitea
 
-**Grafana Correlation:** No DHCP leases visible (VPC reconciliation failed)
+**Grafana Correlation:** No DHCP leases visible (VPC was rejected)
 
 **IPv4Namespace Example:**
 ```yaml
@@ -936,51 +944,41 @@ kubectl get vpc -o yaml | grep "subnet:" | sort
 
 ---
 
-**Error Pattern 3: Connection Not Found**
+**Error Pattern 3: VPC Has Active Attachments (Deletion Blocked)**
 
-**Event:**
+**Admission webhook error:**
 ```
-Type: Warning
-Reason: DependencyMissing
-Message: Connection server-05--mclag--leaf-01--leaf-02 not found
+Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request:
+VPC has attachments
 ```
 
-**Cause:** VPCAttachment references a Connection that doesn't exist
+**Cause:** Attempting to delete a VPC while VPCAttachments still reference it
 
 **Solution:**
-1. List available connections: `kubectl get connections -n fab`
-2. Find correct connection name for server-05
-3. Update VPCAttachment YAML with correct connection name
-
-**Grafana Correlation:** Interface shows as down or no VLAN (attachment failed)
-
-**Connection naming patterns:**
-- MCLAG: `server-01--mclag--leaf-01--leaf-02`
-- ESLAG: `server-05--eslag--leaf-03--leaf-04`
-- Bundled: `server-10--bundled--leaf-05`
-- Unbundled: `server-09--unbundled--leaf-05`
+1. List VPCAttachments: `kubectl get vpcattachment`
+2. Delete all attachments referencing this VPC
+3. Then delete the VPC
 
 **Example workflow:**
 ```bash
-# Find connections for server-05
-kubectl get connections -n fab | grep server-05
+# Find attachments
+kubectl get vpcattachment | grep myvpc
 
-# Output:
-# server-05--unbundled--leaf-05
+# Delete them first
+kubectl delete vpcattachment vpc1-srv01 vpc1-srv05
 
-# Fix VPCAttachment spec:
-# connection: server-05--unbundled--leaf-05  # (not mclag)
+# Then delete VPC
+kubectl delete vpc myvpc
 ```
 
 ---
 
 **Error Pattern 4: Invalid CIDR**
 
-**Event:**
+**Admission webhook error:**
 ```
-Type: Warning
-Reason: ValidationFailed
-Message: Invalid subnet CIDR: 10.0.10.0/33
+Error from server (Invalid): admission webhook validation:
+spec.subnets[0]: invalid CIDR notation "10.0.10.0/33"
 ```
 
 **Cause:** Invalid CIDR notation (prefix length > 32 for IPv4)
@@ -996,83 +994,93 @@ Message: Invalid subnet CIDR: 10.0.10.0/33
 
 ---
 
-**Error Pattern 5: Agent Not Ready**
+**Error Pattern 5: Agent Not Ready (Reconciliation Stalled)**
 
-**Event:**
+**Observed via `kubectl get agents`:**
 ```
-Type: Warning
-Reason: AgentNotReady
-Message: Switch leaf-03 agent not ready, configuration pending
+NAME       ROLE          DESCR   APPLIED   APPLIEDG   CURRENTG   VERSION
+leaf-03    server-leaf   VS-03   15m       8          12         v0.96.2
 ```
+
+`APPLIEDG (8) != CURRENTG (12)` — agent is stalled, not applying new config
 
 **Cause:** Switch agent disconnected or switch offline
 
 **Solution:**
-1. Check agent status: `kubectl get agents -n fab`
-2. Verify switch reachable: `ping leaf-03.fabric.local`
-3. Check agent logs: `kubectl logs -n fab agent-leaf-03`
-4. If switch down, investigate switch console/power
+1. Check agent pod:
+   ```bash
+   kubectl get pods -n fab | grep leaf-03
+   ```
+2. Check agent logs:
+   ```bash
+   kubectl logs -n fab -l "wiring.githedgehog.com/agent=leaf-03"
+   ```
+3. Check switch reachability:
+   ```bash
+   hhfab vlab serial leaf-03
+   ```
+4. Check fabric-boot logs:
+   ```bash
+   kubectl logs -n fab deployment/fabric-boot
+   ```
 
 **Grafana Correlation:** Fabric Dashboard shows switch missing metrics
 
-**Agent troubleshooting:**
-```bash
-# Check agent pod
-kubectl get pods -n fab | grep agent-leaf-03
 
-# If pod is missing, switch hasn't registered
-# Check switch serial console:
-hhfab vlab serial leaf-03
 
-# Check fabric-boot logs:
-kubectl logs -n fab deployment/fabric-boot
-```
+### Concept 5: Status-Metric Correlation
 
-### Concept 5: Event-Metric Correlation
+**Using kubectl, Agent CRD, and Grafana Dashboards Together**
 
-**Using kubectl Events and Grafana Dashboards Together**
+The most powerful troubleshooting approach combines multiple data sources. Here are realistic scenarios
+showing how to correlate kubectl status with Grafana metrics.
 
-The most powerful troubleshooting approach combines multiple data sources. Here are realistic scenarios showing how to correlate events with metrics.
+> **Reminder:** `kubectl get events` returns empty for fabric CRD (VPC/VPCAttachment) operations.
+> Validation errors surface via admission webhooks at apply time; reconciliation is tracked via
+> Agent CRD generation counters.
 
 **Scenario 1: Interface No Traffic**
 
 **Grafana shows:**
-- Interfaces Dashboard: leaf-01/Ethernet5 has 0 bps traffic
+- Interfaces Dashboard: leaf-01/E1/5 has 0 bps traffic
 - Interface state: UP
 
 **kubectl investigation:**
 
 ```bash
 # Check if VPCAttachment exists for this interface
-kubectl get vpcattachment -A
+kubectl get vpcattachment
 
-# Check events for VPCAttachment
-kubectl get events --field-selector involvedObject.kind=VPCAttachment
+# Check Agent convergence
+kubectl get agents
+# If APPLIEDG < CURRENTG for leaf-01 → reconciliation in progress
 
-# Found event:
-# Warning  VLANConflict  VPCAttachment/vpc1-srv01  VLAN 1010 conflict
+# Check if VPCAttachment was even accepted (look in deployment history or ArgoCD)
+# A webhook-rejected VPCAttachment would NOT appear in kubectl get vpcattachment
 ```
 
 **Agent CRD investigation:**
 
 ```bash
 # Check interface state
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
+kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
 
 # Output shows:
 # "oper": "up"  (interface operational)
 # No VLANs configured (missing in output)
 ```
 
-**Root Cause:** VPCAttachment failed due to VLAN conflict, so VLAN never configured on interface
+**Root Cause Determination:**
+- If VPCAttachment is missing: It was rejected by admission webhook (check ArgoCD sync error)
+- If VPCAttachment exists but APPLIEDG < CURRENTG: Reconciliation still in progress
+- If APPLIEDG == CURRENTG but no VLANs on interface: Check connection name in VPCAttachment spec
 
 **Correlation:**
 - Grafana symptom: Interface UP, no traffic
-- kubectl events: VLAN conflict error
-- Agent CRD: No VLAN configured
-- Root cause: VLAN conflict prevented configuration
+- Agent CRD: No VLAN configured on interface
+- Root cause: VPCAttachment rejected or references wrong connection
 
-**Solution:** Fix VLAN conflict in VPC YAML
+**Solution:** Fix VLAN conflict or connection name in VPC/VPCAttachment spec
 
 ---
 
@@ -1085,7 +1093,7 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet
 
 ```bash
 # Check Agent CRD for BGP state
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors.default["172.30.128.1"]}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.bgpNeighbors.default["172.30.128.1"]}' | jq
 ```
 
 **Output shows:**
@@ -1098,110 +1106,116 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors.defaul
 }
 ```
 
-**Check switch events:**
+**Check Agent convergence and controller logs:**
 ```bash
-kubectl get events -n fab --field-selector involvedObject.name=leaf-01
+# Check agent generation — is config stalled?
+kubectl get agents
 
-# Found event:
-# Warning  ConfigApplyFailed  switch/leaf-01  BGP peer 172.30.128.1 not reachable
+# Check fabric controller logs for any errors
+kubectl logs -n fab deployment/fabric-ctrl --tail=50 | grep -i error
 ```
 
-**Root Cause:** Spine-01 not reachable from leaf-01 (network issue)
+**Root Cause:** Spine-01 not reachable from leaf-01 (physical/network issue) OR config not applied
 
 **Correlation:**
 - Grafana symptom: BGP session down
 - Agent CRD: BGP neighbor state = "idle"
-- kubectl events: BGP peer not reachable
-- Root cause: Network connectivity issue between leaf and spine
+- Agent CRD: APPLIEDG vs CURRENTG — if stalled, controller may be having issues
+- Root cause: Network connectivity issue OR configuration not applied to switch
 
-**Solution:** Investigate spine-01 connectivity (check spine-01 agent, physical links)
+**Solution:** Investigate spine-01 Agent status, check physical links via `hhfab vlab serial`
 
 ---
 
 **Scenario 3: Server Can't Get DHCP**
 
 **Grafana shows:**
-- Interfaces Dashboard: leaf-02/Ethernet10 UP, traffic minimal
+- Interfaces Dashboard: leaf-02/E1/10 UP, traffic minimal
 - Logs Dashboard: No DHCP errors
 
 **kubectl investigation:**
 
 ```bash
-# Check DHCPSubnet resources
-kubectl get dhcpsubnet -A
+# Check DHCPSubnet resources — if missing, VPC reconciliation failed
+kubectl get dhcpsubnet
 
-# Expected: myvpc--default
-# Found: Missing!
-
-# Check VPC events
-kubectl get events --field-selector involvedObject.name=myvpc
-
-# Found event:
-# Warning  SubnetOverlap  vpc/myvpc  Subnet 10.0.10.0/24 overlaps with vpc-2
+# Expected: myvpc--default (one per VPC subnet)
+# If missing, check whether VPC itself was accepted:
+kubectl get vpc
+# If myvpc is missing: It was rejected by admission webhook (subnet overlap, VLAN conflict)
+# Check ArgoCD for the sync error
 ```
 
-**Root Cause:** VPC reconciliation failed due to subnet overlap, so DHCPSubnet never created
+**Root Cause:** VPC was rejected by admission webhook (subnet overlap) — DHCPSubnet was never created
 
 **Correlation:**
 - Grafana symptom: Server not getting DHCP (no traffic)
-- kubectl events: Subnet overlap error
-- kubectl resources: DHCPSubnet missing
+- kubectl resources: DHCPSubnet missing → VPC was rejected
+- ArgoCD sync error reveals the webhook error message
 - Root cause: Subnet overlap prevented VPC creation
 
-**Solution:** Fix subnet overlap in VPC YAML
+**Solution:** Fix subnet overlap in VPC YAML, commit to Gitea
 
 ---
 
 **Integration Workflow:**
 
 ```
-1. Grafana: Identify symptom (no traffic, session down, etc.)
+1. Grafana: Identify symptom (no traffic, BGP down, no DHCP, etc.)
            ↓
-2. kubectl events: Check for configuration errors
+2. kubectl: Does resource exist? (kubectl get vpc/vpcattachment/dhcpsubnet)
            ↓
-3. Agent CRD status: Verify switch state
+3. Agent CRD: APPLIEDG == CURRENTG? (kubectl get agents)
            ↓
-4. Controller logs: Detailed reconciliation info (if needed)
+4. Agent CRD: Interface/BGP state (kubectl get agent ... -o json | jq ...)
            ↓
-5. Solution: Fix configuration, verify in Grafana
+5. Controller logs (if needed: kubectl logs -n fab deployment/fabric-ctrl)
+           ↓
+6. Solution: Fix configuration, verify in Grafana
 ```
 
-**Best Practice:** Start with Grafana for symptoms, use kubectl events for diagnosis, check Agent CRD for confirmation, return to Grafana for verification after fix.
+**Best Practice:** Start with Grafana for symptoms, use `kubectl get agents` to check reconciliation
+convergence, use Agent CRD for exact switch state, and return to Grafana for verification after fix.
 
 ## Troubleshooting
 
-### Issue: Events are Missing / Expired
+### Issue: kubectl get events Shows No Fabric Resource Events
 
-**Symptom:** `kubectl get events` returns no results or only recent events
+**Symptom:** `kubectl get events` returns no results, or `kubectl describe vpc ...` shows `Events: <none>`
 
-**Cause:** Kubernetes events expire after 1 hour
+**Explanation:** This is **expected behavior**. Hedgehog fabric controllers (VPC, VPCAttachment) do not
+emit Kubernetes events. There are no events to see — this is not an error condition.
 
-**Solution:**
+**What to use instead:**
 
-1. **Check event age:**
+1. **Check for admission webhook errors** (at apply time):
    ```bash
-   kubectl get events --all-namespaces --sort-by='.lastTimestamp' | head -20
+   # Re-apply the resource and look for webhook errors
+   kubectl apply -f vpc.yaml
+   # If there's a problem: "Error from server (Forbidden): admission webhook ... denied"
    ```
 
-2. **If events expired:**
-   - Reproduce issue to generate new events
-   - Check controller logs for historical data:
-     ```bash
-     kubectl logs -n fab deployment/fabric-controller-manager
-     ```
+2. **Check Agent generation convergence:**
+   ```bash
+   kubectl get agents
+   # APPLIEDG == CURRENTG means reconciliation is complete
+   ```
 
-3. **For long-term audit:**
-   - Configure event export to external logging system
-   - Use Loki/Elasticsearch for long-term event storage
-   - Take screenshots/copies of events during incidents
+3. **Check controller logs for detailed info:**
+   ```bash
+   kubectl logs -n fab deployment/fabric-ctrl --tail=100
+   ```
 
-**Prevention:** Check events soon after operations, don't wait hours to troubleshoot.
+4. **For system component events** (pods, deployments — these DO have events):
+   ```bash
+   kubectl get events -n fab --sort-by='.lastTimestamp'
+   ```
 
 ---
 
 ### Issue: Agent CRD Has No Status Data
 
-**Symptom:** `kubectl get agent leaf-01 -n fab -o yaml` shows `status: {}` or minimal data
+**Symptom:** `kubectl get agent leaf-01 -o yaml` shows `status: {}` or minimal data
 
 **Possible Causes:**
 1. Agent not connected to switch
@@ -1212,21 +1226,21 @@ kubectl get events --field-selector involvedObject.name=myvpc
 
 1. **Check agent pod:**
    ```bash
-   kubectl get pods -n fab | grep agent-leaf-01
+   kubectl get pods -n fab -l "wiring.githedgehog.com/agent=leaf-01"
    ```
 
    **Expected:** Pod Running
 
 2. **Check agent logs:**
    ```bash
-   kubectl logs -n fab agent-leaf-01
+   kubectl logs -n fab -l "wiring.githedgehog.com/agent=leaf-01"
    ```
 
    **Look for:** Connection errors, gNMI errors
 
 3. **Verify switch registration:**
    ```bash
-   kubectl get switch leaf-01 -n fab
+   kubectl get switch leaf-01
    ```
 
 4. **Check switch reachability:**
@@ -1246,49 +1260,43 @@ kubectl get events --field-selector involvedObject.name=myvpc
 
 ---
 
-### Issue: kubectl get events Returns No Results
+### Issue: kubectl get events Returns No Results for Fabric Resources
 
-**Symptom:** Command succeeds but shows no events
+**Symptom:** `kubectl get events --field-selector involvedObject.kind=VPC` returns no results
 
-**Possible Causes:**
-1. Events expired (> 1 hour old)
-2. Wrong namespace
-3. Resource name mismatch
+**Explanation:** This is **expected**. Hedgehog fabric controllers do not emit K8s events for VPC,
+VPCAttachment, Switch, Connection, or Agent CRDs. `kubectl describe vpc myvpc` will show `Events: <none>`.
 
-**Solution:**
+**Use the correct monitoring tools:**
 
-1. **Check all namespaces:**
+1. **For validation errors** — check at apply time:
    ```bash
-   kubectl get events --all-namespaces --sort-by='.lastTimestamp'
+   kubectl apply -f vpc.yaml  # Look for webhook error in the response
    ```
 
-2. **Check specific namespace:**
+2. **For reconciliation status:**
    ```bash
-   kubectl get events -n fab
-   kubectl get events -n default
+   kubectl get agents  # APPLIEDG == CURRENTG = converged
    ```
 
-3. **Verify resource name:**
+3. **For system component events** (these DO work):
    ```bash
-   # List resources first
+   # Pod and deployment events in fab namespace
+   kubectl get events -n fab --sort-by='.lastTimestamp'
+   ```
+
+4. **For resource existence:**
+   ```bash
    kubectl get vpc
    kubectl get vpcattachment
-
-   # Then query events with correct name
-   kubectl get events --field-selector involvedObject.name=<exact-name>
-   ```
-
-4. **Use describe for events:**
-   ```bash
-   kubectl describe vpc myvpc
-   # Events appear at bottom of output
+   kubectl describe vpc myvpc  # Shows spec/status, Events: <none> is normal
    ```
 
 ---
 
 ### Issue: Agent CRD jsonpath Queries Return Empty
 
-**Symptom:** `kubectl get agent ... -o jsonpath='{.status.state.interfaces.Ethernet5}'` returns nothing
+**Symptom:** `kubectl get agent ... -o json | jq \'.status.state.interfaces["E1/5"]\'` returns nothing
 
 **Possible Causes:**
 1. Interface name incorrect
@@ -1300,61 +1308,64 @@ kubectl get events --field-selector involvedObject.name=myvpc
 1. **Verify interface exists:**
    ```bash
    # List all interfaces
-   kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces}' | jq 'keys'
+   kubectl get agent leaf-01 -o jsonpath='{.status.state.interfaces}' | jq 'keys'
    ```
 
-   **Output:** Array of interface names (e.g., `["Ethernet0", "Ethernet1", ...]`)
+   **Output:** Array of interface names (e.g., `["E1/0", "E1/1", ...]`)
 
 2. **Check status exists:**
    ```bash
-   kubectl get agent leaf-01 -n fab -o yaml | grep -A 10 "state:"
+   kubectl get agent leaf-01 -o yaml | grep -A 10 "state:"
    ```
 
 3. **Use correct interface name:**
-   - SONiC interfaces: `Ethernet0`, `Ethernet1`, etc. (not `Ethernet5` if switch only has 0-3)
+   - SONiC interfaces: `E1/0`, `E1/1`, etc. (not `E1/5` if switch only has 0-3)
    - Check Connection CRDs for actual port names
 
 4. **Test jsonpath syntax:**
    ```bash
    # Simple test
-   kubectl get agent leaf-01 -n fab -o jsonpath='{.status.lastHeartbeat}'
+   kubectl get agent leaf-01 -o jsonpath='{.status.lastHeartbeat}'
    ```
 
 ---
 
-### Issue: How to Export Events for Long-Term Audit
+### Issue: How to Audit Fabric Operations History
 
-**Symptom:** Need to retain events beyond 1-hour Kubernetes retention
+**Symptom:** Need historical record of fabric configuration changes
 
 **Solution:**
 
-**Option 1: Export to file**
-```bash
-# Export all events
-kubectl get events --all-namespaces -o yaml > events-$(date +%Y%m%d-%H%M%S).yaml
+Since Hedgehog fabric controllers do not emit K8s events, use these approaches for audit:
 
-# Export specific resource events
-kubectl get events --field-selector involvedObject.name=myvpc -o yaml > vpc-events.yaml
+**Option 1: Controller logs**
+```bash
+# Recent controller activity
+kubectl logs -n fab deployment/fabric-ctrl --tail=200
+
+# Save logs to file
+kubectl logs -n fab deployment/fabric-ctrl > fabric-ctrl-$(date +%Y%m%d-%H%M%S).log
 ```
 
-**Option 2: Continuous export to logging system**
+**Option 2: Agent CRD history**
 ```bash
-# Watch events and pipe to logger
-kubectl get events --all-namespaces --watch -o json | \
-  while read line; do
-    echo "$line" | jq -r '[.lastTimestamp, .type, .reason, .involvedObject.name, .message] | @tsv'
-  done | logger -t k8s-events
+# Generation history shows how many times config has changed
+kubectl get agents
+# CURRENTG shows total generation count (increments on each config change)
 ```
 
-**Option 3: Use event exporter**
-- Deploy Kubernetes event exporter to push events to Elasticsearch/Loki
-- Example: [opsgenie/kubernetes-event-exporter](https://github.com/opsgenie/kubernetes-event-exporter)
+**Option 3: GitOps audit trail (Gitea + ArgoCD)**
+- All VPC/VPCAttachment changes go through Git (Gitea)
+- ArgoCD shows sync history with timestamps
+- Gitea shows commit history — every change is recorded
 
-**Option 4: Grafana Loki integration**
-- Configure Alloy to collect Kubernetes events
-- Query historical events in Grafana Logs Dashboard
+**Option 4: Grafana Loki (fabric logs)**
+- Fabric controller logs are shipped to Loki
+- Query in Grafana Logs Dashboard: `Errors - $node` panel
+- Historical log retention depends on Loki configuration
 
-**Best Practice:** For production, configure event export to external logging. For labs/dev, export to file when troubleshooting.
+**Best Practice:** For fabric operation audits, use GitOps history (Gitea) + controller logs.
+The GitOps model means every configuration change is a git commit — this IS your audit trail.
 
 ## Resources
 
@@ -1378,81 +1389,92 @@ kubectl get events --all-namespaces --watch -o json | \
 
 ### kubectl Commands Quick Reference
 
-**Event Monitoring:**
+**Admission Webhook Validation:**
 
 ```bash
-# All events, recent first
-kubectl get events --all-namespaces --sort-by='.lastTimestamp'
+# Apply a resource — admission webhook validates immediately
+# Success: resource created/configured
+kubectl apply -f vpc.yaml
 
-# Warning events only
-kubectl get events --all-namespaces --field-selector type=Warning
+# Failure: webhook error printed synchronously
+# Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request: ...
+```
 
-# Events for specific resource
-kubectl get events --field-selector involvedObject.name=myvpc
+**Agent Generation Monitoring (Reconciliation Status):**
 
-# Events for resource type
-kubectl get events --field-selector involvedObject.kind=VPC
+```bash
+# List all agents with generation counters
+kubectl get agents
+# APPLIEDG == CURRENTG → config fully applied
+# APPLIEDG < CURRENTG → reconciliation in progress
 
-# Watch events live
-kubectl get events --all-namespaces --watch
+# Watch agents until converged
+kubectl get agents -w
+```
 
-# Events in last hour (all events are < 1 hour due to retention)
-kubectl get events --all-namespaces --sort-by='.lastTimestamp' | head -20
+**System Component Events (pods/deployments — these DO have events):**
+
+```bash
+# Events for pods/deployments in fab namespace
+kubectl get events -n fab --sort-by='.lastTimestamp'
+
+# Warning events for system components
+kubectl get events -n fab --field-selector type=Warning
 ```
 
 **Agent CRD Queries:**
 
 ```bash
 # List all agents
-kubectl get agents -n fab
+kubectl get agents
 
 # Get agent full status
-kubectl get agent leaf-01 -n fab -o yaml
+kubectl get agent leaf-01 -o yaml
 
 # Check agent heartbeat
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.lastHeartbeat}'
+kubectl get agent leaf-01 -o jsonpath='{.status.lastHeartbeat}'
 
 # Check agent version
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.version}'
+kubectl get agent leaf-01 -o jsonpath='{.status.version}'
 
 # View all interfaces
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.interfaces}' | jq
 
 # View specific interface
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
+kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
 
 # View BGP neighbors
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.bgpNeighbors}' | jq
 
 # View specific BGP neighbor state
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.bgpNeighbors.default["172.30.128.10"].state}'
+kubectl get agent leaf-01 -o jsonpath='{.status.state.bgpNeighbors.default["172.30.128.10"].state}'
 
 # View platform health
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.platform}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.platform}' | jq
 
 # View ASIC resources
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.criticalResources}' | jq
+kubectl get agent leaf-01 -o jsonpath='{.status.state.criticalResources}' | jq
 
 # Check agent conditions (Ready)
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
 ```
 
 **VPC/VPCAttachment Queries:**
 
 ```bash
-# List VPCs with events
+# List VPCs (Events: <none> is expected)
 kubectl describe vpc myvpc
 
-# Get VPCAttachment events
+# Describe VPCAttachment (Events: <none> is expected)
 kubectl describe vpcattachment vpc1-srv01
 
-# List DHCPSubnets
-kubectl get dhcpsubnet -A
+# List DHCPSubnets (missing = VPC was rejected or not yet reconciled)
+kubectl get dhcpsubnet
 
 # Check Connection exists
-kubectl get connection -n fab | grep server-01
+kubectl get connections | grep server-01
 ```
 
 ---
 
-**Module Complete!** You've learned to use kubectl events and Agent CRD status for integrated troubleshooting with Grafana. Ready for diagnostic collection in Module 3.4.
+**Module Complete!** You've learned to use admission webhook validation, Agent CRD generation counters, and Grafana metrics for integrated fabric troubleshooting. Ready for diagnostic collection in Module 3.4.
