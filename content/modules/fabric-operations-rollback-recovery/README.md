@@ -127,9 +127,9 @@ Before starting this module, you should have:
 
 **Environment:**
 - kubectl configured and authenticated
-- Gitea access (http://localhost:3001)
-- ArgoCD access (http://localhost:8080)
-- Grafana access (http://localhost:3000)
+- Gitea access (http://YOUR_VM_IP:3001)
+- ArgoCD access (http://YOUR_VM_IP:8080)
+- Grafana access (http://YOUR_VM_IP:3000)
 
 ---
 
@@ -216,17 +216,18 @@ argocd app wait hedgehog-config --health
 kubectl get vpc webapp-vpc -o jsonpath='{.spec.subnets.frontend.vlan}'
 # Expected: 1010
 
-# Check events
-kubectl get events --field-selector involvedObject.name=webapp-vpc --sort-by='.lastTimestamp'
+# Verify Agent convergence (config applied to switches)
+kubectl get agents
+# Expected: APPLIEDG == CURRENTG for all switches
 
 # Verify Agent CRD (switch configuration)
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
-# Expected: VLAN 1010 in vlans list
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
+# Expected: vlans list contains 1010
 ```
 
 ##### Step 5: Validate Connectivity
 
-**Check Grafana:** Verify VLAN 1010, no VLAN conflicts, traffic flowing on interfaces.
+**Check Grafana:** Verify VLAN 1010 on switch interface, no VLAN conflicts, traffic flowing.
 
 **Test connectivity (if available):**
 
@@ -350,7 +351,7 @@ argocd app sync hedgehog-config
 
 **Option B: Restart Controller** (if hung)
 ```bash
-kubectl rollout restart deployment/fabric-controller-manager -n fab
+kubectl rollout restart deployment/fabric-ctrl -n fab
 ```
 
 **Option C: Escalate** (if >30 min or repeated failures)
@@ -390,10 +391,12 @@ Earlier today, you updated VPC `webapp-vpc` to use VLAN 1050 for the `frontend` 
 4. (Bonus) Practice safe VPCAttachment deletion
 
 **Environment:**
-- **Gitea:** http://localhost:3001 (username: `student`, password: `hedgehog123`)
-- **ArgoCD:** http://localhost:8080 (username: `admin`, password: `qV7hX0NMroAUhwoZ`)
+- **Gitea:** http://YOUR_VM_IP:3001 (username: `student01`, password: `hedgehog123`)
+- **ArgoCD:** http://YOUR_VM_IP:8080 (username: `admin`, password: see below)
 - **kubectl:** Already configured
-- **Grafana:** http://localhost:3000
+- **Grafana:** http://YOUR_VM_IP:3000 (admin/admin)
+
+> **ArgoCD password:** `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo`
 
 **Git Repository:** `student/hedgehog-config`
 
@@ -445,14 +448,15 @@ argocd app wait hedgehog-config --health
 kubectl get vpc webapp-vpc -o jsonpath='{.spec.subnets.frontend.vlan}'
 # Expected: 1010
 
-# Check events
-kubectl get events --field-selector involvedObject.name=webapp-vpc --sort-by='.lastTimestamp'
+# Verify Agent convergence after ArgoCD sync
+kubectl get agents
+# Expected: APPLIEDG == CURRENTG for all switches
 
 # Verify Agent CRD shows VLAN 1010
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
 ```
 
-**Success Criteria:** ArgoCD synced, kubectl shows VLAN 1010, no Warning events, Agent CRD updated.
+**Success Criteria:** ArgoCD synced, kubectl shows VLAN 1010, agents converged (APPLIEDG == CURRENTG), Agent CRD shows VLAN 1010.
 
 ---
 
@@ -465,8 +469,8 @@ kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet
 #### Steps
 
 **Verify in Grafana:**
-- Navigate to Fabric Dashboard: `webapp-vpc` shows VLAN 1010, no conflicts
-- Interface Dashboard: VLAN 1010 configured, traffic flowing
+- Navigate to "Hedgehog Fabric": switch health looks good
+- "Hedgehog Switch Interface Counters": VLAN 1010 configured on relevant interface, traffic flowing
 
 **Test connectivity (optional):**
 ```bash
@@ -497,7 +501,7 @@ kubectl get vpcattachment webapp-vpc-server-03
 # Expected: Error: not found
 
 # Verify VLAN removed from Agent CRD
-kubectl get agent leaf-03 -n fab -o jsonpath='{.status.state.interfaces.Ethernet8}' | jq
+kubectl get agent leaf-03 -o json | jq '.status.state.interfaces["E1/8"]'
 
 # Verify VPC still exists
 kubectl get vpc webapp-vpc
@@ -599,13 +603,13 @@ kubectl logs -n argocd deployment/argocd-application-controller | grep hedgehog-
 **Solution:**
 
 ```bash
-# Check agent status
-kubectl get agent leaf-03 -n fab
+# Check agent status (agents in default namespace)
+kubectl get agent leaf-03
 
 # If agent not Ready, wait for reconnection
 
 # If agent Ready but VPCAttachment still stuck, check controller logs
-kubectl logs -n fab deployment/fabric-controller-manager | grep webapp-vpc-server-03
+kubectl logs -n fab deployment/fabric-ctrl | grep webapp-vpc-server-03
 
 # If stuck >30 minutes, manually remove finalizer (last resort)
 kubectl patch vpcattachment webapp-vpc-server-03 --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
@@ -619,7 +623,7 @@ kubectl patch vpcattachment webapp-vpc-server-03 --type='json' -p='[{"op": "remo
 
 ```bash
 # Check Agent CRD to confirm switch configuration
-kubectl get agent leaf-01 -n fab -o jsonpath='{.status.state.interfaces.Ethernet5}' | jq
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
 
 # Check if VLAN actually updated on switch (not just in VPC CRD)
 
@@ -719,7 +723,7 @@ kubectl patch vpc <name> --type='json' -p='[{"op": "remove", "path": "/metadata/
 - ✅ Attempted rollback using Git revert
 - ✅ Verified Git commit pushed successfully
 - ✅ Triggered ArgoCD sync
-- ✅ Checked kubectl events for errors
+- ✅ Checked Agent convergence (kubectl get agents, APPLIEDG == CURRENTG)
 - ✅ Checked controller logs for reconciliation errors
 - ✅ Waited >30 minutes for stuck resources
 - ✅ Verified Agent connectivity
