@@ -62,7 +62,7 @@ By the end of this module, you will be able to:
 
 ### Setting Expectations
 
-This module builds on your VPC creation experience from Module 1.2. We'll use the `myfirst-vpc` you created to explore each interface systematically. By the end, you'll know exactly which tool to reach for when faced with any operational task.
+This module builds on your VPC creation experience from Module 1.2. We'll use the `test-vpc` you created to explore each interface systematically. By the end, you'll know exactly which tool to reach for when faced with any operational task.
 
 ---
 
@@ -140,16 +140,16 @@ kubectl shows you what's happening **right now** in the cluster. Think of it as 
 kubectl get vpcs
 
 # Get detailed information about your VPC
-kubectl get vpc myfirst-vpc -o yaml
+kubectl get vpc test-vpc -o yaml
 
 # Check for reconciliation events (most important!)
-kubectl describe vpc myfirst-vpc
+kubectl describe vpc test-vpc
 ```
 
 **Expected output from kubectl describe:**
 
 ```
-Name:         myfirst-vpc
+Name:         test-vpc
 Namespace:    default
 Labels:       fabric.githedgehog.com/ipv4ns=default
               fabric.githedgehog.com/vlanns=default
@@ -157,10 +157,10 @@ Annotations:  kubectl.kubernetes.io/last-applied-configuration: {...}
 API Version:  vpc.githedgehog.com/v1beta1
 Kind:         VPC
 Metadata:
-  Creation Timestamp:  2025-10-16T01:00:00Z
-  Generation:          1
-  Resource Version:    123456
-  UID:                 abc-123-def
+  Creation Timestamp:  2026-xx-xxTxx:xx:xxZ
+  Generation:          2
+  Resource Version:    xxxxxx
+  UID:                 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 Spec:
   Ipv4Namespace:  default
   Subnets:
@@ -168,35 +168,39 @@ Spec:
       Dhcp:
         Enable:  true
         Range:
-          End:    10.0.10.250
-          Start:  10.0.10.10
-      Gateway:  10.0.10.1
-      Subnet:   10.0.10.0/24
-      Vlan:     1010
+          End:    10.99.1.99
+          Start:  10.99.1.10
+      Gateway:  10.99.1.1
+      Subnet:   10.99.1.0/24
+      Vlan:     1999
+    Backend:
+      Gateway:  10.99.2.1
+      Subnet:   10.99.2.0/24
+      Vlan:     1998
   Vlan Namespace:  default
 Events:            <none>
 ```
 
 **What to look for:**
 
-- **Events: \<none>** - This is **good news**! Hedgehog VPCs use event-based reconciliation. No error events means the VPC reconciled successfully.
+- **Events: \<none>** - This is **good news**! Hedgehog VPCs do not currently emit Kubernetes events, so an empty Events section means no errors occurred. If error events are present, they indicate a problem.
 - **Spec fields present** - Your configuration is stored in the cluster
-- **Gateway computed** - Hedgehog automatically assigned 10.0.10.1
+- **Two subnets visible** - Both `default` and `backend` subnets from Module 1.2's Task 5
 
-**Understanding Event-Based Reconciliation:**
+**Understanding VPC Status:**
 
-Hedgehog VPCs don't populate complex status fields. Instead, they use a simpler "no news is good news" model:
+Hedgehog VPCs have minimal status fields. Verify reconciliation succeeded using agent status instead:
 
-- **No error events** = VPC is working correctly
-- **Error/Warning events** = Something needs attention (the event message tells you what)
-
-This approach actually makes Day 2 operations **easier**: you don't need to parse status fields, just check for error events.
+```bash
+# Confirm agents applied the config (APPLIEDG should equal CURRENTG)
+kubectl get agents
+```
 
 **Validation exercise:**
 
-Run `kubectl describe vpc myfirst-vpc` and answer:
-- Are there any error or warning events? (Expected: No)
-- What gateway IP was assigned? (Expected: 10.0.10.1)
+Run `kubectl describe vpc test-vpc` and `kubectl get agents`, then answer:
+- Are there any error or warning events in the VPC? (Expected: No — Events: \<none>)
+- Do all agent APPLIEDG values match CURRENTG? (Expected: Yes)
 
 ---
 
@@ -273,10 +277,10 @@ Run the commands above and answer:
 
 ```bash
 # Human-readable summary with events
-kubectl describe vpc myfirst-vpc
+kubectl describe vpc test-vpc
 
 # Raw YAML for exact field inspection
-kubectl get vpc myfirst-vpc -o yaml
+kubectl get vpc test-vpc -o yaml
 
 # Tabular list view
 kubectl get vpcs
@@ -339,32 +343,32 @@ Gitea provides Git-based version control for your network configurations. Every 
 
 **Steps:**
 
-1. Open Gitea in your browser: `http://localhost:3001`
+1. Open Gitea in your browser: `http://YOUR_VM_IP:3001` (or `http://localhost:3001` if using RDP inside the VM)
 2. Navigate to the `student/hedgehog-config` repository
 3. Click **Commits** in the top navigation
 4. Review the commit history
 
-**Expected commit history (similar to):**
+**Expected commit history (similar to — your VM's history will vary):**
 
 ```
-fb8f8fe  Fix VPC name to be within 11 character limit        1 hour ago   student
-9fbaa1c  Create my first VPC for Module 1.2 lab              1 hour ago   student
-392b8de  Add test VPC for GitOps workflow validation          2 hours ago  student
-07bae96  Fix VPCAttachment subnet format                      2 hours ago  student
-...
+59ad4e4c  Fix VPCAttachment example format                   some days ago  labstudent
+e7ad155e  Update lab-info.yaml with correct credentials      some days ago  labstudent
+4ceb46b8  Test push from labstudent                          some days ago  labstudent
+3ee76cf0  Remove test VPC after validation                   some days ago  labstudent
+89e4c8fb  Add myfirst-vpc for Module 1.2 validation          some days ago  labstudent
 ```
 
 **What each commit shows:**
-- 📜 **Commit SHA** (fb8f8fe) - Unique identifier for this exact configuration state
+- 📜 **Commit SHA** (59ad4e4c) - Unique identifier for this exact configuration state
 - 📜 **Commit message** - Human-readable description of what changed
 - 📜 **Timestamp** - When the change was made
 - 📜 **Author** - Who made the change
 
 **Validation exercise:**
 
-Find the commit where you created `myfirst-vpc`:
-- What's the commit message? (Expected: Something like "Create my first VPC")
-- When was it created? (Expected: Approximately 1 hour ago, or when you completed Module 1.2)
+Browse the commit history and find a commit that added or removed a VPC:
+- What's the commit message? (Example: "Add myfirst-vpc for Module 1.2 validation")
+- Who made the change and when?
 
 **Why Git for network configuration?**
 
@@ -388,24 +392,24 @@ Traditional networking has no native audit trail. If someone misconfigures a swi
 2. Gitea shows the **diff** view with changes highlighted
 3. Observe additions (green, + prefix) and deletions (red, - prefix)
 
-**Example diff view:**
+**Example diff view** (click the "Add myfirst-vpc for Module 1.2 validation" commit to see a real example):
 
 ```diff
-vpcs/my-first-vpc.yaml → vpcs/myfirst-vpc.yaml
+examples/vpc-simple.yaml → added to active/
 
-apiVersion: vpc.githedgehog.com/v1beta1
-kind: VPC
-metadata:
-- name: my-first-vpc     # RED: Removed (12 characters - invalid)
-+ name: myfirst-vpc      # GREEN: Added (11 characters - valid)
-  namespace: default
-spec:
-  ipv4Namespace: default
-  vlanNamespace: default
-  subnets:
-    default:
-      subnet: 10.0.10.0/24
-      vlan: 1010
++ apiVersion: vpc.githedgehog.com/v1beta1
++ kind: VPC
++ metadata:
++   name: myfirst-vpc      # GREEN: Added
++   namespace: default
++ spec:
++   ipv4Namespace: default
++   vlanNamespace: default
++   subnets:
++     default:
++       subnet: 10.0.10.0/24
++       gateway: 10.0.10.1
++       vlan: 1010
 ```
 
 **What the diff tells you:**
@@ -447,32 +451,31 @@ Click on a commit that modified a VPC file and answer:
 
 ```
 hedgehog-config/
-├── README.md                    # Repository documentation
-├── vpcs/                        # VPC configurations
-│   ├── README.md                # VPC-specific documentation
-│   ├── myfirst-vpc.yaml         # Your VPC from Module 1.2
-│   ├── test-vpc.yaml            # Example VPC
-│   └── vpc-example-1.yaml       # Template VPC
-└── vpc-attachments/             # VPC attachment configurations
-    ├── README.md                # Attachment documentation
-    └── attachment-example.yaml  # Example attachment
+├── README.md                          # Repository documentation
+├── active/                            # Active configurations (applied to fabric)
+│   ├── .gitkeep                       # Keeps directory in git when empty
+│   └── lab-info.yaml                  # Lab environment information
+└── examples/                          # Example/template YAML files
+    ├── vpc-simple.yaml                # Single-subnet VPC template
+    ├── vpc-multi-subnet.yaml          # Multi-subnet VPC template
+    └── vpcattachment-example.yaml     # VPCAttachment template
 ```
 
 **What this structure tells you:**
-- 📁 **Organized by resource type** (vpcs/, vpc-attachments/)
-- 📁 **README files** provide documentation and examples
-- 📁 **Flat structure** (no deep nesting) makes files easy to find
-- 📁 **Example files** serve as templates for new resources
+- 📁 **`active/`** — configurations applied to the fabric (this is where you'd place real configs)
+- 📁 **`examples/`** — template files showing correct YAML syntax for each resource type
+- 📁 **Flat structure** — no deep nesting makes files easy to find
 
 **Where to create new resources:**
-- New VPC? → Create YAML file in `vpcs/` directory
-- New attachment? → Create YAML file in `vpc-attachments/` directory
+- New VPC? → Copy from `examples/vpc-simple.yaml` into `active/` and customize
+- New attachment? → Copy from `examples/vpcattachment-example.yaml` into `active/` and customize
 
 **Validation exercise:**
 
-Answer these questions:
-- If you need to create a new VPC, where would you place the file? (Expected: `vpcs/` directory)
-- What's the purpose of the example files? (Expected: Templates to copy/modify for new resources)
+Browse to `examples/vpc-simple.yaml` and answer:
+- What VPC name does the example use? (Expected: `simple-vpc`)
+- What subnet CIDR is configured? (Expected: `10.10.10.0/24`)
+- What's the purpose of the `active/` directory? (Expected: Where you place configs that are actually applied to the fabric)
 
 ---
 
@@ -511,7 +514,7 @@ Hedgehog provides **6 pre-built dashboards** covering different aspects of fabri
 
 ### Grafana Dashboard Tour Overview
 
-**Access:** `http://localhost:3000` (username: `admin`, password: `prom-operator`)
+**Access:** `http://YOUR_VM_IP:3000` (username: `admin`, password: `admin`) — use `http://localhost:3000` if accessing from inside the VM via RDP
 
 **The 6 Hedgehog Dashboards:**
 
@@ -562,7 +565,7 @@ Open the Fabric dashboard and answer:
 
 **Purpose:** Hedgehog control plane health (Kubernetes & Fabricator controller)
 
-**URL:** `http://localhost:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7b/platform`
+**URL:** `http://localhost:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
 
 **Key panels to look for:**
 - **Control Node Status** - CPU, memory, disk usage of control plane
@@ -624,7 +627,7 @@ Open the Interfaces dashboard and check:
 
 **Purpose:** Aggregated syslog messages from all switches
 
-**URL:** `http://localhost:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bc/logs`
+**URL:** `http://localhost:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
 
 **Key panels to look for:**
 - **Recent Logs** - Stream of syslog messages
@@ -645,8 +648,8 @@ Logs are your **black box recorder** for the fabric. When troubleshooting interm
 **Validation exercise:**
 
 Open the Logs dashboard and try:
-- Search for "VPC" or "myfirst-vpc" in the search box
-- Do you see logs related to your VPC creation? (Expected: Yes, VNI assignment and VLAN configuration logs)
+- Search for "VPC" or "test-vpc" in the search box
+- Do you see logs related to your VPC creation? (Expected: Possibly — VNI assignment and VLAN configuration logs may appear)
 
 ---
 
@@ -654,7 +657,7 @@ Open the Logs dashboard and try:
 
 **Purpose:** Switch hardware metrics (CPU, memory, disk, system load)
 
-**URL:** `http://localhost:3000/d/rYdddlPWA/node-exporter-full-2`
+**URL:** `http://localhost:3000/d/rYdddlPWv/node-exporter-full-2`
 
 **Key panels to look for:**
 - **CPU Usage** - Per-switch CPU utilization
@@ -750,9 +753,9 @@ Where do you start? Which interface do you check first?
 
 **Actions:**
 
-1. Open Gitea → navigate to `student/hedgehog-config` repository
-2. Browse to `vpcs/` directory
-3. Find and open `broken-vpc.yaml`
+1. Open Gitea (`http://YOUR_VM_IP:3001`) → navigate to `student/hedgehog-config` repository
+2. Browse to `active/` directory
+3. Find and open `broken-vpc.yaml` (if it exists there)
 4. Review the DHCP configuration
 
 **What to look for:**
@@ -850,19 +853,19 @@ Events:
    - Red switches indicate hardware/connectivity issues
 
 2. **Open Platform Dashboard**
-   - URL: `http://localhost:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7b/platform`
+   - URL: `http://localhost:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
    - Check: Is Fabricator error count = 0?
    - Errors here mean reconciliation loop is failing
 
 3. **Open Logs Dashboard**
-   - URL: `http://localhost:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bc/logs`
+   - URL: `http://localhost:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
    - Search for "broken-vpc" or "DHCP"
    - Look for error messages related to DHCP relay or VPC configuration
 
 **What to look for:**
 
 - **Red switches** → Hardware/connectivity issue, escalate to infrastructure team
-- **Fabricator errors > 0** → Control plane issue, check Fabricator logs with `kubectl logs -n fab deployment/fabric-controller-manager`
+- **Fabricator errors > 0** → Control plane issue, check Fabricator logs with `kubectl logs -n fab deployment/fabric-ctrl`
 - **DHCP relay errors in logs** → Switches trying but failing to forward DHCP, check network connectivity between servers and switches
 
 **If Grafana shows healthy state:**
@@ -1155,7 +1158,7 @@ kubectl describe <resource-type> <name>                     # Events in context
    - Use for: Overall fabric health, switch status, VPC count
 
 2. **Platform Dashboard** (control plane health)
-   - URL: `/d/f8a648b9-5510-49ca-9273-952ba6169b7b/platform`
+   - URL: `/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
    - Use for: Fabricator errors, control node CPU/memory, API latency
 
 3. **Interfaces Dashboard** (port health)
@@ -1163,11 +1166,11 @@ kubectl describe <resource-type> <name>                     # Events in context
    - Use for: Interface status, traffic rates, error counters
 
 4. **Logs Dashboard** (syslog aggregation)
-   - URL: `/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bc/logs`
+   - URL: `/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
    - Use for: Searching logs, troubleshooting, audit trail
 
 5. **Node Exporter Dashboard** (system metrics)
-   - URL: `/d/rYdddlPWA/node-exporter-full-2`
+   - URL: `/d/rYdddlPWv/node-exporter-full-2`
    - Use for: CPU, memory, disk usage on switches
 
 6. **Switch CRM Dashboard** (capacity monitoring)
