@@ -70,8 +70,8 @@ By the end of this module, you will be able to:
 You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, servers are attached, and traffic is flowing. Now you want to understand the telemetry system that monitors your fabric. In this hands-on exploration, you'll access Prometheus directly and run queries to see the raw metrics that power your observability stack.
 
 **Environment Access:**
-- **Prometheus:** http://localhost:9090
-- **Grafana:** http://localhost:3000 (we'll use in Module 3.2)
+- **Prometheus:** http://YOUR_VM_IP:9090
+- **Grafana:** http://YOUR_VM_IP:3000 (we'll use in Module 3.2)
 - **kubectl:** Already configured
 
 ### Task 1: Access Prometheus UI
@@ -79,7 +79,7 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
 **Objective:** Navigate to Prometheus and understand the interface
 
 1. **Open Prometheus in your browser:**
-   - Navigate to http://localhost:9090
+   - Navigate to http://YOUR_VM_IP:9090 (replace YOUR_VM_IP with your lab VM's IP address)
    - You should see the Prometheus query interface
 
 2. **Explore the UI sections:**
@@ -95,6 +95,8 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
    - Look for fabric-proxy and other Hedgehog targets
    - Verify state = "UP" (healthy scraping)
 
+   You can also navigate directly to http://YOUR_VM_IP:9090/targets
+
 **Success Criteria:**
 - ✅ Prometheus UI loads successfully
 - ✅ Targets page shows fabric-related endpoints
@@ -104,41 +106,42 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
 
 **Objective:** Run basic PromQL queries to explore switch metrics
 
-1. **Query CPU usage for all switches:**
+1. **Query interface utilization for all switches:**
 
    In the Prometheus query box, enter:
    ```promql
-   cpu_usage_percent
+   fabric_agent_interface_in_utilization
    ```
 
    Click **Execute**
 
-   **Expected result:** List of switches with CPU percentages:
+   **Expected result:** List of interfaces across all switches with utilization gauge values:
    ```
-   cpu_usage_percent{switch="leaf-01"} 18.5
-   cpu_usage_percent{switch="leaf-02"} 22.3
-   cpu_usage_percent{switch="spine-01"} 12.1
+   fabric_agent_interface_in_utilization{hostname="leaf-01",interface="E1/1"} 0
+   fabric_agent_interface_in_utilization{hostname="leaf-01",interface="E1/2"} 0
    ...
    ```
 
+   > **Note:** In the lab environment traffic is minimal, so utilization values will be near 0. In production, you'd see real percentage values representing interface load.
+
    Click **Graph** tab to see time series visualization
 
-2. **Query CPU for a specific switch:**
+2. **Query interface utilization for a specific switch:**
    ```promql
-   cpu_usage_percent{switch="leaf-01"}
+   fabric_agent_interface_in_utilization{hostname="leaf-01"}
    ```
 
-   **Expected result:** Single time series for leaf-01
+   **Expected result:** Utilization gauge values filtered to leaf-01 only
 
 3. **Query interface byte counters:**
    ```promql
-   interface_bytes_out{switch="leaf-01"}
+   fabric_agent_interface_out_octets{hostname="leaf-01"}
    ```
 
    **Expected result:** Counter values for all interfaces on leaf-01:
    ```
-   interface_bytes_out{switch="leaf-01",interface="Ethernet1"} 152345678901
-   interface_bytes_out{switch="leaf-01",interface="Ethernet2"} 98234567890
+   fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/1"} 152345678901
+   fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/2"} 98234567890
    ...
    ```
 
@@ -146,12 +149,12 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
 
 4. **Calculate bandwidth utilization:**
    ```promql
-   rate(interface_bytes_out{switch="leaf-01",interface="Ethernet1"}[5m]) * 8
+   rate(fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/5"}[5m]) * 8
    ```
 
    **Expected result:** Bits per second over last 5 minutes:
    ```
-   {switch="leaf-01",interface="Ethernet1"} 125600000  # ~125 Mbps
+   {hostname="leaf-01",interface="E1/5"} 1497  # ~1.5 Kbps (lab traffic only)
    ```
 
    **Explanation:**
@@ -160,9 +163,9 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
    - Result is bandwidth in bits per second
 
 **Success Criteria:**
-- ✅ CPU metrics display for all switches
-- ✅ Interface counters visible
-- ✅ Bandwidth calculation returns reasonable values
+- ✅ Interface utilization metrics display for all switches
+- ✅ Interface byte counters visible
+- ✅ Bandwidth calculation returns values
 
 ### Task 3: Explore BGP Metrics
 
@@ -170,41 +173,43 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
 
 1. **Query all BGP neighbors:**
    ```promql
-   bgp_neighbor_state
+   fabric_agent_bgp_neighbor_session_state
    ```
 
-   **Expected result:** BGP neighbors with state labels:
+   **Expected result:** BGP neighbors with numeric state values (6 = Established):
    ```
-   bgp_neighbor_state{switch="leaf-01",neighbor="172.30.128.1",state="established"} 1
-   bgp_neighbor_state{switch="leaf-01",neighbor="172.30.128.2",state="established"} 1
+   fabric_agent_bgp_neighbor_session_state{hostname="leaf-01",peer_address="172.30.128.1",...} 6
+   fabric_agent_bgp_neighbor_session_state{hostname="leaf-01",peer_address="172.30.128.2",...} 6
    ...
    ```
 
+   > **Note:** BGP session state is reported as an integer. The value `6` means Established — this is the standard BGP state machine encoding.
+
 2. **Filter for non-established neighbors (find problems):**
    ```promql
-   bgp_neighbor_state{state!="established"}
+   fabric_agent_bgp_neighbor_session_state != 6
    ```
 
    **Expected result:** Empty (all neighbors healthy) or list of down neighbors
 
 3. **Count total BGP sessions:**
    ```promql
-   count(bgp_neighbor_state)
+   count(fabric_agent_bgp_neighbor_session_state)
    ```
 
-   **Expected result:** Total number of BGP sessions in fabric (e.g., 40)
+   **Expected result:** 62 (total BGP sessions across all switches in a 7-switch fabric)
 
 4. **Count established BGP sessions:**
    ```promql
-   count(bgp_neighbor_state{state="established"})
+   count(fabric_agent_bgp_neighbor_session_state == 6)
    ```
 
-   **Expected result:** Should match total (if fabric is healthy)
+   **Expected result:** 62 (should match total if fabric is healthy)
 
 **Success Criteria:**
 - ✅ BGP metrics visible
-- ✅ All (or most) neighbors show state="established"
-- ✅ Count queries return expected numbers
+- ✅ All neighbors show state value 6 (Established)
+- ✅ Count queries both return 62 (total matches established when fabric is healthy)
 
 ### Task 4: Understand Metric Labels
 
@@ -212,28 +217,28 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
 
 1. **Query metrics with multiple labels:**
    ```promql
-   interface_bytes_out{switch="leaf-01",interface="Ethernet1"}
+   fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/1"}
    ```
 
    **Observe labels:**
-   - `switch="leaf-01"` - Which switch
-   - `interface="Ethernet1"` - Which interface
+   - `hostname="leaf-01"` - Which switch
+   - `interface="E1/1"` - Which interface
 
 2. **Query with partial label matching:**
    ```promql
-   interface_bytes_out{switch=~"leaf-.*"}
+   fabric_agent_interface_out_octets{hostname=~"leaf-.*"}
    ```
 
    **Explanation:** `=~` means "matches regex", `leaf-.*` matches all leaf switches
 
 3. **List all unique switches in metrics:**
    ```promql
-   count by (switch) (cpu_usage_percent)
+   count by (hostname) (fabric_agent_interface_out_octets)
    ```
 
    **Expected result:** One entry per switch
 
-**Key Insight:** Labels allow you to filter and aggregate metrics. Every metric has labels like `switch`, `interface`, `neighbor`, etc.
+**Key Insight:** Labels allow you to filter and aggregate metrics. Hedgehog fabric metrics use `hostname` to identify the switch and `interface` (or `peer_address` for BGP) to identify the specific resource.
 
 **Success Criteria:**
 - ✅ Understand how labels filter metrics
@@ -244,17 +249,17 @@ You've been operating Hedgehog Fabric for several weeks. VPCs are provisioned, s
 
 **What you accomplished:**
 - ✅ Accessed Prometheus UI and verified scrape targets
-- ✅ Queried switch CPU and interface metrics
-- ✅ Examined BGP neighbor status
+- ✅ Queried switch interface utilization and byte counter metrics
+- ✅ Examined BGP neighbor status using numeric state values
 - ✅ Calculated bandwidth utilization using PromQL
 - ✅ Understood metric labels and filtering
 
 **What you learned:**
 - Prometheus provides raw metric access for your fabric
 - PromQL enables powerful filtering and calculations
-- Labels identify specific metrics (switch, interface, neighbor)
+- Hedgehog fabric metrics use `hostname` to identify switches (e.g., `hostname="leaf-01"`)
 - Counters require `rate()` function for meaningful data
-- BGP metrics help verify fabric underlay health
+- BGP session state is numeric: 6 = Established
 
 ## Concepts & Deep Dive
 
@@ -334,7 +339,7 @@ Understanding how metrics flow from switches to your dashboard helps you trouble
 - Queries Prometheus for data
 - Renders visualizations and dashboards
 - Provides 6 pre-built Hedgehog dashboards
-- Web UI: http://localhost:3000
+- Web UI: http://YOUR_VM_IP:3000
 
 **Key Insight:** Metrics start on switches, flow through fabric-proxy, land in Prometheus, and are visualized in Grafana. Understanding this flow helps troubleshoot when metrics are missing.
 
@@ -395,15 +400,15 @@ Prometheus uses different metric types for different data. Understanding the dif
 
 **Counter Example:**
 ```
-interface_bytes_out{switch="leaf-01",interface="Ethernet1"} 1523456789
-interface_bytes_out{switch="leaf-01",interface="Ethernet1"} 1523789012  # 2 minutes later
-interface_bytes_out{switch="leaf-01",interface="Ethernet1"} 1524123456  # 2 minutes later
+fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/1"} 1523456789
+fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/1"} 1523789012  # 2 minutes later
+fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/1"} 1524123456  # 2 minutes later
 ```
 
 **Using Counters:**
 - Raw counter values aren't directly useful (just big numbers)
 - Use `rate()` function to calculate per-second rates
-- Example: `rate(interface_bytes_out[5m])` = bytes per second over last 5 minutes
+- Example: `rate(fabric_agent_interface_out_octets[5m])` = bytes per second over last 5 minutes
 
 **Gauges (Point-in-Time Values)**
 
@@ -417,9 +422,9 @@ interface_bytes_out{switch="leaf-01",interface="Ethernet1"} 1524123456  # 2 minu
 
 **Gauge Example:**
 ```
-cpu_usage_percent{switch="leaf-01"} 23.5
-cpu_usage_percent{switch="leaf-01"} 45.2  # 2 minutes later (CPU spike)
-cpu_usage_percent{switch="leaf-01"} 18.7  # 2 minutes later (CPU normalized)
+fabric_agent_interface_in_utilization{hostname="leaf-01",interface="E1/1"} 12.5
+fabric_agent_interface_in_utilization{hostname="leaf-01",interface="E1/1"} 45.2  # 2 minutes later (traffic burst)
+fabric_agent_interface_in_utilization{hostname="leaf-01",interface="E1/1"} 18.7  # 2 minutes later (normalized)
 ```
 
 **Using Gauges:**
@@ -442,41 +447,41 @@ PromQL is the query language for Prometheus, similar to SQL for databases. It en
 
 **1. Select a metric:**
 ```promql
-# Get CPU usage for all switches
-cpu_usage_percent
+# Get interface utilization for all switches
+fabric_agent_interface_in_utilization
 ```
 
 **2. Filter by labels:**
 ```promql
-# Get CPU usage for specific switch
-cpu_usage_percent{switch="leaf-01"}
+# Get interface utilization for specific switch
+fabric_agent_interface_in_utilization{hostname="leaf-01"}
 
 # Get interface bytes for specific interface
-interface_bytes_out{switch="leaf-01", interface="Ethernet1"}
+fabric_agent_interface_out_octets{hostname="leaf-01", interface="E1/1"}
 ```
 
 **3. Calculate rates (for counters):**
 ```promql
 # Bytes per second transmitted over last 5 minutes
-rate(interface_bytes_out{switch="leaf-01", interface="Ethernet1"}[5m])
+rate(fabric_agent_interface_out_octets{hostname="leaf-01", interface="E1/1"}[5m])
 ```
 
 **4. Aggregate across labels:**
 ```promql
 # Total bytes per second across all interfaces on leaf-01
-sum(rate(interface_bytes_out{switch="leaf-01"}[5m]))
+sum(rate(fabric_agent_interface_out_octets{hostname="leaf-01"}[5m]))
 
-# Average CPU across all switches
-avg(cpu_usage_percent)
+# Average interface utilization across all switches
+avg(fabric_agent_interface_in_utilization)
 
-# Maximum temperature across all sensors
-max(temperature_celsius)
+# Count of established BGP sessions
+count(fabric_agent_bgp_neighbor_session_state == 6)
 ```
 
 **5. Arithmetic operations:**
 ```promql
 # Convert bytes/sec to bits/sec
-rate(interface_bytes_out[5m]) * 8
+rate(fabric_agent_interface_out_octets[5m]) * 8
 
 # Calculate percentage
 (memory_used / memory_total) * 100
@@ -500,17 +505,17 @@ rate(interface_bytes_out[5m]) * 8
 **Example Queries:**
 
 ```promql
-# BGP neighbors that are down
-bgp_neighbor_state{state!="established"}
+# BGP neighbors that are not established (down or transitioning)
+fabric_agent_bgp_neighbor_session_state != 6
 
-# Interface error rate
-rate(interface_errors_in[5m])
+# Interface outbound byte rate
+rate(fabric_agent_interface_out_octets{hostname="leaf-01"}[5m])
 
-# Switches with high CPU
-cpu_usage_percent > 80
+# Interfaces with high utilization
+fabric_agent_interface_in_utilization > 80
 
-# Total VPCs in fabric
-count(kube_vpc_info)
+# Count all BGP sessions in fabric
+count(fabric_agent_bgp_neighbor_session_state)
 ```
 
 **Pro Tip:** Start simple, add complexity incrementally. Test in Prometheus UI before using in Grafana dashboards.
@@ -559,13 +564,13 @@ Approximate storage per switch:
 
 ```promql
 # Last 5 minutes (always available)
-rate(interface_bytes_out[5m])
+rate(fabric_agent_interface_out_octets[5m])
 
 # Last 7 days (within retention)
-rate(interface_bytes_out[7d])
+rate(fabric_agent_interface_out_octets[7d])
 
 # Last 30 days (ERROR - exceeds retention)
-rate(interface_bytes_out[30d])  # Returns no data
+rate(fabric_agent_interface_out_octets[30d])  # Returns no data
 ```
 
 **Best Practice:** For long-term capacity planning, export Grafana dashboard snapshots monthly or configure Mimir for extended retention.
@@ -607,7 +612,7 @@ rate(interface_bytes_out[30d])  # Returns no data
 **Fix:**
 
 1. **Check Prometheus targets:**
-   - Navigate to http://localhost:9090/targets
+   - Navigate to http://YOUR_VM_IP:9090/targets
    - Look for down targets
 
 2. **SSH to affected switch and check Alloy:**
@@ -631,29 +636,29 @@ rate(interface_bytes_out[30d])  # Returns no data
 
 1. **Using rate() on gauges:**
    ```promql
-   # WRONG
-   rate(cpu_usage_percent[5m])
+   # WRONG - rate() requires a counter, not a gauge
+   rate(fabric_agent_interface_in_utilization[5m])
 
-   # CORRECT
-   cpu_usage_percent
+   # CORRECT - gauges are used directly
+   fabric_agent_interface_in_utilization
    ```
 
 2. **Forgetting time range with rate():**
    ```promql
    # WRONG
-   rate(interface_bytes_out)
+   rate(fabric_agent_interface_out_octets)
 
    # CORRECT
-   rate(interface_bytes_out[5m])
+   rate(fabric_agent_interface_out_octets[5m])
    ```
 
 3. **Invalid label syntax:**
    ```promql
    # WRONG
-   interface_bytes_out{switch=leaf-01}
+   fabric_agent_interface_out_octets{hostname=leaf-01}
 
    # CORRECT
-   interface_bytes_out{switch="leaf-01"}
+   fabric_agent_interface_out_octets{hostname="leaf-01"}
    ```
 
 ### Retention Window Exceeded
@@ -717,8 +722,8 @@ sum(metric)                        # Sum across all labels
 avg(metric)                        # Average
 max(metric) / min(metric)          # Maximum / Minimum
 count(metric)                      # Count time series
-sum by (switch) (metric)           # Sum per switch
-avg by (switch,interface) (metric) # Average per switch+interface
+sum by (hostname) (metric)           # Sum per switch
+avg by (hostname,interface) (metric) # Average per switch+interface
 ```
 
 **Arithmetic:**
