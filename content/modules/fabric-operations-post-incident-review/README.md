@@ -150,7 +150,7 @@ Before starting this module, you should have:
 **Incident Summary (from Modules 4.1-4.3):**
 
 **What happened:**
-- VPCAttachment `customer-app-vpc-server-07` created successfully (no error events)
+- VPCAttachment `customer-app-vpc-server-07` created successfully (`Events: <none>` — admission webhook validated, no rejections)
 - Server-07 had no connectivity within VPC
 - Root cause: VLAN mismatch (VPC expected 1025, switch configured with 1020)
 - Attempted fix: Update VPC to VLAN 1020 → Failed with "VLAN reserved for system use" error
@@ -283,8 +283,8 @@ Document the incident chronologically with factual observations.
 2025-10-17 10:00 UTC - VPCAttachment customer-app-vpc-server-07 created via Gitea commit
 2025-10-17 10:05 UTC - ArgoCD synced VPCAttachment to cluster successfully
 2025-10-17 10:07 UTC - Developer reported: server-07 no connectivity to VPC gateway
-2025-10-17 10:15 UTC - Investigation started (checked kubectl events - no errors found)
-2025-10-17 10:30 UTC - Agent CRD checked: VLAN 1020 on leaf-04/Ethernet8 (VPC expects 1025)
+2025-10-17 10:15 UTC - Investigation started (admission webhook accepted apply; checked Agent CRD convergence)
+2025-10-17 10:30 UTC - Agent CRD checked: VLAN 1020 on leaf-04/E1/8 (VPC expects 1025)
 2025-10-17 10:45 UTC - Root cause identified: VLAN conflict (1025 in use, system allocated 1020)
 2025-10-17 11:00 UTC - Attempted fix: Updated VPC YAML to VLAN 1020
 2025-10-17 11:05 UTC - ArgoCD sync failed: "VLAN 1020 reserved for system use"
@@ -1000,7 +1000,7 @@ What is the BEST blameless response?
 **Module 4.1: Diagnosing Fabric Issues**
 - Systematic troubleshooting using hypothesis-driven investigation
 - Common failure modes and decision trees
-- Layered diagnostic approach (Events → Agent CRD → Grafana → Logs)
+- Layered diagnostic approach (Resource check → Agent CRD → Grafana → Logs)
 
 **Module 4.2: Rollback & Recovery**
 - GitOps rollback workflows with git revert and ArgoCD
@@ -1055,7 +1055,7 @@ What is the BEST blameless response?
 
 ✅ **Provision network resources** (VPCs, attachments, peerings) using declarative GitOps
 
-✅ **Monitor fabric health** (Grafana dashboards, kubectl events, Agent CRD inspection)
+✅ **Monitor fabric health** (Grafana dashboards, admission webhook errors, Agent CRD inspection)
 
 ✅ **Troubleshoot issues** (systematic diagnosis, decision trees, layered investigation)
 
