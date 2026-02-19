@@ -22,7 +22,7 @@ order: 203
 
 ## Introduction
 
-In Modules 2.1 and 2.2, you provisioned infrastructure—creating the `web-app-prod` VPC with two subnets and attaching two servers (`server-01` and `server-05`). You followed the declarative workflow: write YAML, apply it, and trust that the fabric controller handles the rest.
+In Modules 2.1 and 2.2, you provisioned infrastructure—creating the `webapp-prod` VPC with two subnets and attaching two servers (`server-01` and `server-05`). You followed the declarative workflow: write YAML, apply it, and trust that the fabric controller handles the rest.
 
 But trust alone isn't enough in production. Before handing off to the application team, you need to **validate** that everything works as expected. Declarative infrastructure doesn't eliminate the need for verification—it just changes how you verify.
 
@@ -42,13 +42,13 @@ By the end of this module, you will be able to:
 
 - Module 2.1 completion (VPC Provisioning Essentials)
 - Module 2.2 completion (VPC Attachments)
-- Existing `web-app-prod` VPC with 2 VPCAttachments (server-01, server-05)
+- Existing `webapp-prod` VPC with 2 VPCAttachments (server-01, server-05)
 - kubectl access to Hedgehog fabric
 - Understanding of Kubernetes events and CRDs
 
 ## Scenario: Pre-Production Validation
 
-You've deployed the `web-app-prod` VPC and attached `server-01` (web tier) and `server-05` (worker tier). Before handing off to the application team, you need to validate the network connectivity is operational. You'll verify VPC status, check VPCAttachment reconciliation, inspect Agent CRDs to see switch-level configuration, and run validation tests to ensure everything works as expected. This validation workflow is critical—it catches configuration issues before they impact production traffic.
+You've deployed the `webapp-prod` VPC and attached `server-01` (web tier) and `server-05` (worker tier). Before handing off to the application team, you need to validate the network connectivity is operational. You'll verify VPC status, check VPCAttachment reconciliation, inspect Agent CRDs to see switch-level configuration, and run validation tests to ensure everything works as expected. This validation workflow is critical—it catches configuration issues before they impact production traffic.
 
 > **Before You Begin the Lab**
 >
@@ -72,8 +72,8 @@ kubectl get vpcs
 
 Expected output (similar to):
 ```
-NAME           AGE
-web-app-prod   25m
+NAME          IPV4NS    VLANNS    AGE
+webapp-prod   default   default   25m
 ```
 
 List VPCAttachments:
@@ -84,16 +84,16 @@ kubectl get vpcattachments
 
 Expected output (similar to):
 ```
-NAME                       AGE
-server-01-web-servers      15m
-server-05-worker-nodes     12m
+NAME                     VPCSUBNET                  CONNECTION                           NATIVEVLAN   AGE
+server-01-web-servers    webapp-prod/web-servers    server-01--mclag--leaf-01--leaf-02                15m
+server-05-worker-nodes   webapp-prod/worker-nodes   server-05--eslag--leaf-03--leaf-04                12m
 ```
 
 Quick status check of all resources:
 
 ```bash
 # View VPC with basic info
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 
 # View VPCAttachments with basic info
 kubectl get vpcattachments
@@ -101,14 +101,14 @@ kubectl get vpcattachments
 
 **Verification checklist:**
 
-- ✅ VPC `web-app-prod` exists
+- ✅ VPC `webapp-prod` exists
 - ✅ VPCAttachment `server-01-web-servers` exists
 - ✅ VPCAttachment `server-05-worker-nodes` exists
 - ✅ No obvious errors in basic listing
 
 **Success Criteria:**
 
-- ✅ VPC web-app-prod exists
+- ✅ VPC webapp-prod exists
 - ✅ Both VPCAttachments exist (server-01, server-05)
 - ✅ No obvious errors in kubectl get output
 
@@ -119,7 +119,7 @@ kubectl get vpcattachments
 Use `kubectl describe` to view comprehensive VPC details:
 
 ```bash
-kubectl describe vpc web-app-prod
+kubectl describe vpc webapp-prod
 ```
 
 **Key sections to review in the output:**
@@ -143,26 +143,23 @@ View subnets in detail:
 
 ```bash
 # Extract subnet configuration
-kubectl get vpc web-app-prod -o yaml | grep -A 20 "subnets:"
+kubectl get vpc webapp-prod -o yaml | grep -A 20 "subnets:"
 ```
 
-**2. Events section (at the bottom):**
+**2. Reconciliation status:**
+
+Note: Hedgehog VPC operations do not emit Kubernetes events. Track reconciliation via agent generation counters instead:
 
 ```bash
-# View VPC-specific events
-kubectl get events --field-selector involvedObject.name=web-app-prod --sort-by='.lastTimestamp'
+kubectl get agents
 ```
 
-Look for:
-- `Normal  Created` - VPC created successfully
-- `Normal  Reconciling` - Fabric controller processing
-- `Normal  Ready` - Reconciliation complete
-- **No warning or error events**
+Expected: APPLIEDG == CURRENTG on all agents (all convergent = VPC configuration has been pushed to switches).
 
 Verify DHCP configuration for worker-nodes:
 
 ```bash
-kubectl get vpc web-app-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
+kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 ```
 
 Expected output:
@@ -181,7 +178,7 @@ Expected output:
 - ✅ Subnets configured correctly (CIDRs, gateways, VLANs)
 - ✅ VLANs assigned as expected (1010, 1020)
 - ✅ DHCP enabled for worker-nodes with correct range
-- ✅ No error events in VPC history
+- ✅ Agent APPLIEDG == CURRENTG (all converged)
 
 ### Step 3: Validate VPCAttachment Status
 
@@ -198,12 +195,9 @@ kubectl describe vpcattachment server-01-web-servers
 
 - **Spec section**:
   - Connection: `server-01--mclag--leaf-01--leaf-02` (correct connection reference)
-  - Subnet: `web-app-prod/web-servers` (correct VPC/subnet format)
+  - Subnet: `webapp-prod/web-servers` (correct VPC/subnet format)
 
-- **Events section**:
-  - Look for `Normal  Created`, `Normal  Reconciling`, `Normal  Applied`
-  - No warning or error events
-  - Events should indicate configuration was applied to switches
+- **Events section**: Note — VPCAttachment operations do not emit Kubernetes events. The Events section of `kubectl describe vpcattachment` will be empty — this is normal.
 
 Check the second VPCAttachment:
 
@@ -212,30 +206,30 @@ Check the second VPCAttachment:
 kubectl describe vpcattachment server-05-worker-nodes
 ```
 
-View events for both attachments together:
+Verify reconciliation via agent generation counters:
 
 ```bash
-# View all VPCAttachment events chronologically
-kubectl get events --sort-by='.lastTimestamp' | grep vpcattachment
+# APPLIEDG should equal CURRENTG on all agents
+kubectl get agents
 ```
 
 Verify connection references are correct:
 
 ```bash
 # Verify server-01 connection exists and matches
-kubectl get connection server-01--mclag--leaf-01--leaf-02 -n fab
+kubectl get connection server-01--mclag--leaf-01--leaf-02
 
 # Verify server-05 connection exists and matches
-kubectl get connection server-05--eslag--leaf-03--leaf-04 -n fab
+kubectl get connection server-05--eslag--leaf-03--leaf-04
 ```
 
 Expected output for each: Connection details showing the server-to-switch wiring.
 
 **Success Criteria:**
 
-- ✅ Both attachments show successful reconciliation
-- ✅ Events indicate "Applied" or "Ready" status
-- ✅ No error events
+- ✅ Both attachments show correct spec (connection and subnet references)
+- ✅ Agent APPLIEDG == CURRENTG (configuration applied to switches)
+- ✅ No error shown in kubectl describe
 - ✅ Connection references match expected values (MCLAG for server-01, ESLAG for server-05)
 
 ### Step 4: Inspect Agent CRDs (Switch-Level Validation)
@@ -254,13 +248,13 @@ Agent CRDs are the **source of truth** for switch state. Each switch has an Agen
 List all switches:
 
 ```bash
-kubectl get switches -n fab
+kubectl get switches
 ```
 
 View Agent CRD for leaf-01:
 
 ```bash
-kubectl get agent leaf-01 -n fab -o yaml
+kubectl get agent leaf-01 -o yaml
 ```
 
 **What to look for in Agent CRD:**
@@ -280,7 +274,7 @@ View specific switch port configuration (example):
 
 ```bash
 # Get leaf-01 Agent CRD and look for server-01 port configuration
-kubectl get agent leaf-01 -n fab -o yaml | grep -A 10 "E1/5"
+kubectl get agent leaf-01 -o yaml | grep -A 10 "E1/5"
 ```
 
 (Note: Port names may vary based on your environment)
@@ -394,7 +388,7 @@ Hedgehog infrastructure validation has multiple layers:
 **Layer 2: Reconciliation validation**
 - Did the fabric controller process the resources?
 - Did reconciliation complete successfully?
-- Tool: `kubectl get events`
+- Tool: `kubectl get agents` (APPLIEDG == CURRENTG confirms reconciliation)
 
 **Layer 3: Switch-level validation**
 - Are switches configured with correct VLANs?
@@ -423,7 +417,7 @@ apiVersion: agent.githedgehog.com/v1beta1
 kind: Agent
 metadata:
   name: leaf-01
-  namespace: fab
+  namespace: default
 spec:
   # What the fabric controller wants configured on this switch
   # Computed from VPCs, VPCAttachments, and Connections
@@ -469,45 +463,36 @@ status:
 - **Deep validation**: Verifying VLAN/VXLAN/BGP configuration
 - **Learning**: Understanding what happens on switches
 
-### Event-Based Validation
+### Reconciliation Validation
 
-Kubernetes events tell the story of what happened during resource lifecycle.
+Hedgehog Fabric controllers do not emit Kubernetes events for VPC or VPCAttachment operations — `kubectl get events` will show an empty Events section for these resources. This is expected behavior. Instead, track reconciliation using Agent generation counters.
 
-**Event types:**
+**Reading agent generation counters:**
 
-- **Normal**: Successful operations (Created, Reconciling, Applied, Ready)
-- **Warning**: Issues that may need attention (ValidationFailed, ReconciliationRetry)
-
-**Event timeline for VPC:**
-
-```
-LAST SEEN   TYPE     REASON          OBJECT              MESSAGE
-2m          Normal   Created         vpc/web-app-prod    VPC created
-2m          Normal   Reconciling     vpc/web-app-prod    Processing VPC configuration
-1m          Normal   AgentUpdate     vpc/web-app-prod    Updated agent specs for switches
-1m          Normal   Ready           vpc/web-app-prod    VPC reconciliation complete
+```bash
+kubectl get agents
 ```
 
-**Event timeline for VPCAttachment:**
-
+Example output (all converged):
 ```
-LAST SEEN   TYPE     REASON          OBJECT                             MESSAGE
-3m          Normal   Created         vpcattachment/server-01            VPCAttachment created
-3m          Normal   Reconciling     vpcattachment/server-01            Processing attachment
-2m          Normal   Applied         vpcattachment/server-01            Configuration applied to leaf-01, leaf-02
-2m          Normal   Ready           vpcattachment/server-01            Attachment ready
+NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION   REBOOTREQ
+leaf-01    server-leaf   VS-01 MCLAG 1   30s       9          9          v0.96.2
+leaf-02    server-leaf   VS-02 MCLAG 1   29s       9          9          v0.96.2
+leaf-03    server-leaf   VS-03 ESLAG 1   28s       7          7          v0.96.2
+leaf-04    server-leaf   VS-04 ESLAG 1   27s       7          7          v0.96.2
+...
 ```
 
-**Using events for troubleshooting:**
+- **CURRENTG**: Generation of the current desired config (increments when VPC/VPCAttachment changes)
+- **APPLIEDG**: Generation that the switch agent has applied to the physical switch
+- **APPLIEDG == CURRENTG**: Reconciliation complete; the switch reflects the desired config
+- **APPLIEDG < CURRENTG**: Reconciliation in progress; wait 15–60 seconds and re-check
 
-- **No events**: Resource not picked up by controller (check controller logs)
-- **Warning events**: Configuration validation failed (fix YAML and reapply)
-- **Reconciling stuck**: Controller retrying (check referenced resources exist)
-- **Applied but connectivity fails**: Configuration applied to switches, problem is elsewhere (check server config)
+**Using generation counters for troubleshooting:**
 
-**Event retention:**
-
-Kubernetes events are typically retained for 1 hour by default. For historical analysis, use logging and monitoring tools.
+- **APPLIEDG stays below CURRENTG**: Agent not receiving config; check agent pod logs in the `fab` namespace
+- **CURRENTG not incrementing after YAML change**: Controller not picking up the change; check controller pod logs
+- **APPLIEDG converged but connectivity fails**: Config applied to switches; problem is at the server OS level
 
 ### Validation Checklist
 
@@ -517,14 +502,14 @@ Use this comprehensive checklist for every VPC deployment:
 - [ ] VPC exists (`kubectl get vpc <name>`)
 - [ ] Subnets configured correctly (CIDR, gateway, VLAN)
 - [ ] DHCP settings correct (if applicable)
-- [ ] No error events (`kubectl get events --field-selector involvedObject.name=<vpc-name>`)
+- [ ] Agent APPLIEDG == CURRENTG (`kubectl get agents`)
 
 **VPCAttachment Validation:**
 - [ ] VPCAttachments exist (`kubectl get vpcattachments`)
 - [ ] Connection references correct and exist
 - [ ] Subnet references correct (VPC/subnet format)
-- [ ] Events show successful reconciliation
-- [ ] No error or warning events
+- [ ] Agent APPLIEDG == CURRENTG on relevant switches (reconciliation complete)
+- [ ] No error shown in `kubectl describe vpcattachment <name>`
 
 **Agent CRD Validation (Advanced):**
 - [ ] VLANs configured on server-facing ports
@@ -572,7 +557,7 @@ kubectl get events --field-selector involvedObject.name=<vpc-name>
 **Investigation**:
 ```bash
 kubectl describe vpcattachment <name>
-kubectl get connection <connection-name> -n fab
+kubectl get connection <connection-name>
 kubectl get vpc <vpc-name>
 ```
 
@@ -588,9 +573,9 @@ kubectl get vpc <vpc-name>
 
 **Investigation**:
 ```bash
-kubectl get agent <switch-name> -n fab -o yaml
-kubectl get pods -n fab | grep agent
-kubectl logs <agent-pod-name> -n fab
+kubectl get agent <switch-name> -o yaml
+kubectl get pods | grep agent
+kubectl logs <agent-pod-name>
 ```
 
 **Fix**: Check agent pods, verify switch reachability, review agent logs
@@ -652,14 +637,14 @@ kubectl get vpcs -o yaml | grep -E "(name:|subnet:)"
 
 # Example output showing overlap:
 #   name: existing-vpc
-#     subnet: 10.10.0.0/16    # Overlaps with web-app-prod subnets!
-#   name: web-app-prod
+#     subnet: 10.10.0.0/16    # Overlaps with webapp-prod subnets!
+#   name: webapp-prod
 #     subnet: 10.10.10.0/24
 
-# Solution: Change web-app-prod subnets to non-overlapping range
+# Solution: Change webapp-prod subnets to non-overlapping range
 # Edit VPC YAML and change subnet CIDRs
 # Then reapply:
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 ```
 
 ### Issue: VPCAttachment events show "Connection not found"
@@ -672,7 +657,7 @@ kubectl apply -f web-app-prod-vpc.yaml
 
 ```bash
 # List connections to find correct name
-kubectl get connections -n fab | grep server-01
+kubectl get connections | grep server-01
 
 # Expected output:
 # server-01--mclag--leaf-01--leaf-02   2h
@@ -704,15 +689,15 @@ kubectl describe pod <agent-pod-name> -n fab
 kubectl logs <agent-pod-name> -n fab
 
 # Check if switch is reachable from agent pod
-kubectl exec <agent-pod-name> -n fab -- ping <switch-ip>
+kubectl exec -n fab <agent-pod-name> -- ping <switch-ip>
 
 # If switch is unreachable, verify switch management connectivity
 # If agent is crashing, check logs for gNMI authentication issues
 ```
 
-### Issue: Events show "Applied" but server can't ping gateway
+### Issue: Agents converged but server can't ping gateway
 
-**Symptom:** VPCAttachment events show configuration applied, but server has no network connectivity
+**Symptom:** Agent APPLIEDG == CURRENTG (configuration applied to switches), but server has no network connectivity
 
 **Cause:** Server OS network configuration missing or incorrect
 
@@ -739,26 +724,24 @@ sudo ip link set eth0.1020 up
 sudo dhclient eth0.1020
 ```
 
-### Issue: kubectl describe shows no events for VPC or VPCAttachment
+### Issue: No events visible for VPC or VPCAttachment
 
-**Symptom:** Resource exists but no events visible in describe output
+**Symptom:** kubectl describe for VPC or VPCAttachment shows an empty Events section
 
-**Cause:** Events expired (1 hour retention by default) or controller not running
+**Cause:** This is expected. The Hedgehog Fabric controller does not emit Kubernetes events for VPC or VPCAttachment operations.
 
-**Fix:**
+**What to check instead:**
 
 ```bash
-# Check if fabric controller is running
+# Use agent generation counters to verify reconciliation
+kubectl get agents
+
+# If CURRENTG is not incrementing after an apply, check the controller:
 kubectl get pods -n fab | grep controller
 
 # If controller is not running:
 kubectl describe pod <controller-pod-name> -n fab
 kubectl logs <controller-pod-name> -n fab
-
-# If events expired, check broader event history:
-kubectl get events -n fab --sort-by='.lastTimestamp' | tail -50
-
-# For long-term event retention, use logging/monitoring tools
 ```
 
 ### Issue: DHCP range exhausted, servers not getting IPs
@@ -771,12 +754,12 @@ kubectl get events -n fab --sort-by='.lastTimestamp' | tail -50
 
 ```bash
 # Check current DHCP configuration
-kubectl get vpc web-app-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
+kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 
 # Current range: 10.10.20.10 to 10.10.20.250 = 241 IPs
 
 # Solution 1: Expand DHCP range to larger subnet
-kubectl edit vpc web-app-prod
+kubectl edit vpc webapp-prod
 # Change subnet from /24 to /23 (512 IPs)
 # Update DHCP end range accordingly
 
@@ -809,15 +792,15 @@ kubectl delete vpcattachment <unused-attachment>
 
 **Agent** - Per-switch operational state
 
-- View all: `kubectl get agents -n fab`
-- View specific: `kubectl get agent <switch-name> -n fab`
-- Inspect: `kubectl describe agent <switch-name> -n fab`
-- View YAML: `kubectl get agent <switch-name> -n fab -o yaml`
+- View all: `kubectl get agents`
+- View specific: `kubectl get agent <switch-name>`
+- Inspect: `kubectl describe agent <switch-name>`
+- View YAML: `kubectl get agent <switch-name> -o yaml`
 
 **Connection** - Server-to-switch wiring
 
-- View all: `kubectl get connections -n fab`
-- View server connections: `kubectl get connections -n fab | grep server-`
+- View all: `kubectl get connections`
+- View server connections: `kubectl get connections | grep server-`
 
 ### kubectl Commands Reference
 
@@ -843,39 +826,36 @@ kubectl get events --sort-by='.lastTimestamp' | tail -20
 kubectl get events --field-selector involvedObject.name=<resource-name>
 
 # View all events in fabric namespace
-kubectl get events -n fab --sort-by='.lastTimestamp'
+kubectl get events --sort-by='.lastTimestamp'
 ```
 
 **Agent CRD inspection:**
 
 ```bash
 # List all agents (switches)
-kubectl get agents -n fab
+kubectl get agents
 
 # View agent YAML (full configuration)
-kubectl get agent <switch-name> -n fab -o yaml
+kubectl get agent <switch-name> -o yaml
 
 # Describe agent with events
-kubectl describe agent <switch-name> -n fab
+kubectl describe agent <switch-name>
 
 # Filter agent config for specific port
-kubectl get agent <switch-name> -n fab -o yaml | grep -A 10 "<port-name>"
+kubectl get agent <switch-name> -o yaml | grep -A 10 "<port-name>"
 ```
 
-**Event filtering:**
+**Reconciliation monitoring (replaces event-based checks):**
 
 ```bash
-# Events for VPC
-kubectl get events --field-selector involvedObject.name=<vpc-name>
+# Check reconciliation status for all switches
+kubectl get agents
 
-# Events for VPCAttachment
-kubectl get events --field-selector involvedObject.name=<attachment-name>
+# Watch reconciliation in real-time
+kubectl get agents --watch
 
-# Events for Agent
-kubectl get events --field-selector involvedObject.name=<agent-name> -n fab
-
-# Watch events in real-time
-kubectl get events --watch --sort-by='.lastTimestamp'
+# Note: kubectl get events returns empty for VPC and VPCAttachment objects —
+# this is expected. Agent generation counters are the correct reconciliation indicator.
 ```
 
 **DHCP verification:**
