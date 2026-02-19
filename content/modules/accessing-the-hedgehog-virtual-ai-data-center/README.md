@@ -152,7 +152,6 @@ gcloud compute instances create hedgehog-lab \
   --boot-disk-size=300GB \
   --boot-disk-type=pd-balanced \
   --enable-nested-virtualization \
-  --min-cpu-platform="Intel Cascade Lake" \
   --tags=http-server,https-server
 ```
 
