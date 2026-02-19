@@ -176,19 +176,19 @@ When you apply a CRD, a series of events occurs:
 6. **Status Report:** Agents report success back to Agent CRD status
 7. **Ready:** VPC status becomes Ready (when all switches configured)
 
-Each step generates **Kubernetes events** that you can observe:
+You can observe reconciliation progress via **Agent CRD status**:
 
 ```bash
-kubectl get events --field-selector involvedObject.name=my-vpc
+# Check that the agent's applied generation matches its current generation
+kubectl get agents
 
-# Example events:
-# Normal  Created         VPC created
-# Normal  Reconciling     Fabric controller processing
-# Normal  AgentUpdated    Agent specs generated
-# Normal  Ready           VPC reconciliation complete
+# APPLIED column shows the last time config was applied to the switch
+# APPLIEDG and CURRENTG columns should match when reconciliation is complete
 ```
 
-Events are your window into the control loop.
+**Note on Kubernetes Events:** In the current version of Hedgehog Fabric, the fabric controller does not emit Kubernetes events for VPC operations. If you run `kubectl get events --field-selector involvedObject.name=<vpc-name>` after creating a VPC, you will typically see no results — this is expected behavior, not an error. Verify reconciliation via agent status instead (shown in the lab below).
+
+Agent generation is your window into the control loop.
 
 ### Concept 4: Why This Model Matters for Operators
 
@@ -327,38 +327,36 @@ kubectl apply -f test-vpc.yaml
 # vpc.vpc.githedgehog.com/test-vpc created
 ```
 
-**Immediately check events (Terminal 1):**
+**Verify VPC was created:**
 
 ```bash
-kubectl get events --field-selector involvedObject.name=test-vpc --sort-by='.lastTimestamp'
-
-# You should see events like:
-# Normal  Created         VPC test-vpc created
-# Normal  Reconciling     Processing VPC configuration
-# (more events as reconciliation progresses)
-```
-
-**Validation:**
-
-```bash
-# Check VPC status
+# Check VPC appears in list
 kubectl get vpc test-vpc
 
 # Expected output:
-# NAME       AGE
-# test-vpc   30s
-
-# Get full VPC details
-kubectl get vpc test-vpc -o yaml | grep -A 5 status:
-
-# Status may be empty {} initially, or show conditions
+# NAME       IPV4NS    VLANNS    AGE
+# test-vpc   default   default   5s
 ```
+
+**Verify reconciliation via agent generation:**
+
+```bash
+# Check agents — APPLIEDG and CURRENTG should match, and APPLIED timestamp updates
+kubectl get agents
+
+# Expected output (APPLIEDG == CURRENTG for all agents means reconciliation complete):
+# NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+# leaf-01    server-leaf   VS-01 MCLAG 1   2m        6          6          v0.96.2
+# ...
+```
+
+> **Note on events:** Running `kubectl get events --field-selector involvedObject.name=test-vpc` will return no results — this is expected. The current version of Hedgehog Fabric does not emit Kubernetes events for VPC operations. Use agent status to verify reconciliation instead.
 
 **Success Criteria:**
 
-- ✅ VPC created without errors
-- ✅ Events visible showing reconciliation
-- ✅ VPC object exists in cluster
+- ✅ VPC created without errors (`vpc.vpc.githedgehog.com/test-vpc created`)
+- ✅ VPC object exists in cluster (`kubectl get vpc test-vpc` succeeds)
+- ✅ Agent APPLIEDG and CURRENTG match (reconciliation complete)
 
 ---
 
@@ -369,13 +367,13 @@ kubectl get vpc test-vpc -o yaml | grep -A 5 status:
 **Steps:**
 
 ```bash
-# View all Agent CRDs (one per switch)
-kubectl get agents -n fab
+# View all Agent CRDs (one per switch) — agents live in the default namespace
+kubectl get agents
 
 # Expected output:
-# NAME       AGE
-# leaf-01    Xh
-# leaf-02    Xh
+# NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
+# leaf-01    server-leaf   VS-01 MCLAG 1   Xm        6          6          v0.96.2
+# leaf-02    server-leaf   VS-02 MCLAG 1   Xm        6          6          v0.96.2
 # ... (7 agents total)
 ```
 
@@ -383,24 +381,23 @@ kubectl get agents -n fab
 
 ```bash
 # Look at leaf-01's Agent CRD
-kubectl get agent leaf-01 -n fab -o yaml | head -50
+kubectl get agent leaf-01 -o yaml | head -50
 
 # Look for these sections:
 # - spec: Contains desired configuration (from Fabric Controller)
 # - status: Contains switch operational state (from switch agent)
 ```
 
-**Check Agent status for VPC-related info:**
+**Check Agent status for reconciliation and operational info:**
 
 ```bash
 # View Agent status (switch reported state)
-kubectl get agent leaf-01 -n fab -o yaml | grep -A 20 "status:"
+kubectl get agent leaf-01 -o yaml | grep -A 20 "status:"
 
 # Look for:
-# - nos.version: SONiC version
-# - platform: Switch platform info
-# - interfaces: Interface states
-# - bgpNeighbors: BGP peering status (if relevant)
+# - conditions: Applied=True means switch successfully received config
+# - lastAppliedGen / lastAppliedTime: When config was last applied
+# - state.bgpNeighbors: BGP peering status
 ```
 
 **Observation Questions:**
@@ -430,12 +427,18 @@ kubectl get vpc test-vpc -o yaml | grep -A 10 status:
 # Look for status fields (may be minimal or empty)
 ```
 
-**Check recent events:**
+**Verify reconciliation via agent status:**
 
 ```bash
-kubectl get events --field-selector involvedObject.name=test-vpc --sort-by='.lastTimestamp' | tail -10
+# Check agent conditions — Applied=True means switch received and applied config
+kubectl get agent leaf-01 -o yaml | grep -A 10 "conditions:"
 
-# Look for "Ready" or "ReconcileSuccess" events
+# Expected output:
+# conditions:
+# - message: Config applied, gen=6
+#   reason: ApplySucceeded
+#   status: "True"
+#   type: Applied
 ```
 
 **Describe the VPC:**
@@ -443,24 +446,18 @@ kubectl get events --field-selector involvedObject.name=test-vpc --sort-by='.las
 ```bash
 kubectl describe vpc test-vpc
 
-# Look at the Events section at the bottom
-# Should show creation, reconciliation, and completion
+# Shows spec and metadata; the Events section will be empty — this is expected
 ```
 
 **Key Insight:**
 
-Even if VPC status is minimal, **events tell the story**. You can see:
-
-- When VPC was created
-- When controller reconciled it
-- If any errors occurred
-- When reconciliation completed
+VPC status is intentionally minimal, and Hedgehog does not currently emit Kubernetes events for VPC operations. Verify reconciliation via **Agent CRD status**: when `Applied=True` and `APPLIEDG == CURRENTG`, configuration has been successfully applied to switches.
 
 **Success Criteria:**
 
-- ✅ VPC shows no error events
-- ✅ Reconciliation events visible
 - ✅ VPC object stable (can be retrieved without errors)
+- ✅ Agent conditions show `Applied=True` (reconciliation succeeded)
+- ✅ Agent APPLIEDG matches CURRENTG for all switches
 
 ---
 
@@ -508,21 +505,23 @@ kubectl apply -f test-vpc-updated.yaml
 # vpc.vpc.githedgehog.com/test-vpc configured
 ```
 
-**Watch events:**
+**Verify the update via agent generation:**
 
 ```bash
-kubectl get events --field-selector involvedObject.name=test-vpc --sort-by='.lastTimestamp' | tail -10
+# The APPLIEDG column will increment when new config is pushed to switches
+kubectl get agents
 
-# You should see new reconciliation events as the update is applied
+# Then confirm both subnets are present in the VPC spec:
+kubectl get vpc test-vpc -o yaml | grep -E "(backend|default|subnet:)"
 ```
 
 **Observe:** The controller detects the change, updates Agent specs, switches reconfigure—all automatically.
 
 **Success Criteria:**
 
-- ✅ Update applied without errors
-- ✅ New reconciliation events visible
-- ✅ VPC now has two subnets (verify with `kubectl get vpc test-vpc -o yaml`)
+- ✅ Update applied without errors (`vpc.vpc.githedgehog.com/test-vpc configured`)
+- ✅ VPC now has two subnets (backend and default visible in YAML)
+- ✅ Agent APPLIEDG incremented (new configuration pushed to switches)
 
 ---
 
@@ -699,8 +698,8 @@ kubectl get vpc <vpc-name> -o yaml | grep -A 10 status:
 
 **Agent** - Switch agent containing detailed operational state
 
-- View: `kubectl get agents -n fab`
-- Inspect: `kubectl get agent <switch-name> -n fab -o yaml`
+- View: `kubectl get agents`
+- Inspect: `kubectl get agent <switch-name> -o yaml`
 - [Full Reference](../../../network-like-hyperscaler/research/CRD_REFERENCE.md#agent)
 
 ### kubectl Commands Reference
@@ -727,9 +726,9 @@ kubectl describe vpc <name>                                     # View events in
 **Agent CRD inspection:**
 
 ```bash
-kubectl get agents -n fab                         # List all agents
-kubectl get agent <switch-name> -n fab -o yaml    # View agent details
-kubectl describe agent <switch-name> -n fab       # View agent summary
+kubectl get agents                         # List all agents (in default namespace)
+kubectl get agent <switch-name> -o yaml    # View agent details
+kubectl describe agent <switch-name>       # View agent summary
 ```
 
 ### Workflow Reference
