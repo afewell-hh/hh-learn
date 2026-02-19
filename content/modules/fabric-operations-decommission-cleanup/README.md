@@ -22,7 +22,7 @@ order: 204
 
 ## Introduction
 
-In Modules 2.1-2.3, you completed the provisioning workflow: creating the `web-app-prod` VPC, attaching two servers, and validating connectivity. Your infrastructure is operational and serving traffic. But what happens when it's time to decommission?
+In Modules 2.1-2.3, you completed the provisioning workflow: creating the `webapp-prod` VPC, attaching two servers, and validating connectivity. Your infrastructure is operational and serving traffic. But what happens when it's time to decommission?
 
 Every resource has a lifecycle—from creation to deletion. Proper decommissioning is as critical as proper provisioning. Delete resources in the wrong order, and you risk orphaned configurations, switch misconfigurations, or leaving resources that consume fabric capacity unnecessarily.
 
@@ -43,12 +43,12 @@ By the end of this module, you will be able to:
 - Module 2.1 completion (VPC Provisioning Essentials)
 - Module 2.2 completion (VPC Attachments)
 - Module 2.3 completion (Connectivity Validation)
-- Existing `web-app-prod` VPC with 2 VPCAttachments (from previous modules)
+- Existing `webapp-prod` VPC with 2 VPCAttachments (from previous modules)
 - kubectl access to Hedgehog fabric
 
 ## Scenario: Application Decommission
 
-The `web-app-prod` application is being decommissioned after a successful migration to a new platform. Your task: safely remove the VPCAttachments and VPC without disrupting other fabric operations. You'll follow the proper cleanup order (attachments first, then VPC), validate each step, and verify the fabric returns to a clean state. This is your opportunity to complete the full lifecycle workflow and demonstrate Day 1 operations mastery.
+The `webapp-prod` application is being decommissioned after a successful migration to a new platform. Your task: safely remove the VPCAttachments and VPC without disrupting other fabric operations. You'll follow the proper cleanup order (attachments first, then VPC), validate each step, and verify the fabric returns to a clean state. This is your opportunity to complete the full lifecycle workflow and demonstrate Day 1 operations mastery.
 
 > **Before You Begin the Lab**
 >
@@ -72,8 +72,8 @@ kubectl get vpcs
 
 Expected output (similar to):
 ```
-NAME           AGE
-web-app-prod   2h
+NAME          IPV4NS    VLANNS    AGE
+webapp-prod   default   default   2h
 ```
 
 List current VPCAttachments:
@@ -84,15 +84,15 @@ kubectl get vpcattachments
 
 Expected output (similar to):
 ```
-NAME                       AGE
-server-01-web-servers      2h
-server-05-worker-nodes     2h
+NAME                     VPCSUBNET                  CONNECTION                           NATIVEVLAN   AGE
+server-01-web-servers    webapp-prod/web-servers    server-01--mclag--leaf-01--leaf-02                2h
+server-05-worker-nodes   webapp-prod/worker-nodes   server-05--eslag--leaf-03--leaf-04                2h
 ```
 
 Review what will be deleted:
 
 **Resources to decommission:**
-- **web-app-prod VPC** with 2 subnets:
+- **webapp-prod VPC** with 2 subnets:
   - web-servers (10.10.10.0/24, VLAN 1010)
   - worker-nodes (10.10.20.0/24, VLAN 1020, DHCP enabled)
 - **server-01-web-servers VPCAttachment** (MCLAG connection to leaf-01/leaf-02)
@@ -102,7 +102,7 @@ Document current state for later validation:
 
 ```bash
 # Save current VPC configuration
-kubectl get vpc web-app-prod -o yaml > web-app-prod-backup.yaml
+kubectl get vpc webapp-prod -o yaml > webapp-prod-backup.yaml
 
 # List attachments for documentation
 kubectl get vpcattachments -o wide
@@ -113,7 +113,7 @@ kubectl get vpcattachments -o wide
 ```
 1. Delete VPCAttachments FIRST (server-01-web-servers, server-05-worker-nodes)
 2. Validate all attachments removed
-3. Delete VPC LAST (web-app-prod)
+3. Delete VPC LAST (webapp-prod)
 4. Validate cleanup complete
 ```
 
@@ -139,7 +139,7 @@ kubectl delete vpcattachment server-01-web-servers
 
 Expected output:
 ```
-vpcattachment.vpc.githedgehog.com "server-01-web-servers" deleted
+vpcattachment.vpc.githedgehog.com "server-01-web-servers" deleted from default namespace
 ```
 
 Delete the second VPCAttachment (server-05):
@@ -150,7 +150,7 @@ kubectl delete vpcattachment server-05-worker-nodes
 
 Expected output:
 ```
-vpcattachment.vpc.githedgehog.com "server-05-worker-nodes" deleted
+vpcattachment.vpc.githedgehog.com "server-05-worker-nodes" deleted from default namespace
 ```
 
 Verify VPCAttachments are deleted:
@@ -163,13 +163,11 @@ kubectl get vpcattachments
 kubectl get vpcattachments | grep web-app
 ```
 
-Check cleanup reconciliation events:
+Verify reconciliation is complete:
 
 ```bash
-# View events for attachment deletions
-kubectl get events --sort-by='.lastTimestamp' | tail -20
-
-# Look for events indicating cleanup reconciliation
+# APPLIEDG should match CURRENTG on leaf-01/02 (MCLAG) and leaf-03/04 (ESLAG) after ~30 seconds
+kubectl get agents
 ```
 
 **What happens during VPCAttachment deletion:**
@@ -189,9 +187,9 @@ kubectl get events --sort-by='.lastTimestamp' | tail -20
 **Success Criteria:**
 
 - ✅ Both VPCAttachments deleted successfully
-- ✅ `kubectl get vpcattachments` shows no web-app resources
-- ✅ Events show successful cleanup reconciliation
-- ✅ No error events
+- ✅ `kubectl get vpcattachments` shows no webapp-prod resources
+- ✅ Agent APPLIEDG == CURRENTG (switch config cleaned up)
+- ✅ No errors on delete command output
 
 ### Step 3: Delete VPC (After Attachments Removed)
 
@@ -200,8 +198,8 @@ kubectl get events --sort-by='.lastTimestamp' | tail -20
 Before deleting the VPC, verify no attachments remain:
 
 ```bash
-# Check for any remaining attachments referencing web-app-prod
-kubectl get vpcattachments | grep web-app-prod
+# Check for any remaining attachments referencing webapp-prod
+kubectl get vpcattachments | grep webapp-prod
 
 # Expected: No results (empty output)
 ```
@@ -211,39 +209,32 @@ kubectl get vpcattachments | grep web-app-prod
 Delete the VPC:
 
 ```bash
-kubectl delete vpc web-app-prod
+kubectl delete vpc webapp-prod
 ```
 
 Expected output:
 ```
-vpc.vpc.githedgehog.com "web-app-prod" deleted
+vpc.vpc.githedgehog.com "webapp-prod" deleted from default namespace
 ```
 
 Verify VPC deletion:
 
 ```bash
 # Attempt to get the VPC (should return NotFound error)
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 ```
 
 Expected output:
 ```
-Error from server (NotFound): vpcs.vpc.githedgehog.com "web-app-prod" not found
+Error from server (NotFound): vpcs.vpc.githedgehog.com "webapp-prod" not found
 ```
 
 This error is **expected and correct**—it confirms the VPC is deleted.
 
-Check VPC cleanup events:
-
-```bash
-# View recent events
-kubectl get events --sort-by='.lastTimestamp' | tail -20
-```
-
 List remaining VPCs to confirm:
 
 ```bash
-# web-app-prod should not appear in this list
+# webapp-prod should not appear in this list
 kubectl get vpcs
 ```
 
@@ -259,9 +250,7 @@ kubectl get vpcs
 **Success Criteria:**
 
 - ✅ VPC deleted successfully
-- ✅ `kubectl get vpc web-app-prod` returns NotFound error
-- ✅ Events show successful VPC cleanup
-- ✅ No error events
+- ✅ `kubectl get vpc webapp-prod` returns NotFound error
 - ✅ VPC no longer appears in `kubectl get vpcs`
 
 ### Step 4: Validate Cleanup Completion
@@ -272,7 +261,7 @@ Verify VPC completely removed:
 
 ```bash
 # Should return NotFound error
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 ```
 
 Verify VPCAttachments completely removed:
@@ -286,10 +275,10 @@ Check Agent CRDs for switch cleanup:
 
 ```bash
 # Check leaf-01 (should no longer have VLAN 1010 for server-01)
-kubectl get agent leaf-01 -n fab -o yaml | grep -A 5 "1010"
+kubectl get agent leaf-01 -o yaml | grep -A 5 "1010"
 
 # Check leaf-03 (should no longer have VLAN 1020 for server-05)
-kubectl get agent leaf-03 -n fab -o yaml | grep -A 5 "1020"
+kubectl get agent leaf-03 -o yaml | grep -A 5 "1020"
 ```
 
 **Expected result:** VLANs 1010 and 1020 should be removed from the relevant Agent CRDs, indicating switches have been reconfigured.
@@ -298,25 +287,18 @@ Verify no orphaned resources:
 
 ```bash
 # List all VPCAttachments to ensure none reference deleted VPC
-kubectl get vpcattachments -o yaml | grep "web-app-prod"
+kubectl get vpcattachments -o yaml | grep "webapp-prod"
 
 # Expected: No results
 ```
 
-Review cleanup event timeline:
-
-```bash
-# View all recent events to see cleanup progression
-kubectl get events --sort-by='.lastTimestamp' | tail -30
-```
-
 **Validation checklist:**
 
-- ✅ VPC web-app-prod deleted (NotFound error when queried)
-- ✅ VPCAttachments deleted (no web-app resources in list)
-- ✅ Agent CRDs updated (VLANs removed from switch configurations)
+- ✅ VPC webapp-prod deleted (NotFound error when queried)
+- ✅ VPCAttachments deleted (no webapp-prod resources in list)
+- ✅ Agent CRDs updated: VLANs 1010 and 1020 absent from leaf-01 and leaf-03 agent YAML
 - ✅ No orphaned resources
-- ✅ Events show successful cleanup reconciliation
+- ✅ Agent APPLIEDG == CURRENTG (fabric state clean)
 - ✅ Fabric returned to clean state
 
 **Success Criteria:**
@@ -333,7 +315,7 @@ kubectl get events --sort-by='.lastTimestamp' | tail -30
 You've now completed the **entire Day 1 operations lifecycle** for Hedgehog Fabric:
 
 **Module 2.1: Provision VPC**
-- Created web-app-prod VPC with two subnets
+- Created webapp-prod VPC with two subnets
 - Configured IPv4 (static) and DHCPv4 subnets
 - Learned VPC CRD structure and reconciliation
 
@@ -413,7 +395,7 @@ VPCAttachments depend on VPCs. Each VPCAttachment references a VPC and subnet:
 ```yaml
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
-  subnet: web-app-prod/web-servers  # References VPC
+  subnet: webapp-prod/web-servers  # References VPC
 ```
 
 If you delete the VPC first, VPCAttachments reference a non-existent VPC, causing reconciliation errors.
@@ -434,13 +416,13 @@ The fabric controller cannot properly reconcile VPCAttachments without the paren
 
 ```bash
 # DON'T DO THIS - Wrong order!
-kubectl delete vpc web-app-prod  # VPC deleted
+kubectl delete vpc webapp-prod  # VPC deleted
 kubectl delete vpcattachment server-01-web-servers  # Attachment references deleted VPC
 ```
 
 **Consequences:**
 - VPCAttachments reference non-existent VPC
-- Events show reconciliation errors: "VPC web-app-prod not found"
+- Events show reconciliation errors: "VPC webapp-prod not found"
 - Switch ports may not be properly unconfigured
 - Manual cleanup required
 - Agent CRDs may retain partial configuration
@@ -453,13 +435,13 @@ kubectl delete vpcattachment server-01-web-servers
 kubectl delete vpcattachment server-05-worker-nodes
 
 # Step 2: Verify all attachments deleted
-kubectl get vpcattachments | grep web-app-prod  # Should be empty
+kubectl get vpcattachments | grep webapp-prod  # Should be empty
 
 # Step 3: Delete VPC
-kubectl delete vpc web-app-prod
+kubectl delete vpc webapp-prod
 
 # Step 4: Validate cleanup complete
-kubectl get vpc web-app-prod  # Should return NotFound
+kubectl get vpc webapp-prod  # Should return NotFound
 ```
 
 **Kubernetes safeguards:**
@@ -546,7 +528,7 @@ Once reconciliation completes, the VPCAttachment is fully removed from Kubernete
 **1. Kubernetes receives delete request**
 
 ```bash
-kubectl delete vpc web-app-prod
+kubectl delete vpc webapp-prod
 ```
 
 **2. Fabric Controller verifies no attachments**
@@ -696,7 +678,7 @@ Connectivity restores within 30-60 seconds after reconciliation.
 Re-create the VPC from YAML manifest:
 
 ```bash
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 ```
 
 **Important recovery notes:**
@@ -707,19 +689,19 @@ kubectl apply -f web-app-prod-vpc.yaml
 **Cannot delete VPC if attachments exist:**
 
 ```bash
-kubectl delete vpc web-app-prod
-# Error: VPC has active attachments
+kubectl delete vpc webapp-prod
+# Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request: VPC has attachments
 ```
 
 **Error message (example):**
 ```
-Error: cannot delete VPC "web-app-prod": active VPCAttachments exist
+Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request: VPC has attachments
 ```
 
 **Solution:**
-1. List all attachments: `kubectl get vpcattachments | grep web-app-prod`
+1. List all attachments: `kubectl get vpcattachments | grep webapp-prod`
 2. Delete each attachment: `kubectl delete vpcattachment <name>`
-3. Retry VPC deletion: `kubectl delete vpc web-app-prod`
+3. Retry VPC deletion: `kubectl delete vpc webapp-prod`
 
 ### Orphaned Resources and Cleanup
 
@@ -753,14 +735,14 @@ kubectl get vpcattachments
 kubectl get vpcattachment <name> -o yaml | grep "subnet:"
 
 # Example orphaned attachment:
-#   subnet: web-app-prod/web-servers  # VPC doesn't exist!
+#   subnet: webapp-prod/web-servers  # VPC doesn't exist!
 ```
 
 Verify the VPC exists:
 
 ```bash
-kubectl get vpc web-app-prod
-# Error from server (NotFound): vpcs.vpc.githedgehog.com "web-app-prod" not found
+kubectl get vpc webapp-prod
+# Error from server (NotFound): vpcs.vpc.githedgehog.com "webapp-prod" not found
 ```
 
 If VPC doesn't exist but VPCAttachment does, it's orphaned.
@@ -779,7 +761,7 @@ kubectl get vpcattachment server-01-web-servers
 Check Agent CRDs to ensure switch cleanup occurred:
 
 ```bash
-kubectl get agent leaf-01 -n fab -o yaml | grep -A 5 "1010"
+kubectl get agent leaf-01 -o yaml | grep -A 5 "1010"
 # Should not show VLAN 1010 configuration
 ```
 
@@ -795,11 +777,11 @@ kubectl get agent leaf-01 -n fab -o yaml | grep -A 5 "1010"
 
 ### Issue: Cannot delete VPC - "VPC has active attachments"
 
-**Symptom:** `kubectl delete vpc web-app-prod` fails with error message
+**Symptom:** `kubectl delete vpc webapp-prod` fails with error message
 
 **Error message:**
 ```
-Error: cannot delete VPC "web-app-prod": active VPCAttachments exist
+Error from server (Forbidden): admission webhook "vvpc.kb.io" denied the request: VPC has attachments
 ```
 
 **Cause:** One or more VPCAttachments still reference the VPC
@@ -811,22 +793,22 @@ Error: cannot delete VPC "web-app-prod": active VPCAttachments exist
 kubectl get vpcattachments
 
 # Step 2: Identify attachments referencing this VPC
-kubectl get vpcattachments -o yaml | grep "web-app-prod"
+kubectl get vpcattachments -o yaml | grep "webapp-prod"
 
 # Example output:
-#   subnet: web-app-prod/web-servers
-#   subnet: web-app-prod/worker-nodes
+#   subnet: webapp-prod/web-servers
+#   subnet: webapp-prod/worker-nodes
 
 # Step 3: Delete each attachment
 kubectl delete vpcattachment server-01-web-servers
 kubectl delete vpcattachment server-05-worker-nodes
 
 # Step 4: Verify all attachments deleted
-kubectl get vpcattachments | grep web-app-prod
+kubectl get vpcattachments | grep webapp-prod
 # Should return empty
 
 # Step 5: Retry VPC deletion
-kubectl delete vpc web-app-prod
+kubectl delete vpc webapp-prod
 
 # Should succeed now
 ```
@@ -837,7 +819,7 @@ kubectl delete vpc web-app-prod
 
 **Example:**
 ```bash
-kubectl get agent leaf-01 -n fab -o yaml | grep "1010"
+kubectl get agent leaf-01 -o yaml | grep "1010"
 # Still shows VLAN 1010 configuration even though attachment deleted
 ```
 
@@ -850,7 +832,7 @@ kubectl get agent leaf-01 -n fab -o yaml | grep "1010"
 sleep 60
 
 # Step 2: Check again
-kubectl get agent leaf-01 -n fab -o yaml | grep "1010"
+kubectl get agent leaf-01 -o yaml | grep "1010"
 
 # Step 3: If still present, check agent pod status
 kubectl get pods -n fab | grep agent
@@ -859,14 +841,14 @@ kubectl get pods -n fab | grep agent
 kubectl logs <agent-pod-name> -n fab | tail -50
 
 # Step 5: Check events for reconciliation progress
-kubectl get events -n fab --sort-by='.lastTimestamp' | tail -20
+kubectl get events --sort-by='.lastTimestamp' | tail -20
 
 # Step 6: If agent pod crashed, restart it
 kubectl delete pod <agent-pod-name> -n fab
 # Pod will restart and reapply configuration
 
 # Step 7: Verify cleanup after restart
-kubectl get agent leaf-01 -n fab -o yaml | grep "1010"
+kubectl get agent leaf-01 -o yaml | grep "1010"
 ```
 
 ### Issue: Orphaned VPCAttachment after VPC accidentally deleted
@@ -880,7 +862,7 @@ kubectl get vpcattachment server-01-web-servers
 # server-01-web-servers     3h
 
 kubectl describe vpcattachment server-01-web-servers
-# Shows error: VPC "web-app-prod" not found
+# Shows error: VPC "webapp-prod" not found
 ```
 
 **Cause:** VPC deleted before attachments (wrong order)
@@ -889,7 +871,7 @@ kubectl describe vpcattachment server-01-web-servers
 
 ```bash
 # Step 1: Confirm VPC is gone
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 # Error from server (NotFound) - confirms VPC deleted
 
 # Step 2: Delete orphaned VPCAttachment
@@ -900,11 +882,11 @@ kubectl get vpcattachment server-01-web-servers
 # Error from server (NotFound) - expected
 
 # Step 4: Check for other orphaned attachments
-kubectl get vpcattachments -o yaml | grep "web-app-prod"
+kubectl get vpcattachments -o yaml | grep "webapp-prod"
 # Should return nothing
 
 # Step 5: Verify switch cleanup
-kubectl get agent leaf-01 -n fab -o yaml | grep "1010"
+kubectl get agent leaf-01 -o yaml | grep "1010"
 # VLAN 1010 should be removed
 ```
 
@@ -918,7 +900,7 @@ kubectl get agent leaf-01 -n fab -o yaml | grep "1010"
 ```bash
 kubectl get vpcs
 # NAME           STATUS        AGE
-# web-app-prod   Terminating   5m
+# webapp-prod   Terminating   5m
 ```
 
 **Cause:** Finalizers preventing deletion, or controller issue
@@ -927,13 +909,13 @@ kubectl get vpcs
 
 ```bash
 # Step 1: Check VPC for finalizers
-kubectl get vpc web-app-prod -o yaml | grep finalizers -A 5
+kubectl get vpc webapp-prod -o yaml | grep finalizers -A 5
 
 # Step 2: Check events for errors
-kubectl get events --field-selector involvedObject.name=web-app-prod --sort-by='.lastTimestamp'
+kubectl get events --field-selector involvedObject.name=webapp-prod --sort-by='.lastTimestamp'
 
 # Step 3: Verify no attachments exist
-kubectl get vpcattachments | grep web-app-prod
+kubectl get vpcattachments | grep webapp-prod
 # Should be empty - if not, delete attachments
 
 # Step 4: Check fabric controller pod
@@ -941,10 +923,10 @@ kubectl get pods -n fab | grep controller
 kubectl logs <controller-pod-name> -n fab | tail -50
 
 # Step 5: If finalizers blocking, remove them (advanced - use caution)
-kubectl patch vpc web-app-prod -p '{"metadata":{"finalizers":[]}}' --type=merge
+kubectl patch vpc webapp-prod -p '{"metadata":{"finalizers":[]}}' --type=merge
 
 # Step 6: Verify deletion completes
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 # Should return NotFound
 ```
 
@@ -960,19 +942,19 @@ kubectl get vpc web-app-prod
 
 ```bash
 # Step 1: Check if you have a backup YAML manifest
-ls -la web-app-prod-vpc.yaml
+ls -la webapp-prod-vpc.yaml
 
 # If you saved the YAML earlier:
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 
 # If you don't have the YAML, you'll need to recreate from scratch
 
 # Step 2: Recreate VPC manually
-cat > web-app-prod-vpc.yaml <<'EOF'
+cat > webapp-prod-vpc.yaml <<'EOF'
 apiVersion: vpc.githedgehog.com/v1beta1
 kind: VPC
 metadata:
-  name: web-app-prod
+  name: webapp-prod
   namespace: default
 spec:
   ipv4Namespace: default
@@ -993,17 +975,17 @@ spec:
           end: 10.10.20.250
 EOF
 
-kubectl apply -f web-app-prod-vpc.yaml
+kubectl apply -f webapp-prod-vpc.yaml
 
 # Step 3: Verify VPC created
-kubectl get vpc web-app-prod
+kubectl get vpc webapp-prod
 
 # Step 4: Recreate VPCAttachments
 kubectl apply -f server-01-attachment.yaml
 kubectl apply -f server-05-attachment.yaml
 
 # Step 5: Validate connectivity (Module 2.3)
-kubectl describe vpc web-app-prod
+kubectl describe vpc webapp-prod
 kubectl describe vpcattachment server-01-web-servers
 ```
 
@@ -1077,13 +1059,13 @@ ping 10.10.10.1
 
 **Agent** - Per-switch operational state (for cleanup validation)
 
-- View all: `kubectl get agents -n fab`
-- View specific: `kubectl get agent <switch-name> -n fab -o yaml`
+- View all: `kubectl get agents`
+- View specific: `kubectl get agent <switch-name> -o yaml`
 - Validate cleanup: Check for removed VLANs after deletion
 
 **Connection** - Server-to-switch wiring (not deleted in this module)
 
-- View all: `kubectl get connections -n fab`
+- View all: `kubectl get connections`
 - Note: Connections persist after VPCAttachment deletion
 
 ### kubectl Commands Reference
@@ -1108,25 +1090,22 @@ kubectl delete vpc <name>
 # Step 5: Verify VPC deleted
 kubectl get vpc <name>  # Should return NotFound
 
-# Step 6: Validate cleanup
-kubectl get events --sort-by='.lastTimestamp' | tail -20
-kubectl get agent <switch-name> -n fab -o yaml | grep <vlan>
+# Step 6: Validate cleanup (agents should converge, VLANs should be absent)
+kubectl get agents
+kubectl get agent <switch-name> -o yaml | grep <vlan>
 ```
 
-**Event monitoring during cleanup:**
+**Reconciliation monitoring during cleanup:**
 
 ```bash
-# View recent events
-kubectl get events --sort-by='.lastTimestamp' | tail -20
+# Check agent convergence (APPLIEDG == CURRENTG = cleanup applied to switches)
+kubectl get agents
 
-# Watch events in real-time
-kubectl get events --watch
+# Watch in real-time
+kubectl get agents --watch
 
-# View events for specific resource
-kubectl get events --field-selector involvedObject.name=<resource-name>
-
-# View events in fab namespace (agents)
-kubectl get events -n fab --sort-by='.lastTimestamp'
+# Note: VPC and VPCAttachment operations do not emit Kubernetes events.
+# Use agent generation counters to verify reconciliation.
 ```
 
 **Validation commands:**
@@ -1141,7 +1120,7 @@ kubectl get vpcs
 kubectl get vpcattachments
 
 # Check Agent CRD for cleanup
-kubectl get agent <switch-name> -n fab -o yaml | grep -A 5 "<vlan-id>"
+kubectl get agent <switch-name> -o yaml | grep -A 5 "<vlan-id>"
 ```
 
 **Recovery commands:**
