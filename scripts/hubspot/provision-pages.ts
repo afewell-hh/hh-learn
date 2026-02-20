@@ -307,7 +307,7 @@ async function createOrUpdatePage(
 ): Promise<PageResult | null> {
   // Guardrails: allow only expected templates/slugs unless override is enabled
   const override = allowlistOverrideEnabled();
-  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning','learn/register']);
+  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning','learn/register','learn/claim-account']);
   const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
 
   if (!override) {
@@ -470,7 +470,7 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
     {
       name: 'Learn',
       slug: 'learn',
-      templatePath: 'CLEAN x HEDGEHOG/templates/learn/catalog.html',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/get-started.html',
       tableEnvVar: 'HUBDB_CATALOG_TABLE_ID'
     },
     {
@@ -501,6 +501,12 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       name: 'Register',
       slug: 'learn/register',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/register.html',
+      tableEnvVar: 'STATIC'
+    },
+    {
+      name: 'Claim Account',
+      slug: 'learn/claim-account',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/claim-account.html',
       tableEnvVar: 'STATIC'
     }
   ];
