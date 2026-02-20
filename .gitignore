@@ -6,6 +6,7 @@ dist
 .serverless
 coverage
 scratch.txt
+scratch/
 reference/*
 
 # HubSpot config file
