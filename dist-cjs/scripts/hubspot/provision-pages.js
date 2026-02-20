@@ -263,7 +263,7 @@ async function checkForMisnamedTemplates(dryRun = false) {
 async function createOrUpdatePage(config, tableId, dryRun = false, publish = false) {
     // Guardrails: allow only expected templates/slugs unless override is enabled
     const override = (0, get_hubspot_token_js_1.allowlistOverrideEnabled)();
-    const ALLOWED_SLUGS = new Set(['learn', 'learn/modules', 'learn/courses', 'learn/pathways', 'learn/my-learning', 'learn/register', 'learn/claim-account']);
+    const ALLOWED_SLUGS = new Set(['learn', 'learn/modules', 'learn/courses', 'learn/pathways', 'learn/my-learning', 'learn/register']);
     const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
     if (!override) {
         if (!ALLOWED_SLUGS.has(config.slug)) {
@@ -437,12 +437,6 @@ async function provisionPages(dryRun = false, publish = false) {
             name: 'Register',
             slug: 'learn/register',
             templatePath: 'CLEAN x HEDGEHOG/templates/learn/register.html',
-            tableEnvVar: 'STATIC'
-        },
-        {
-            name: 'Claim Account',
-            slug: 'learn/claim-account',
-            templatePath: 'CLEAN x HEDGEHOG/templates/learn/claim-account.html',
             tableEnvVar: 'STATIC'
         }
     ];
