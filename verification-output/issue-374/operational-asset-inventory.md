@@ -26,7 +26,9 @@ Production and shadow share HubSpot portal `21430285`. CRM isolation is operatio
 - Type: `enumeration` (select)
 - Group: `learning_milestones`
 - Options: `production`, `shadow`, `test`
+- `formField: true` — required for the property to appear in HubSpot form field selectors ("Show in forms and chat tools"). This enables adding it as a hidden field on the cloned shadow registration form.
 - Provisioning: `npm run provision:shadow-crm-properties` (requires `crm.schemas.contacts.write` scope on private app — currently not granted; operator must grant scope or create property manually)
+- The script is a true upsert: if the property already exists, it PATCHes it to reconcile `formField` and `options` rather than returning early. This ensures a previously created property with `formField: false` is corrected automatically.
 - Once provisioned: add as hidden field on shadow form (value: `shadow`), add as filter on any production workflows/lists
 
 ### API Scope Constraint

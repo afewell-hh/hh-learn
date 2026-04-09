@@ -63,6 +63,7 @@ No shadow-specific reports are needed until active shadow testing begins. When c
 | Type | `enumeration` (select) |
 | Group | `learning_milestones` |
 | Options | `production`, `shadow`, `test` |
+| Form-usable (`formField`) | `true` — must be enabled so the property appears in the HubSpot form field selector and can be added as a hidden field on the cloned shadow registration form |
 
 **Provisioning:**
 
