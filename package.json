@@ -21,6 +21,8 @@
     "provision:crm-properties": "node scripts/create-crm-properties.js",
     "publish:constants": "npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/publish-constants.js",
     "provision:pages": "npm run build && node dist/scripts/hubspot/provision-pages.js",
+    "provision:shadow-pages": "npm run build && node dist/scripts/hubspot/provision-shadow-pages.js",
+    "provision:shadow-crm-properties": "npm run build && node dist/scripts/hubspot/provision-shadow-crm-properties.js",
     "publish:pages": "npm run build && node dist/scripts/hubspot/publish-pages.js",
     "publish:template": "npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/publish-template.js",
     "validate:template": "npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/validate-template.js",

@@ -1,0 +1,418 @@
+/* Learn Landing Page Specific Styles */
+/* Issue #286: Dedicated /learn landing page */
+
+/* ==================== BUTTON STYLES ==================== */
+
+/* Primary button - main CTAs */
+.button {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.button-primary {
+  background: #1a4e8a;
+  color: #fff;
+  border: 2px solid #1a4e8a;
+}
+
+.button-primary:hover {
+  background: #0d2855;
+  border-color: #0d2855;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 78, 138, 0.3);
+}
+
+.button-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(26, 78, 138, 0.3);
+}
+
+/* Secondary button - alternative CTAs */
+.button-secondary {
+  background: transparent;
+  color: #1a4e8a;
+  border: 2px solid #1a4e8a;
+}
+
+.button-secondary:hover {
+  background: #1a4e8a;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 78, 138, 0.2);
+}
+
+.button-secondary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(26, 78, 138, 0.2);
+}
+
+/* Large button variant */
+.button-large {
+  padding: 16px 32px;
+  font-size: 1.125rem;
+}
+
+/* Hero CTA button container */
+.hero-ctas {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+/* ==================== LAYOUT STRUCTURE ==================== */
+
+/* Main landing page container */
+.learn-landing {
+  width: 100%;
+}
+
+/* Content container with max-width and padding */
+.landing-content-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 32px 64px 32px;
+}
+
+/* Section spacing */
+.landing-section {
+  margin-top: 80px;
+  margin-bottom: 80px;
+}
+
+.landing-section:first-child {
+  margin-top: 64px;
+}
+
+/* Section headers */
+.section-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.section-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+}
+
+.section-subtitle {
+  font-size: 1.125rem;
+  color: #6B7280;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ==================== LEVEL CARDS SECTION ==================== */
+
+.level-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.level-card {
+  background: #fff;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.level-card:hover {
+  border-color: #1a4e8a;
+  box-shadow: 0 8px 20px rgba(26, 78, 138, 0.12);
+  transform: translateY(-4px);
+}
+
+.level-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+.level-card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.level-card-description {
+  font-size: 1rem;
+  color: #6B7280;
+  line-height: 1.6;
+  margin: 0;
+  flex-grow: 1;
+}
+
+/* Level-specific colors */
+.level-card-beginner:hover {
+  border-color: #10B981;
+}
+
+.level-card-intermediate:hover {
+  border-color: #F59E0B;
+}
+
+.level-card-advanced:hover {
+  border-color: #8B5CF6;
+}
+
+/* ==================== EMPTY STATE ==================== */
+
+.empty-state {
+  text-align: center;
+  padding: 64px 32px;
+  background: #F9FAFB;
+  border-radius: 12px;
+  border: 1px dashed #D1D5DB;
+}
+
+.empty-state p {
+  font-size: 1.125rem;
+  color: #6B7280;
+  margin: 0 0 24px 0;
+}
+
+.empty-state .button {
+  margin-top: 8px;
+}
+
+/* ==================== FINAL CTA SECTION ==================== */
+
+.landing-cta-section {
+  background: linear-gradient(135deg, #1a4e8a 0%, #0d2855 100%);
+  color: #fff;
+  padding: 80px 32px;
+  border-radius: 16px;
+  margin-top: 96px;
+  text-align: center;
+}
+
+.cta-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.cta-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.5px;
+}
+
+.cta-subtitle {
+  font-size: 1.25rem;
+  margin: 0 0 32px 0;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.landing-cta-section .button-primary {
+  background: #fff;
+  color: #1a4e8a;
+  border-color: #fff;
+}
+
+.landing-cta-section .button-primary:hover {
+  background: #F3F4F6;
+  border-color: #F3F4F6;
+  color: #0d2855;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+/* Tablet breakpoint */
+@media (max-width: 900px) {
+  .landing-content-container {
+    padding: 0 24px 48px 24px;
+  }
+
+  .landing-section {
+    margin-top: 60px;
+    margin-bottom: 60px;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+  }
+
+  .section-subtitle {
+    font-size: 1rem;
+  }
+
+  .cta-title {
+    font-size: 2rem;
+  }
+
+  .cta-subtitle {
+    font-size: 1.125rem;
+  }
+
+  .level-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 768px) {
+  .hero-ctas {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero-ctas .button {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .landing-content-container {
+    padding: 0 16px 32px 16px;
+  }
+
+  .landing-section {
+    margin-top: 48px;
+    margin-bottom: 48px;
+  }
+
+  .section-header {
+    margin-bottom: 32px;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .section-subtitle {
+    font-size: 0.9375rem;
+  }
+
+  .landing-cta-section {
+    padding: 60px 24px;
+    margin-top: 64px;
+  }
+
+  .cta-title {
+    font-size: 1.75rem;
+  }
+
+  .cta-subtitle {
+    font-size: 1rem;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+  }
+
+  .cta-buttons .button {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .level-card {
+    padding: 24px 20px;
+  }
+
+  .level-icon {
+    font-size: 2.5rem;
+  }
+
+  .level-card-title {
+    font-size: 1.25rem;
+  }
+
+  .empty-state {
+    padding: 48px 24px;
+  }
+
+  .empty-state p {
+    font-size: 1rem;
+  }
+}
+
+/* Small mobile breakpoint */
+@media (max-width: 375px) {
+  .button {
+    font-size: 0.9375rem;
+    padding: 10px 20px;
+  }
+
+  .button-large {
+    font-size: 1rem;
+    padding: 14px 28px;
+  }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+
+/* Focus styles for keyboard navigation */
+.button:focus {
+  outline: 2px solid #1a4e8a;
+  outline-offset: 2px;
+}
+
+.button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.button:focus-visible {
+  outline: 2px solid #1a4e8a;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .button-primary {
+    border-width: 3px;
+  }
+
+  .button-secondary {
+    border-width: 3px;
+  }
+
+  .level-card {
+    border-width: 3px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .catalog-card,
+  .level-card {
+    transition: none;
+  }
+
+  .button:hover,
+  .level-card:hover {
+    transform: none;
+  }
+}
