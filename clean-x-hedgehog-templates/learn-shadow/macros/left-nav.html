@@ -1,0 +1,154 @@
+{# Left-side navigation and filter panel for learning list pages #}
+{% macro learning_left_nav(current_page, show_filters=true) %}
+  {# Inline constants (Issue #327/#345 fix: request_json doesn't exist in HubL) #}
+  {% set constants = {
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me'
+  } %}
+  {% set login_url = constants.AUTH_LOGIN_URL %}
+  {% set logout_url = constants.AUTH_LOGOUT_URL %}
+
+  {# Issue #345: Auth state managed by Cognito client-side, no server-side HubSpot membership check #}
+  <aside class="learn-left-nav" id="learn-left-nav" role="navigation" aria-label="Learning navigation">
+    <div class="learn-left-nav-content">
+      {# Navigation Links #}
+      <nav class="learn-nav-links" aria-label="Learning sections">
+        <a href="/learn-shadow" class="learn-nav-link {% if current_page == 'catalog' %}active{% endif %}" {% if current_page == 'catalog' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">🏠</span>
+          <span class="learn-nav-text">Catalog</span>
+        </a>
+        <a href="/learn-shadow/modules" class="learn-nav-link {% if current_page == 'modules' %}active{% endif %}" {% if current_page == 'modules' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">📚</span>
+          <span class="learn-nav-text">Modules</span>
+        </a>
+        <a href="/learn-shadow/courses" class="learn-nav-link {% if current_page == 'courses' %}active{% endif %}" {% if current_page == 'courses' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">🎓</span>
+          <span class="learn-nav-text">Courses</span>
+        </a>
+        <a href="/learn-shadow/pathways" class="learn-nav-link {% if current_page == 'pathways' %}active{% endif %}" {% if current_page == 'pathways' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">🗺️</span>
+          <span class="learn-nav-text">Pathways</span>
+        </a>
+        <a href="/learn-shadow/my-learning" class="learn-nav-link {% if current_page == 'my-learning' %}active{% endif %}" {% if current_page == 'my-learning' %}aria-current="page"{% endif %}>
+          <span class="learn-nav-icon" aria-hidden="true">📊</span>
+          <span class="learn-nav-text">My Learning</span>
+        </a>
+      </nav>
+
+      {# Divider #}
+      <div class="learn-nav-divider"></div>
+
+      {# Build absolute redirect URL for OAuth flow #}
+      {% set absolute_redirect = 'https://' ~ request.domain ~ request.path_and_query %}
+
+      {# Auth Links - Server renders both states; client-side JS toggles visibility based on Cognito #}
+      <div class="learn-nav-auth" role="region" aria-label="User authentication">
+        <div data-auth-state="authenticated" style="display:none;">
+          <div class="learn-user-greeting" id="auth-user-greeting" aria-live="polite">Hi there!</div>
+          <a href="{{ logout_url }}?redirect_url={{ absolute_redirect|urlencode }}" class="learn-auth-link" aria-label="Sign out of your account">
+            <span class="learn-nav-icon" aria-hidden="true">🚪</span>
+            <span class="learn-nav-text">Sign Out</span>
+          </a>
+        </div>
+
+        <div data-auth-state="anonymous">
+          <a href="/learn-shadow/register" class="learn-auth-link" aria-label="Create a Hedgehog Learn account">
+            <span class="learn-nav-icon" aria-hidden="true">📝</span>
+            <span class="learn-nav-text">Register</span>
+          </a>
+<a href="{{ login_url }}?redirect_url={{ absolute_redirect|urlencode }}" class="learn-auth-link" aria-label="Sign in to your account">
+            <span class="learn-nav-icon" aria-hidden="true">🔐</span>
+            <span class="learn-nav-text">Sign In</span>
+          </a>
+        </div>
+      </div>
+
+      {# Filter Panel (optional) #}
+      {% if show_filters %}
+        <div class="learn-nav-divider" role="separator"></div>
+
+        <div class="learn-filters" role="region" aria-label="Content filters">
+          <h3 class="learn-filters-title" id="filters-heading">Filters</h3>
+
+          {# Results Count #}
+          <div class="learn-filter-results" role="status" aria-live="polite">
+            Showing <strong><span id="visible-count">0</span></strong> of <strong><span id="total-count">0</span></strong> items
+          </div>
+
+          {# Search #}
+          <div class="learn-filter-group">
+            <label class="learn-filter-label" for="filter-search">Search</label>
+            <input type="text" id="filter-search" class="learn-filter-search" placeholder="Search titles and tags..." aria-label="Search by title or tags">
+          </div>
+
+          {# Type #}
+          <div class="learn-filter-group">
+            <fieldset>
+              <legend class="learn-filter-label">Type</legend>
+              <div class="learn-filter-options">
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="type" value="all" id="type-all" checked> All
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="type" value="module" checked> Modules
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="type" value="course" checked> Courses
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="type" value="pathway" checked> Pathways
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          {# Level #}
+          <div class="learn-filter-group">
+            <fieldset>
+              <legend class="learn-filter-label">Level</legend>
+              <div class="learn-filter-options">
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="level" value="all" id="level-all" checked> All
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="level" value="beginner" checked> Beginner
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="level" value="intermediate" checked> Intermediate
+                </label>
+                <label class="learn-filter-checkbox">
+                  <input type="checkbox" name="level" value="advanced" checked> Advanced
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          {# Duration #}
+          <div class="learn-filter-group">
+            <label class="learn-filter-label" for="filter-duration">Duration</label>
+            <select id="filter-duration" class="learn-filter-select" aria-label="Filter by duration">
+              <option value="all">Any duration</option>
+              <option value="0-30">Under 30 min</option>
+              <option value="30-60">30-60 min</option>
+              <option value="60-999">Over 60 min</option>
+            </select>
+          </div>
+
+          {# Clear Filters Button #}
+          <button type="button" id="clear-filters" class="learn-filter-clear" aria-label="Clear all filters">
+            Clear Filters
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  {# Mobile overlay #}
+  <div class="learn-nav-overlay" id="learn-nav-overlay"></div>
+
+  {# Mobile toggle button #}
+  <button class="learn-nav-toggle" id="learn-nav-toggle" aria-label="Toggle navigation">
+    <span class="learn-nav-toggle-icon">☰</span>
+  </button>
+{% endmacro %}

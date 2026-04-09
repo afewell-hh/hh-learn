@@ -18,6 +18,7 @@ const LOCAL_BASE = 'clean-x-hedgehog-templates';
 const REMOTE_BASE = 'CLEAN x HEDGEHOG/templates';
 const ALLOWED_REMOTE_PREFIXES = [
   'CLEAN x HEDGEHOG/templates/learn/',
+  'CLEAN x HEDGEHOG/templates/learn-shadow/',
   'CLEAN x HEDGEHOG/templates/assets/',
 ];
 const ALLOWED_SINGLE_FILE = 'CLEAN x HEDGEHOG/templates/config/constants.json';

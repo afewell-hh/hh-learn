@@ -1,0 +1,1034 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+{% from "/CLEAN x HEDGEHOG/templates/learn-shadow/macros/left-nav.html" import learning_left_nav %}
+
+{% block head %}
+  {{ super() }}
+
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
+
+  {#
+    Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+    HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+    Defined in shared scope so both detail and list views can access.
+    Source: clean-x-hedgehog-templates/config/constants.json
+  #}
+  {% set constants = {
+    'HUBDB_MODULES_TABLE_ID': '135621904',
+    'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+    'HUBDB_COURSES_TABLE_ID': '135381433',
+    'HUBDB_CATALOG_TABLE_ID': '136199186',
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+    'ENABLE_CRM_PROGRESS': true,
+    'LOGOUT_URL': '/_hcms/mem/logout',
+    'LOGIN_URL': '/_hcms/mem/login',
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
+    'TRACK_EVENTS_ENABLED': true,
+    'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
+    'ACTION_RUNNER_URL': '/learn-shadow/action-runner'
+  } %}
+
+  {% if dynamic_page_hubdb_row %}
+    {# SEO metadata for pathway detail pages #}
+    {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Pathways - Learn Hedgehog" %}
+    {% set meta_desc = dynamic_page_hubdb_row.meta_description|striptags|truncate(160) if dynamic_page_hubdb_row.meta_description else (dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) if dynamic_page_hubdb_row.summary_markdown else "Learn " ~ dynamic_page_hubdb_row.hs_name) %}
+    {% set canonical_url = "https://" ~ request.domain ~ "/learn-shadow/pathways/" ~ dynamic_page_hubdb_row.hs_path %}
+    {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else constants.DEFAULT_SOCIAL_IMAGE_URL %}
+
+    <title>{{ page_title }}</title>
+    <meta name="description" content="{{ meta_desc }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+
+    {# Open Graph tags #}
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ meta_desc }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:image" content="{{ social_image }}">
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ meta_desc }}">
+    <meta name="twitter:image" content="{{ social_image }}">
+
+    {# JSON-LD structured data for pathway detail #}
+    {# Note: Pathways are collections, so we use ItemList type #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": {{ dynamic_page_hubdb_row.hs_name|tojson }},
+      {% if dynamic_page_hubdb_row.meta_description or dynamic_page_hubdb_row.summary_markdown %}
+      "description": {{ meta_desc|tojson }},
+      {% endif %}
+      "url": "https://{{ request.domain }}/learn-shadow/pathways/{{ dynamic_page_hubdb_row.hs_path }}",
+      {% if dynamic_page_hubdb_row.module_count %}
+      "numberOfItems": {{ dynamic_page_hubdb_row.module_count }},
+      {% endif %}
+      "itemListElement": [
+          {#
+            Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+            HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+            Source: clean-x-hedgehog-templates/config/constants.json
+          #}
+          
+          {% if dynamic_page_hubdb_row.course_slugs_json and constants.HUBDB_COURSES_TABLE_ID %}
+            {# Pathway contains courses - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID %}
+            {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+            {% set slug_list = course_slugs|join(',') %}
+            {# HubL does not support __in on TEXT columns reliably; build list via per-slug hs_path__eq #}
+            {% set all_courses = [] %}
+            {% for slug in course_slugs %}
+              {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+              {% if rows %}
+                {% set all_courses = all_courses + rows %}
+              {% endif %}
+            {% endfor %}
+            {# Create lookup dictionary keyed by hs_path #}
+            {% set courses_by_slug = {} %}
+            {% for crs in all_courses %}
+              {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
+            {% endfor %}
+            {% for slug in course_slugs %}
+              {% set course = courses_by_slug[slug] %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "Course",
+            "name": {{ (course.hs_name if course else slug|replace('-',' ')|title)|tojson }},
+            "url": "https://{{ request.domain }}/learn-shadow/courses/{{ (course.hs_path if course else slug) }}"
+          }
+        }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        {% elif dynamic_page_hubdb_row.module_slugs_json and constants.HUBDB_MODULES_TABLE_ID %}
+          {# Pathway contains modules - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID %}
+          {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+          {% set slug_list = module_slugs|join(',') %}
+          {% set all_modules = [] %}
+          {% for slug in module_slugs %}
+            {% set rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if rows %}
+              {% set all_modules = all_modules + rows %}
+            {% endif %}
+          {% endfor %}
+          {# Create lookup dictionary keyed by hs_path #}
+          {% set modules_by_slug = {} %}
+          {% for mod in all_modules %}
+            {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
+          {% endfor %}
+          {% for slug in module_slugs %}
+            {% set module = modules_by_slug[slug] %}
+            {% if module %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "LearningResource",
+            "name": {{ module.hs_name|tojson }},
+            "url": "https://{{ request.domain }}/learn-shadow/modules/{{ module.hs_path }}"
+          }
+        }{% if not loop.last %},{% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      ]
+    }
+    </script>
+
+    {# BreadcrumbList JSON-LD #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Learn",
+          "item": "https://{{ request.domain }}/learn"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Pathways",
+          "item": "https://{{ request.domain }}/learn-shadow/pathways"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": {{ dynamic_page_hubdb_row.hs_name|tojson }}
+        }
+      ]
+    }
+    </script>
+  {% else %}
+    {# SEO metadata for pathways list page #}
+    {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL %}
+
+    {# Left nav CSS and JS for list pages #}
+    {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/left-nav.css')) }}
+    {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/left-nav.js'), { position: 'footer', defer: true }) }}
+
+    <title>Learning Pathways - Learn Hedgehog AI Networking</title>
+    <meta name="description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
+    <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/pathways">
+
+    {# Open Graph tags #}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Learning Pathways - Learn Hedgehog AI Networking">
+    <meta property="og:description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
+    <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/pathways">
+    <meta property="og:image" content="{{ social_image }}">
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Learning Pathways - Learn Hedgehog AI Networking">
+    <meta name="twitter:description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
+    <meta name="twitter:image" content="{{ social_image }}">
+
+    {# JSON-LD structured data for pathways list #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Learning Pathways",
+      "description": "Hedgehog AI Networking learning pathways",
+      "itemListElement": [
+        {# Prefer dynamic table binding; fallback to constants and finally hardcoded ID #}
+        {% set pathways_table_id = dynamic_page_hubdb_table_id %}
+        {% if not pathways_table_id %}
+          {#
+            Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+            HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+            Source: clean-x-hedgehog-templates/config/constants.json
+          #}
+          
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+        {% endif %}
+        {% if pathways_table_id %}
+          {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+          {% for pathway in pathways %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "ItemList",
+            "name": {{ pathway.hs_name|tojson }},
+            "url": "https://{{ request.domain }}/learn-shadow/pathways/{{ pathway.hs_path }}"
+            {% if pathway.summary_markdown %}
+            ,"description": {{ pathway.summary_markdown|striptags|truncate(160)|tojson }}
+            {% endif %}
+            {% if pathway.module_count %}
+            ,"numberOfItems": {{ pathway.module_count }}
+            {% endif %}
+          }
+        }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        {% endif %}
+      ]
+    }
+    </script>
+  {% endif %}
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* Header section styling */
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -1px;
+  }
+  .learn-page-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+  }
+  .learn-header-nav {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .learn-header-nav a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: background 0.2s;
+  }
+  .learn-header-nav a:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  .auth-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .user-greeting {
+    color: #fff;
+    font-size: 0.875rem;
+    opacity: 0.9;
+  }
+  .auth-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 6px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .auth-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Main content section */
+  .learn-main-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0;
+    min-height: 60vh;
+  }
+  .learn-container {
+    max-width: 1600px;
+    width: 100%;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(26,78,138,0.06);
+    min-height: 60vh;
+  }
+
+  /* Pathway grid (list view) */
+  .pathways-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+  }
+  .pathway-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+  }
+  .pathway-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .pathway-card h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+  }
+  .pathway-card-summary {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .pathway-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+  }
+  .pathway-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pathway-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Pathway detail view */
+  .pathway-detail {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .pathway-breadcrumbs {
+    padding: 16px 0;
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .pathway-breadcrumbs a {
+    color: #0066CC;
+    text-decoration: none;
+  }
+  .pathway-detail-header {
+    margin: 32px 0;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .pathway-detail-header h1 {
+    margin: 0 0 16px 0;
+    color: #1a4e8a;
+  }
+  .pathway-summary {
+    line-height: 1.8;
+    font-size: 1.0625rem;
+    margin: 32px 0;
+    padding: 24px;
+    background: #F9FAFB;
+    border-left: 4px solid #1a4e8a;
+    border-radius: 4px;
+  }
+
+  /* Module/Course list section */
+  .pathway-modules-section {
+    margin-top: 48px;
+  }
+  .pathway-modules-section h2 {
+    margin: 0 0 24px 0;
+    font-size: 1.75rem;
+    color: #111827;
+  }
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+  }
+  .module-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    position: relative;
+  }
+  .module-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .module-card-number {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #1a4e8a;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+  }
+  .module-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #1a4e8a;
+    padding-right: 40px;
+  }
+  .module-card p {
+    color: #666;
+    margin: 0 0 16px 0;
+    line-height: 1.6;
+  }
+  .module-time {
+    color: #666;
+    font-size: 0.875rem;
+  }
+  .module-cta {
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Progress tracker */
+  .pathway-progress {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .progress-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0c4a6e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .progress-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 0.875rem;
+    color: #0369a1;
+  }
+  .progress-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .progress-stat strong {
+    font-weight: 700;
+    color: #0c4a6e;
+  }
+  .progress-bar-container {
+    background: #ffffff;
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+  }
+  .progress-bar {
+    background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%);
+    height: 100%;
+    border-radius: 8px;
+    transition: width 0.3s ease;
+  }
+  .progress-auth-prompt {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #78350f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .progress-auth-prompt a {
+    color: #92400e;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  /* Enrollment CTA Block */
+  .enrollment-cta-block {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #0284c7;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+    text-align: center;
+  }
+  .enrollment-cta-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #0c4a6e;
+    margin: 0 0 12px 0;
+  }
+  .enrollment-cta-description {
+    font-size: 0.9375rem;
+    color: #0369a1;
+    margin: 0 0 20px 0;
+    line-height: 1.6;
+  }
+  .enrollment-button {
+    display: inline-block;
+    background: #1a4e8a;
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    text-decoration: none;
+  }
+  .enrollment-button:hover:not(:disabled) {
+    background: #154171;
+    transform: translateY(-2px);
+  }
+  .enrollment-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container {
+      padding: 0 16px;
+    }
+    .pathways-grid, .modules-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<main id="main-content">
+  {% if dynamic_page_hubdb_row %}
+    {# Detail mode - showing a single pathway #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        {# Omit a visible H1 in the hero on detail pages to avoid duplicates #}
+      </div>
+    </section>
+
+    <section class="learn-main-section">
+      <div class="learn-container">
+        <div class="pathway-detail">
+          <!-- Breadcrumbs -->
+          <nav class="pathway-breadcrumbs">
+            <a href="/learn-shadow/pathways">← Back to Learning Pathways</a>
+          </nav>
+
+          <!-- Pathway Header -->
+          <header class="pathway-detail-header">
+            <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
+            <div class="pathway-meta">
+              {% if dynamic_page_hubdb_row.course_slugs_json %}
+                {% set course_count = dynamic_page_hubdb_row.course_slugs_json|fromjson|length %}
+                <span class="pathway-meta-item">
+                  <strong>{{ course_count }}</strong> course{% if course_count != 1 %}s{% endif %}
+                </span>
+              {% elif dynamic_page_hubdb_row.module_count %}
+                <span class="pathway-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.module_count }}</strong> module{% if dynamic_page_hubdb_row.module_count != 1 %}s{% endif %}
+                </span>
+              {% endif %}
+              {% if dynamic_page_hubdb_row.total_estimated_minutes %}
+                <span class="pathway-meta-item">
+                  <strong>{{ dynamic_page_hubdb_row.total_estimated_minutes }}</strong> minutes total
+                </span>
+              {% endif %}
+            </div>
+          </header>
+
+          <!-- Enrollment CTA Block -->
+          {# Issue #345: Server renders login link - Cognito JS upgrades to button if authenticated #}
+          {% set auth_login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+          <div class="enrollment-cta-block" id="hhl-enrollment-cta">
+            <div class="enrollment-cta-title">Ready to Begin This Learning Pathway?</div>
+            <div class="enrollment-cta-description">
+              Enroll to track your progress and receive personalized recommendations as you work through this pathway.
+            </div>
+            {# Server always renders login link; enrollment.js upgrades to button if Cognito authenticated #}
+            <a class="enrollment-button"
+               id="hhl-enroll-login"
+               href="{{ auth_login_url }}?redirect_url={{ request.path_and_query|urlencode }}">
+              Sign in to enroll
+            </a>
+            <p class="enrollment-cta-helper" id="hhl-enroll-helper" aria-live="polite">
+              Already registered? <a href="{{ auth_login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to continue.
+            </p>
+          </div>
+
+          <!-- Progress Tracker -->
+          <div class="pathway-progress" id="pathway-progress">
+            <div class="progress-header">
+              <div class="progress-title">Your Progress</div>
+              <div class="progress-stats">
+                <div class="progress-stat">
+                  <span>Started: <strong id="progress-started">0</strong></span>
+                </div>
+                <div class="progress-stat">
+                  <span>Completed: <strong id="progress-completed">0</strong></span>
+                </div>
+              </div>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+            </div>
+            {#
+              Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+              HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+              Source: clean-x-hedgehog-templates/config/constants.json
+            #}
+            {% set auth_login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+            <div class="progress-auth-prompt" style="display: none;" id="auth-prompt">
+              ℹ️ Progress is saved locally. <a href="{{ auth_login_url }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a> to sync across devices.
+            </div>
+          </div>
+
+          {# Auth context for JS (Issue #345 - Cognito auth with inlined constants) #}
+          {# module_count is now precomputed in the sync script for both module-based and course-based pathways #}
+          {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+          {% set auth_logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+          <div id="hhl-auth-context"
+               data-auth-me-url="{{ auth_me_url }}"
+               data-auth-login-url="{{ auth_login_url }}"
+               data-auth-logout-url="{{ auth_logout_url }}"
+               data-enable-crm="true"
+               data-track-events-url="https://api.hedgehog.cloud/events/track"
+               data-pathway-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+               data-total-modules="{{ dynamic_page_hubdb_row.module_count|default(0) }}"
+               style="display:none"></div>
+          {# Line 696 - auth-context.js REMOVED (Issue #345: Cognito-only auth) #}
+          <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn-shadow/assets/js/cognito-auth-integration.js') }}"></script>
+          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/pathways.js') }}"></script>
+          <script>
+            (function() {
+              if (typeof window.waitForIdentityReady === 'function' && typeof window.getAuth === 'function') {
+                return;
+              }
+
+              function parseBoolean(value) {
+                if (typeof value === 'boolean') return value;
+                if (!value) return false;
+                var normalized = value.toString().trim().toLowerCase();
+                return normalized === 'true' || normalized === '1' || normalized === 'yes';
+              }
+
+              window.waitForIdentityReady = window.waitForIdentityReady || function() {
+                try {
+                  if (window.hhIdentity && window.hhIdentity.ready && typeof window.hhIdentity.ready.then === 'function') {
+                    return window.hhIdentity.ready;
+                  }
+                } catch (error) {}
+                return Promise.resolve(null);
+              };
+
+              window.getAuth = window.getAuth || function() {
+                var el = document.getElementById('hhl-auth-context');
+                var identity = (window.hhIdentity && typeof window.hhIdentity.get === 'function')
+                  ? window.hhIdentity.get()
+                  : null;
+                var authenticated = identity ? !!identity.authenticated : parseBoolean(el && el.getAttribute('data-authenticated'));
+                var email = identity && identity.email ? identity.email : (el && el.getAttribute('data-email')) || null;
+                var contactId = identity && identity.contactId ? identity.contactId : (el && el.getAttribute('data-contact-id')) || null;
+                return {
+                  authenticated: authenticated,
+                  email: email,
+                  contactId: contactId,
+                  enableCrm: parseBoolean(el && el.getAttribute('data-enable-crm')),
+                  trackEventsUrl: el && el.getAttribute('data-track-events-url')
+                };
+              };
+            })();
+          </script>
+          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/enrollment.js') }}"></script>
+          <script>
+            // Initialize enrollment UI when enrollment.js is loaded
+            document.addEventListener('DOMContentLoaded', function() {
+              if (window.hhInitEnrollment) {
+                window.hhInitEnrollment('pathway', '{{ dynamic_page_hubdb_row.hs_path }}');
+              }
+            });
+          </script>
+
+          <!-- Pathway Summary -->
+          {% if dynamic_page_hubdb_row.summary_markdown %}
+            <div class="pathway-summary">
+              {{ dynamic_page_hubdb_row.summary_markdown|safe }}
+            </div>
+          {% endif %}
+
+          <!-- Archived warning -->
+          {% set is_archived = false %}
+          {% if dynamic_page_hubdb_row.tags %}
+            {% set tag_list = dynamic_page_hubdb_row.tags|lower|split(',') %}
+            {% for tag in tag_list %}
+              {% if tag|trim == 'archived' %}
+                {% set is_archived = true %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if is_archived %}
+            <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+              This pathway is archived and may be out of date.
+            </div>
+          {% endif %}
+
+          {# Debug banner for pathway detail - only show when ?debug=1 is present #}
+          {% if request.query_dict.debug == '1' %}
+            <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-family:monospace; font-size:0.875rem;">
+              <strong>🔍 Debug Info (Pathway Detail):</strong><br>
+              Pathway: {{ dynamic_page_hubdb_row.hs_name }}<br>
+              {#
+                Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+                HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+                Source: clean-x-hedgehog-templates/config/constants.json
+              #}
+              
+              {% set courses_table_id_debug = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 135381433 %}
+              {% set modules_table_id_debug = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
+              courses_table_id: {{ courses_table_id_debug }}<br>
+              modules_table_id: {{ modules_table_id_debug }}<br>
+              constants.HUBDB_COURSES_TABLE_ID: {{ constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else "n/a" }}<br>
+              constants.HUBDB_MODULES_TABLE_ID: {{ constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else "n/a" }}<br>
+              has course_slugs_json: {{ "yes" if dynamic_page_hubdb_row.course_slugs_json else "no" }}<br>
+              has module_slugs_json: {{ "yes" if dynamic_page_hubdb_row.module_slugs_json else "no" }}
+            </div>
+          {% endif %}
+
+          <!-- Pathway Content: Prefer course_slugs_json if present, otherwise fallback to module_slugs_json -->
+          {#
+            Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+            HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+            Source: clean-x-hedgehog-templates/config/constants.json
+          #}
+          
+          {% set courses_table_id = constants.HUBDB_COURSES_TABLE_ID if constants and constants.HUBDB_COURSES_TABLE_ID else 135381433 %}
+          {% set modules_table_id = constants.HUBDB_MODULES_TABLE_ID if constants and constants.HUBDB_MODULES_TABLE_ID else 135621904 %}
+
+          {% if dynamic_page_hubdb_row.course_slugs_json and courses_table_id %}
+            {# Prefer courses when available - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            <section class="pathway-modules-section">
+              <h2>Courses</h2>
+              {% set course_slugs = dynamic_page_hubdb_row.course_slugs_json|fromjson %}
+              {# Fetch all courses in ONE query using hs_path__in operator #}
+              {% set slug_list = course_slugs|join(',') %}
+              {% set all_courses = [] %}
+              {% for slug in course_slugs %}
+                {% set rows = hubdb_table_rows(courses_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                {% if not rows or rows|length == 0 %}
+                  {# Fallback for hubs that expose 'path' instead of 'hs_path' in filters #}
+                  {% set rows = hubdb_table_rows(courses_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+                {% endif %}
+                {% if rows %}
+                  {% set all_courses = all_courses + rows %}
+                {% endif %}
+              {% endfor %}
+              {# Create lookup dictionary keyed by hs_path #}
+              {% set courses_by_slug = {} %}
+              {% for crs in all_courses %}
+                {% set _ = courses_by_slug.update({crs.hs_path: crs}) %}
+              {% endfor %}
+              <div class="modules-grid">
+                {% for slug in course_slugs %}
+                  {# Lookup course from batch-fetched dictionary #}
+                  {% set course = courses_by_slug[slug] %}
+                  {% if not course %}
+                    {# Defensive fallback: create a minimal object if lookup failed #}
+                    {% set course = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
+                  {% endif %}
+                    <a href="/learn-shadow/courses/{{ (course.hs_path if course else slug) }}" class="module-card">
+                      <div class="module-card-number">{{ loop.index }}</div>
+                      <h3>{{ course.hs_name if course else (slug|replace('-',' ')|title) }}</h3>
+
+                      {% if course and course.summary_markdown %}
+                        <p>{{ course.summary_markdown|striptags|truncate(150) }}</p>
+                      {% endif %}
+
+                      <div style="display: flex; gap: 16px; color: #666; font-size: 0.875rem; margin-bottom: 16px;">
+                        {% if course.module_slugs_json %}
+                          {% set module_count = course.module_slugs_json|fromjson|length %}
+                          <span><strong>{{ module_count }}</strong> module{% if module_count != 1 %}s{% endif %}</span>
+                        {% endif %}
+                        {% if course.estimated_minutes %}
+                          <span><strong>{{ course.estimated_minutes }}</strong> minutes</span>
+                        {% endif %}
+                      </div>
+
+                      <span class="module-cta">View Course →</span>
+                    </a>
+                {% endfor %}
+              </div>
+            </section>
+
+          {% elif dynamic_page_hubdb_row.module_slugs_json and modules_table_id %}
+            {# Fallback: Render modules list - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
+            <section class="pathway-modules-section">
+              <h2>Learning Modules</h2>
+              {% set modules_base_path = '/learn-shadow/modules' %}
+              {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
+              {# Fetch all modules in ONE query using hs_path__in operator #}
+              {% set slug_list = module_slugs|join(',') %}
+              {% set all_modules = [] %}
+          {% for slug in module_slugs %}
+            {% set rows = hubdb_table_rows(modules_table_id, "hs_path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% if not rows or rows|length == 0 %}
+              {# Fallback for hubs that expose 'path' instead of 'hs_path' in filters #}
+              {% set rows = hubdb_table_rows(modules_table_id, "path__eq=" ~ slug ~ "&tags__not__icontains=archived") %}
+            {% endif %}
+            {% if rows %}
+              {% set all_modules = all_modules + rows %}
+            {% endif %}
+          {% endfor %}
+              {# Create lookup dictionary keyed by hs_path #}
+              {% set modules_by_slug = {} %}
+              {% for mod in all_modules %}
+                {% set _ = modules_by_slug.update({mod.hs_path: mod}) %}
+              {% endfor %}
+              <div class="modules-grid">
+                {% for slug in module_slugs %}
+                  {# Lookup module from batch-fetched dictionary #}
+                  {% set module = modules_by_slug[slug] %}
+                  {% if module %}
+                    <a href="{{ modules_base_path }}/{{ module.hs_path }}" class="module-card">
+                      <div class="module-card-number">{{ loop.index }}</div>
+                      <h3>{{ module.hs_name }}</h3>
+
+                      {% if module.meta_description %}
+                        <p>{{ module.meta_description|striptags|truncate(150) }}</p>
+                      {% endif %}
+
+                      <div class="module-time">
+                        {{ module.estimated_minutes }} minutes
+                      </div>
+
+                      <div style="margin-top: 16px;">
+                        <span class="module-cta">Start Module →</span>
+                      </div>
+                    </a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+  {% else %}
+    {# List mode - showing all pathways #}
+    <section class="learn-header-section">
+      <div class="learn-header-content">
+        <h1 class="learn-page-title">Learning Pathways</h1>
+        <p class="learn-page-subtitle">Follow structured learning paths to master Hedgehog AI networking concepts step-by-step.</p>
+      </div>
+    </section>
+
+    <div class="learn-layout-with-nav">
+      {# Left navigation with filters #}
+      {{ learning_left_nav('pathways', show_filters=true) }}
+
+      {# Main content area #}
+      <div class="learn-main-content">
+        {# Prefer dynamic_page_hubdb_table_id, fallback to constants.json for backward compatibility #}
+        {% set pathways_table_id = dynamic_page_hubdb_table_id %}
+        {% if not pathways_table_id %}
+          {#
+            Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+            HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+            Source: clean-x-hedgehog-templates/config/constants.json
+          #}
+          
+          {% set pathways_table_id = constants.HUBDB_PATHWAYS_TABLE_ID %}
+        {% endif %}
+        {# Debug banner - only show when ?debug=1 is present #}
+        {% if request.query_dict.debug == '1' %}
+          <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-family:monospace; font-size:0.875rem;">
+            <strong>🔍 Debug Info (Pathways List):</strong><br>
+            pathways_table_id: {{ pathways_table_id if pathways_table_id else "n/a" }}<br>
+            dynamic_page_hubdb_table_id: {{ dynamic_page_hubdb_table_id if dynamic_page_hubdb_table_id else "n/a" }}<br>
+            constants.HUBDB_PATHWAYS_TABLE_ID: {{ constants.HUBDB_PATHWAYS_TABLE_ID if constants and constants.HUBDB_PATHWAYS_TABLE_ID else "n/a" }}
+          </div>
+        {% endif %}
+        {% if pathways_table_id %}
+          {% set pathways = hubdb_table_rows(pathways_table_id, "orderBy=display_order&tags__not__icontains=archived") %}
+          {% if pathways %}
+            <div class="pathways-grid">
+              {% for pathway in pathways %}
+                {% set is_archived = false %}
+                {% if pathway.tags %}
+                  {% set tag_list = pathway.tags|lower|split(',') %}
+                  {% for tag in tag_list %}
+                    {% if tag|trim == 'archived' %}
+                      {% set is_archived = true %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+                {% if not is_archived %}
+                <a href="{{ request.path }}/{{ pathway.hs_path }}" class="pathway-card">
+                  <h2>{{ pathway.hs_name }}</h2>
+
+                  {% if pathway.summary_markdown %}
+                    <p class="pathway-card-summary">{{ pathway.summary_markdown|striptags|truncate(150) }}</p>
+                  {% endif %}
+
+                  <div class="pathway-meta">
+                    {% if pathway.course_slugs_json %}
+                      {% set course_count = pathway.course_slugs_json|fromjson|length %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ course_count }}</strong> course{% if course_count != 1 %}s{% endif %}
+                      </span>
+                    {% elif pathway.module_count %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ pathway.module_count }}</strong> module{% if pathway.module_count != 1 %}s{% endif %}
+                      </span>
+                    {% endif %}
+                    {% if pathway.total_estimated_minutes %}
+                      <span class="pathway-meta-item">
+                        <strong>{{ pathway.total_estimated_minutes }}</strong> minutes
+                      </span>
+                    {% endif %}
+                  </div>
+
+                  <span class="pathway-cta">View Pathway →</span>
+                </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No learning pathways have been added yet.</p>
+          {% endif %}
+        {% else %}
+          <p><em>Bind this page to the Pathways table in the HubSpot page settings.</em></p>
+        {% endif %}
+      </div>
+    </div>
+    {# Cognito auth context for nav auth state on list pages #}
+    {#
+      Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+      HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+      Source: clean-x-hedgehog-templates/config/constants.json
+    #}
+    
+    {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+    {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+    {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+    <div
+      id="hhl-auth-context"
+      data-auth-me-url="{{ auth_me_url }}"
+      data-auth-login-url="{{ login_url }}"
+      data-auth-logout-url="{{ logout_url }}"
+      data-track-events-url="https://api.hedgehog.cloud/events/track"
+      data-enable-crm="true"
+      style="display:none"
+    ></div>
+    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn-shadow/assets/js/cognito-auth-integration.js') }}"></script>
+  {% endif %}
+</main>
+{% endblock body %}

@@ -1,0 +1,190 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+{% from "/CLEAN x HEDGEHOG/templates/learn-shadow/macros/left-nav.html" import learning_left_nav %}
+
+{% block head %}
+  {{ super() }}
+
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
+
+  {# Left nav + Catalog CSS/JS via require_* to ensure correct hub_generated paths #}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/left-nav.css')) }}
+  {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/catalog.css')) }}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/left-nav.js'), { position: 'footer', defer: true }) }}
+  {{ require_js(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/catalog-filters.js'), { position: 'footer', defer: true }) }}
+
+  {# SEO metadata #}
+  {#
+    Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+    HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+    Source: clean-x-hedgehog-templates/config/constants.json
+  #}
+  {% set constants = {
+    'HUBDB_MODULES_TABLE_ID': '135621904',
+    'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+    'HUBDB_COURSES_TABLE_ID': '135381433',
+    'HUBDB_CATALOG_TABLE_ID': '136199186',
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+    'ENABLE_CRM_PROGRESS': true,
+    'LOGOUT_URL': '/_hcms/mem/logout',
+    'LOGIN_URL': '/_hcms/mem/login',
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
+    'TRACK_EVENTS_ENABLED': true,
+    'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
+    'ACTION_RUNNER_URL': '/learn-shadow/action-runner'
+  } %}
+  {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
+
+  {# Auth URLs for Cognito integration #}
+  {% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+  {% set login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+  {% set logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+  {% set constants_url = get_asset_url('/CLEAN x HEDGEHOG/templates/config/constants.json') %}
+
+  <title>Learning Catalog - Browse All Content - Learn Hedgehog</title>
+  <meta name="description" content="Browse all learning content in one place - modules, courses, and pathways. Filter by type, difficulty, tags, and duration to find exactly what you need.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/catalog">
+
+  {# Open Graph tags #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Learning Catalog - Browse All Content">
+  <meta property="og:description" content="Browse all learning content in one place - modules, courses, and pathways. Filter by type, difficulty, tags, and duration.">
+  <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/catalog">
+  <meta property="og:image" content="{{ social_image }}">
+
+  {# Twitter Card tags #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Learning Catalog - Browse All Content">
+  <meta name="twitter:description" content="Browse all learning content in one place - modules, courses, and pathways.">
+  <meta name="twitter:image" content="{{ social_image }}">
+{% endblock head %}
+
+{% block body %}
+<main id="main-content">
+  <section class="learn-header-section">
+    <div class="learn-header-content">
+      <h1 class="learn-page-title">Learning Catalog</h1>
+      <p class="learn-page-subtitle">Browse all modules, courses, and pathways in one unified view</p>
+    </div>
+  </section>
+
+  <div class="learn-layout-with-nav">
+        {{ learning_left_nav('catalog', show_filters=true) }}
+
+    {# Main content area #}
+    <div class="learn-main-content">
+      {# Get catalog table ID from constants #}
+      {#
+        Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
+        HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
+        Source: clean-x-hedgehog-templates/config/constants.json
+      #}
+      
+      {% set catalog_table_id = dynamic_page_hubdb_table_id %}
+      {% if not catalog_table_id and constants %}
+        {% set catalog_table_id = constants.HUBDB_CATALOG_TABLE_ID if constants.HUBDB_CATALOG_TABLE_ID else none %}
+      {% endif %}
+
+      {# Debug info #}
+      {% if request.query_dict.debug == '1' %}
+        <div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-family:monospace; font-size:0.875rem;">
+          <strong>🔍 Debug Info (Catalog):</strong><br>
+          catalog_table_id: {{ catalog_table_id if catalog_table_id else "n/a" }}<br>
+          dynamic_page_hubdb_table_id: {{ dynamic_page_hubdb_table_id if dynamic_page_hubdb_table_id else "n/a" }}<br>
+          constants.HUBDB_CATALOG_TABLE_ID: {{ constants.HUBDB_CATALOG_TABLE_ID if constants and constants.HUBDB_CATALOG_TABLE_ID else "n/a" }}
+        </div>
+      {% endif %}
+
+      <div id="catalog-container">
+        {% if catalog_table_id %}
+          {% set catalog_items = hubdb_table_rows(catalog_table_id, "published__eq=true&orderBy=sort_order") %}
+          {% if catalog_items %}
+            <div class="catalog-grid" id="catalog-grid">
+              {% for item in catalog_items %}
+                {% set type_name = (item.type.name if item.type and item.type.name else item.type)|default('') %}
+                {% set level_name = (item.level.name if item.level and item.level.name else item.level)|default('') %}
+                {# Build dynamic URL based on type + slug extracted from url_path #}
+                {% set base_path = 
+                  ( '/learn-shadow/modules' if type_name == 'module' else 
+                    ( '/learn-shadow/courses' if type_name == 'course' else '/learn-shadow/pathways' ) ) %}
+                {% set raw = item.url_path|default('') %}
+                {% set segments = raw|split('/') %}
+                {% set slug = segments[segments|length - 1] if raw else '' %}
+                {% set href = '/learn-shadow/' ~ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) ~ '/' ~ slug %}
+                <article class="catalog-card"
+                         data-type="{{ type_name }}"
+                         data-level="{{ level_name|lower }}"
+                         data-duration="{{ item.duration|int }}"
+                         data-tags="{{ item.tags|lower }}"
+                         data-title="{{ item.title|lower }}">
+                  <div class="catalog-card-header">
+                    <span class="catalog-type-badge catalog-type-{{ type_name }}">
+                      {{ type_name|capitalize }}
+                    </span>
+                    {% if level_name %}
+                      <span class="catalog-level-badge">{{ level_name|capitalize }}</span>
+                    {% endif %}
+                  </div>
+
+                  <h2 class="catalog-card-title">
+                    <a href="https://{{ request.domain }}/learn-shadow/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}">{{ item.title }}</a>
+                  </h2>
+
+                  {% if item.summary %}
+                    <div class="catalog-card-summary">
+                      {{ item.summary|striptags|truncate(150) }}
+                    </div>
+                  {% endif %}
+
+                  <div class="catalog-card-meta">
+                    {% if item.duration %}
+                      <span class="catalog-meta-item">
+                        <span aria-hidden="true">⏱️</span> {{ item.duration }} min
+                      </span>
+                    {% endif %}
+                    {% if item.tags %}
+                      <span class="catalog-meta-item">
+                        <span aria-hidden="true">🏷️</span> {{ item.tags }}
+                      </span>
+                    {% endif %}
+                  </div>
+
+                  <a href="https://{{ request.domain }}/learn-shadow/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}" class="catalog-card-cta">
+                    Start Learning →
+                  </a>
+                </article>
+              {% endfor %}
+            </div>
+
+            {# No results message (hidden by default) #}
+            <div id="no-results" class="no-results" style="display:none;">
+              <p>No items match your current filters. Try adjusting your selections.</p>
+            </div>
+          {% else %}
+            <p>The catalog is currently empty. Please check back soon!</p>
+          {% endif %}
+        {% else %}
+          <p><em>Bind this page to the Catalog table in the HubSpot page settings, or set HUBDB_CATALOG_TABLE_ID in constants.</em></p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Cognito Auth Integration -->
+  <div id="hhl-auth-context"
+       data-auth-me-url="{{ auth_me_url }}"
+       data-auth-login-url="{{ login_url }}"
+       data-auth-logout-url="{{ logout_url }}"
+       data-track-events-url="https://api.hedgehog.cloud/events/track"
+       data-enable-crm="true"
+       style="display:none">
+  </div>
+  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn-shadow/assets/js/cognito-auth-integration.js') }}"></script>
+</main>
+{% endblock body %}
