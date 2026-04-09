@@ -1,107 +1,229 @@
 # My Learning Dashboard
 
+> **Updated:** 2026-04-09 (Issue #383 — UX redesign)  
+> **Prior baseline documented in:** `verification-output/issue-386/my-learning-data-flow-audit.md`  
+> This document reflects the current implementation. Earlier versions describing localStorage-only, pre-auth architecture are no longer accurate.
+
 ## Overview
 
-The "My Learning" dashboard (`/learn/my-learning`) is a learner-facing page that displays progress through learning modules based on localStorage tracking (no authentication required). This provides a centralized view of started and completed modules, helping learners track their progress and easily resume where they left off.
+The My Learning dashboard (`/learn/my-learning`) is a learner-facing page that shows a registered user's full learning journey — enrolled pathways and courses, module progress, and a resume CTA — backed by CRM data for authenticated users and localStorage for anonymous fallback.
 
-## Features
+**Shadow environment:** `/learn-shadow/my-learning` mirrors the same template and JS but always uses localStorage-only (CRM calls are disabled via `data-enable-crm="false"`).
 
-### 1. Progress Summary
-- **Visual Statistics**: Large, prominent display of in-progress and completed module counts
-- **Progress Bar**: Visual representation of overall completion (on pathways page)
-- **Auth Prompt**: When TRACK_EVENTS_ENABLED is false and user has activity, shows an unobtrusive note about signing in to sync progress across devices (coming in v0.3)
+---
 
-### 2. Module Sections
+## Data Sources (Priority Order)
 
-#### In Progress
-- Lists all modules that have been started but not completed
-- Each module card shows:
-  - "In Progress" badge
-  - Module title
-  - Estimated completion time
-  - Brief description
-  - "Continue Learning" call-to-action
+| Source | Role | When used |
+|--------|------|-----------|
+| HubSpot CRM (`hhl_progress_state`) | All authenticated progress + enrollment state | User authenticated via Cognito |
+| HubDB (Modules, Courses, Pathways tables) | Display metadata only (names, descriptions, time estimates, module/course ordering) | Always (for any data to display) |
+| `localStorage` (`hh-module-*`) | Anonymous fallback; CRM failure fallback | Anonymous sessions; shadow env; CRM call failure |
 
-#### Completed
-- Lists all modules marked as complete
-- Each module card shows:
-  - "Completed" badge (with green styling)
-  - Module title
-  - Estimated completion time
-  - Brief description
-  - "Review Module" call-to-action
+**Critical constraint:** `window.hhIdentity.ready` must resolve before CRM-backed loads are initiated. The JS always awaits this Promise before checking auth state.
 
-#### Empty State
-- Displayed when no modules have been started
-- Shows a friendly message encouraging users to explore pathways
-- Includes prominent "Explore Pathways" button linking to `/learn/pathways`
+---
 
-### 3. Header Navigation
-All Learn templates now include a navigation bar in the header with links to:
-- Modules (`/learn`)
-- Courses (`/learn/courses`)
-- Pathways (`/learn/pathways`)
-- **My Learning** (`/learn/my-learning`)
+## Authentication
 
-## Data Strategy (No Auth)
+Production auth is **Cognito OAuth via httpOnly cookies** — not HubSpot native membership. Flow:
 
-### localStorage Keys
-Currently, the system tracks progress using the following localStorage patterns:
+```
+Page load
+  → cognito-auth-integration.js (loaded synchronously)
+  → GET https://api.hedgehog.cloud/auth/me (sends httpOnly cookies)
+  → Lambda verifies Cognito JWT, looks up DynamoDB
+  → Returns { userId, email, displayName, hubspotContactId }
+  → window.hhIdentity hydrated; window.hhIdentity.ready resolves
+  → my-learning.js proceeds with auth check
+```
 
-1. **Pathway Progress**: `hh-pathway-progress-{pathwaySlug}`
-   - Stores JSON with `{ started: number, completed: number, lastUpdated: ISO8601 }`
-   - Tracks aggregate progress within a pathway
+Anonymous: `/auth/me` returns 401 → `window.hhIdentity.get()` returns `{ authenticated: false }`.
 
-2. **Module-Specific Progress** (future enhancement): `hh-module-{moduleSlug}`
-   - Will store JSON with `{ started: boolean, completed: boolean, lastUpdated: ISO8601 }`
-   - Enables per-module tracking independent of pathways
+The JS gate:
+```js
+if (auth.enableCrm && (auth.email || auth.contactId)) {
+  // CRM path — fetch /progress/read + /enrollments/list
+} else {
+  // localStorage fallback — show auth-prompt banner
+}
+```
 
-### Data Fetching
-The dashboard fetches module metadata from the Modules HubDB table by:
-1. Scanning localStorage for progress keys
-2. Extracting module slugs from progress data
-3. Querying HubDB Modules table filtered by `hs_path` (slug)
-4. Handling missing or stale entries gracefully (modules not found are skipped)
+`auth.enableCrm` reads `data-enable-crm` from `#hhl-auth-context`. Production: always `"true"`. Shadow: always `"false"`.
 
-### Privacy & Limitations
+---
 
-**Privacy**:
-- All progress data is stored locally in the browser's localStorage
-- No data is sent to servers unless TRACK_EVENTS_ENABLED is true
-- Progress is device-specific and browser-specific
-- Clearing browser data will reset progress
+## UX Sections (Issue #383 Redesign)
 
-**Limitations (until v0.3 with auth)**:
-- Progress does not sync across devices
-- Progress does not sync across browsers on the same device
-- No server-side backup of progress
-- Limited to browsers with localStorage support
-- Progress tracking is currently pathway-level, not module-level
+### 1. Progress Summary Bar
 
-## Template Structure
+Three stats rendered immediately by JS after data loads:
+- **In Progress** — count of modules started but not completed (from CRM or localStorage)
+- **Completed** — count of fully completed modules
+- **Enrolled** — count of enrolled pathways + courses (authenticated only; 0 for anonymous)
 
-### File Location
-`clean-x-hedgehog-templates/learn/my-learning.html`
+Auth-aware status message (right side of bar):
+- Authenticated: green `✓ Progress synced across devices` (`.synced-indicator`)
+- Anonymous: yellow `ℹ️ Progress is saved locally...` with Sign In link (`#auth-prompt`)
 
-### Template Binding
-The page is bound to the Modules HubDB table (via `HUBDB_MODULES_TABLE_ID`) to enable HubDB API access for fetching module metadata.
+### 2. Resume Panel (authenticated only)
 
-### Key Components
+Displayed when `last_viewed` is present in the `/progress/read` response.
 
-1. **Loading State**: Displays spinner while fetching data
-2. **Progress Summary Card**: Shows aggregate statistics
-3. **Section Headers**: Dynamically show/hide based on content
-4. **Module Cards**: Reusable card component with progress badges
-5. **Empty State**: Encourages exploration when no progress exists
+- Shows type badge (Module / Course), display title (fetched async from HubDB), relative time
+- Prominent "Continue →" CTA button
+- **Limitation:** only one `last_viewed` entry per user (CRM schema constraint). A multi-context resume would require schema changes.
+- In shadow: panel is not shown (CRM not called)
 
-### JavaScript Functionality
+### 3. My Enrollments (authenticated only)
 
-The page includes client-side JavaScript that:
-- Scans localStorage for all progress keys
-- Fetches module metadata from HubDB via REST API
-- Renders module cards dynamically
-- Handles loading, empty, and error states
-- Provides keyboard navigation support
+**Pathway cards:**
+- Title, enrolled date
+- Course progress: "X of Y courses complete" with progress bar
+  - Total course count from HubDB `course_slugs_json` (authoritative); falls back to CRM keys
+  - Completed count from CRM `courses[courseSlug].completed`
+- Status badge: Not Started / In Progress / Completed
+- CTA: links to first incomplete course (ordered by HubDB `course_slugs_json`)
+- Not shown in shadow (CRM not called)
+
+**Course cards:**
+- Title, enrolled date
+- Module progress: "X of Y modules complete" + time remaining (sum of `estimated_minutes` for non-completed modules)
+- Status badge: Not Started / In Progress / Completed
+- Collapsible module list with per-module status icons (✓ / ◐ / ○)
+- CTA: "Continue to Next Module" → first incomplete module; "Review Course" when complete
+- Not shown in shadow (CRM not called)
+
+### 4. In Progress / Completed Modules
+
+Flat module cards with:
+- Progress badge (In Progress / Completed)
+- Course context badge (e.g., "Network Like Hyperscaler Foundations") — derived from CRM progress state, no extra API call
+- Module title, time estimate, description excerpt
+- "Continue Learning" / "Review Module" CTA
+
+These sections use HubDB module metadata for display. Progress state comes from CRM (hierarchical model) or localStorage (fallback).
+
+### 5. Empty State
+
+Shown only when there are **no** in-progress or completed modules **and** no enrollments:
+- "Start Your Learning Journey" with "Explore Pathways" CTA
+- If anonymous (localStorage path), the auth-prompt banner above already shows sign-in
+
+If enrolled courses/pathways are showing but module progress is empty, the empty state is suppressed (the enrollment cards provide CTAs to start).
+
+---
+
+## Data Fetching Sequence (authenticated path)
+
+```
+waitForIdentityReady()
+  → getAuth() — reads enableCrm, email, contactId
+  → if authenticated:
+      parallel:
+        GET /progress/read?contactId=…
+        GET /enrollments/list?contactId=…
+      → showResume(last_viewed)      — renders resume panel; async HubDB title lookup
+      → renderEnrolledContent(…)     — fetches HubDB pathways (course counts) + courses
+                                        (module slugs) + all modules in one batch
+      → renderFromSets(setsFromCrm(progress))  — fetches HubDB for module display metadata
+  → if anonymous:
+      renderFromSets(getAllProgress())  — reads localStorage, fetches HubDB for display
+```
+
+---
+
+## Progress State Schema (`hhl_progress_state`)
+
+Two structural variants in the CRM property:
+
+**Hierarchical (current NLH pathway):**
+```json
+{
+  "<pathway-slug>": {
+    "enrolled": true,
+    "started": true,
+    "completed": false,
+    "courses": {
+      "<course-slug>": {
+        "completed": false,
+        "modules": {
+          "<module-slug>": { "started": true, "completed": true }
+        }
+      }
+    }
+  },
+  "courses": {
+    "<standalone-course-slug>": {
+      "enrolled": true,
+      "modules": { "<module-slug>": { "started": true, "completed": false } }
+    }
+  }
+}
+```
+
+**Flat/legacy (backward-compat):**
+```json
+{
+  "<pathway-slug>": {
+    "enrolled": true,
+    "modules": { "<module-slug>": { "started": true, "completed": false } }
+  }
+}
+```
+
+The JS `setsFromCrm()` handles both. Lambda reads and writes both.
+
+---
+
+## localStorage Schema (fallback only)
+
+Key pattern: `hh-module-<slug>`  
+Value: `{ "started": boolean, "completed": boolean }`
+
+**Note:** `hh-pathway-progress-{slug}` keys are **not read** by `my-learning.js`. They exist in the codebase for other tracking but are not consumed here.
+
+---
+
+## Files
+
+| File | Role |
+|------|------|
+| `clean-x-hedgehog-templates/learn/my-learning.html` | Production page template |
+| `clean-x-hedgehog-templates/learn-shadow/my-learning.html` | Shadow page template |
+| `clean-x-hedgehog-templates/assets/js/my-learning.js` | Production dashboard JS |
+| `clean-x-hedgehog-templates/assets/shadow/js/my-learning.js` | Shadow dashboard JS |
+| `clean-x-hedgehog-templates/learn/assets/js/cognito-auth-integration.js` | Cognito OAuth auth integration |
+| `clean-x-hedgehog-templates/assets/js/login-helper.js` | Login UI helpers |
+
+---
+
+## Production vs Shadow
+
+| Aspect | Production | Shadow |
+|--------|------------|--------|
+| URL | `/learn/my-learning` | `/learn-shadow/my-learning` |
+| `data-enable-crm` | `"true"` | `"false"` |
+| CRM calls | Yes (`/progress/read`, `/enrollments/list`) | Never |
+| Progress source | CRM (fallback: localStorage) | localStorage only |
+| Resume panel | Shown if CRM has `last_viewed` | Never shown |
+| Enrollments section | Shown if CRM has enrollments | Never shown |
+| Module links | `/learn/<slug>` | `/learn-shadow/modules/<slug>` |
+| Search indexing | Default | `noindex, nofollow` |
+
+**Shadow cannot validate CRM enrollment or progress flows.** It always renders the localStorage-only (anonymous) path, regardless of auth state.
+
+---
+
+## HubDB Tables Used
+
+| Table | ID | Used for |
+|-------|----|---------|
+| Modules | `135621904` | Module display metadata (name, description, time, path) |
+| Courses | `135381433` | `module_slugs_json` — ordered module list per course |
+| Pathways | `135381504` | `course_slugs_json` — ordered course list per pathway |
+
+---
 
 ## Provisioning
 
@@ -111,51 +233,33 @@ The `/learn/my-learning` page is created/updated via:
 npm run provision:pages
 ```
 
-The provisioning script (`scripts/hubspot/provision-pages.ts`) includes the My Learning page configuration:
-
-```typescript
-{
-  name: 'My Learning',
-  slug: 'learn/my-learning',
-  templatePath: 'CLEAN x HEDGEHOG/templates/learn/my-learning.html',
-  tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
-}
-```
-
-## Accessibility
-
-- **Semantic HTML**: Proper use of `<nav>`, `<section>`, `<header>` elements
-- **ARIA Labels**: Navigation and regions are properly labeled
-- **Keyboard Navigation**: All interactive elements are keyboard accessible
-- **Focus States**: Visible focus indicators on all links and buttons
-- **Screen Reader Support**: Progress information announced to screen readers
-
-## Future Enhancements (v0.3)
-
-When authentication is added in v0.3:
-1. Progress will sync across devices
-2. Server-side progress storage and retrieval
-3. Progress history and analytics
-4. Recommendations based on progress patterns
-5. Achievement/badge system
-6. Social sharing of completed modules
+---
 
 ## Testing Checklist
 
-- [ ] Page loads without JavaScript errors
-- [ ] Loading state displays initially
-- [ ] Empty state shows when no progress exists
-- [ ] Module cards render with correct data when progress exists
-- [ ] Progress summary statistics are accurate
-- [ ] Navigation links work correctly
-- [ ] Responsive design works on mobile/tablet
-- [ ] Keyboard navigation functions properly
-- [ ] Screen reader announcements are appropriate
-- [ ] localStorage clearing resets the dashboard
-- [ ] Handles missing/archived modules gracefully
+### Shadow-verifiable (localStorage path)
+- [ ] Page loads without JS errors
+- [ ] Loading spinner shown initially
+- [ ] Empty state shows when localStorage has no progress
+- [ ] Module cards render with course context badge when progress exists
+- [ ] Progress summary stats correct
+- [ ] Auth-prompt banner shown (anonymous path)
+- [ ] Responsive design on mobile/tablet
+
+### Production-only (requires authenticated CRM user)
+- [ ] `window.hhIdentity.ready` awaited before CRM calls
+- [ ] Resume panel shows with real module/course title
+- [ ] Pathway enrollment card shows course count from HubDB + completed count from CRM
+- [ ] Course enrollment card shows time remaining for incomplete modules
+- [ ] Status badges (Not Started / In Progress / Completed) correct
+- [ ] Synced indicator shown (not auth-prompt) for authenticated users
+- [ ] Empty state suppressed when enrollments showing
+- [ ] CRM fallback to localStorage when `/progress/read` fails
+
+---
 
 ## Related Documentation
 
-- [Events & Analytics](./events-and-analytics.md) - Details on TRACK_EVENTS_ENABLED and beacon tracking
-- [Architecture](./architecture.md) - Overall system architecture
-- [Course Authoring](./course-authoring.md) - Content creation guidelines
+- `verification-output/issue-386/my-learning-data-flow-audit.md` — full data flow audit (source of truth for architecture)
+- `docs/auth-and-progress.md` — auth flow overview (note: older sections reference HubSpot membership, which was replaced by Cognito; see issue #386 constraints)
+- `verification-output/issue-383/` — #383 redesign verification artifacts

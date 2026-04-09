@@ -474,6 +474,144 @@
     to { transform: rotate(360deg); }
   }
 
+  /* Resume panel — #383 redesign */
+  #last-viewed-panel {
+    margin: 0 0 24px 0;
+    padding: 16px 20px;
+    border: 1px solid #BFDBFE;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%);
+  }
+  .resume-panel-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .resume-panel-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+  .resume-type-badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #DBEAFE;
+    color: #1E40AF;
+    width: fit-content;
+  }
+  .resume-type-course {
+    background: #FEF3C7;
+    color: #92400E;
+  }
+  .resume-type-module {
+    background: #DBEAFE;
+    color: #1E40AF;
+  }
+  .resume-title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .resume-meta {
+    font-size: 0.8125rem;
+    color: #6B7280;
+  }
+  .resume-cta {
+    background: #1a4e8a;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    padding: 10px 20px;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .resume-cta:hover {
+    background: #154171;
+    color: #fff;
+  }
+
+  /* Status badges — #383 redesign */
+  .enrollment-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .enrollment-status-badge {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .status-completed {
+    background: #D1FAE5;
+    color: #065F46;
+  }
+  .status-in-progress {
+    background: #DBEAFE;
+    color: #1E40AF;
+  }
+  .status-not-started {
+    background: #F3F4F6;
+    color: #6B7280;
+  }
+
+  /* Course time-remaining badge — #383 redesign */
+  .enrollment-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .enrollment-time-remaining {
+    font-size: 0.8125rem;
+    color: #0369A1;
+    font-weight: 600;
+    background: #E0F2FE;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+
+  /* Completed CTA variant */
+  .enrollment-cta--done {
+    color: #059669;
+  }
+  .enrollment-cta--done:hover {
+    color: #047857;
+  }
+
+  /* Module card course context badge — #383 redesign */
+  .module-card-course {
+    margin: 2px 0 8px;
+  }
+  .module-course-context {
+    font-size: 0.75rem;
+    color: #6B7280;
+    background: #F3F4F6;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
   @media (max-width: 900px) {
     .learn-header-content, .learn-container {
       padding: 0 16px;
@@ -487,6 +625,15 @@
     }
     .progress-stats {
       gap: 32px;
+    }
+    .resume-panel-inner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .resume-cta {
+      width: 100%;
+      text-align: center;
+      justify-content: center;
     }
   }
 </style>
@@ -511,7 +658,7 @@
 
       <!-- Main content (hidden until loaded) -->
       <div id="main-content-container" style="display: none;">
-        <!-- Progress Summary -->
+        <!-- Progress Summary — #383: added Enrolled stat, auth-aware state driven by JS -->
         <div class="progress-summary">
           <div class="progress-stats">
             <div class="progress-stat">
@@ -522,8 +669,13 @@
               <div class="progress-stat-number" id="stat-completed">0</div>
               <div class="progress-stat-label">Completed</div>
             </div>
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-enrolled">0</div>
+              <div class="progress-stat-label">Enrolled</div>
+            </div>
           </div>
-          {# Issue #345: Auth state and prompts driven by Cognito JS client-side #}
+          {# Issue #345 / #383: Auth state and prompts driven by Cognito JS client-side.
+             synced-indicator shown for CRM-authenticated users; auth-prompt for anonymous. #}
           <div class="synced-indicator" style="display: none;">
             <span class="synced-indicator-icon">✓</span>
             <span>Progress synced across devices</span>
@@ -533,12 +685,8 @@
           </div>
         </div>
 
-        <!-- Resume Panel (authenticated only) -->
-        <div id="last-viewed-panel" style="display:none; margin: 16px 0 8px 0; padding: 12px 16px; border:1px solid #E5E7EB; border-radius:8px; background:#F9FAFB;">
-          <span style="color:#374151; font-weight:600;">Resume: </span>
-          <a id="last-viewed-link" href="#" style="color:#0066CC; font-weight:600; text-decoration:none;"></a>
-          <span id="last-viewed-meta" style="color:#6B7280; margin-left:8px;"></span>
-        </div>
+        <!-- Resume Panel (authenticated only) — #383: JS regenerates full innerHTML for richer UX -->
+        <div id="last-viewed-panel" style="display:none;"></div>
 
         <!-- Enrolled Content Section (authenticated only) -->
         <section id="enrolled-section" style="display: none;">
@@ -596,6 +744,7 @@
      data-track-events-url="https://api.hedgehog.cloud/events/track"
      data-hubdb-courses-table-id="135381433"
      data-hubdb-modules-table-id="135621904"
+     data-hubdb-pathways-table-id="135381504"
      style="display:none"></div>
 <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/login-helper.js') }}"></script>
 {# Line 609 - Cognito auth replaces membership auth (Issue #345) - NO defer to load before my-learning.js #}
