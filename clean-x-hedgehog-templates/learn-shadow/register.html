@@ -115,10 +115,23 @@
           </div>
 
           <script>
+            {#
+              SHADOW FORM — OPERATOR ACTION REQUIRED (Issue #374)
+              This form ID must be replaced with the shadow-specific form.
+              Steps:
+              1. In HubSpot: Marketing → Forms → clone production form
+                 "HH-Learn Registration" → name it "HH-Learn Registration — Shadow"
+              2. Add hidden field to shadow form: hhl_environment = shadow
+              3. Copy the new form GUID and replace SHADOW_FORM_ID_PLACEHOLDER below.
+              See docs/shadow-operational-assets.md for full instructions.
+
+              Production form ID (DO NOT USE here): b2fd98ff-2055-41b2-85a0-0f497e798087
+              Shadow form ID (set after cloning):    SHADOW_FORM_ID_PLACEHOLDER
+            #}
             hbspt.forms.create({
               region: "na1",
               portalId: "21430285",
-              formId: "b2fd98ff-2055-41b2-85a0-0f497e798087",
+              formId: "SHADOW_FORM_ID_PLACEHOLDER",
               target: "#registration-form",
               onFormSubmit: function($form) {
                 console.log('Registration form submitted successfully');
