@@ -36,12 +36,12 @@
         return json || {};
       })
       .catch(function () {
-        // Hard fallback to known API gateway used by this project
+        // Hard fallback — shadow env: writes disabled, shadow action-runner
         return {
-          TRACK_EVENTS_ENABLED: true,
-          TRACK_EVENTS_URL: 'https://api.hedgehog.cloud/events/track',
-          ENABLE_CRM_PROGRESS: true,
-          ACTION_RUNNER_URL: '/learn/action-runner'
+          TRACK_EVENTS_ENABLED: false,
+          TRACK_EVENTS_URL: '',
+          ENABLE_CRM_PROGRESS: false,
+          ACTION_RUNNER_URL: '/learn-shadow/action-runner'
         };
       });
   }
@@ -67,11 +67,11 @@
 
   function getActionRunnerBase(constants) {
     if (constants && constants.ACTION_RUNNER_URL) return constants.ACTION_RUNNER_URL;
-    return '/learn/action-runner';
+    return '/learn-shadow/action-runner';
   }
 
   function buildRunnerUrl(base, redirectUrl, params) {
-    var runner = base || '/learn/action-runner';
+    var runner = base || '/learn-shadow/action-runner';
     var search = new URLSearchParams();
     Object.keys(params || {}).forEach(function(key) {
       var value = params[key];

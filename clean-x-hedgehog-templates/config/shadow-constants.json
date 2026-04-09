@@ -1,0 +1,32 @@
+{
+  "_comment": "Shadow environment constants for /learn-shadow pages. Do NOT sync to HubSpot. Documents the authoritative shadow config inlined in learn-shadow templates.",
+  "_environment": "shadow",
+  "_issue": "#372",
+
+  "HUBDB_MODULES_TABLE_ID": "135621904",
+  "HUBDB_PATHWAYS_TABLE_ID": "135381504",
+  "HUBDB_COURSES_TABLE_ID": "135381433",
+  "HUBDB_CATALOG_TABLE_ID": "136199186",
+  "DEFAULT_SOCIAL_IMAGE_URL": "https://hedgehog.cloud/hubfs/social-share-default.png",
+
+  "ENABLE_CRM_PROGRESS": false,
+  "TRACK_EVENTS_ENABLED": false,
+  "TRACK_EVENTS_URL": "",
+
+  "LOGOUT_URL": "/_hcms/mem/logout",
+  "LOGIN_URL": "/_hcms/mem/login",
+  "AUTH_LOGIN_URL": "https://api.hedgehog.cloud/auth/login",
+  "AUTH_ME_URL": "https://api.hedgehog.cloud/auth/me",
+  "AUTH_LOGOUT_URL": "https://api.hedgehog.cloud/auth/logout",
+
+  "ACTION_RUNNER_URL": "/learn-shadow/action-runner",
+
+  "_decisions": {
+    "TRACK_EVENTS_ENABLED=false": "Disables POST /events/track from shadow pages. Prevents shadow browsing/testing activity from writing progress/enrollment state to production DynamoDB.",
+    "TRACK_EVENTS_URL=''": "Empty URL ensures data-track-events-url attribute renders empty. JS guards against empty trackUrl and skips the fetch.",
+    "ENABLE_CRM_PROGRESS=false": "Disables CRM progress reads in shadow env. My Learning and course progress fall back to localStorage only. Prevents shadow env from reading/displaying production user state.",
+    "AUTH_*=production": "Auth endpoints are safe to share. They authenticate against the same Cognito user pool; the auth/me call is read-only identity verification, not a write operation.",
+    "HUBDB_TABLE_IDS=production": "Shadow pages read from the same production HubDB tables. Content isolation (separate shadow HubDB tables) is Phase 0C+ work.",
+    "ACTION_RUNNER_URL=/learn-shadow/action-runner": "Shadow action-runner at isolated path. With TRACK_EVENTS_URL empty, the action-runner cannot post events to the backend even if called."
+  }
+}

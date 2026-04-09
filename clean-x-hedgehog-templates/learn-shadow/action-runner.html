@@ -127,14 +127,14 @@
       'HUBDB_COURSES_TABLE_ID': '135381433',
       'HUBDB_CATALOG_TABLE_ID': '136199186',
       'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-      'ENABLE_CRM_PROGRESS': true,
+      'ENABLE_CRM_PROGRESS': false,
       'LOGOUT_URL': '/_hcms/mem/logout',
       'LOGIN_URL': '/_hcms/mem/login',
       'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
       'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
       'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
-      'TRACK_EVENTS_ENABLED': true,
-      'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
+      'TRACK_EVENTS_ENABLED': false,
+      'TRACK_EVENTS_URL': '',
       'ACTION_RUNNER_URL': '/learn-shadow/action-runner'
     } %}
     {% set login_url = constants.AUTH_LOGIN_URL %}
@@ -178,8 +178,8 @@
          data-auth-me-url="{{ constants.AUTH_ME_URL|default('https://api.hedgehog.cloud/auth/me') if constants else 'https://api.hedgehog.cloud/auth/me' }}"
          data-auth-login-url="{{ constants.AUTH_LOGIN_URL|default('https://api.hedgehog.cloud/auth/login') if constants else 'https://api.hedgehog.cloud/auth/login' }}"
          data-auth-logout-url="{{ constants.AUTH_LOGOUT_URL|default('https://api.hedgehog.cloud/auth/logout') if constants else 'https://api.hedgehog.cloud/auth/logout' }}"
-         data-track-events-url="https://api.hedgehog.cloud/events/track"
-         data-enable-crm="true"
+         data-track-events-url="{{ constants.TRACK_EVENTS_URL }}"
+         data-enable-crm="{{ 'true' if constants.ENABLE_CRM_PROGRESS else 'false' }}" 
          style="display:none">
     </div>
 

@@ -105,7 +105,7 @@
   }
   function renderModuleCard(module, isCompleted){
     var a = document.createElement('a');
-    a.href = '/learn/' + (module.path || module.hs_path || '');
+    a.href = '/learn-shadow/modules/' + (module.path || module.hs_path || '');
     a.className = 'module-card';
     var minutes = (module.values && module.values.estimated_minutes) || module.estimated_minutes || 0;
     var name = (module.values && module.values.hs_name) || module.hs_name || 'Untitled Module';
@@ -125,7 +125,7 @@
       var panel = q('last-viewed-panel');
       var link = q('last-viewed-link');
       var meta = q('last-viewed-meta');
-      var href = last.type === 'course' ? ('/learn/courses/' + last.slug) : ('/learn/' + last.slug);
+      var href = last.type === 'course' ? ('/learn-shadow/courses/' + last.slug) : ('/learn-shadow/modules/' + last.slug);
       link.href = href;
       link.textContent = (last.type==='course'?'Course: ':'Module: ') + last.slug;
       if (last.at) meta.textContent = '· viewed ' + last.at;
@@ -159,7 +159,7 @@
     var slug = item.slug || '';
     var enrolledAt = item.enrolled_at || '';
     var source = item.enrollment_source || 'unknown';
-    var href = type === 'pathway' ? ('/learn/pathways/' + slug) : ('/learn/courses/' + slug);
+    var href = type === 'pathway' ? ('/learn-shadow/pathways/' + slug) : ('/learn-shadow/courses/' + slug);
     var title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); });
     var sourceLabel = source.replace(/_/g, ' ');
 
@@ -213,7 +213,7 @@
         var modStatusClass = mod.completed ? 'completed' : (mod.started ? 'in-progress' : 'not-started');
         html += '<div class="enrollment-module-item '+modStatusClass+'">\
           <span class="enrollment-module-status">'+modStatus+'</span>\
-          <a href="/learn/'+modPath+'" class="enrollment-module-link">'+modName+'</a>\
+          <a href="/learn-shadow/modules/'+modPath+'" class="enrollment-module-link">'+modName+'</a>\
         </div>';
       });
 
@@ -223,7 +223,7 @@
       if (nextIncompleteModule) {
         var nextPath = nextIncompleteModule.path || nextIncompleteModule.hs_path || nextIncompleteModule.slug;
         html += '<div class="enrollment-actions">\
-          <a href="/learn/'+nextPath+'" class="enrollment-cta">Continue to Next Module →</a>\
+          <a href="/learn-shadow/modules/'+nextPath+'" class="enrollment-cta">Continue to Next Module →</a>\
         </div>';
       } else {
         html += '<div class="enrollment-actions">\
