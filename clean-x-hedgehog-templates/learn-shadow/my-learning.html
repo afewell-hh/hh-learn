@@ -22,12 +22,12 @@
     'HUBDB_COURSES_TABLE_ID': '135381433',
     'HUBDB_CATALOG_TABLE_ID': '136199186',
     'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
-    'ENABLE_CRM_PROGRESS': true,
+    'ENABLE_CRM_PROGRESS': false,
     'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
     'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
     'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
-    'TRACK_EVENTS_ENABLED': true,
-    'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
+    'TRACK_EVENTS_ENABLED': false,
+    'TRACK_EVENTS_URL': '',
     'ACTION_RUNNER_URL': '/learn-shadow/action-runner'
   } %}
   {% set social_image = constants.DEFAULT_SOCIAL_IMAGE_URL if constants else "https://hedgehog.cloud/hubfs/social-share-default.png" %}
@@ -595,8 +595,8 @@
      data-auth-me-url="{{ auth_me_url }}"
      data-auth-login-url="{{ auth_login_url }}"
      data-auth-logout-url="{{ auth_logout_url }}"
-     data-enable-crm="true"
-     data-track-events-url="https://api.hedgehog.cloud/events/track"
+     data-enable-crm="{{ 'true' if constants.ENABLE_CRM_PROGRESS else 'false' }}" 
+     data-track-events-url="{{ constants.TRACK_EVENTS_URL }}"
      data-hubdb-courses-table-id="135381433"
      data-hubdb-modules-table-id="135621904"
      style="display:none"></div>
