@@ -60,7 +60,7 @@
     var breadcrumbsNav = document.getElementById('hhl-breadcrumbs');
     if (!breadcrumbsNav) return;
 
-    var courseUrl = '/learn/courses/' + encodeURIComponent(courseSlug);
+    var courseUrl = '/learn-shadow/courses/' + encodeURIComponent(courseSlug);
     var linkHTML = '<a href="' + courseUrl + '">← Back to ' + escapeHtml(courseName) + '</a>';
 
     // Replace the first child (default breadcrumb)
