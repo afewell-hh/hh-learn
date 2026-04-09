@@ -82,7 +82,7 @@
     // Return constants synchronously from data attributes
     callback({
       TRACK_EVENTS_URL: auth.trackEventsUrl || null,
-      ACTION_RUNNER_URL: '/learn/action-runner'
+      ACTION_RUNNER_URL: '/learn-shadow/action-runner'
     });
   }
 
@@ -103,11 +103,11 @@
 
   function getActionRunnerBase(constants) {
     if (constants && constants.ACTION_RUNNER_URL) return constants.ACTION_RUNNER_URL;
-    return '/learn/action-runner';
+    return '/learn-shadow/action-runner';
   }
 
   function buildRunnerUrl(base, redirectUrl, params) {
-    var runner = base || '/learn/action-runner';
+    var runner = base || '/learn-shadow/action-runner';
     var search = new URLSearchParams();
     Object.keys(params || {}).forEach(function(key) {
       var value = params[key];
