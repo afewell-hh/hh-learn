@@ -102,11 +102,11 @@
 
     window.getActionRunnerBase = window.getActionRunnerBase || function(constants) {
       if (constants && constants.ACTION_RUNNER_URL) return constants.ACTION_RUNNER_URL;
-      return '/learn/action-runner';
+      return '/learn-shadow/action-runner';
     };
 
     window.buildRunnerUrl = window.buildRunnerUrl || function(base, redirectUrl, params) {
-      var runner = base || '/learn/action-runner';
+      var runner = base || '/learn-shadow/action-runner';
       var search = new URLSearchParams();
       Object.keys(params || {}).forEach(function(key) {
         var value = params[key];

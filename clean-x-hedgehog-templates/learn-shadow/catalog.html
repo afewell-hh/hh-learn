@@ -8,6 +8,9 @@
 {% block head %}
   {{ super() }}
 
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
+
   {# Left nav + Catalog CSS/JS via require_* to ensure correct hub_generated paths #}
   {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/left-nav.css')) }}
   {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/catalog.css')) }}
@@ -46,13 +49,13 @@
 
   <title>Learning Catalog - Browse All Content - Learn Hedgehog</title>
   <meta name="description" content="Browse all learning content in one place - modules, courses, and pathways. Filter by type, difficulty, tags, and duration to find exactly what you need.">
-  <link rel="canonical" href="https://{{ request.domain }}/learn/catalog">
+  <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/catalog">
 
   {# Open Graph tags #}
   <meta property="og:type" content="website">
   <meta property="og:title" content="Learning Catalog - Browse All Content">
   <meta property="og:description" content="Browse all learning content in one place - modules, courses, and pathways. Filter by type, difficulty, tags, and duration.">
-  <meta property="og:url" content="https://{{ request.domain }}/learn/catalog">
+  <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/catalog">
   <meta property="og:image" content="{{ social_image }}">
 
   {# Twitter Card tags #}
@@ -108,12 +111,12 @@
                 {% set level_name = (item.level.name if item.level and item.level.name else item.level)|default('') %}
                 {# Build dynamic URL based on type + slug extracted from url_path #}
                 {% set base_path = 
-                  ( '/learn/modules' if type_name == 'module' else 
-                    ( '/learn/courses' if type_name == 'course' else '/learn/pathways' ) ) %}
+                  ( '/learn-shadow/modules' if type_name == 'module' else 
+                    ( '/learn-shadow/courses' if type_name == 'course' else '/learn-shadow/pathways' ) ) %}
                 {% set raw = item.url_path|default('') %}
                 {% set segments = raw|split('/') %}
                 {% set slug = segments[segments|length - 1] if raw else '' %}
-                {% set href = '/learn/' ~ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) ~ '/' ~ slug %}
+                {% set href = '/learn-shadow/' ~ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) ~ '/' ~ slug %}
                 <article class="catalog-card"
                          data-type="{{ type_name }}"
                          data-level="{{ level_name|lower }}"
@@ -130,7 +133,7 @@
                   </div>
 
                   <h2 class="catalog-card-title">
-                    <a href="https://{{ request.domain }}/learn/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}">{{ item.title }}</a>
+                    <a href="https://{{ request.domain }}/learn-shadow/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}">{{ item.title }}</a>
                   </h2>
 
                   {% if item.summary %}
@@ -152,7 +155,7 @@
                     {% endif %}
                   </div>
 
-                  <a href="https://{{ request.domain }}/learn/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}" class="catalog-card-cta">
+                  <a href="https://{{ request.domain }}/learn-shadow/{{ ( 'modules' if type_name == 'module' else ( 'courses' if type_name == 'course' else 'pathways' ) ) }}/{{ slug }}" class="catalog-card-cta">
                     Start Learning →
                   </a>
                 </article>

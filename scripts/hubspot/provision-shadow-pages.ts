@@ -164,6 +164,11 @@ async function createOrUpdatePage(
     slug: config.slug,
     templatePath: config.templatePath,
     state: 'DRAFT',
+    // Shadow pages must never appear in search results.
+    // Primary protection: <meta name="robots" content="noindex, nofollow"> in each template.
+    // Belt-and-suspenders: set HubSpot page-level no-index flags as well.
+    metaRobotsNoIndex: true,
+    metaRobotsNoFollow: true,
     ...(publish && { publishImmediately: true, publicAccessRulesEnabled: false })
   };
 

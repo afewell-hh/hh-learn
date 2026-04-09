@@ -15,7 +15,7 @@ test-results/
 playwright-report/
 aws/
 awscliv2.zip
-module-page.html
+/module-page.html
 
 # Build output
 dist-cjs/

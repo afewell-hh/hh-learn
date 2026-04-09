@@ -7,6 +7,9 @@
 {% block head %}
   {{ super() }}
 
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
+
   {# Registration form specific styles #}
   <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/registration.css') }}">
 
@@ -39,13 +42,13 @@
 
   <title>Register for Hedgehog Learn - Create Your Account</title>
   <meta name="description" content="Join Hedgehog Learn to access all our AI networking courses, track your progress, and earn certifications.">
-  <link rel="canonical" href="https://{{ request.domain }}/learn/register">
+  <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/register">
 
   {# Open Graph tags #}
   <meta property="og:type" content="website">
   <meta property="og:title" content="Register for Hedgehog Learn">
   <meta property="og:description" content="Join Hedgehog Learn to access all our AI networking courses and track your progress.">
-  <meta property="og:url" content="https://{{ request.domain }}/learn/register">
+  <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/register">
   <meta property="og:image" content="{{ social_image }}">
 
   {# Twitter Card tags #}

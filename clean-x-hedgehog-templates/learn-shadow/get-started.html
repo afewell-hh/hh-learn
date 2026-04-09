@@ -8,6 +8,9 @@
 {% block head %}
   {{ super() }}
 
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
+
   {# CSS dependencies - reuse catalog and landing styles #}
   {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/catalog.css')) }}
   {{ require_css(get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/css/learn-landing.css')) }}
@@ -23,13 +26,13 @@
   {# SEO metadata #}
   <title>Get Started with Hedgehog Learn - Your First Steps</title>
   <meta name="description" content="New to Hedgehog? Start here. Explore our flagship Network Like a Hyperscaler pathway and discover curated topics for modern infrastructure teams.">
-  <link rel="canonical" href="https://{{ request.domain }}/learn/get-started">
+  <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/get-started">
 
   {# Open Graph tags #}
   <meta property="og:type" content="website">
   <meta property="og:title" content="Get Started with Hedgehog Learn">
   <meta property="og:description" content="Your orientation guide to mastering Kubernetes-native networking with Hedgehog's curated learning pathways.">
-  <meta property="og:url" content="https://{{ request.domain }}/learn/get-started">
+  <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/get-started">
   <meta property="og:image" content="{{ social_image }}">
 
   {# Twitter Card tags #}
@@ -55,8 +58,8 @@
 
       {# Primary CTA to flagship pathway #}
       <div class="hero-ctas">
-        <a href="/learn/pathways/network-like-hyperscaler" class="button button-primary">Start Network Like a Hyperscaler →</a>
-        <a href="/learn/catalog" class="button button-secondary">Browse Full Catalog</a>
+        <a href="/learn-shadow/pathways/network-like-hyperscaler" class="button button-primary">Start Network Like a Hyperscaler →</a>
+        <a href="/learn-shadow/catalog" class="button button-secondary">Browse Full Catalog</a>
       </div>
     </div>
   </section>
@@ -112,7 +115,7 @@
                       {% endif %}
                     </div>
                     <h3 class="catalog-card-title">
-                      <a href="/learn/courses/{{ course.hs_path }}">{{ course.hs_name }}</a>
+                      <a href="/learn-shadow/courses/{{ course.hs_path }}">{{ course.hs_name }}</a>
                     </h3>
                     <p class="catalog-card-summary">
                       {{ course.summary_markdown|striptags|truncate(160, true, '...') if course.summary_markdown else 'Build hands-on skills through this focused course curriculum.' }}
@@ -131,7 +134,7 @@
                         </span>
                       {% endif %}
                     </div>
-                    <a href="/learn/courses/{{ course.hs_path }}" class="catalog-card-cta">
+                    <a href="/learn-shadow/courses/{{ course.hs_path }}" class="catalog-card-cta">
                       Start Course →
                     </a>
                   </article>
@@ -142,14 +145,14 @@
             {# Fallback if course_slugs_json is missing #}
             <div class="empty-state">
               <p>Featured topics are being curated. Check out the full pathway to get started.</p>
-              <a href="/learn/pathways/network-like-hyperscaler" class="button button-secondary">View Full Pathway</a>
+              <a href="/learn-shadow/pathways/network-like-hyperscaler" class="button button-secondary">View Full Pathway</a>
             </div>
           {% endif %}
         {% else %}
           {# Graceful fallback when pathway not found #}
           <div class="empty-state">
             <p>Featured topics are being curated. Check out the full pathway to get started.</p>
-            <a href="/learn/catalog" class="button button-secondary">Browse All Content</a>
+            <a href="/learn-shadow/catalog" class="button button-secondary">Browse All Content</a>
           </div>
         {% endif %}
       {% else %}
@@ -172,21 +175,21 @@
           <div class="level-icon">📖</div>
           <h3 class="level-card-title">Browse Full Catalog</h3>
           <p class="level-card-description">Discover all available modules, courses, and pathways. Filter by type, level, and duration to find the perfect next step for your learning goals.</p>
-          <a href="/learn/catalog" class="catalog-card-cta">Explore Catalog →</a>
+          <a href="/learn-shadow/catalog" class="catalog-card-cta">Explore Catalog →</a>
         </article>
 
         <article class="level-card level-card-intermediate">
           <div class="level-icon">🎯</div>
           <h3 class="level-card-title">View All Pathways</h3>
           <p class="level-card-description">Explore curated learning pathways designed to take you from fundamentals to mastery in Kubernetes-native networking and fabric operations.</p>
-          <a href="/learn/pathways" class="catalog-card-cta">Browse Pathways →</a>
+          <a href="/learn-shadow/pathways" class="catalog-card-cta">Browse Pathways →</a>
         </article>
 
         <article class="level-card level-card-advanced">
           <div class="level-icon">🌱</div>
           <h3 class="level-card-title">Start with Basics</h3>
           <p class="level-card-description">New to cloud networking? Filter the catalog to show only beginner-level content and build your foundation with guided, step-by-step modules.</p>
-          <a href="/learn/catalog?level=beginner" class="catalog-card-cta">View Beginner Content →</a>
+          <a href="/learn-shadow/catalog?level=beginner" class="catalog-card-cta">View Beginner Content →</a>
         </article>
       </div>
     </section>
@@ -197,7 +200,7 @@
         <h2 class="cta-title">Ready to Begin?</h2>
         <p class="cta-subtitle">Join infrastructure teams worldwide mastering Kubernetes-native networking with Hedgehog Learn.</p>
         <div class="cta-buttons">
-          <a href="/learn/pathways/network-like-hyperscaler" class="button button-primary button-large">Start Your Journey</a>
+          <a href="/learn-shadow/pathways/network-like-hyperscaler" class="button button-primary button-large">Start Your Journey</a>
         </div>
       </div>
     </section>

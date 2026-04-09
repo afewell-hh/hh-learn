@@ -8,6 +8,9 @@
 {% block head %}
   {{ super() }}
 
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
+
   {#
     Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
     HubL cannot fetch/parse JSON files server-side, so we inline the values directly.
@@ -35,7 +38,7 @@
     {# SEO metadata for pathway detail pages #}
     {% set page_title = dynamic_page_hubdb_row.hs_name ~ " - Pathways - Learn Hedgehog" %}
     {% set meta_desc = dynamic_page_hubdb_row.meta_description|striptags|truncate(160) if dynamic_page_hubdb_row.meta_description else (dynamic_page_hubdb_row.summary_markdown|striptags|truncate(160) if dynamic_page_hubdb_row.summary_markdown else "Learn " ~ dynamic_page_hubdb_row.hs_name) %}
-    {% set canonical_url = "https://" ~ request.domain ~ "/learn/pathways/" ~ dynamic_page_hubdb_row.hs_path %}
+    {% set canonical_url = "https://" ~ request.domain ~ "/learn-shadow/pathways/" ~ dynamic_page_hubdb_row.hs_path %}
     {% set social_image = dynamic_page_hubdb_row.social_image_url if dynamic_page_hubdb_row.social_image_url else constants.DEFAULT_SOCIAL_IMAGE_URL %}
 
     <title>{{ page_title }}</title>
@@ -65,7 +68,7 @@
       {% if dynamic_page_hubdb_row.meta_description or dynamic_page_hubdb_row.summary_markdown %}
       "description": {{ meta_desc|tojson }},
       {% endif %}
-      "url": "https://{{ request.domain }}/learn/pathways/{{ dynamic_page_hubdb_row.hs_path }}",
+      "url": "https://{{ request.domain }}/learn-shadow/pathways/{{ dynamic_page_hubdb_row.hs_path }}",
       {% if dynamic_page_hubdb_row.module_count %}
       "numberOfItems": {{ dynamic_page_hubdb_row.module_count }},
       {% endif %}
@@ -102,7 +105,7 @@
           "item": {
             "@type": "Course",
             "name": {{ (course.hs_name if course else slug|replace('-',' ')|title)|tojson }},
-            "url": "https://{{ request.domain }}/learn/courses/{{ (course.hs_path if course else slug) }}"
+            "url": "https://{{ request.domain }}/learn-shadow/courses/{{ (course.hs_path if course else slug) }}"
           }
         }{% if not loop.last %},{% endif %}
             {% endfor %}
@@ -132,7 +135,7 @@
           "item": {
             "@type": "LearningResource",
             "name": {{ module.hs_name|tojson }},
-            "url": "https://{{ request.domain }}/learn/modules/{{ module.hs_path }}"
+            "url": "https://{{ request.domain }}/learn-shadow/modules/{{ module.hs_path }}"
           }
         }{% if not loop.last %},{% endif %}
             {% endif %}
@@ -158,7 +161,7 @@
           "@type": "ListItem",
           "position": 2,
           "name": "Pathways",
-          "item": "https://{{ request.domain }}/learn/pathways"
+          "item": "https://{{ request.domain }}/learn-shadow/pathways"
         },
         {
           "@type": "ListItem",
@@ -178,13 +181,13 @@
 
     <title>Learning Pathways - Learn Hedgehog AI Networking</title>
     <meta name="description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
-    <link rel="canonical" href="https://{{ request.domain }}/learn/pathways">
+    <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/pathways">
 
     {# Open Graph tags #}
     <meta property="og:type" content="website">
     <meta property="og:title" content="Learning Pathways - Learn Hedgehog AI Networking">
     <meta property="og:description" content="Follow structured learning paths to master Hedgehog AI networking concepts step-by-step through curated courses and modules.">
-    <meta property="og:url" content="https://{{ request.domain }}/learn/pathways">
+    <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/pathways">
     <meta property="og:image" content="{{ social_image }}">
 
     {# Twitter Card tags #}
@@ -221,7 +224,7 @@
           "item": {
             "@type": "ItemList",
             "name": {{ pathway.hs_name|tojson }},
-            "url": "https://{{ request.domain }}/learn/pathways/{{ pathway.hs_path }}"
+            "url": "https://{{ request.domain }}/learn-shadow/pathways/{{ pathway.hs_path }}"
             {% if pathway.summary_markdown %}
             ,"description": {{ pathway.summary_markdown|striptags|truncate(160)|tojson }}
             {% endif %}
@@ -617,7 +620,7 @@
         <div class="pathway-detail">
           <!-- Breadcrumbs -->
           <nav class="pathway-breadcrumbs">
-            <a href="/learn/pathways">← Back to Learning Pathways</a>
+            <a href="/learn-shadow/pathways">← Back to Learning Pathways</a>
           </nav>
 
           <!-- Pathway Header -->
@@ -840,7 +843,7 @@
                     {# Defensive fallback: create a minimal object if lookup failed #}
                     {% set course = { 'hs_path': slug, 'hs_name': slug|replace('-',' ')|title } %}
                   {% endif %}
-                    <a href="/learn/courses/{{ (course.hs_path if course else slug) }}" class="module-card">
+                    <a href="/learn-shadow/courses/{{ (course.hs_path if course else slug) }}" class="module-card">
                       <div class="module-card-number">{{ loop.index }}</div>
                       <h3>{{ course.hs_name if course else (slug|replace('-',' ')|title) }}</h3>
 
@@ -868,7 +871,7 @@
             {# Fallback: Render modules list - OPTIMIZATION: Batch-fetch to avoid 10-call limit #}
             <section class="pathway-modules-section">
               <h2>Learning Modules</h2>
-              {% set modules_base_path = '/learn/modules' %}
+              {% set modules_base_path = '/learn-shadow/modules' %}
               {% set module_slugs = dynamic_page_hubdb_row.module_slugs_json|fromjson %}
               {# Fetch all modules in ONE query using hs_path__in operator #}
               {% set slug_list = module_slugs|join(',') %}

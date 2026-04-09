@@ -7,6 +7,9 @@
 
 {% block head %}
   {{ super() }}
+
+  {# Shadow environment: prevent search indexing #}
+  <meta name="robots" content="noindex, nofollow">
   {# SEO metadata for My Learning dashboard #}
   {#
     Issue #327 Fix: Inline constants instead of using request_json (which doesn't exist in HubL)
@@ -31,13 +34,13 @@
 
   <title>My Learning - Learn Hedgehog AI Networking</title>
   <meta name="description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
-  <link rel="canonical" href="https://{{ request.domain }}/learn/my-learning">
+  <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/my-learning">
 
   {# Open Graph tags #}
   <meta property="og:type" content="website">
   <meta property="og:title" content="My Learning - Learn Hedgehog AI Networking">
   <meta property="og:description" content="Track your learning progress with Hedgehog AI networking modules. View your started and completed modules in one place.">
-  <meta property="og:url" content="https://{{ request.domain }}/learn/my-learning">
+  <meta property="og:url" content="https://{{ request.domain }}/learn-shadow/my-learning">
   <meta property="og:image" content="{{ social_image }}">
 
   {# Twitter Card tags #}
@@ -569,7 +572,7 @@
           <div class="empty-state-icon">📚</div>
           <h2>Start Your Learning Journey</h2>
           <p>You haven't started any modules yet. Explore our pathways and courses to begin learning!</p>
-          <a href="/learn/pathways" class="empty-state-cta">Explore Pathways</a>
+          <a href="/learn-shadow/pathways" class="empty-state-cta">Explore Pathways</a>
         </div>
       </div>
       </div>
