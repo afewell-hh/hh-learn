@@ -1,6 +1,37 @@
-# Issue #371 — Review Fix Log (commit ab70289)
+# Issue #371 — Review Fix Log
 
+Commits: ab70289 (initial review fixes), 47573ec (bare /learn link fix)
 Date: 2026-04-09
+
+Four issues across two review rounds addressed in PR #377.
+
+---
+
+## Fix 4: Bare `/learn` home links (commit 47573ec)
+
+Three links using `href="/learn"` (no trailing slash) were missed by the earlier
+`s|/learn/|/learn-shadow/|g` substitution (which only matched paths with a
+trailing slash):
+
+| File | Line | Element |
+|---|---|---|
+| `macros/left-nav.html` | 17 | Home nav link |
+| `module-page.html` | 687 | "Back to Learning Portal" |
+| `action-runner.html` | 171 | "Return to Learn" button |
+
+All changed to `href="/learn-shadow"`. **No intentional exceptions to production
+`/learn` remain.** All shadow internal navigation stays within `/learn-shadow`.
+
+**Verification:**
+```
+curl -s https://hedgehog.cloud/learn-shadow | grep -c 'href="/learn"'  → 0
+curl -s https://hedgehog.cloud/learn-shadow/modules | grep -c 'href="/learn"'  → 0
+curl -s https://hedgehog.cloud/learn-shadow/action-runner | grep -c 'href="/learn"'  → 0
+```
+
+---
+
+## Fixes 1–3 (commit ab70289)
 
 Three issues identified in review of PR #377 were fixed in this commit.
 
