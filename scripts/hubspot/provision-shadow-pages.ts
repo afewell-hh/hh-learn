@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 /**
- * Provision shadow CMS pages for the HH-Learn shadow environment (Issue #371)
+ * Provision shadow CMS pages for the HH-Learn shadow environment (Issues #371, #373)
  *
  * Shadow pages are published but unlisted pages that mirror the /learn structure
  * at /learn-shadow, allowing safe feature development without touching live pages.
@@ -164,11 +164,9 @@ async function createOrUpdatePage(
     slug: config.slug,
     templatePath: config.templatePath,
     state: 'DRAFT',
-    // Shadow pages must never appear in search results.
-    // Primary protection: <meta name="robots" content="noindex, nofollow"> in each template.
-    // Belt-and-suspenders: set HubSpot page-level no-index flags as well.
-    metaRobotsNoIndex: true,
-    metaRobotsNoFollow: true,
+    // Anti-indexing: primary protection is <meta name="robots" content="noindex, nofollow">
+    // rendered by each shadow template. The v3 CMS pages API does not expose metaRobots
+    // fields, so template-level noindex is the only mechanism available here.
     ...(publish && { publishImmediately: true, publicAccessRulesEnabled: false })
   };
 
@@ -204,17 +202,39 @@ async function createOrUpdatePage(
       return { name: config.name, slug: config.slug, id: '<skipped>', state: 'SKIPPED' };
     }
 
-    if (publish && page.state !== 'PUBLISHED') {
+    if (publish) {
+      // Use PATCH state=PUBLISHED via REST — the SDK's schedule() method is unreliable.
       try {
-        const api: any = hubspot.cms.pages.sitePagesApi;
-        await retryWithBackoff(() => api.schedule(String(page.id), String(page.id)));
-        console.log(`   ✓ Scheduled for publish`);
+        const token = getHubSpotToken();
+        const res = await retryWithBackoff(async () => {
+          const r = await fetch(
+            `https://api.hubapi.com/cms/v3/pages/site-pages/${page.id}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({ state: 'PUBLISHED' })
+            }
+          );
+          if (!r.ok) {
+            const txt = await r.text();
+            const err: any = new Error(`HTTP ${r.status}: ${txt.substring(0, 200)}`);
+            err.code = r.status;
+            throw err;
+          }
+          return await r.json();
+        });
+        console.log(`   ✓ Published (state: ${res.state ?? 'PUBLISHED'})`);
+        page = res;
       } catch (err: any) {
-        console.log(`   ⚠️  Auto-publish failed: ${err.message}. Publish manually in CMS.`);
+        console.log(`   ⚠️  Publish failed: ${err.message}. Publish manually in HubSpot CMS.`);
       }
     }
 
-    return { name: config.name, slug: config.slug, id: String(page.id), state: publish ? 'PUBLISHED' : 'DRAFT', url: page.url };
+    return { name: config.name, slug: config.slug, id: String(page.id), state: page.state ?? (publish ? 'PUBLISHED' : 'DRAFT'), url: page.url };
   } catch (err: any) {
     console.error(`   ✗ Failed: ${err.message}`);
     if (err.body) console.error('   Details:', JSON.stringify(err.body, null, 2));
@@ -223,7 +243,7 @@ async function createOrUpdatePage(
 }
 
 async function provisionShadowPages(dryRun: boolean, publish: boolean, allowCreate: boolean) {
-  console.log('🌑 Starting shadow CMS page provisioning (Issue #371)...\n');
+  console.log('🌑 Starting shadow CMS page provisioning (Issues #371, #373)...\n');
   if (dryRun) console.log('📝 DRY RUN — no changes will be made\n');
   if (publish && !dryRun) console.log('🚀 PUBLISH MODE — pages published immediately\n');
   if (allowCreate && !dryRun) console.log('➕ CREATE MODE — new pages will be created\n');

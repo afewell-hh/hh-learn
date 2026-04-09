@@ -2,7 +2,7 @@
 
 This document describes the in-portal shadow environment for HH-Learn feature development. The shadow environment lives at `/learn-shadow/*` inside the production HubSpot portal and is isolated from the live `/learn` experience.
 
-**Status:** Phase 0A + 0B complete (Issues #371, #372). See epic #370 for the full roadmap.
+**Status:** Phase 0A + 0B + 0C complete (Issues #371, #372, #373). See epic #370 for the full roadmap.
 
 ---
 
@@ -20,7 +20,7 @@ Shadow:       hedgehog.cloud/learn-shadow/*
               ↓ backend:   api.hedgehog.cloud (auth only — writes disabled)
 ```
 
-Shadow pages are published but have `noindex, nofollow` in templates and `metaRobotsNoIndex: true` at the CMS page level. They are not linked from the production site.
+Shadow pages are published but have `noindex, nofollow` in templates. The HubSpot v3 CMS Pages API does not expose `metaRobotsNoIndex`/`metaRobotsNoFollow` fields — template-level `<meta name="robots" content="noindex, nofollow">` is the actual and only API-available anti-indexing mechanism. Shadow pages are not linked from the production site.
 
 ---
 
@@ -139,6 +139,21 @@ npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/publish-template.js \
 ```bash
 npm run provision:shadow-pages [-- --dry-run] [-- --allow-create] [-- --publish]
 ```
+
+### Anti-Indexing Controls
+
+Shadow pages are protected from search engine indexing at two layers:
+
+1. **Template-level (primary):** All shadow templates include `<meta name="robots" content="noindex, nofollow">`. This is the primary protection and is always active.
+
+2. **robots.txt (operator step):** The HubSpot v3 CMS API does not expose robots.txt editing. An operator must add the following rule manually in HubSpot:
+   - Navigate to: **Website → Pages → Settings → Crawlers & Indexing**
+   - Add to "Custom robots.txt additions":
+     ```
+     Disallow: /learn-shadow
+     Disallow: /learn-shadow/
+     ```
+   Shadow pages are not in the sitemap and are safe for use without the robots.txt change, but add it before any extended shadow testing period.
 
 ### Enabling event tracking for a controlled shadow test
 
