@@ -2,7 +2,9 @@
 
 This document describes the in-portal shadow environment for HH-Learn feature development. The shadow environment lives at `/learn-shadow/*` inside the production HubSpot portal and is isolated from the live `/learn` experience.
 
-**Status:** Phase 0A + 0B + 0C complete (Issues #371, #372, #373). See epic #370 for the full roadmap.
+**Status:** Phase 0A + 0B + 0C + 0D complete (Issues #371, #372, #373, #374). See epic #370 for the full roadmap.
+
+For operational asset conventions (forms, workflows, CRM isolation), see `docs/shadow-operational-assets.md`.
 
 ---
 
