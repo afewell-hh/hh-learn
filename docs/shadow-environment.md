@@ -140,6 +140,21 @@ npm run build:scripts-cjs && node dist-cjs/scripts/hubspot/publish-template.js \
 npm run provision:shadow-pages [-- --dry-run] [-- --allow-create] [-- --publish]
 ```
 
+### Anti-Indexing Controls
+
+Shadow pages are protected from search engine indexing at two layers:
+
+1. **Template-level (primary):** All shadow templates include `<meta name="robots" content="noindex, nofollow">`. This is the primary protection and is always active.
+
+2. **robots.txt (operator step):** The HubSpot v3 CMS API does not expose robots.txt editing. An operator must add the following rule manually in HubSpot:
+   - Navigate to: **Website → Pages → Settings → Crawlers & Indexing**
+   - Add to "Custom robots.txt additions":
+     ```
+     Disallow: /learn-shadow
+     Disallow: /learn-shadow/
+     ```
+   Shadow pages are not in the sitemap and are safe for use without the robots.txt change, but add it before any extended shadow testing period.
+
 ### Enabling event tracking for a controlled shadow test
 
 If a future test requires tracking events in an isolated environment, the correct path is a separate Lambda stage (not re-enabling writes against production). See the Phase 0C+ notes above.
