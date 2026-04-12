@@ -1117,25 +1117,12 @@
                data-module-slug="{{ dynamic_page_hubdb_row.hs_path }}"
                style="display:none"></div>
 
-          {# Determine task types declared for this module #}
-          {% set completion_tasks = [] %}
-          {% if dynamic_page_hubdb_row.completion_tasks_json %}
-            {% set completion_tasks = dynamic_page_hubdb_row.completion_tasks_json|fromjson %}
-          {% endif %}
-          {% set has_quiz_task = false %}
-          {% set has_lab_attest_task = false %}
-          {% for task in completion_tasks %}
-            {% if task.task_type == 'quiz' %}
-              {% set has_quiz_task = true %}
-            {% endif %}
-            {% if task.task_type == 'lab_attestation' %}
-              {% set has_lab_attest_task = true %}
-            {% endif %}
-          {% endfor %}
-
-          {# Quiz Section — rendered only when module has quiz_schema_json AND a quiz task.
-             HubL outputs only stems + options; correct_answer field is never written to HTML. #}
-          {% if has_quiz_task and dynamic_page_hubdb_row.quiz_schema_json %}
+          {# Quiz Section — quiz_schema_json is populated iff the module has a quiz.
+             HubL outputs only stems + options; correct_answer field is never written to HTML.
+             NOTE: avoid for-loop variable assignment — HubL/Jinja2 for-loop scope is isolated,
+             so variables set inside {% for %} do not propagate to the outer scope. Use direct
+             field checks instead. #}
+          {% if dynamic_page_hubdb_row.quiz_schema_json %}
             {% set quiz_schema = dynamic_page_hubdb_row.quiz_schema_json|fromjson %}
             {% if quiz_schema and quiz_schema.questions %}
               <section id="hhl-quiz-section" class="hhl-task-section"
@@ -1166,8 +1153,8 @@
             {% endif %}
           {% endif %}
 
-          {# Lab Attestation Section — rendered only when module has a lab_attestation task #}
-          {% if has_lab_attest_task %}
+          {# Lab Attestation Section — string containment check avoids for-loop scope problem #}
+          {% if dynamic_page_hubdb_row.completion_tasks_json and 'lab_attestation' in dynamic_page_hubdb_row.completion_tasks_json %}
             <section id="hhl-lab-section" class="hhl-task-section"
                      aria-label="Hands-On Lab Attestation">
               <h2 class="hhl-task-title">Hands-On Lab</h2>
