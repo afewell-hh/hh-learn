@@ -3,6 +3,7 @@
 **Date:** 2026-04-12
 **Branch:** issue-410-shadow-module-completion-ui
 **Scope:** Shadow-only — no production template changes
+**Status:** VERIFIED LIVE — quiz + lab sections confirmed rendering on both pilot modules
 
 ---
 
@@ -16,7 +17,27 @@
 - `.gitignore` — scoped `module-page.html` ignore rule to `/module-page.html` (root-only) so shadow template can be tracked
 
 ### Unchanged (verified)
-- `clean-x-hedgehog-templates/learn/module-page.html` — production template **not modified** (`git diff` shows empty)
+- `clean-x-hedgehog-templates/learn/module-page.html` — production template **not modified** (live `curl` + `git diff` confirm no shadow IDs or shadow JS load)
+
+---
+
+## Root Cause: HubL For-Loop Scope Isolation (Fixed in e315380)
+
+**Symptom:** Both quiz section and lab attestation section failed to render on pilot modules, even though HubDB data was confirmed non-empty.
+
+**Root cause:** HubL (based on Jinja2) isolates variable assignments inside `{% for %}` blocks from the outer scope. The original code set `has_quiz_task = true` and `has_lab_attest_task = true` inside a `{% for task in completion_tasks %}` loop, then tested those flags after the loop. In Jinja2, those inner assignments never propagate back to outer scope — both flags stayed `false`, preventing both sections from rendering.
+
+**Diagnostic path:**
+1. Confirmed template was live: `hhl-shadow-module-context` div present in rendered HTML
+2. Confirmed HubDB data was correct: `quiz_schema_json` = 2027 chars, `completion_tasks_json` = 269 chars (both non-null, non-empty)
+3. Confirmed neither task section appeared in rendered HTML: `hhl-quiz-section` and `hhl-lab-section` both absent
+4. Identified for-loop scope isolation as root cause
+
+**Fix:** Replaced for-loop variable assignment with direct field checks:
+- Quiz guard: `{% if dynamic_page_hubdb_row.quiz_schema_json %}` — `quiz_schema_json` is only populated when the module has a quiz; no loop needed
+- Lab guard: `{% if dynamic_page_hubdb_row.completion_tasks_json and 'lab_attestation' in dynamic_page_hubdb_row.completion_tasks_json %}` — string containment check avoids the loop entirely
+
+**Commit:** `e315380` — `fix(template): #410 fix HubL for-loop scope isolation — quiz + lab sections now render`
 
 ---
 
@@ -131,6 +152,20 @@ To verify no-task module (`/learn-shadow/modules/fabric-operations-foundations-r
 - No quiz section
 - No lab section
 - Legacy "Mark complete" button visible
+
+---
+
+## Live Rendering Verification (2026-04-12)
+
+Confirmed via `curl` after fix commit `e315380` was published to HubSpot:
+
+| Module | Expected | Actual |
+|---|---|---|
+| `fabric-operations-welcome` | quiz + lab sections | `hhl-quiz-section` ✓, `hhl-lab-section` ✓, `Submit Quiz` ✓, `Mark Lab Complete` ✓ |
+| `fabric-operations-diagnosis-lab` | quiz + lab sections | `hhl-quiz-section` ✓, `hhl-lab-section` ✓, `Submit Quiz` ✓, `Mark Lab Complete` ✓ |
+| `fabric-operations-vpc-provisioning` | lab only, no quiz | `hhl-lab-section` ✓, no `hhl-quiz-section` ✓ |
+| `fabric-operations-foundations-recap` | no quiz, no lab, legacy button | `hhl-mark-complete` ✓, no task sections ✓ |
+| Production `/learn/modules/fabric-operations-welcome` | no shadow elements | no shadow IDs ✓ |
 
 ---
 
