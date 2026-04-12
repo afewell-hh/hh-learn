@@ -167,6 +167,9 @@ functions:
       - httpApi:
           path: /tasks/status
           method: GET
+      - httpApi:
+          path: /tasks/status/batch
+          method: GET
 
 package:
   individually: true

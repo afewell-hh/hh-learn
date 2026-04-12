@@ -1,0 +1,305 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+{% from "/CLEAN x HEDGEHOG/templates/learn/macros/left-nav.html" import learning_left_nav %}
+
+{% block head %}
+  {{ super() }}
+  {# Shadow My Learning — noindex, shadow-specific constants #}
+  {% set constants = {
+    'HUBDB_MODULES_TABLE_ID': '135621904',
+    'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+    'HUBDB_COURSES_TABLE_ID': '135381433',
+    'HUBDB_CATALOG_TABLE_ID': '136199186',
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+    'ENABLE_CRM_PROGRESS': true,
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout',
+    'TRACK_EVENTS_URL': 'https://api.hedgehog.cloud/events/track',
+    'ACTION_RUNNER_URL': '/learn-shadow/action-runner'
+  } %}
+
+  <title>My Learning (Shadow) - Hedgehog AI Networking</title>
+  <meta name="description" content="Shadow environment: track task-based completion progress for Hedgehog Learn modules.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://{{ request.domain }}/learn-shadow/my-learning">
+
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+  <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/left-nav.js') }}" defer></script>
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* ----------------------------------------------------------------
+     Shadow My Learning — layout and card styles
+     Reuses production patterns; shadow-specific additions at bottom.
+     ---------------------------------------------------------------- */
+
+  .learn-header-section {
+    width: 100vw;
+    background: #1a4e8a url('https://hedgehog.cloud/hubfs/hh-clouds.webp') center center/cover no-repeat;
+    color: #fff;
+    padding: 96px 0 64px 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+  }
+  .learn-header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .learn-page-title { font-size: 2.8rem; font-weight: 700; margin: 0; letter-spacing: -1px; }
+  .learn-page-subtitle { font-size: 1.2rem; font-weight: 400; margin: 0; opacity: 0.9; }
+
+  .learn-main-section { display: flex; justify-content: center; width: 100%; margin-top: 0; min-height: 60vh; }
+  .learn-container {
+    max-width: 1600px; width: 100%; background: #fff; padding: 40px;
+    border-radius: 12px; box-shadow: 0 2px 24px rgba(26,78,138,0.06); min-height: 60vh;
+  }
+
+  /* Shadow mode banner */
+  .shadow-mode-banner {
+    background: #FEF9C3;
+    border: 1px solid #FDE047;
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin-bottom: 28px;
+    font-size: 0.9375rem;
+    color: #713F12;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .shadow-mode-banner strong { color: #92400E; }
+
+  /* Progress summary */
+  .progress-summary {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border: 1px solid #BFDBFE;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .progress-stats { display: flex; gap: 48px; }
+  .progress-stat { text-align: center; }
+  .progress-stat-number { font-size: 3rem; font-weight: 700; color: #1a4e8a; line-height: 1; margin-bottom: 8px; }
+  .progress-stat-label { font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1; font-weight: 600; }
+  .auth-prompt {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+    padding: 16px 20px; font-size: 0.875rem; color: #78350f; display: none;
+  }
+  .auth-prompt a { color: #92400e; font-weight: 600; text-decoration: underline; }
+
+  /* Section headers */
+  .section-header { margin: 48px 0 24px 0; padding-bottom: 16px; border-bottom: 2px solid #E5E7EB; }
+  .section-header h2 { margin: 0; font-size: 1.75rem; color: #111827; font-weight: 700; }
+  .section-header .section-count { color: #666; font-size: 1rem; font-weight: 400; margin-left: 12px; }
+
+  /* Enrollment cards */
+  .enrolled-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; margin-top: 24px; }
+  .enrollment-card {
+    border: 1px solid #E5E7EB; border-radius: 8px; padding: 24px;
+    background: #fff; transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .enrollment-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+  .enrollment-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 12px; }
+  .enrollment-card-header h3 { margin: 0; font-size: 1.25rem; flex: 1; }
+  .enrollment-badge {
+    background: #DBEAFE; color: #1E40AF; padding: 4px 12px; border-radius: 12px;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .enrollment-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+  .enrollment-status-badge {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 3px 8px; border-radius: 10px; white-space: nowrap;
+  }
+  .status-completed { background: #D1FAE5; color: #065F46; }
+  .status-in-progress { background: #DBEAFE; color: #1E40AF; }
+  .status-not-started { background: #F3F4F6; color: #6B7280; }
+  .enrollment-meta { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; font-size: 0.875rem; color: #666; }
+  .enrollment-actions { display: flex; justify-content: flex-end; }
+  .enrollment-cta { color: #0066CC; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; transition: color 0.2s; }
+  .enrollment-cta:hover { color: #0052A3; }
+  .enrollment-cta--done { color: #059669; }
+
+  /* Progress bar */
+  .enrollment-progress { margin: 16px 0; }
+  .enrollment-progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .enrollment-progress-label { font-size: 0.875rem; color: #374151; font-weight: 600; }
+  .enrollment-progress-bar { width: 100%; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; }
+  .enrollment-progress-fill { height: 100%; background: linear-gradient(90deg, #1a4e8a 0%, #2563EB 100%); transition: width 0.3s ease; border-radius: 4px; }
+
+  /* Module list in course card */
+  .enrollment-modules-toggle { margin: 16px 0; border: 1px solid #E5E7EB; border-radius: 6px; background: #F9FAFB; }
+  .enrollment-modules-summary {
+    padding: 12px 16px; cursor: pointer; font-weight: 600; color: #1a4e8a;
+    user-select: none; list-style: none; display: flex; align-items: center; gap: 8px;
+  }
+  .enrollment-modules-summary::-webkit-details-marker { display: none; }
+  .enrollment-modules-summary::marker { display: none; }
+  .enrollment-modules-summary::before { content: '▶'; font-size: 0.75rem; transition: transform 0.2s; display: inline-block; }
+  .enrollment-modules-toggle[open] .enrollment-modules-summary::before { transform: rotate(90deg); }
+  .enrollment-modules-summary:hover { background: #F3F4F6; }
+  .enrollment-modules-list { padding: 0 16px 12px 16px; border-top: 1px solid #E5E7EB; }
+  .enrollment-module-item {
+    padding: 10px 0; display: flex; flex-direction: column; gap: 4px;
+    border-bottom: 1px solid #F3F4F6;
+  }
+  .enrollment-module-item:last-child { border-bottom: none; }
+  .enrollment-module-row { display: flex; align-items: center; gap: 10px; }
+  .enrollment-module-status { font-size: 1.125rem; width: 24px; text-align: center; flex-shrink: 0; }
+  .enrollment-module-item.completed .enrollment-module-status { color: #059669; }
+  .enrollment-module-item.in-progress .enrollment-module-status { color: #2563EB; }
+  .enrollment-module-item.not-started .enrollment-module-status { color: #9CA3AF; }
+  .enrollment-module-link {
+    color: #374151; text-decoration: none; flex: 1; font-size: 0.9375rem;
+    transition: color 0.2s;
+  }
+  .enrollment-module-link:hover { color: #1a4e8a; text-decoration: underline; }
+
+  /* Shadow task breakdown inline */
+  .shadow-task-breakdown {
+    padding-left: 34px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .shadow-task-pill {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .task-pill-passed { background: #D1FAE5; color: #065F46; }
+  .task-pill-failed { background: #FEE2E2; color: #991B1B; }
+  .task-pill-attested { background: #D1FAE5; color: #065F46; }
+  .task-pill-not-started { background: #F3F4F6; color: #6B7280; }
+  .task-pill-no-tasks { background: #F0FDF4; color: #166534; font-style: italic; }
+
+  /* Loading / empty states */
+  .loading-state { text-align: center; padding: 80px 40px; color: #666; }
+  .loading-spinner {
+    width: 48px; height: 48px; border: 4px solid #E5E7EB;
+    border-top-color: #1a4e8a; border-radius: 50%;
+    animation: spin 1s linear infinite; margin: 0 auto 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 80px 40px; color: #666; }
+  .empty-state h2 { font-size: 1.75rem; color: #111827; margin: 0 0 16px 0; }
+  .empty-state p { font-size: 1.125rem; margin: 0 0 32px 0; line-height: 1.6; }
+  .empty-state-cta {
+    display: inline-block; background: #1a4e8a; color: #fff; padding: 12px 32px;
+    border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem; transition: background 0.2s;
+  }
+  .empty-state-cta:hover { background: #154171; }
+
+  @media (max-width: 900px) {
+    .learn-header-content, .learn-container { padding: 0 16px; }
+    .enrolled-grid { grid-template-columns: 1fr; }
+    .progress-summary { flex-direction: column; align-items: flex-start; }
+    .progress-stats { gap: 32px; }
+  }
+</style>
+
+<main id="main-content">
+  <section class="learn-header-section">
+    <div class="learn-header-content">
+      <h1 class="learn-page-title">My Learning</h1>
+      <p class="learn-page-subtitle">Shadow environment — task-based completion tracking.</p>
+    </div>
+  </section>
+
+  <div class="learn-layout-with-nav">
+    {{ learning_left_nav('my-learning', show_filters=false) }}
+    <div class="learn-main-content">
+      <div class="learn-container">
+
+      <!-- Shadow mode banner — always visible -->
+      <div class="shadow-mode-banner" role="note">
+        <span>⚠</span>
+        <span><strong>Shadow mode</strong> — progress data shown here is from the shadow environment and is not your production learning record.</span>
+      </div>
+
+      <!-- Loading state -->
+      <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading your shadow progress...</p>
+      </div>
+
+      <!-- Main content (hidden until loaded) -->
+      <div id="main-content-container" style="display: none;">
+        <!-- Progress summary -->
+        <div class="progress-summary">
+          <div class="progress-stats">
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-complete">0</div>
+              <div class="progress-stat-label">Complete</div>
+            </div>
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-in-progress">0</div>
+              <div class="progress-stat-label">In Progress</div>
+            </div>
+            <div class="progress-stat">
+              <div class="progress-stat-number" id="stat-enrolled">0</div>
+              <div class="progress-stat-label">Enrolled</div>
+            </div>
+          </div>
+          <div class="auth-prompt" id="auth-prompt" style="display: none;">
+            Sign in to see your shadow task completion data.
+            <a href="{{ constants.AUTH_LOGIN_URL }}?redirect_url={{ request.path_and_query|urlencode }}">Sign in</a>
+          </div>
+        </div>
+
+        <!-- Enrolled Content Section -->
+        <section id="enrolled-section" style="display: none;">
+          <div class="section-header">
+            <h2>My Enrollments <span class="section-count" id="enrolled-count">(0)</span></h2>
+          </div>
+          <div class="enrolled-grid" id="enrolled-grid"></div>
+        </section>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+          <h2>No Enrollments Found</h2>
+          <p>You don't appear to be enrolled in any courses yet. Explore our shadow pathway to begin!</p>
+          <a href="/learn-shadow" class="empty-state-cta">Explore Shadow Catalog</a>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+{# Auth context for shadow-my-learning.js #}
+{% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+{% set auth_login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+{% set auth_logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+<div id="hhl-auth-context"
+     data-auth-me-url="{{ auth_me_url }}"
+     data-auth-login-url="{{ auth_login_url }}"
+     data-auth-logout-url="{{ auth_logout_url }}"
+     data-enable-crm="{{ 'true' if constants.ENABLE_CRM_PROGRESS else 'false' }}"
+     data-track-events-url="{{ constants.TRACK_EVENTS_URL }}"
+     data-hubdb-courses-table-id="135381433"
+     data-hubdb-modules-table-id="135621904"
+     data-hubdb-pathways-table-id="135381504"
+     data-shadow="true"
+     style="display:none"></div>
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/shadow-my-learning.js') }}"></script>
+{% endblock body %}
