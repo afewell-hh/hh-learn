@@ -164,6 +164,9 @@ functions:
       - httpApi:
           path: /tasks/lab/attest
           method: POST
+      - httpApi:
+          path: /tasks/status
+          method: GET
 
 package:
   individually: true

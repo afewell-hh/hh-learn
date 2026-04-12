@@ -48,6 +48,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getCookieValue = getCookieValue;
 exports.handleLogin = handleLogin;
 exports.handleSignup = handleSignup;
 exports.handleCallback = handleCallback;
@@ -55,6 +56,7 @@ exports.handleLogout = handleLogout;
 exports.handleMe = handleMe;
 exports.handleCheckEmail = handleCheckEmail;
 exports.handleClaim = handleClaim;
+exports.verifyCookieAuth = verifyCookieAuth;
 const crypto = __importStar(require("crypto"));
 const client_cognito_identity_provider_1 = require("@aws-sdk/client-cognito-identity-provider");
 const client_dynamodb_1 = require("@aws-sdk/client-dynamodb");
@@ -888,6 +890,30 @@ async function updateUserHubspotContactId(userId, hubspotContactId) {
         ConditionExpression: 'attribute_exists(PK)',
     }));
     console.log('[DynamoDB] Updated hubspotContactId for user:', userId);
+}
+/**
+ * Verify cookie-based Cognito auth and return user identity.
+ * Reads hhl_access_token from request cookies, verifies against Cognito JWKS.
+ * Throws if the token is missing or invalid.
+ * Used by shadow-only endpoints (Issue #407+).
+ */
+async function verifyCookieAuth(event) {
+    const rawCookies = event.cookies && event.cookies.length
+        ? event.cookies
+        : (event.headers?.cookie || event.headers?.Cookie || '');
+    const accessToken = getCookieValue(rawCookies, 'hhl_access_token');
+    if (!accessToken) {
+        throw new Error('Missing hhl_access_token cookie');
+    }
+    const decoded = await verifyJWT(accessToken, {
+        clientId: COGNITO_CLIENT_ID,
+        tokenUse: 'access',
+    });
+    const userId = decoded.sub || decoded.username;
+    if (!userId) {
+        throw new Error('Invalid token payload: missing sub');
+    }
+    return { userId, email: decoded.email || '', decoded };
 }
 /**
  * Get user by ID from DynamoDB

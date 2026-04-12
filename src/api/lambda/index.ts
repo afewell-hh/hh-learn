@@ -34,6 +34,7 @@ import {
 } from './cognito-auth.js';
 import { handleQuizSubmit } from './tasks-quiz-submit.js';
 import { handleLabAttest } from './tasks-lab-attest.js';
+import { handleTasksStatus } from './tasks-status.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -196,6 +197,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     // Shadow completion framework endpoints (Issue #397)
     if (path.endsWith('/tasks/quiz/submit') && method === 'POST') return await handleQuizSubmit(event);
     if (path.endsWith('/tasks/lab/attest') && method === 'POST') return await handleLabAttest(event);
+    if (path.endsWith('/tasks/status') && method === 'GET') return await handleTasksStatus(event);
 
     // Legacy POST endpoints
     if (method !== 'POST') return bad(405, 'Method not allowed', origin);
