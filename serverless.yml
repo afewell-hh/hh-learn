@@ -1,6 +1,18 @@
 service: hedgehog-learn
 frameworkVersion: "3"
 
+# Stage-specific params — shadow gets real table names; all other stages get empty string
+# so the completion framework env vars carry no table references outside shadow.
+params:
+  shadow:
+    taskRecordsTable: ${self:service}-task-records-shadow
+    taskAttemptsTable: ${self:service}-task-attempts-shadow
+    entityCompletionsTable: ${self:service}-entity-completions-shadow
+  default:
+    taskRecordsTable: ''
+    taskAttemptsTable: ''
+    entityCompletionsTable: ''
+
 provider:
   name: aws
   runtime: nodejs20.x
@@ -29,11 +41,11 @@ provider:
     ENABLE_TEST_BYPASS: ${env:ENABLE_TEST_BYPASS, 'false'}
     APP_STAGE: ${env:APP_STAGE, 'dev'}
     # Shadow completion framework tables (Issue #405 / #397)
-    # Tables only created when stage=shadow (CloudFormation Condition: IsShadowStage)
-    # Lambda code guards all reads/writes with APP_STAGE=shadow check before using these vars
-    TASK_RECORDS_TABLE: ${self:service}-task-records-shadow
-    TASK_ATTEMPTS_TABLE: ${self:service}-task-attempts-shadow
-    ENTITY_COMPLETIONS_TABLE: ${self:service}-entity-completions-shadow
+    # Values resolve to the table names only when stage=shadow (via params block above);
+    # all other stages receive empty string — table names never injected into dev/prod runtime.
+    TASK_RECORDS_TABLE: ${param:taskRecordsTable}
+    TASK_ATTEMPTS_TABLE: ${param:taskAttemptsTable}
+    ENTITY_COMPLETIONS_TABLE: ${param:entityCompletionsTable}
   iam:
     role:
       statements:
