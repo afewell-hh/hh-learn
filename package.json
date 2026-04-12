@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "echo \"(add tests in /tests)\" && exit 0",
+    "test:unit": "jest",
     "deploy:aws": "serverless deploy",
     "remove:aws": "serverless remove",
     "sync:hubdb": "npm run build && node dist/src/sync/push-hubdb.js",
@@ -48,11 +49,14 @@
   "devDependencies": {
     "@playwright/test": "^1.48.2",
     "@types/aws-lambda": "^8.10.134",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.7.4",
     "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",
+    "jest": "^30.3.0",
     "prettier": "^3.3.3",
     "serverless": "^3.40.0",
+    "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }

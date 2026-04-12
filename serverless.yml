@@ -40,6 +40,7 @@ provider:
     COGNITO_ISSUER: ${env:COGNITO_ISSUER}
     ENABLE_TEST_BYPASS: ${env:ENABLE_TEST_BYPASS, 'false'}
     APP_STAGE: ${env:APP_STAGE, 'dev'}
+    HUBDB_MODULES_TABLE_ID: ${env:HUBDB_MODULES_TABLE_ID}
     # Shadow completion framework tables (Issue #405 / #397)
     # Values resolve to the table names only when stage=shadow (via params block above);
     # all other stages receive empty string — table names never injected into dev/prod runtime.
@@ -156,6 +157,10 @@ functions:
       - httpApi:
           path: /enrollments/list
           method: GET
+      # Shadow completion framework endpoints (Issue #397)
+      - httpApi:
+          path: /tasks/quiz/submit
+          method: POST
 
 package:
   individually: true
