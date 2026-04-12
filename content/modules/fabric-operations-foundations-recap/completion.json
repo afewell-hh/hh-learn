@@ -1,0 +1,11 @@
+{
+  "completion_tasks": [
+    {
+      "task_slug": "knowledge-check-1",
+      "task_type": "knowledge_check",
+      "graded": false,
+      "required": false,
+      "label": "Knowledge Check (optional)"
+    }
+  ]
+}

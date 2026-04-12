@@ -17,6 +17,8 @@
     {"name": "meta_description", "type": "TEXT"},
     {"name": "social_image_url", "type": "TEXT"},
     {"name": "prerequisites_json", "type": "TEXT"},
-    {"name": "media_json", "type": "JSON"}
+    {"name": "media_json", "type": "JSON"},
+    {"name": "completion_tasks_json", "type": "TEXT"},
+    {"name": "quiz_schema_json", "type": "TEXT"}
   ]
 }

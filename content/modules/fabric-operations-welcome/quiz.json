@@ -1,0 +1,54 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-welcome",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "What is the primary role of a Hedgehog Fabric Operator?",
+      "options": [
+        {"id": "a", "text": "Design network topologies and select switch hardware"},
+        {"id": "b", "text": "Provision VPCs, validate connectivity, and monitor fabric health"},
+        {"id": "c", "text": "Manually configure BGP peering on each switch"},
+        {"id": "d", "text": "Write custom Kubernetes controllers for network automation"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "True or False: In Hedgehog, you must manually log into each switch to configure VLANs when creating a new VPC.",
+      "options": [
+        {"id": "a", "text": "True"},
+        {"id": "b", "text": "False"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "According to the Hedgehog learning philosophy, which statement is correct?",
+      "options": [
+        {"id": "a", "text": "You must master all edge cases before attempting basic operations"},
+        {"id": "b", "text": "Focus on common, high-impact tasks to build confidence and immediate productivity"},
+        {"id": "c", "text": "Avoid using support — figure everything out independently"},
+        {"id": "d", "text": "Memorize all kubectl commands before trying labs"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    }
+  ],
+  "_omitted_questions": [
+    {
+      "original_q": 2,
+      "reason": "Open-ended command question (kubectl get switches) — no encodable single correct answer for MC format; omitted from MVP quiz.json"
+    },
+    {
+      "original_q": 5,
+      "reason": "Practical open-ended question (count switches from lab output) — rubric-graded, no single MC option; omitted from MVP quiz.json"
+    }
+  ]
+}
