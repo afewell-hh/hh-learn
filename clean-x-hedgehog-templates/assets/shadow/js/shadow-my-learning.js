@@ -31,7 +31,11 @@
 (function () {
   'use strict';
 
+  // Production API base: enrollments and auth endpoints (deployed on custom domain).
   var API_BASE = 'https://api.hedgehog.cloud';
+  // Shadow API base: shadow task endpoints are only on the execute-api URL,
+  // not on the production custom domain. Must be used for /tasks/status/batch.
+  var SHADOW_API_BASE = 'https://jcsb8mv5qk.execute-api.us-west-2.amazonaws.com';
 
   // Guard: only run on shadow pages
   var ctxEl = document.getElementById('hhl-auth-context');
@@ -390,7 +394,8 @@
               .catch(function () { return { results: [] }; });
 
             // --- Step 3: Fetch shadow task statuses (batch) ---
-            var batchUrl = API_BASE + '/tasks/status/batch?module_slugs=' +
+            // Uses SHADOW_API_BASE: this endpoint is not on the production custom domain.
+            var batchUrl = SHADOW_API_BASE + '/tasks/status/batch?module_slugs=' +
               allModSlugs.map(encodeURIComponent).join(',');
             var batchFetch = fetch(batchUrl, { credentials: 'include' })
               .then(function (r) { return r.ok ? r.json() : null; })

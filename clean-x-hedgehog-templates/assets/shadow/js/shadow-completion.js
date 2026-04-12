@@ -26,7 +26,10 @@
 (function () {
   'use strict';
 
-  var API_BASE = 'https://api.hedgehog.cloud';
+  // Shadow task endpoints are only on the shadow execute-api URL.
+  // Production custom domain (api.hedgehog.cloud) does not have these routes.
+  var API_BASE = 'https://jcsb8mv5qk.execute-api.us-west-2.amazonaws.com';
+  // Auth endpoints (login/callback) remain on the production custom domain.
   var LOGIN_URL = 'https://api.hedgehog.cloud/auth/login';
 
   // ----------------------------------------------------------------
@@ -48,6 +51,36 @@
     if (legacyComplete) legacyComplete.style.display = 'none';
     var legacyStarted = document.getElementById('hhl-mark-started');
     if (legacyStarted) legacyStarted.style.display = 'none';
+  }
+
+  // Suppress the static "Assessment" section from module body when an
+  // interactive quiz section is present. The static section comes from the
+  // module's README synced into HubDB full_content; the interactive quiz
+  // renders separately below — keeping both creates duplicate/conflicting UX.
+  if (quizSection) {
+    suppressStaticAssessmentSection();
+  }
+
+  function suppressStaticAssessmentSection() {
+    var moduleContent = document.querySelector('.module-content');
+    if (!moduleContent) return;
+
+    // Find <h2> headings inside .module-content that say "Assessment"
+    var headings = moduleContent.querySelectorAll('h2');
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].textContent.trim() === 'Assessment') {
+        var assessmentHeading = headings[i];
+        // Collect the heading + all following siblings until the next h2 or end
+        var toHide = [assessmentHeading];
+        var sibling = assessmentHeading.nextElementSibling;
+        while (sibling && sibling.tagName.toLowerCase() !== 'h2') {
+          toHide.push(sibling);
+          sibling = sibling.nextElementSibling;
+        }
+        toHide.forEach(function (el) { el.style.display = 'none'; });
+        break; // Only one Assessment section expected
+      }
+    }
   }
 
   // ----------------------------------------------------------------
