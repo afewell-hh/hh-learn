@@ -1,0 +1,66 @@
+{
+  "TableName": "hedgehog-learn-task-attempts-shadow",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "SSESpecification": {
+    "SSEEnabled": true
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "hedgehog-learn"
+    },
+    {
+      "Key": "Environment",
+      "Value": "shadow"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "serverless-framework"
+    },
+    {
+      "Key": "Component",
+      "Value": "completion-framework"
+    }
+  ],
+  "Schema": {
+    "PK": "USER#<userId>",
+    "SK": "ATTEMPT#MODULE#<moduleSlug>#<taskSlug>#<isoTimestamp>",
+    "description": "Immutable append-only record of every task attempt. Never updated after write.",
+    "shadowOnly": true,
+    "condition": "CloudFormation Condition: IsShadowStage (only provisioned when stage=shadow)",
+    "attributes": {
+      "PK": "Partition key: USER#<Cognito sub>",
+      "SK": "Sort key: ATTEMPT#MODULE#<moduleSlug>#<taskSlug>#<ISO-8601-timestamp> — timestamp ensures uniqueness for retakes",
+      "task_type": "quiz | lab_attestation | knowledge_check",
+      "answers": "List of submitted answers [{id, value}] — quiz tasks only; empty for attestations",
+      "score": "Number 0-100 — computed quiz score (quiz tasks only)",
+      "pass": "Boolean — whether score >= passing_score (graded tasks only)",
+      "attested_at": "ISO 8601 timestamp — for lab_attestation tasks",
+      "attempted_at": "ISO 8601 timestamp — when this attempt was recorded",
+      "learner_identity": "Map: {userId, email} — snapshot of learner identity at time of attempt"
+    }
+  }
+}

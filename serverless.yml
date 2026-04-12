@@ -27,6 +27,13 @@ provider:
     COGNITO_REDIRECT_URI: ${env:COGNITO_REDIRECT_URI}
     COGNITO_ISSUER: ${env:COGNITO_ISSUER}
     ENABLE_TEST_BYPASS: ${env:ENABLE_TEST_BYPASS, 'false'}
+    APP_STAGE: ${env:APP_STAGE, 'dev'}
+    # Shadow completion framework tables (Issue #405 / #397)
+    # Tables only created when stage=shadow (CloudFormation Condition: IsShadowStage)
+    # Lambda code guards all reads/writes with APP_STAGE=shadow check before using these vars
+    TASK_RECORDS_TABLE: ${self:service}-task-records-shadow
+    TASK_ATTEMPTS_TABLE: ${self:service}-task-attempts-shadow
+    ENTITY_COMPLETIONS_TABLE: ${self:service}-entity-completions-shadow
   iam:
     role:
       statements:
@@ -52,6 +59,21 @@ provider:
                 - 'index/*'
             - Fn::GetAtt: [ProgressTable, Arn]
             - Fn::GetAtt: [BadgesTable, Arn]
+        # Shadow completion framework tables (Issue #405 / #397)
+        # ARNs hardcoded (not Fn::GetAtt) so this statement deploys to all stages safely;
+        # tables themselves are Condition: IsShadowStage and only exist in the shadow stack
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-records-shadow"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-attempts-shadow"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-entity-completions-shadow"
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -273,7 +295,112 @@ package:
     - '!scratch.txt'
 
 resources:
+  # CloudFormation condition: shadow-only resources gated on stage == shadow
+  Conditions:
+    IsShadowStage: !Equals ['${sls:stage}', 'shadow']
+
   Resources:
+    # -------------------------------------------------------------------------
+    # Shadow Completion Framework Tables (Issue #405 / #397)
+    # Condition: IsShadowStage — only provisioned when sls:stage == shadow
+    # -------------------------------------------------------------------------
+
+    # Stores current task status per learner per task (mutable, updated on each attempt)
+    # PK: USER#<userId>  SK: TASK#MODULE#<moduleSlug>#<taskSlug>
+    TaskRecordsShadowTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsShadowStage
+      Properties:
+        TableName: ${self:service}-task-records-shadow
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: shadow
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: completion-framework
+
+    # Immutable append-only record of every task attempt (quiz answers, lab attestations)
+    # PK: USER#<userId>  SK: ATTEMPT#MODULE#<moduleSlug>#<taskSlug>#<isoTimestamp>
+    TaskAttemptsShadowTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsShadowStage
+      Properties:
+        TableName: ${self:service}-task-attempts-shadow
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: shadow
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: completion-framework
+
+    # Module-level completion status derived from task records (one record per learner per module)
+    # PK: USER#<userId>  SK: COMPLETION#MODULE#<moduleSlug>
+    EntityCompletionsShadowTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsShadowStage
+      Properties:
+        TableName: ${self:service}-entity-completions-shadow
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: shadow
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: completion-framework
+
     # DynamoDB Tables for External SSO + Progress Store (Issue #302)
     UsersTable:
       Type: AWS::DynamoDB::Table
