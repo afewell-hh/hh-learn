@@ -118,7 +118,9 @@ changed by the #421 fixes only.
 | `shadow-completion.js` published live | ✅ |
 | `shadow-my-learning.js` published live | ✅ |
 | `learn-shadow/module-page.html` published live | ✅ |
-| `quiz.json` synced to HubDB `quiz_schema_json` | ✅ (synced in prior session; HubDB at capacity during this session) |
+| `quiz.json` synced to HubDB `quiz_schema_json` | ✅ synced via `sync:content` |
+| CDN cache busted — fresh render confirmed | ✅ 23:49:56 UTC 2026-04-12 |
+| Live module page: sentinel absent, quiz present, Assessment h2 absent | ✅ verified |
 
 ---
 
@@ -166,12 +168,28 @@ Production isolation maintained: shadow routes only at `/shadow` path prefix.
 
 ### Gap 2: Assessment duplication
 
-The template now renders only content before `<h2>Assessment</h2>` when
-`quiz_schema_json` is present. The live `learn-shadow/module-page.html` has been
-published with this change.
+The template renders only content before `HHL_ASSESSMENT_SPLIT` when `quiz_schema_json`
+is present. A plain-text sentinel was inserted by `sync:content` (via `markdown-to-hubdb.ts`)
+into `full_content` immediately before `<h2>Assessment</h2>`.
+
+**CDN cache note:** After the template fix was published, the CDN was still serving a
+stale render (10-hour edge TTL). A second `sync:content` run republished the HubDB table,
+which invalidated the `DB-135621904` cache tag and triggered a fresh CDN render at
+`Sun, 12 Apr 2026 23:49:56 GMT`.
+
+**Live page verified clean — curl checks against fresh CDN render:**
+```
+HTTP:                         200 ✓
+Sentinel (HHL_ASSESSMENT_SPLIT) in HTML:  0 occurrences ✓
+Static <h2>Assessment</h2> in HTML:       0 occurrences ✓
+Interactive #hhl-quiz-section present:    1 ✓
+Lab section present:                      1 ✓
+Module content div present:               1 ✓
+```
 
 **Assessment heading present in HubDB `full_content`:** yes (synced from README)
-**Template strips it when quiz present:** yes (HubL split on exact heading text)
+**Sentinel inserted by sync script:** yes (`HHL_ASSESSMENT_SPLIT` before `<h2>Assessment</h2>`)
+**Template strips it when quiz present:** yes (HubL `|split('HHL_ASSESSMENT_SPLIT')|first`)
 **Lab-only modules unaffected:** yes (no `quiz_schema_json` → full content rendered)
 
 ---
@@ -197,7 +215,7 @@ Passing score: 75% (4 of 5 required). Lambda grading reads from HubDB `quiz_sche
 | Shadow task API calls reach correct Lambda via browser-compatible URL | ✅ `api.hedgehog.cloud/shadow/*` |
 | Auth cookie sent by browser (same host as cookie domain) | ✅ host-only for `api.hedgehog.cloud` |
 | Production isolation preserved | ✅ `/tasks/*` still 404 on prod; shadow only at `/shadow` prefix |
-| Static Assessment block absent from rendered HTML when interactive quiz present | ✅ template-level split |
+| Static Assessment block absent from rendered HTML when interactive quiz present | ✅ verified live: 0 occurrences of `<h2>Assessment</h2>` in CDN render |
 | Lab-only modules: full content rendered (no premature truncation) | ✅ gated on `quiz_schema_json` |
 | PR diff limited to #421 changes only | ✅ based on issue-412-shadow-e2e-qa |
 | `quiz.json` covers all 5 README assessment topics | ✅ |
