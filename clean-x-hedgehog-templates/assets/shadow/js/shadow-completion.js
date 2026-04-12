@@ -26,7 +26,11 @@
 (function () {
   'use strict';
 
-  var API_BASE = 'https://api.hedgehog.cloud';
+  // Shadow task endpoints are served under the /shadow path mapping on the
+  // production custom domain.  This keeps the request host as api.hedgehog.cloud,
+  // so the host-only SameSite=Strict auth cookie is sent by the browser.
+  // See Issue #421 and serverless.yml ShadowApiPathMapping.
+  var API_BASE = 'https://api.hedgehog.cloud/shadow';
   var LOGIN_URL = 'https://api.hedgehog.cloud/auth/login';
 
   // ----------------------------------------------------------------

@@ -1083,7 +1083,18 @@
           <div class="module-content">
             {# Prefer full_content when present #}
             {% if dynamic_page_hubdb_row.full_content %}
-              {{ dynamic_page_hubdb_row.full_content|safe }}
+              {# When an interactive quiz section is present, strip the static
+                 "## Assessment" block from full_content at the template level.
+                 The markdown sync produces <h2>Assessment</h2> for that heading;
+                 splitting on it and rendering only the first part removes the
+                 static block entirely from the rendered HTML — no JS required.
+                 Modules without a quiz (lab-only) render their full content. #}
+              {% if dynamic_page_hubdb_row.quiz_schema_json %}
+                {% set content_parts = dynamic_page_hubdb_row.full_content|split('<h2>Assessment</h2>') %}
+                {{ content_parts|first|safe }}
+              {% else %}
+                {{ dynamic_page_hubdb_row.full_content|safe }}
+              {% endif %}
             {% elif dynamic_page_hubdb_row.content_blocks_json %}
               {# Render simple content blocks fallback (text/callout) if provided #}
               {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
