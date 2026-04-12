@@ -170,6 +170,9 @@ functions:
       - httpApi:
           path: /tasks/status/batch
           method: GET
+      - httpApi:
+          path: /admin/test/reset
+          method: POST
 
 package:
   individually: true
