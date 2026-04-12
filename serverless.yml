@@ -161,6 +161,9 @@ functions:
       - httpApi:
           path: /tasks/quiz/submit
           method: POST
+      - httpApi:
+          path: /tasks/lab/attest
+          method: POST
 
 package:
   individually: true
