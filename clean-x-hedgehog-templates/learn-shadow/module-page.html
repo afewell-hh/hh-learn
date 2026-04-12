@@ -1085,12 +1085,15 @@
             {% if dynamic_page_hubdb_row.full_content %}
               {# When an interactive quiz section is present, strip the static
                  "## Assessment" block from full_content at the template level.
-                 The markdown sync produces <h2>Assessment</h2> for that heading;
-                 splitting on it and rendering only the first part removes the
-                 static block entirely from the rendered HTML — no JS required.
+                 The sync script inserts a plain-text sentinel HHL_ASSESSMENT_SPLIT
+                 immediately before <h2>Assessment</h2> in full_content so we can
+                 split here without embedding HTML angle brackets in a HubL {% %}
+                 expression (HubSpot rejects those in logic-block string literals).
+                 Taking content_parts|first discards the Assessment block and all
+                 content after it from the rendered HTML — no JS hiding required.
                  Modules without a quiz (lab-only) render their full content. #}
               {% if dynamic_page_hubdb_row.quiz_schema_json %}
-                {% set content_parts = dynamic_page_hubdb_row.full_content|split('<h2>Assessment</h2>') %}
+                {% set content_parts = dynamic_page_hubdb_row.full_content|split('HHL_ASSESSMENT_SPLIT') %}
                 {{ content_parts|first|safe }}
               {% else %}
                 {{ dynamic_page_hubdb_row.full_content|safe }}

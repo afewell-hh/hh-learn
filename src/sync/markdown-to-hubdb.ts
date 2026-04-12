@@ -208,6 +208,14 @@ async function syncModules(dryRun: boolean = false) {
         html = html.replace(/^\s*<h1[^>]*>[\s\S]*?<\/h1>\s*/i, '');
       }
 
+      // Insert a plain-text sentinel immediately before the <h2>Assessment</h2>
+      // heading so the shadow module-page HubL template can split on it without
+      // using HTML angle-bracket characters inside a HubL {% %} expression block
+      // (HubSpot's template engine rejects HTML in logic-block string literals).
+      // The sentinel is stripped from rendered output when the template takes
+      // content_parts|first — the Assessment block and everything after it is discarded.
+      html = html.replace('<h2>Assessment</h2>', 'HHL_ASSESSMENT_SPLIT<h2>Assessment</h2>');
+
       // Map difficulty to HubDB SELECT option format
       const difficultyMap: Record<string, any> = {
         'beginner': { id: '1', name: 'beginner', type: 'option' },
