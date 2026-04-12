@@ -1,0 +1,11 @@
+{
+  "completion_tasks": [
+    {
+      "task_slug": "lab-main",
+      "task_type": "lab_attestation",
+      "graded": false,
+      "required": true,
+      "label": "Hands-On Lab"
+    }
+  ]
+}

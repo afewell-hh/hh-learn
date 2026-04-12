@@ -1,0 +1,21 @@
+{
+  "completion_tasks": [
+    {
+      "task_slug": "quiz-1",
+      "task_type": "quiz",
+      "graded": true,
+      "required": true,
+      "label": "Module Assessment",
+      "passing_score": 75,
+      "max_attempts": null,
+      "quiz_ref": "quiz-1"
+    },
+    {
+      "task_slug": "lab-main",
+      "task_type": "lab_attestation",
+      "graded": false,
+      "required": true,
+      "label": "Hands-On Lab"
+    }
+  ]
+}
