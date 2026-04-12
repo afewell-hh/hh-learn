@@ -3,6 +3,7 @@
 **Date:** 2026-04-12
 **Branch:** issue-411-shadow-my-learning-tasks
 **Scope:** Shadow-only — no production template changes
+**Revision:** Policy fix applied (commit `2200daf`) — no-task modules no longer auto-complete
 
 ---
 
@@ -51,6 +52,28 @@
 GET https://jcsb8mv5qk.execute-api.us-west-2.amazonaws.com/tasks/status/batch?module_slugs=fabric-operations-welcome
 → 401 {"error":"Unauthorized"}  ✓ (shadow guard passes, auth required)
 ```
+
+---
+
+## Policy Fix: No-Task Module Handling (commit `2200daf`)
+
+**Finding:** Initial implementation treated modules with no required tasks as automatically
+complete — `moduleDisplayStatus()` returned `'complete'` for `hasNoRequiredTasks`, causing
+those modules to increment `completedCount` and advance courses toward "Completed" with no
+learner action. This conflicted with the accepted policy baseline from #402/#403/#404.
+
+**Fix applied:**
+- `moduleDisplayStatus()` now returns `'no-tasks'` — a distinct neutral state
+- `'no-tasks'` modules are excluded from `taskModuleCount` (the progress denominator)
+- `completedCount` only incremented for `module_status === 'complete'` from DynamoDB
+- `isComplete = taskModuleCount > 0 && completedCount === taskModuleCount`
+- `hasStarted` excludes no-task modules (only reflects DynamoDB activity)
+- Progress label: `"N of M task modules complete"` (not total module count)
+- Status icon: `–` (en dash) for no-task modules in module list
+- CSS: `.enrollment-module-item.no-tasks { color: grey }` (neutral visual)
+- No-task modules still show `"No required tasks"` info pill — informative, not misleading
+
+**Edge case:** A course with ONLY no-task modules → "Not Started" badge, 0% progress, never auto-completes.
 
 ---
 
