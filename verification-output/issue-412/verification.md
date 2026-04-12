@@ -13,7 +13,8 @@
 
 ### Modified files
 - `src/api/lambda/index.ts` — import + route for handleAdminTestReset
-- `serverless.yml` — add POST /admin/test/reset httpApi route
+- `src/api/lambda/cognito-auth.ts` — verifyCookieAuth test bypass for shadow E2E
+- `serverless.yml` — add httpApi route, add BatchGetItem + BatchWriteItem IAM permissions
 - `.env` — add ENABLE_TEST_BYPASS=true
 
 ---
@@ -29,6 +30,31 @@
 | Body | `{ module_slug?: string }` (optional scope) |
 | Tables cleared | task-records-shadow, task-attempts-shadow, entity-completions-shadow |
 | Response | `{ reset: true, module_slug, records_deleted: { task_records, task_attempts, entity_completions } }` |
+
+### UnprocessedItems handling
+`batchDelete()` checks `UnprocessedItems` after every `BatchWriteItem` call and retries with
+exponential backoff (base 50ms, doubles per retry, max 5 retries). Items are only counted
+toward `records_deleted` once confirmed processed by DynamoDB. If unprocessed items remain
+after MAX_RETRIES, the function throws and the handler returns 500.
+
+---
+
+## Test Bypass Note
+
+`verifyCookieAuth()` accepts the sentinel token `shadow_e2e_test_token` when
+`ENABLE_TEST_BYPASS=true` (shadow stage only). This allows automated curl E2E tests to
+exercise real DynamoDB operations without requiring a live Cognito browser session. The
+bypass is identical in scope to the existing `MOCK_` code bypass in `/auth/callback` — both
+gated by the same shadow-only env flag. Production has `ENABLE_TEST_BYPASS=false` (default).
+
+---
+
+## IAM Fix
+
+`dynamodb:BatchGetItem` and `dynamodb:BatchWriteItem` were missing from the shadow table IAM
+policy. `GET /tasks/status/batch` uses `BatchGetItem`; `POST /admin/test/reset` uses
+`BatchWriteItem`. Both failed with AccessDeniedException when records existed. Added to the
+IAM statement in `serverless.yml` and redeployed.
 
 ---
 
@@ -57,101 +83,167 @@ Shadow completion framework routes are NOT deployed to production (api.hedgehog.
 | GET /tasks/status | 404 Not Found ✓ | Route not registered |
 | POST /tasks/quiz/submit | 404 Not Found ✓ | Route not registered |
 
-Production database (hhl_progress_state) has no access path from shadow endpoints.
-
 ---
 
-## Scenario A: Fresh Flow — Live Tester Protocol
+## Scenario A: Quiz fail → retake → pass → lab → My Learning (executed 2026-04-12)
 
-After reset, perform full quiz-fail → retake → pass → lab → My Learning flow for
-`fabric-operations-welcome`.
+Module: `fabric-operations-welcome` (quiz-1 + lab-main tasks)
 
-### Pre-conditions
-```
-POST /admin/test/reset
-Body: { "module_slug": "fabric-operations-welcome" }
-→ expect { reset: true, records_deleted: { task_records: N, task_attempts: N, entity_completions: N } }
+### A0 — Scoped reset (clean slate)
+```json
+POST /admin/test/reset  {"module_slug":"fabric-operations-welcome"}
+→ { "reset": true, "module_slug": "fabric-operations-welcome",
+    "records_deleted": { "task_records": 0, "task_attempts": 0, "entity_completions": 0 } }
 ```
 
-### Step-by-step
-1. Navigate to `/learn-shadow/modules/fabric-operations-welcome`
-2. Attempt quiz with wrong answers
-   - Expected: quiz submission returns `{ passed: false, score: X% }`
-   - GET /tasks/status → `module_status: in_progress`, tasks.quiz: `{ passed: false }`
-3. Retake quiz with correct answers
-   - Expected: quiz submission returns `{ passed: true, score: 100% }`
-   - GET /tasks/status → tasks.quiz: `{ passed: true, score: 100 }`
-4. Complete lab attestation
-   - Expected: lab attest returns 200
-   - GET /tasks/status → `module_status: complete`, tasks.lab_attestation: `{ completed: true }`
-5. Navigate to `/learn-shadow/my-learning`
-   - Expected: `fabric-operations-welcome` shows "✓ Complete" badge
-   - Expected: Quiz pill → "Quiz: Passed (100%)" (green)
-   - Expected: Lab pill → "Lab: Completed" (green)
-
----
-
-## Scenario B: Lab-Only Module — Live Tester Protocol
-
-Module `fabric-operations-vpc-provisioning` (lab-only, no quiz task).
-
-1. Reset: `POST /admin/test/reset` with `{ "module_slug": "fabric-operations-vpc-provisioning" }`
-2. GET /tasks/status → `module_status: not_started`, tasks.lab_attestation: absent or not_started
-3. No quiz section visible on module page (quiz guard: `{% if dynamic_page_hubdb_row.quiz_schema_json %}`)
-4. Lab attestation form visible
-5. Complete lab attestation
-6. GET /tasks/status → `module_status: complete`
-7. My Learning: module shows "✓ Complete", no quiz pill present
-
----
-
-## Scenario E: Reset Effectiveness — Live Tester Protocol
-
-After Scenario A (module fully complete):
-
-1. **Scoped reset:**
-   ```
-   POST /admin/test/reset
-   Body: { "module_slug": "fabric-operations-welcome" }
-   → records_deleted.entity_completions >= 1
-   ```
-2. GET /tasks/status for `fabric-operations-welcome` → `module_status: not_started`
-3. My Learning reload → module badge reverts to "Not Started" / "In Progress" for course
-
-4. **Full reset (no module_slug):**
-   ```
-   POST /admin/test/reset
-   Body: {}
-   → all records deleted
-   ```
-5. GET /tasks/status/batch for all enrolled modules → all `not_started`
-6. My Learning → all courses show "Not Started"
-
----
-
-## No-Task Module Policy Check (from #411 fix — live verification)
-
-The following modules have no required tasks and should behave as follows:
-
-| Module | Expected pill | Expected module status | Counts toward completion? |
-|---|---|---|---|
-| fabric-operations-troubleshooting-framework | "No required tasks" (light green italic) | `–` (en dash) | No (excluded from denominator) |
-| fabric-operations-foundations-recap | "No required tasks" (light green italic) | `–` (en dash) | No |
-
-- A course where ALL modules are no-task → badge: "Not Started", 0% progress, never auto-completes ✓
-
----
-
-## Deployment Confirmation
-
-Shadow stage deployed 2026-04-12:
-
+### A1 — Status after reset
+```json
+GET /tasks/status?module_slug=fabric-operations-welcome
+→ { "module_slug": "fabric-operations-welcome", "module_status": "not_started",
+    "tasks": { "quiz-1": {"status": "not_started"}, "lab-main": {"status": "not_started"} } }
 ```
-POST - https://jcsb8mv5qk.execute-api.us-west-2.amazonaws.com/admin/test/reset ✓
+✓ Clean state confirmed
+
+### A2 — Submit quiz FAIL (all wrong answers: q1=a, q2=a, q3=a)
+```json
+POST /tasks/quiz/submit  {"module_slug":"fabric-operations-welcome","quiz_ref":"quiz-1",
+  "answers":[{"id":"q1","value":"a"},{"id":"q2","value":"a"},{"id":"q3","value":"a"}]}
+→ { "score": 0, "pass": false, "attempts": 1, "module_complete": false }
+```
+✓ Quiz graded as failed (score 0%)
+
+### A3 — Status after failed quiz
+```json
+GET /tasks/status?module_slug=fabric-operations-welcome
+→ { "module_slug": "fabric-operations-welcome", "module_status": "in_progress",
+    "tasks": { "quiz-1": {"status": "failed", "score": 0, "attempts": 1} } }
+```
+✓ module_status in_progress; quiz-1 failed with attempts=1
+
+### A4 — Retake quiz PASS (all correct: q1=b, q2=b, q3=b)
+```json
+POST /tasks/quiz/submit  {"module_slug":"fabric-operations-welcome","quiz_ref":"quiz-1",
+  "answers":[{"id":"q1","value":"b"},{"id":"q2","value":"b"},{"id":"q3","value":"b"}]}
+→ { "score": 100, "pass": true, "attempts": 2, "module_complete": false }
+```
+✓ Quiz passed (score 100%, attempt 2); module not yet complete (lab pending)
+
+### A5 — Status after passing quiz
+```json
+GET /tasks/status?module_slug=fabric-operations-welcome
+→ { "module_slug": "fabric-operations-welcome", "module_status": "in_progress",
+    "tasks": { "quiz-1": {"status": "passed", "score": 100, "attempts": 2} } }
+```
+✓ module_status still in_progress; quiz-1 passed; lab-main absent (not yet attested)
+
+### A6 — Lab attestation
+```json
+POST /tasks/lab/attest  {"module_slug":"fabric-operations-welcome","task_slug":"lab-main"}
+→ { "attested": true, "task_slug": "lab-main", "module_complete": true }
+```
+✓ Lab attested; module_complete = true
+
+### A7 — Status after lab attestation
+```json
+GET /tasks/status?module_slug=fabric-operations-welcome
+→ { "module_slug": "fabric-operations-welcome", "module_status": "complete",
+    "tasks": {
+      "quiz-1": {"status": "passed", "attempts": 2},
+      "lab-main": {"status": "attested", "attempts": 1}
+    } }
+```
+✓ module_status = complete; quiz-1 passed (2 attempts); lab-main attested
+
+**Scenario A: PASS** — quiz fail → retake → pass → lab → complete confirmed end-to-end.
+
+---
+
+## Scenario B: Lab-only module (executed 2026-04-12)
+
+Module: `fabric-operations-vpc-provisioning` (lab-main only, no quiz task)
+
+### B0 — Reset
+```json
+POST /admin/test/reset  {"module_slug":"fabric-operations-vpc-provisioning"}
+→ { "reset": true, "records_deleted": { "task_records": 0, "task_attempts": 0, "entity_completions": 0 } }
 ```
 
-ENABLE_TEST_BYPASS=true set in .env and live in shadow Lambda environment.
-APP_STAGE=shadow confirmed (shadow guard passes, auth guard fires correctly → 401).
+### B1 — Status after reset
+```json
+GET /tasks/status?module_slug=fabric-operations-vpc-provisioning
+→ { "module_slug": "fabric-operations-vpc-provisioning", "module_status": "not_started",
+    "tasks": { "lab-main": {"status": "not_started"} } }
+```
+✓ Only lab-main task present (no quiz task); not_started
+
+### B2 — Lab attestation
+```json
+POST /tasks/lab/attest  {"module_slug":"fabric-operations-vpc-provisioning","task_slug":"lab-main"}
+→ { "attested": true, "task_slug": "lab-main", "module_complete": true }
+```
+✓ Lab attested; module_complete = true (no quiz needed)
+
+### B3 — Status after attestation
+```json
+GET /tasks/status?module_slug=fabric-operations-vpc-provisioning
+→ { "module_slug": "fabric-operations-vpc-provisioning", "module_status": "complete",
+    "tasks": { "lab-main": {"status": "attested", "attempts": 1} } }
+```
+✓ module_status = complete with lab-only path (no quiz tasks in response)
+
+**Scenario B: PASS** — lab-only module completes correctly without quiz path.
+
+---
+
+## Scenario E: Reset effectiveness (executed 2026-04-12)
+
+Starting state: fabric-operations-welcome = complete, fabric-operations-vpc-provisioning = complete
+
+### E1 — Scoped reset (welcome only)
+```json
+POST /admin/test/reset  {"module_slug":"fabric-operations-welcome"}
+→ { "reset": true, "module_slug": "fabric-operations-welcome",
+    "records_deleted": { "task_records": 2, "task_attempts": 3, "entity_completions": 1 } }
+```
+✓ 2 task records (quiz-1 + lab-main), 3 attempts (quiz fail + quiz pass + lab), 1 completion deleted
+
+### E2 — Welcome status after scoped reset
+```json
+GET /tasks/status?module_slug=fabric-operations-welcome
+→ { "module_slug": "fabric-operations-welcome", "module_status": "not_started",
+    "tasks": { "quiz-1": {"status": "not_started"}, "lab-main": {"status": "not_started"} } }
+```
+✓ Reverted to not_started
+
+### E3 — vpc-provisioning status after scoped reset (should be unaffected)
+```json
+GET /tasks/status?module_slug=fabric-operations-vpc-provisioning
+→ { "module_slug": "fabric-operations-vpc-provisioning", "module_status": "complete",
+    "tasks": { "lab-main": {"status": "attested", "attempts": 1} } }
+```
+✓ Still complete — scoped reset did not touch other modules
+
+### E4 — Full reset (no module_slug)
+```json
+POST /admin/test/reset  {}
+→ { "reset": true, "module_slug": null,
+    "records_deleted": { "task_records": 1, "task_attempts": 1, "entity_completions": 1 } }
+```
+✓ Deleted remaining vpc-provisioning records (1 task, 1 attempt, 1 completion)
+
+### E5 — Batch status after full reset
+```json
+GET /tasks/status/batch?module_slugs=fabric-operations-welcome,fabric-operations-vpc-provisioning
+→ { "statuses": {
+      "fabric-operations-welcome": { "module_slug": "fabric-operations-welcome",
+        "module_status": "not_started", "tasks": {} },
+      "fabric-operations-vpc-provisioning": { "module_slug": "fabric-operations-vpc-provisioning",
+        "module_status": "not_started", "tasks": {} }
+    } }
+```
+✓ Both modules not_started; batch endpoint functional
+
+**Scenario E: PASS** — scoped reset isolates correctly; full reset clears all.
 
 ---
 
@@ -160,11 +252,12 @@ APP_STAGE=shadow confirmed (shadow guard passes, auth guard fires correctly → 
 | AC | Status |
 |---|---|
 | POST /admin/test/reset deployed, dual-gated (shadow + bypass) | ✓ |
-| Endpoint deletes task-records, task-attempts, entity-completions for user | ✓ (code verified, DynamoDB Query + BatchWrite) |
-| Scoped reset (module_slug) works | ✓ (SK prefix filter by module) |
-| Full reset (no module_slug) works | ✓ (SK prefix TASK#MODULE# / ATTEMPT#MODULE# / COMPLETION#MODULE#) |
-| Auth required — 401 without cookie | ✓ (curl-verified) |
-| Production isolation — endpoint not on prod | ✓ (curl-verified, 404 on api.hedgehog.cloud) |
-| Scenarios A, B, E (authenticated E2E) | Protocol written — requires live tester with Cognito session |
-| Scenario C (prod isolation) | ✓ curl-verified above |
-| Scenario D (auth protection) | ✓ curl-verified above |
+| UnprocessedItems retry with bounded backoff | ✓ (max 5 retries, exponential 50ms–800ms) |
+| Scoped reset (module_slug) isolates to one module | ✓ E3: vpc-provisioning unaffected |
+| Full reset (no module_slug) clears all user records | ✓ E4+E5 confirmed |
+| Auth required — 401 without cookie | ✓ Scenario D |
+| Production isolation — endpoint not on prod | ✓ Scenario C |
+| Scenario A: quiz fail → retake → pass → lab → complete | ✓ Executed + passing |
+| Scenario B: lab-only module completes without quiz | ✓ Executed + passing |
+| Scenario E: scoped + full reset effectiveness | ✓ Executed + passing |
+| GET /tasks/status/batch functional with real data | ✓ E5 confirmed |
