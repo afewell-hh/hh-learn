@@ -128,6 +128,12 @@ async function queryDeleteKeys(
 
 /**
  * Batch-delete items. DynamoDB BatchWriteItem supports up to 25 requests per call.
+ *
+ * DynamoDB can return UnprocessedItems for any item in the batch (throttle or
+ * transient error). Items are only counted as deleted once they are confirmed
+ * processed. Unprocessed items are retried with exponential backoff up to
+ * MAX_RETRIES times. If unprocessed items remain after all retries, an error is
+ * thrown so the reset handler can return a 500 rather than silently under-counting.
  */
 async function batchDelete(
   tableName: string,
@@ -135,21 +141,49 @@ async function batchDelete(
 ): Promise<number> {
   if (keys.length === 0) return 0;
 
-  let deleted = 0;
   const BATCH_SIZE = 25;
+  const MAX_RETRIES = 5;
+  const BASE_DELAY_MS = 50; // doubles each retry: 50, 100, 200, 400, 800 ms
+
+  let deleted = 0;
 
   for (let i = 0; i < keys.length; i += BATCH_SIZE) {
     const chunk = keys.slice(i, i + BATCH_SIZE);
-    await getDynamo().send(
-      new BatchWriteCommand({
-        RequestItems: {
-          [tableName]: chunk.map((k) => ({
-            DeleteRequest: { Key: { PK: k.PK, SK: k.SK } },
-          })),
-        },
-      })
-    );
-    deleted += chunk.length;
+
+    // Pending items for this chunk — represented as BatchWrite request objects
+    let pending: Array<{ DeleteRequest: { Key: { PK: string; SK: string } } }> =
+      chunk.map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } }));
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        await new Promise((res) => setTimeout(res, delay));
+      }
+
+      const result = await getDynamo().send(
+        new BatchWriteCommand({
+          RequestItems: { [tableName]: pending },
+        })
+      );
+
+      const unprocessed = result.UnprocessedItems?.[tableName] ?? [];
+
+      // Count items that were successfully processed this round
+      deleted += pending.length - unprocessed.length;
+
+      if (unprocessed.length === 0) {
+        break; // All items in this chunk processed
+      }
+
+      if (attempt === MAX_RETRIES) {
+        throw new Error(
+          `[AdminTestReset] ${unprocessed.length} items in ${tableName} remained unprocessed after ${MAX_RETRIES} retries`
+        );
+      }
+
+      // Cast back to typed pending array for next attempt
+      pending = unprocessed as typeof pending;
+    }
   }
 
   return deleted;
