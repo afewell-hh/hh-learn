@@ -16,7 +16,10 @@
  * Course completion is derived client-side from module statuses.
  *
  * Modules with no required tasks (empty completion_tasks or required:false only)
- * are shown as "Complete (no tasks required)" rather than forcing misleading UI.
+ * are shown with a "No required tasks" pill but are NOT auto-counted as complete.
+ * They are excluded from the course completion denominator — only modules with
+ * at least one required task count toward course progress. Per policy #402/#403/#404:
+ * empty task declarations do not become implicit completion-by-default.
  *
  * Shadow-only: gracefully no-ops if #hhl-auth-context[data-shadow] is absent.
  *
@@ -162,11 +165,15 @@
   }
 
   // ----------------------------------------------------------------
-  // Determine module display status from shadow data
-  // Returns: 'complete' | 'in-progress' | 'not-started'
+  // Determine module display status from shadow data.
+  // Returns: 'complete' | 'in-progress' | 'not-started' | 'no-tasks'
+  //
+  // 'no-tasks' is a distinct neutral state for modules with no required tasks.
+  // These modules are NOT auto-completed and do NOT count toward course
+  // completion totals. Per policy #402/#403/#404.
   // ----------------------------------------------------------------
   function moduleDisplayStatus(shadowStatus, taskTypes) {
-    if (taskTypes.hasNoRequiredTasks) return 'complete';
+    if (taskTypes.hasNoRequiredTasks) return 'no-tasks';
     if (!shadowStatus || shadowStatus.module_status === 'not_started') return 'not-started';
     if (shadowStatus.module_status === 'complete') return 'complete';
     return 'in-progress';
@@ -184,10 +191,14 @@
     var title = slugToTitle(slug);
     var href = '/learn-shadow/courses/' + slug;
 
-    // Build module status list
+    // Build module status list.
+    // completedCount and taskModuleCount exclude 'no-tasks' modules:
+    // per policy #402/#403/#404, modules with no required tasks do not count
+    // toward or against course completion — only modules with explicit required
+    // tasks (quiz / lab_attestation) participate in the progress denominator.
     var modulesHtml = '';
     var completedCount = 0;
-    var totalCount = moduleRows.length;
+    var taskModuleCount = 0; // modules that have at least one required task
     var nextModPath = null;
 
     var moduleItems = moduleRows.map(function (mod) {
@@ -198,10 +209,18 @@
       var shadowStatus = shadowStatuses[modPath];
       var dispStatus = moduleDisplayStatus(shadowStatus, taskTypes);
 
-      if (dispStatus === 'complete') completedCount++;
-      if (dispStatus !== 'complete' && !nextModPath) nextModPath = modPath;
+      if (dispStatus !== 'no-tasks') {
+        taskModuleCount++;
+        if (dispStatus === 'complete') completedCount++;
+        // First non-complete task-module is the next action target
+        if (dispStatus !== 'complete' && !nextModPath) nextModPath = modPath;
+      }
 
-      var statusIcon = dispStatus === 'complete' ? '\u2713' : (dispStatus === 'in-progress' ? '\u25D0' : '\u25CB');
+      var statusIcon = dispStatus === 'complete'
+        ? '\u2713'
+        : (dispStatus === 'in-progress'
+          ? '\u25D0'
+          : (dispStatus === 'no-tasks' ? '\u2013' : '\u25CB'));
       var breakdown = buildTaskBreakdownHtml(shadowStatus, taskTypes);
       var modLink = '/learn-shadow/modules/' + modPath;
 
@@ -216,10 +235,16 @@
 
     modulesHtml = moduleItems.join('');
 
-    var pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-    var isComplete = (totalCount > 0 && completedCount === totalCount);
+    // Progress math uses taskModuleCount (not total module count) so that
+    // no-task modules do not dilute or inflate completion percentage.
+    var pct = taskModuleCount > 0 ? Math.round((completedCount / taskModuleCount) * 100) : 0;
+    var isComplete = (taskModuleCount > 0 && completedCount === taskModuleCount);
+    // hasStarted: at least one task-module has DynamoDB activity
     var hasStarted = completedCount > 0 || moduleRows.some(function (mod) {
       var modPath = (mod.values && mod.values.hs_path) || mod.hs_path || (mod.path || '');
+      var taskJson = (mod.values && mod.values.completion_tasks_json) || '';
+      var taskTypes = parseTaskTypes(taskJson);
+      if (taskTypes.hasNoRequiredTasks) return false; // exclude no-task modules
       var shadowStatus = shadowStatuses[modPath];
       return shadowStatus && shadowStatus.module_status !== 'not_started';
     });
@@ -239,10 +264,15 @@
       html += '<div class="enrollment-meta"><div>Enrolled ' + formatDate(enrolledAt) + '</div></div>';
     }
 
+    var totalCount = moduleRows.length; // all modules, for "View Modules (N)" label
     if (totalCount > 0) {
+      // Progress label uses taskModuleCount so no-task modules don't appear in denominator
+      var progressLabel = taskModuleCount > 0
+        ? completedCount + ' of ' + taskModuleCount + ' task modules complete'
+        : 'No task modules';
       html += '<div class="enrollment-progress">' +
         '<div class="enrollment-progress-header">' +
-          '<span class="enrollment-progress-label">' + completedCount + ' of ' + totalCount + ' modules complete</span>' +
+          '<span class="enrollment-progress-label">' + progressLabel + '</span>' +
         '</div>' +
         '<div class="enrollment-progress-bar">' +
           '<div class="enrollment-progress-fill" style="width:' + pct + '%"></div>' +
