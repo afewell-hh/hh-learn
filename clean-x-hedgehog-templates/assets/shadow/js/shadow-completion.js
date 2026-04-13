@@ -46,12 +46,27 @@
   var quizSection = document.getElementById('hhl-quiz-section');
   var labSection = document.getElementById('hhl-lab-section');
 
-  // If module has task-based completion, hide legacy "Mark complete" / "Mark as started" buttons
-  if (quizSection || labSection) {
-    var legacyComplete = document.getElementById('hhl-mark-complete');
-    if (legacyComplete) legacyComplete.style.display = 'none';
-    var legacyStarted = document.getElementById('hhl-mark-started');
-    if (legacyStarted) legacyStarted.style.display = 'none';
+  // Always hide legacy CTA buttons on shadow module detail pages.
+  // The shadow completion framework handles all task UX; the legacy
+  // action-runner path is not supported in shadow and produces
+  // "Configuration error / Missing action endpoint" when clicked.
+  // (Previously only hidden when quiz or lab section existed — that left
+  //  no-task modules like knowledge-check recap modules with broken buttons.)
+  var legacyComplete = document.getElementById('hhl-mark-complete');
+  if (legacyComplete) legacyComplete.style.display = 'none';
+  var legacyStarted = document.getElementById('hhl-mark-started');
+  if (legacyStarted) legacyStarted.style.display = 'none';
+
+  // No-task module: when neither quiz nor lab is present, replace the
+  // hidden legacy button area with a coherent neutral-state note.
+  if (!quizSection && !labSection) {
+    var ctaEl = document.querySelector('.module-progress-cta');
+    if (ctaEl) {
+      ctaEl.innerHTML = '<p id="hhl-no-task-note" style="' +
+        'color:#6B7280;font-size:0.9rem;font-style:italic;margin:0;">' +
+        'No required tasks \u2014 read through the content and use any knowledge checks below.' +
+        '</p>';
+    }
   }
 
   // ----------------------------------------------------------------

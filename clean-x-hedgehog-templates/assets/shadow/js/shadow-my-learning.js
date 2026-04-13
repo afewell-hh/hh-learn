@@ -284,8 +284,10 @@
         '</div>' +
         '</div>';
 
-      html += '<details class="enrollment-modules-toggle">' +
-        '<summary class="enrollment-modules-summary">View Modules (' + totalCount + ')</summary>' +
+      // open by default so task pills are visible without requiring user interaction.
+      // Shadow reviewers need to see task state immediately — AC #424 requirement.
+      html += '<details class="enrollment-modules-toggle" open>' +
+        '<summary class="enrollment-modules-summary">Modules (' + totalCount + ')</summary>' +
         '<div class="enrollment-modules-list">' + modulesHtml + '</div>' +
         '</details>';
     }
