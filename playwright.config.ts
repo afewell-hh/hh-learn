@@ -32,6 +32,11 @@ export default defineConfig({
       // the correct UI for all three shadow module types. CDN lag is not a variable here.
       name: 'shadow-deterministic',
       testMatch: ['tests/e2e/shadow-deterministic.spec.ts'],
+      use: {
+        // Cap individual page loads at 30s so a hung CDN/Lambda call fails fast
+        // rather than consuming the full 120s per-test timeout.
+        navigationTimeout: 30000,
+      },
     },
     {
       // Layer 2 — Live shadow acceptance.
