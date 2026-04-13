@@ -25,5 +25,11 @@ export default defineConfig({
         storageState: 'tests/e2e/.auth/user.json',
       },
     },
+    {
+      // Shadow E2E suite uses test-bypass token auth — no Cognito setup required.
+      // Runs against the live shadow site at hedgehog.cloud/learn-shadow/*.
+      name: 'shadow',
+      testMatch: ['tests/e2e/issue-424-shadow-e2e.spec.ts'],
+    },
   ],
 });
