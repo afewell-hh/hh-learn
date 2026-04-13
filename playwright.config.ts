@@ -26,10 +26,20 @@ export default defineConfig({
       },
     },
     {
-      // Shadow E2E suite uses test-bypass token auth — no Cognito setup required.
-      // Runs against the live shadow site at hedgehog.cloud/learn-shadow/*.
-      name: 'shadow',
-      testMatch: ['tests/e2e/issue-424-shadow-e2e.spec.ts'],
+      // Layer 1 — Deterministic frontend regression.
+      // Intercepts HubDB, /auth/me, /enrollments/list, and shadow JS (byte-identical to
+      // committed source) to prove shadow-completion.js and shadow-my-learning.js render
+      // the correct UI for all three shadow module types. CDN lag is not a variable here.
+      name: 'shadow-deterministic',
+      testMatch: ['tests/e2e/shadow-deterministic.spec.ts'],
+    },
+    {
+      // Layer 2 — Live shadow acceptance.
+      // Module pages: zero mocks, real CDN JS, real Lambda, real DynamoDB.
+      // My Learning: three documented unavoidable mocks (/auth/me, /enrollments/list, HubDB).
+      // Includes CDN asset content verification and 6 key-state screenshots.
+      name: 'shadow-live',
+      testMatch: ['tests/e2e/shadow-live.spec.ts'],
     },
   ],
 });

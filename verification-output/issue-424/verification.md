@@ -6,33 +6,31 @@
 
 ---
 
-## Summary of Failures and Fixes
+## Summary of Fixes
 
-### Failure 1: No-task module shows broken legacy buttons
+### Fix 1: No-task module shows broken legacy buttons
 
 **Module:** `fabric-operations-foundations-recap` (no quiz, no lab)
 
 **Root cause:** `shadow-completion.js` only hid the legacy "Mark as started" / "Mark complete"
-buttons when `quizSection || labSection` existed. No-task modules (neither section present)
-left the buttons visible. Clicking either button navigated to `/learn/action-runner` which
-returned "Configuration error / Missing action endpoint" in shadow.
+buttons when `quizSection || labSection` existed. No-task modules left buttons visible.
+Clicking either navigated to `/learn/action-runner` → "Configuration error / Missing action
+endpoint" in shadow.
 
 **Fix (`shadow-completion.js`):**
-- Removed the `if (quizSection || labSection)` guard — now always hides legacy buttons on
-  any shadow module detail page.
-- When neither quiz nor lab section exists, injects a neutral note in place of the button area:
+- Removed the `if (quizSection || labSection)` guard — always hides legacy buttons on any
+  shadow module detail page.
+- When neither quiz nor lab section exists, injects a neutral note in `.module-progress-cta`:
   `<p id="hhl-no-task-note">No required tasks — read through the content and use any
   knowledge checks below.</p>`
 
----
-
-### Failure 2: Shadow My Learning not showing task/completion state
+### Fix 2: Shadow My Learning not showing task/completion state
 
 **Page:** `/learn-shadow/my-learning`
 
-**Root cause:** The `<details>` toggle containing the module list and task pills was
-**closed by default**. Reviewer saw course cards with collapsed module list and 0% progress
-because the pills were hidden behind a collapsed accordion that required a manual click.
+**Root cause:** The `<details>` toggle containing the module list and task pills was closed
+by default. Reviewer saw course cards with collapsed module list and 0% progress because
+pills were hidden behind a collapsed accordion requiring a manual click.
 
 **Fix (`shadow-my-learning.js`):**
 - Changed `<details class="enrollment-modules-toggle">` to `<details ... open>` so the
@@ -43,10 +41,14 @@ because the pills were hidden behind a collapsed accordion that required a manua
 
 ## Files Changed
 
-- `clean-x-hedgehog-templates/assets/shadow/js/shadow-completion.js` — always hide legacy buttons; inject no-task note
-- `clean-x-hedgehog-templates/assets/shadow/js/shadow-my-learning.js` — `<details open>` so pills visible by default
-- `playwright.config.ts` — add `shadow` project (no Cognito auth dependency)
-- `tests/e2e/issue-424-shadow-e2e.spec.ts` — new 34-test browser E2E suite
+| File | Change |
+|---|---|
+| `clean-x-hedgehog-templates/assets/shadow/js/shadow-completion.js` | Always hide legacy buttons; inject no-task note |
+| `clean-x-hedgehog-templates/assets/shadow/js/shadow-my-learning.js` | `<details open>` so pills visible by default |
+| `clean-x-hedgehog-templates/learn-shadow/module-page.html` | Added redeploy comment to bust template CDN cache |
+| `playwright.config.ts` | Replaced `shadow` project with `shadow-deterministic` + `shadow-live` |
+| `tests/e2e/shadow-deterministic.spec.ts` | Layer 1: 34-test deterministic frontend regression suite |
+| `tests/e2e/shadow-live.spec.ts` | Layer 2: 17-test live acceptance suite with CDN verification + screenshots |
 
 ---
 
@@ -54,19 +56,38 @@ because the pills were hidden behind a collapsed accordion that required a manua
 
 | Action | Status |
 |---|---|
-| `shadow-completion.js` published to HubSpot | ✅ |
-| `shadow-my-learning.js` published to HubSpot | ✅ |
-| CDN re-render (sync:content to bust DB-135621904 tag) | ✅ |
+| `shadow-completion.js` published to HubSpot Design Manager (`templates/assets/shadow/js/`) | ✅ |
+| `shadow-my-learning.js` published to HubSpot Design Manager | ✅ |
+| `module-page.html` re-published (forced template re-render for CDN URL propagation) | ✅ |
+| CDN re-render — all shadow module pages now reference new JS URL (`1776046773191`) | ✅ |
+| `sync:content` run to publish HubDB module table | ✅ |
+
+**CDN verification:**
+- Old `shadow-completion.js` CDN URL: `...1776034785801/template_shadow-completion.min.js` (pre-fix)
+- New `shadow-completion.js` CDN URL: `...1776046773191/template_shadow-completion.min.js` (with fix)
+- All three shadow module pages now reference the new URL (verified 2026-04-13T05:20 UTC)
 
 ---
 
-## Playwright E2E Test Results
+## Two-Layer Test Strategy
 
-**All 34 tests pass in ~2 minutes against the live shadow site.**
+### Layer 1 — Deterministic Frontend Regression (`shadow-deterministic`)
+
+**Purpose:** Verify that `shadow-completion.js` and `shadow-my-learning.js` render the
+correct UI for all three shadow module types against known API state. Eliminates CDN
+propagation delay as a variable by intercepting JS with byte-identical local source.
+
+**Allowed mocks (each documented in file header):**
+1. `shadow-completion.js` + `shadow-my-learning.js` JS interception — CDN lag bypass;
+   served from `fs.readFileSync` of committed repo source (byte-identical to deployed file).
+2. `/auth/me` — `cognitoMe()` uses `verifyJWT()` with Cognito JWKS; test bypass token
+   not accepted. Permanently unavoidable without Lambda routing change.
+3. `/enrollments/list` — test user not enrolled in CRM.
+4. HubDB tables `135381433` + `135621904` — return 404 outside a HubSpot portal session.
+
+**Results: 34/34 passed (~2.0 min)**
 
 ```
-Running 34 tests using 1 worker
-
   ✓  Direct page load › fabric-operations-welcome returns 200
   ✓  Direct page load › fabric-operations-vpc-provisioning returns 200
   ✓  Direct page load › fabric-operations-foundations-recap returns 200
@@ -107,57 +128,87 @@ Running 34 tests using 1 worker
 
 ---
 
-## Test Suite Architecture Notes
+### Layer 2 — Live Shadow Acceptance (`shadow-live`)
 
-The suite uses Playwright `page.route()` interception to:
+**Purpose:** Verify the fix works against the real live shadow site. Module page tests
+(foundations-recap, welcome, vpc-provisioning) run with **zero mocks**: real CDN JS,
+real Lambda, real DynamoDB via `shadow_e2e_test_token` test bypass. Includes CDN asset
+content verification (fetches live CDN URLs captured from page loads) and 6 screenshots.
 
-1. **Intercept `shadow-completion.js` and `shadow-my-learning.js`** — serves local source,
-   bypassing CDN version-URL lag during deployment propagation window. Same code deployed
-   to HubSpot; just bypasses CDN caching.
+**Unavoidable mocks (My Learning section only):**
 
-2. **Intercept `/auth/me`** — `cognito-auth-integration.js` overrides `window.hhIdentity`
-   and calls `/auth/me` to resolve identity. The test bypass token is rejected by real
-   Cognito auth, resulting in empty identity → early return in My Learning JS. Mock returns
-   authenticated identity with test email.
+| Mock | Target | Why unavoidable | What remains unproven |
+|---|---|---|---|
+| MOCK 1 | `/auth/me` | `cognitoMe()` uses `verifyJWT()` with Cognito JWKS; test bypass token not accepted here | Real Cognito JWT auth flow (covered by `e2e` project) |
+| MOCK 2 | `/enrollments/list` | Test user not enrolled in CRM → empty response | Real CRM enrollment data shape |
+| MOCK 3 | HubDB tables `135381433` + `135621904` | Returns 404 outside HubSpot portal session | Real HubDB row structure (mock verified against sync:content output) |
 
-3. **Intercept `/enrollments/list`** — returns mock enrollment in NLH Foundations course
-   so My Learning card renders without CRM dependency.
+**Results: 17/17 passed (~1.3 min)**
 
-4. **Intercept HubDB course/module tables** — `/hs/api/hubdb/v3/` returns 404 outside a
-   real HubSpot browser session. Mock returns course module slugs and `completion_tasks_json`
-   for all 4 modules in NLH Foundations.
+```
+  ✓  CDN Asset Verification › shadow-completion.js CDN copy contains hhl-no-task-note fix
+  ✓  CDN Asset Verification › shadow-my-learning.js CDN copy contains details[open] fix
+  ✓  foundations-recap [LIVE — zero mocks] › legacy Mark Complete button is hidden (not visible)
+  ✓  foundations-recap [LIVE — zero mocks] › legacy Mark Started button is hidden (not visible)
+  ✓  foundations-recap [LIVE — zero mocks] › no action-runner navigation on page load
+  ✓  foundations-recap [LIVE — zero mocks] › neutral no-task note is visible — screenshot 01
+  ✓  fabric-operations-welcome [LIVE — zero mocks] › interactive quiz section is visible — screenshot 02
+  ✓  fabric-operations-welcome [LIVE — zero mocks] › no correct_answer leakage in page HTML
+  ✓  fabric-operations-welcome [LIVE — zero mocks] › wrong quiz submission → fail feedback + retake — screenshot 03
+  ✓  fabric-operations-welcome [LIVE — zero mocks] › correct quiz → pass badge; lab attest → module complete — screenshots 04 + 05
+  ✓  fabric-operations-vpc-provisioning [LIVE — zero mocks] › lab attestation UI is visible
+  ✓  fabric-operations-vpc-provisioning [LIVE — zero mocks] › lab attestation marks module complete
+  ✓  My Learning [LIVE — 3 unavoidable mocks] › module list is visible without requiring user interaction — screenshot 06
+  ✓  My Learning [LIVE — 3 unavoidable mocks] › task pills visible — real /tasks/status/batch response
+  ✓  My Learning [LIVE — 3 unavoidable mocks] › welcome shows quiz passed + lab completed pills
+  ✓  My Learning [LIVE — 3 unavoidable mocks] › foundations-recap shows No required tasks pill
+  ✓  My Learning [LIVE — 3 unavoidable mocks] › progress counter is ≥1 after welcome completion
 
-5. **Live shadow API calls** — `/tasks/status`, `/tasks/quiz/submit`, `/tasks/lab/attest`,
-   `/tasks/status/batch`, `/admin/test/reset` all hit the real shadow Lambda with
-   `shadow_e2e_test_token` (test bypass auth). DynamoDB state is reset/set per test via
-   `resetModule`, `submitQuizApi`, `attestLabApi` API helpers.
+  17 passed (1.3m)
+```
+
+---
+
+## Screenshots (Layer 2 — Live Shadow Site)
+
+All 6 screenshots saved in `verification-output/issue-424/screenshots/`:
+
+| File | What it shows |
+|---|---|
+| `01-foundations-recap-neutral.png` | `#hhl-no-task-note` visible, no legacy buttons |
+| `02-welcome-quiz-visible.png` | Interactive quiz section rendered from live CDN JS |
+| `03-welcome-quiz-fail.png` | Fail feedback + Retake Quiz button (real Lambda response) |
+| `04-welcome-quiz-pass.png` | Quiz Passed badge (real Lambda grade) |
+| `05-welcome-module-complete.png` | Module Complete banner after real lab attest |
+| `06-my-learning-module-list.png` | Module list visible by default; task pills visible |
 
 ---
 
 ## Acceptance Criteria
 
-| AC | Status |
-|---|---|
-| No-task module: legacy buttons hidden | ✅ tests 19–20 |
-| No-task module: no action-runner navigation | ✅ test 21 |
-| No-task module: neutral note visible | ✅ test 22 |
-| No-task module: neutral state persists after reload | ✅ test 23 |
-| Welcome: no static Assessment h2 | ✅ test 4 |
-| Welcome: interactive quiz section present (5 questions) | ✅ tests 5–6 |
-| Welcome: no correct_answer leakage | ✅ test 7 |
-| Welcome: quiz fail → retry flow works | ✅ test 9 |
-| Welcome: quiz pass → pass badge shown | ✅ test 10 |
-| Welcome: lab attestation → module complete | ✅ test 11 |
-| Welcome: completed state persists after reload | ✅ test 12 |
-| vpc-provisioning (lab-only): lab completes module | ✅ test 15 |
-| vpc-provisioning: completed state persists after reload | ✅ test 16 |
-| Shadow My Learning: module list visible without click | ✅ test 25 |
-| Shadow My Learning: task pills visible | ✅ test 26 |
-| Shadow My Learning: welcome shows quiz passed + lab completed | ✅ test 27 |
-| Shadow My Learning: foundations-recap shows No required tasks | ✅ test 28 |
-| Shadow My Learning: progress counter ≥ 1 of N complete | ✅ test 29 |
-| Shadow My Learning: all links under /learn-shadow/ | ✅ test 30 |
-| Shadow isolation: no duplicate Assessment block | ✅ test 31 |
-| Shadow isolation: no correct_answer in HTML | ✅ test 32 |
-| Shadow API calls use /shadow/ path mapping | ✅ test 33 |
-| Production /learn/* pages unaffected | ✅ test 34 |
+| AC | Layer 1 | Layer 2 |
+|---|---|---|
+| No-task module: legacy buttons hidden | ✅ tests 19–20 | ✅ tests 3–4 (live CDN) |
+| No-task module: no action-runner navigation | ✅ test 21 | ✅ test 5 (live) |
+| No-task module: neutral note visible | ✅ test 22 | ✅ test 6 + screenshot 01 |
+| No-task module: neutral state persists after reload | ✅ test 23 | — |
+| Welcome: no static Assessment h2 | ✅ test 4 | — |
+| Welcome: interactive quiz section present (5 questions) | ✅ tests 5–6 | ✅ test 7 + screenshot 02 |
+| Welcome: no correct_answer leakage | ✅ test 7 | ✅ test 8 |
+| Welcome: quiz fail → retry flow | ✅ test 9 | ✅ test 9 + screenshot 03 |
+| Welcome: quiz pass → pass badge | ✅ test 10 | ✅ test 10 + screenshot 04 |
+| Welcome: lab attest → module complete | ✅ test 11 | ✅ test 10 + screenshot 05 |
+| Welcome: completed state persists after reload | ✅ test 12 | — |
+| vpc-provisioning: lab completes module | ✅ test 15 | ✅ test 12 (live) |
+| Shadow My Learning: module list visible without click | ✅ test 25 | ✅ test 13 + screenshot 06 |
+| Shadow My Learning: task pills visible | ✅ test 26 | ✅ test 14 |
+| Shadow My Learning: welcome shows quiz passed + lab | ✅ test 27 | ✅ test 15 |
+| Shadow My Learning: foundations-recap No required tasks | ✅ test 28 | ✅ test 16 |
+| Shadow My Learning: progress counter ≥ 1 of N | ✅ test 29 | ✅ test 17 |
+| Shadow My Learning: all links under /learn-shadow/ | ✅ test 30 | — |
+| Shadow isolation: no duplicate Assessment block | ✅ test 31 | — |
+| Shadow isolation: no correct_answer in HTML | ✅ test 32 | — |
+| Shadow API calls use /shadow/ path | ✅ test 33 | — |
+| Production /learn/* unaffected | ✅ test 34 | — |
+| CDN shadow-completion.js has hhl-no-task-note fix | — | ✅ CDN test 1 |
+| CDN shadow-my-learning.js has details[open] fix | — | ✅ CDN test 2 |
