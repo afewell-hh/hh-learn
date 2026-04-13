@@ -39,16 +39,32 @@
       ],
       "correct_answer": "b",
       "points": 1
-    }
-  ],
-  "_omitted_questions": [
-    {
-      "original_q": 2,
-      "reason": "Open-ended command question (kubectl get switches) — no encodable single correct answer for MC format; omitted from MVP quiz.json"
     },
     {
-      "original_q": 5,
-      "reason": "Practical open-ended question (count switches from lab output) — rubric-graded, no single MC option; omitted from MVP quiz.json"
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "Which kubectl command lists all switches in the fabric and shows whether each one is a spine or leaf?",
+      "options": [
+        {"id": "a", "text": "kubectl get nodes"},
+        {"id": "b", "text": "kubectl get switches"},
+        {"id": "c", "text": "kubectl describe fabric"},
+        {"id": "d", "text": "kubectl get pods -n network"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q5",
+      "type": "multiple_choice",
+      "stem": "Based on what you explored in the lab, how many total switches are in the vlab environment, and how are they split between spines and leaves?",
+      "options": [
+        {"id": "a", "text": "5 total: 1 spine, 4 leaves"},
+        {"id": "b", "text": "6 total: 2 spines, 4 leaves"},
+        {"id": "c", "text": "7 total: 2 spines, 5 leaves"},
+        {"id": "d", "text": "9 total: 3 spines, 6 leaves"}
+      ],
+      "correct_answer": "c",
+      "points": 1
     }
   ]
 }

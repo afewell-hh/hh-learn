@@ -1083,7 +1083,21 @@
           <div class="module-content">
             {# Prefer full_content when present #}
             {% if dynamic_page_hubdb_row.full_content %}
-              {{ dynamic_page_hubdb_row.full_content|safe }}
+              {# When an interactive quiz section is present, strip the static
+                 "## Assessment" block from full_content at the template level.
+                 The sync script inserts a plain-text sentinel HHL_ASSESSMENT_SPLIT
+                 immediately before <h2>Assessment</h2> in full_content so we can
+                 split here without embedding HTML angle brackets in a HubL {% %}
+                 expression (HubSpot rejects those in logic-block string literals).
+                 Taking content_parts|first discards the Assessment block and all
+                 content after it from the rendered HTML — no JS hiding required.
+                 Modules without a quiz (lab-only) render their full content. #}
+              {% if dynamic_page_hubdb_row.quiz_schema_json %}
+                {% set content_parts = dynamic_page_hubdb_row.full_content|split('HHL_ASSESSMENT_SPLIT') %}
+                {{ content_parts|first|safe }}
+              {% else %}
+                {{ dynamic_page_hubdb_row.full_content|safe }}
+              {% endif %}
             {% elif dynamic_page_hubdb_row.content_blocks_json %}
               {# Render simple content blocks fallback (text/callout) if provided #}
               {% set blocks = dynamic_page_hubdb_row.content_blocks_json|fromjson %}
@@ -1262,4 +1276,5 @@
     <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn-shadow/assets/js/cognito-auth-integration.js') }}"></script>
   {% endif %}
 </main>
+{# shadow-completion.js re-published 2026-04-13 with hhl-no-task-note fix #}
 {% endblock body %}

@@ -31,7 +31,12 @@
 (function () {
   'use strict';
 
+  // Production API base: enrollments and auth endpoints (on custom domain).
   var API_BASE = 'https://api.hedgehog.cloud';
+  // Shadow task endpoints use the /shadow path mapping on the same custom domain.
+  // Keeps the request host as api.hedgehog.cloud so the host-only SameSite=Strict
+  // cookie is sent.  See Issue #421 and serverless.yml ShadowApiPathMapping.
+  var SHADOW_API_BASE = 'https://api.hedgehog.cloud/shadow';
 
   // Guard: only run on shadow pages
   var ctxEl = document.getElementById('hhl-auth-context');
@@ -279,8 +284,10 @@
         '</div>' +
         '</div>';
 
-      html += '<details class="enrollment-modules-toggle">' +
-        '<summary class="enrollment-modules-summary">View Modules (' + totalCount + ')</summary>' +
+      // open by default so task pills are visible without requiring user interaction.
+      // Shadow reviewers need to see task state immediately — AC #424 requirement.
+      html += '<details class="enrollment-modules-toggle" open>' +
+        '<summary class="enrollment-modules-summary">Modules (' + totalCount + ')</summary>' +
         '<div class="enrollment-modules-list">' + modulesHtml + '</div>' +
         '</details>';
     }
@@ -390,7 +397,8 @@
               .catch(function () { return { results: [] }; });
 
             // --- Step 3: Fetch shadow task statuses (batch) ---
-            var batchUrl = API_BASE + '/tasks/status/batch?module_slugs=' +
+            // Uses SHADOW_API_BASE (/shadow path mapping) so the auth cookie is sent.
+            var batchUrl = SHADOW_API_BASE + '/tasks/status/batch?module_slugs=' +
               allModSlugs.map(encodeURIComponent).join(',');
             var batchFetch = fetch(batchUrl, { credentials: 'include' })
               .then(function (r) { return r.ok ? r.json() : null; })

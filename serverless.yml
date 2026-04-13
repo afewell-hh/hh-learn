@@ -432,6 +432,30 @@ resources:
           - Key: Component
             Value: completion-framework
 
+    # -------------------------------------------------------------------------
+    # Shadow API path mapping on api.hedgehog.cloud (Issue #421)
+    #
+    # Creates /shadow base-path on the existing api.hedgehog.cloud custom domain.
+    # This lets browser pages on hedgehog.cloud call shadow task endpoints at
+    # https://api.hedgehog.cloud/shadow/tasks/... using credentials:'include'.
+    # The host-only SameSite=Strict cookie set by api.hedgehog.cloud is sent
+    # because the request host matches — no Domain attribute change required.
+    #
+    # API Gateway strips the /shadow prefix before the Lambda sees the path,
+    # so all existing index.ts route matching works unchanged.
+    #
+    # Condition: IsShadowStage — only created when deploying the shadow stage.
+    # The custom domain itself (api.hedgehog.cloud) is managed outside this stack.
+    # -------------------------------------------------------------------------
+    ShadowApiPathMapping:
+      Type: AWS::ApiGatewayV2::ApiMapping
+      Condition: IsShadowStage
+      Properties:
+        ApiId: !Ref HttpApi
+        DomainName: api.hedgehog.cloud
+        Stage: '$default'
+        ApiMappingKey: shadow
+
     # DynamoDB Tables for External SSO + Progress Store (Issue #302)
     UsersTable:
       Type: AWS::DynamoDB::Table
