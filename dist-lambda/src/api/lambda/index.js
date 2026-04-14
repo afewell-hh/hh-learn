@@ -6,6 +6,11 @@ const validation_js_1 = require("../../shared/validation.js");
 const completion_js_1 = require("./completion.js");
 const auth_js_1 = require("./auth.js");
 const cognito_auth_js_1 = require("./cognito-auth.js");
+const tasks_quiz_submit_js_1 = require("./tasks-quiz-submit.js");
+const tasks_lab_attest_js_1 = require("./tasks-lab-attest.js");
+const tasks_status_js_1 = require("./tasks-status.js");
+const tasks_status_batch_js_1 = require("./tasks-status-batch.js");
+const admin_test_reset_js_1 = require("./admin-test-reset.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -154,6 +159,17 @@ const handler = async (event) => {
             return await getAggregatedProgress(event, origin);
         if (path.endsWith('/enrollments/list') && method === 'GET')
             return await listEnrollments(event, origin);
+        // Shadow completion framework endpoints (Issue #397)
+        if (path.endsWith('/tasks/quiz/submit') && method === 'POST')
+            return await (0, tasks_quiz_submit_js_1.handleQuizSubmit)(event);
+        if (path.endsWith('/tasks/lab/attest') && method === 'POST')
+            return await (0, tasks_lab_attest_js_1.handleLabAttest)(event);
+        if (path.endsWith('/tasks/status/batch') && method === 'GET')
+            return await (0, tasks_status_batch_js_1.handleTasksStatusBatch)(event);
+        if (path.endsWith('/tasks/status') && method === 'GET')
+            return await (0, tasks_status_js_1.handleTasksStatus)(event);
+        if (path.endsWith('/admin/test/reset') && method === 'POST')
+            return await (0, admin_test_reset_js_1.handleAdminTestReset)(event);
         // Legacy POST endpoints
         if (method !== 'POST')
             return bad(405, 'Method not allowed', origin);

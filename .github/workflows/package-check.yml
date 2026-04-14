@@ -40,6 +40,14 @@ jobs:
           AWS_REGION: us-west-2
           APP_STAGE: dev
           ENABLE_CRM_PROGRESS: false
+          # Placeholder values for Serverless variable resolution only.
+          # These are never deployed; real values live in AWS Parameter Store / Secrets Manager.
+          COGNITO_USER_POOL_ID: ci-placeholder-pool-id
+          COGNITO_CLIENT_ID: ci-placeholder-client-id
+          COGNITO_DOMAIN: ci-placeholder.auth.us-west-2.amazoncognito.com
+          COGNITO_REDIRECT_URI: https://ci-placeholder.example.com/auth/callback
+          COGNITO_ISSUER: https://cognito-idp.us-west-2.amazonaws.com/ci-placeholder-pool-id
+          HUBDB_MODULES_TABLE_ID: "0"
 
       - name: Check package size
         id: size-check
