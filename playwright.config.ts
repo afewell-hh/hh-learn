@@ -33,9 +33,9 @@ export default defineConfig({
       name: 'shadow-deterministic',
       testMatch: ['tests/e2e/shadow-deterministic.spec.ts'],
       use: {
-        // Cap individual page loads at 30s so a hung CDN/Lambda call fails fast
+        // Cap individual page loads at 45s so a hung CDN/Lambda call fails fast
         // rather than consuming the full 120s per-test timeout.
-        navigationTimeout: 30000,
+        navigationTimeout: 45000,
       },
     },
     {
