@@ -187,6 +187,11 @@ functions:
       - httpApi:
           path: /shadow/certificate/{certId}
           method: GET
+      # Shadow certificates list endpoint (Issue #429)
+      # Accessible via api.hedgehog.cloud/shadow/certificates (base-path mapping strips /shadow)
+      - httpApi:
+          path: /certificates
+          method: GET
 
 package:
   individually: true

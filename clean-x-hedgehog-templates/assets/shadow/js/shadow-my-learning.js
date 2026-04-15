@@ -1,5 +1,5 @@
 /**
- * Shadow My Learning dashboard (Issue #411)
+ * Shadow My Learning dashboard (Issue #411, updated Issue #429)
  *
  * Displays task-based completion status for enrolled modules/courses in the
  * shadow environment. Task data comes from DynamoDB via the shadow backend —
@@ -11,6 +11,11 @@
  *
  * Plus HubDB API calls to resolve module metadata (name, completion_tasks_json)
  * for enrolled courses — these are not Lambda calls.
+ *
+ * Issue #429 additions:
+ *   - GET /shadow/certificates  — learner's earned certificates
+ *   - Renders a "My Certificates" section below the enrollments section
+ *   - Per-module certificate badge removed from module list (consolidated to certificates section)
  *
  * All module links use /learn-shadow/modules/<slug>.
  * Course completion is derived client-side from module statuses.
@@ -24,9 +29,11 @@
  * Shadow-only: gracefully no-ops if #hhl-auth-context[data-shadow] is absent.
  *
  * @see Issue #411
+ * @see Issue #429
  * @see GET /tasks/status/batch (#411)
  * @see GET /enrollments/list (production endpoint, CRM-backed)
  * @see GET /tasks/status (#409) — single-module version used by module page
+ * @see GET /shadow/certificates (#429)
  */
 (function () {
   'use strict';
@@ -129,24 +136,6 @@
   }
 
   // ----------------------------------------------------------------
-  // Build certificate badge HTML for a completed module.
-  // certId comes from the tasks/status single-module endpoint (cert_id field).
-  // When certId is available the badge links directly to the verification page.
-  // When certId is absent (batch endpoint used) the badge is display-only.
-  // ----------------------------------------------------------------
-  function buildCertBadgeHtml(certId) {
-    var label = '\uD83C\uDF93 Certificate earned';
-    if (certId) {
-      return '<div class="shadow-cert-badge">' +
-        '<a href="/shadow/certificate/' + encodeURIComponent(certId) + '" ' +
-          'class="shadow-cert-link" target="_blank" rel="noopener noreferrer">' +
-          label + ' &mdash; View Certificate</a>' +
-        '</div>';
-    }
-    return '<div class="shadow-cert-badge">' + label + '</div>';
-  }
-
-  // ----------------------------------------------------------------
   // Build task breakdown pills HTML for a module
   // ----------------------------------------------------------------
   function buildTaskBreakdownHtml(shadowStatus, taskTypes) {
@@ -245,11 +234,6 @@
           ? '\u25D0'
           : (dispStatus === 'no-tasks' ? '\u2013' : '\u25CB'));
       var breakdown = buildTaskBreakdownHtml(shadowStatus, taskTypes);
-      // cert_id is present in single-module tasks/status responses but not in batch responses.
-      // Show the badge whenever the module is complete; link to verify page when certId is available.
-      var certBadge = (dispStatus === 'complete')
-        ? buildCertBadgeHtml((shadowStatus && shadowStatus.cert_id) || null)
-        : '';
       var modLink = '/learn-shadow/modules/' + modPath;
 
       return '<div class="enrollment-module-item ' + dispStatus + '">' +
@@ -258,7 +242,6 @@
           '<a href="' + modLink + '" class="enrollment-module-link">' + modName + '</a>' +
         '</div>' +
         (breakdown || '') +
-        (certBadge || '') +
         '</div>';
     });
 
@@ -317,7 +300,6 @@
     }
 
     if (isComplete) {
-      html += '<div class="enrollment-cert-section">' + buildCertBadgeHtml(null) + '</div>';
       html += '<div class="enrollment-actions"><a href="' + href + '" class="enrollment-cta enrollment-cta--done">Review Course \u2192</a></div>';
     } else if (nextModPath) {
       html += '<div class="enrollment-actions"><a href="/learn-shadow/modules/' + nextModPath + '" class="enrollment-cta">Continue to Next Module \u2192</a></div>';
@@ -502,6 +484,105 @@
           var es = q('empty-state');
           if (es) es.style.display = 'block';
         }
+
+        // Fetch and render certificates section after enrollments are shown
+        fetchAndRenderCertificates();
+      }
+
+      // ----------------------------------------------------------------
+      // Fetch and render the "My Certificates" section (Issue #429)
+      // ----------------------------------------------------------------
+      function fetchAndRenderCertificates() {
+        var certsSection = q('certificates-section');
+        if (!certsSection) return; // Section not in template; skip gracefully
+
+        fetch(SHADOW_API_BASE + '/certificates', { credentials: 'include' })
+          .then(function (r) {
+            if (r.status === 401 || r.status === 403) return null;
+            if (!r.ok) return null;
+            return r.json();
+          })
+          .then(function (data) {
+            renderCertificatesSection(certsSection, data && data.certificates ? data.certificates : []);
+          })
+          .catch(function (err) {
+            console.warn('[shadow-my-learning] Certificates fetch failed:', err);
+            renderCertificatesSection(certsSection, []);
+          });
+      }
+
+      function renderCertificatesSection(certsSection, certificates) {
+        var certsGrid = q('certificates-grid');
+        var certsCount = q('certificates-count');
+        if (!certsGrid) return;
+
+        if (certsCount) certsCount.textContent = '(' + certificates.length + ')';
+
+        if (certificates.length === 0) {
+          certsGrid.innerHTML =
+            '<p class="certs-empty-note">No certificates earned yet. Complete a module or course to earn your first certificate.</p>';
+        } else {
+          var html = '';
+          certificates.forEach(function (cert) {
+            var title = cert.entityTitle || cert.entitySlug || 'Certificate';
+            var dateStr = cert.issuedAt ? formatDate(cert.issuedAt) : '';
+            var viewUrl = '/learn-shadow/certificate?id=' + encodeURIComponent(cert.certId);
+            var typeLabel = cert.entityType === 'course' ? 'Course' : 'Module';
+            html +=
+              '<div class="cert-card">' +
+                '<div class="cert-card-icon">\uD83C\uDF93</div>' +
+                '<div class="cert-card-body">' +
+                  '<div class="cert-card-title">' + title + '</div>' +
+                  '<div class="cert-card-meta">' +
+                    '<span class="cert-type-badge cert-type-' + cert.entityType + '">' + typeLabel + '</span>' +
+                    (dateStr ? '<span class="cert-date">Earned ' + dateStr + '</span>' : '') +
+                  '</div>' +
+                '</div>' +
+                '<div class="cert-card-actions">' +
+                  '<a href="' + viewUrl + '" class="cert-action-btn cert-action-view" target="_blank" rel="noopener noreferrer">View Certificate</a>' +
+                  '<button type="button" class="cert-action-btn cert-action-copy" data-cert-url="' + viewUrl + '">Copy Link</button>' +
+                '</div>' +
+              '</div>';
+          });
+          certsGrid.innerHTML = html;
+
+          // Bind copy link buttons
+          var copyBtns = certsGrid.querySelectorAll('.cert-action-copy');
+          copyBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var url = btn.getAttribute('data-cert-url');
+              var absUrl = window.location.origin + url;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(absUrl).then(function () {
+                  btn.textContent = 'Copied!';
+                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+                }).catch(function () {
+                  btn.textContent = 'Copy failed';
+                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+                });
+              } else {
+                // Fallback for older browsers
+                try {
+                  var ta = document.createElement('textarea');
+                  ta.value = absUrl;
+                  ta.style.position = 'fixed';
+                  ta.style.opacity = '0';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
+                  btn.textContent = 'Copied!';
+                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+                } catch (e) {
+                  btn.textContent = 'Copy failed';
+                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+                }
+              }
+            });
+          });
+        }
+
+        certsSection.style.display = 'block';
       }
     });
   });

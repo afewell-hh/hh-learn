@@ -1,10 +1,13 @@
 /**
- * Unit tests for shadow certificate issuance and verification (Issue #427)
+ * Unit tests for shadow certificate issuance and verification (Issue #427, #429)
  *
  * Tests cover:
  *   - Module cert generated when all tasks pass (moduleStatus === 'complete')
  *   - Module cert NOT generated when only some tasks pass (moduleStatus !== 'complete')
+ *   - awards_certificate gate: cert skipped when flag is false/0 in HubDB
+ *   - entityTitle stored in DynamoDB at issuance
  *   - Course cert generated when all modules in a course complete
+ *   - Course cert skipped when course awards_certificate=false
  *   - Idempotent: re-completion returns existing certId without writing a new cert
  *   - Public verification endpoint returns correct payload
  *   - 404 on unknown certId
@@ -65,6 +68,51 @@ const CERTS_TABLE = 'hedgehog-learn-certificates-shadow';
 const ENTITY_COMPLETIONS_TABLE = 'hedgehog-learn-entity-completions-shadow';
 
 // ---------------------------------------------------------------------------
+// HubSpot mock helpers
+//
+// issueCertificateIfComplete calls getHubSpotClient TWICE:
+//   1st call: in the awards_certificate gate (modules table lookup)
+//   2nd call: in checkAndIssueCourseCompletion (courses table lookup)
+//
+// Each HubSpot client object returned has its own getTableRows mock.
+// ---------------------------------------------------------------------------
+
+function makeHubSpotClientMock(rows: any[]) {
+  return {
+    cms: {
+      hubdb: {
+        rowsApi: {
+          getTableRows: jest.fn().mockResolvedValueOnce({ results: rows }),
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Set up both the module-gate HubDB mock and the course-check HubDB mock.
+ * Call this before any test that reaches a 'complete' moduleStatus.
+ */
+function setupHubSpotMocks(modulesRows: any[], coursesRows: any[]) {
+  mockGetHubSpotClient
+    .mockReturnValueOnce(makeHubSpotClientMock(modulesRows) as any)
+    .mockReturnValueOnce(makeHubSpotClientMock(coursesRows) as any);
+}
+
+// Standard module row that passes the awards_certificate gate
+const AWARDS_CERT_MODULE_ROW = {
+  path: MODULE_SLUG,
+  values: {
+    hs_name: 'Fabric Operations Welcome',
+    awards_certificate: true,
+    completion_tasks_json: JSON.stringify([
+      { task_slug: 'quiz-1', task_type: 'quiz', required: true },
+      { task_slug: 'lab-main', task_type: 'lab_attestation', required: true },
+    ]),
+  },
+};
+
+// ---------------------------------------------------------------------------
 // issueCertificateIfComplete
 // ---------------------------------------------------------------------------
 
@@ -74,12 +122,14 @@ describe('issueCertificateIfComplete', () => {
     process.env.CERTIFICATES_TABLE = CERTS_TABLE;
     process.env.ENTITY_COMPLETIONS_TABLE = ENTITY_COMPLETIONS_TABLE;
     process.env.HUBDB_COURSES_TABLE_ID = 'test-courses-table';
+    process.env.HUBDB_MODULES_TABLE_ID = 'test-modules-table';
   });
 
   afterEach(() => {
     delete process.env.CERTIFICATES_TABLE;
     delete process.env.ENTITY_COMPLETIONS_TABLE;
     delete process.env.HUBDB_COURSES_TABLE_ID;
+    delete process.env.HUBDB_MODULES_TABLE_ID;
   });
 
   it('returns no-op when moduleStatus is not complete', async () => {
@@ -102,24 +152,15 @@ describe('issueCertificateIfComplete', () => {
   it('issues module cert when moduleStatus is complete (no existing cert)', async () => {
     const dynamo = makeDynamo();
 
-    // Sequence of DynamoDB calls:
+    // DynamoDB calls:
     // 1. GetCommand (cert existence check) → no item
     // 2. PutCommand (write new cert) → success
-    // 3. GetCommand (entity-completion for module in course check — course lookup goes via HubDB)
     mockDynamoSend
       .mockResolvedValueOnce({ Item: undefined })  // cert existence check
       .mockResolvedValueOnce({});                   // PutCommand succeeds
 
-    // HubDB courses: no course contains this module
-    mockGetHubSpotClient.mockReturnValueOnce({
-      cms: {
-        hubdb: {
-          rowsApi: {
-            getTableRows: jest.fn().mockResolvedValueOnce({ results: [] }),
-          },
-        },
-      },
-    } as any);
+    // HubDB: modules (gate: awards_certificate=true) + courses (no course matches)
+    setupHubSpotMocks([AWARDS_CERT_MODULE_ROW], []);
 
     const result = await issueCertificateIfComplete({
       dynamo,
@@ -159,16 +200,8 @@ describe('issueCertificateIfComplete', () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: { certId: existingCertId } });  // cert exists
 
-    // HubDB courses: none match
-    mockGetHubSpotClient.mockReturnValueOnce({
-      cms: {
-        hubdb: {
-          rowsApi: {
-            getTableRows: jest.fn().mockResolvedValueOnce({ results: [] }),
-          },
-        },
-      },
-    } as any);
+    // HubDB: modules (gate pass) + courses (no matching course)
+    setupHubSpotMocks([AWARDS_CERT_MODULE_ROW], []);
 
     const result = await issueCertificateIfComplete({
       dynamo,
@@ -198,39 +231,34 @@ describe('issueCertificateIfComplete', () => {
       .mockReturnValueOnce('course-cert-uuid-0004000-a000-000000000003');
 
     // DynamoDB call sequence:
-    // 1. GetCommand: module cert existence check → no item (not yet issued)
+    // 1. GetCommand: module cert existence check → no item
     // 2. PutCommand: write module cert → success
     // 3. GetCommand: entity-completion for 'module-a' → complete
-    // 4. GetCommand: entity-completion for 'module-b' (= MODULE_SLUG, just completed) → complete
+    // 4. GetCommand: entity-completion for MODULE_SLUG → complete
     // 5. GetCommand: course cert existence check → no item
     // 6. PutCommand: write course cert → success
     mockDynamoSend
-      .mockResolvedValueOnce({ Item: undefined })                           // (1) module cert check
-      .mockResolvedValueOnce({})                                            // (2) module PutCommand
-      .mockResolvedValueOnce({ Item: { status: 'complete' } })             // (3) module-a entity check
-      .mockResolvedValueOnce({ Item: { status: 'complete' } })             // (4) MODULE_SLUG entity check
-      .mockResolvedValueOnce({ Item: undefined })                           // (5) course cert check
-      .mockResolvedValueOnce({});                                           // (6) course PutCommand
+      .mockResolvedValueOnce({ Item: undefined })                           // (1)
+      .mockResolvedValueOnce({})                                            // (2)
+      .mockResolvedValueOnce({ Item: { status: 'complete' } })             // (3)
+      .mockResolvedValueOnce({ Item: { status: 'complete' } })             // (4)
+      .mockResolvedValueOnce({ Item: undefined })                           // (5)
+      .mockResolvedValueOnce({});                                           // (6)
 
-    // HubDB returns one course containing MODULE_SLUG and 'module-a'
-    mockGetHubSpotClient.mockReturnValueOnce({
-      cms: {
-        hubdb: {
-          rowsApi: {
-            getTableRows: jest.fn().mockResolvedValueOnce({
-              results: [
-                {
-                  path: 'network-like-hyperscaler-foundations',
-                  values: {
-                    module_slugs_json: JSON.stringify(['module-a', MODULE_SLUG]),
-                  },
-                },
-              ],
-            }),
+    // HubDB: modules (gate pass) + courses (one course, awards_certificate=true)
+    setupHubSpotMocks(
+      [AWARDS_CERT_MODULE_ROW],
+      [
+        {
+          path: 'network-like-hyperscaler-foundations',
+          values: {
+            hs_name: 'NLH Foundations',
+            awards_certificate: true,
+            module_slugs_json: JSON.stringify(['module-a', MODULE_SLUG]),
           },
         },
-      },
-    } as any);
+      ]
+    );
 
     const result = await issueCertificateIfComplete({
       dynamo,
@@ -250,30 +278,24 @@ describe('issueCertificateIfComplete', () => {
     const dynamo = makeDynamo();
 
     mockDynamoSend
-      .mockResolvedValueOnce({ Item: undefined })                           // module cert check → not exists
+      .mockResolvedValueOnce({ Item: undefined })                           // module cert check
       .mockResolvedValueOnce({})                                            // module PutCommand
-      .mockResolvedValueOnce({ Item: { status: 'in_progress' } })         // module-a entity check → not complete
-      // course loop short-circuits after first non-complete module
+      .mockResolvedValueOnce({ Item: { status: 'in_progress' } });        // module-a → not complete
 
-    // HubDB returns one course containing MODULE_SLUG and 'module-a'
-    mockGetHubSpotClient.mockReturnValueOnce({
-      cms: {
-        hubdb: {
-          rowsApi: {
-            getTableRows: jest.fn().mockResolvedValueOnce({
-              results: [
-                {
-                  path: 'network-like-hyperscaler-foundations',
-                  values: {
-                    module_slugs_json: JSON.stringify(['module-a', MODULE_SLUG]),
-                  },
-                },
-              ],
-            }),
+    // HubDB: modules (gate pass) + courses (one course, awards_certificate=true)
+    setupHubSpotMocks(
+      [AWARDS_CERT_MODULE_ROW],
+      [
+        {
+          path: 'network-like-hyperscaler-foundations',
+          values: {
+            hs_name: 'NLH Foundations',
+            awards_certificate: true,
+            module_slugs_json: JSON.stringify(['module-a', MODULE_SLUG]),
           },
         },
-      },
-    } as any);
+      ]
+    );
 
     const result = await issueCertificateIfComplete({
       dynamo,
@@ -303,6 +325,190 @@ describe('issueCertificateIfComplete', () => {
 
     expect(result.moduleCertIssued).toBe(false);
     expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // awards_certificate gate tests (Issue #429)
+  // -------------------------------------------------------------------------
+
+  it('skips module cert when awards_certificate=false on module row', async () => {
+    const dynamo = makeDynamo();
+
+    // Only one getHubSpotClient call: modules gate (returns false → early return)
+    mockGetHubSpotClient.mockReturnValueOnce(
+      makeHubSpotClientMock([
+        {
+          path: MODULE_SLUG,
+          values: { hs_name: 'Some Module', awards_certificate: false },
+        },
+      ]) as any
+    );
+
+    const result = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed', 'lab-main': 'attested' },
+      now: NOW,
+    });
+
+    expect(result.moduleCertIssued).toBe(false);
+    expect(result.moduleCertId).toBeUndefined();
+    expect(result.courseCertIssued).toBe(false);
+    // DynamoDB should NOT have been called (gate rejects before any DB write)
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+
+  it('skips module cert when awards_certificate=0 (HubDB integer falsy) on module row', async () => {
+    const dynamo = makeDynamo();
+
+    mockGetHubSpotClient.mockReturnValueOnce(
+      makeHubSpotClientMock([
+        {
+          path: MODULE_SLUG,
+          values: { hs_name: 'Some Module', awards_certificate: 0 },
+        },
+      ]) as any
+    );
+
+    const result = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed' },
+      now: NOW,
+    });
+
+    expect(result.moduleCertIssued).toBe(false);
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+
+  it('issues module cert when awards_certificate=1 (HubDB integer truthy)', async () => {
+    const dynamo = makeDynamo();
+
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: undefined })  // cert existence check
+      .mockResolvedValueOnce({});                   // PutCommand succeeds
+
+    setupHubSpotMocks(
+      [{ path: MODULE_SLUG, values: { hs_name: 'Module A', awards_certificate: 1 } }],
+      []
+    );
+
+    const result = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed' },
+      now: NOW,
+    });
+
+    expect(result.moduleCertIssued).toBe(true);
+  });
+
+  it('skips module cert when module row is not found in HubDB', async () => {
+    const dynamo = makeDynamo();
+
+    // Only one getHubSpotClient call: modules gate returns empty results
+    mockGetHubSpotClient.mockReturnValueOnce(
+      makeHubSpotClientMock([]) as any
+    );
+
+    const result = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed' },
+      now: NOW,
+    });
+
+    expect(result.moduleCertIssued).toBe(false);
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+
+  it('skips module cert when HUBDB_MODULES_TABLE_ID is not set', async () => {
+    delete process.env.HUBDB_MODULES_TABLE_ID;
+    const dynamo = makeDynamo();
+
+    const result = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed' },
+      now: NOW,
+    });
+
+    expect(result.moduleCertIssued).toBe(false);
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+
+  it('skips course cert when course row has awards_certificate=false', async () => {
+    const dynamo = makeDynamo();
+
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: undefined })  // module cert check
+      .mockResolvedValueOnce({});                   // module cert PutCommand
+
+    // modules: gate passes; courses: one course with awards_certificate=false
+    setupHubSpotMocks(
+      [AWARDS_CERT_MODULE_ROW],
+      [
+        {
+          path: 'network-like-hyperscaler-foundations',
+          values: {
+            hs_name: 'NLH Foundations',
+            awards_certificate: false,
+            module_slugs_json: JSON.stringify([MODULE_SLUG]),
+          },
+        },
+      ]
+    );
+
+    const result = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed', 'lab-main': 'attested' },
+      now: NOW,
+    });
+
+    expect(result.moduleCertIssued).toBe(true);
+    expect(result.courseCertIssued).toBe(false);
+  });
+
+  it('stores entityTitle in the cert record written to DynamoDB', async () => {
+    const dynamo = makeDynamo();
+
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: undefined })  // cert existence check
+      .mockResolvedValueOnce({});                   // PutCommand
+
+    setupHubSpotMocks(
+      [{ path: MODULE_SLUG, values: { hs_name: 'Expected Title', awards_certificate: true } }],
+      []
+    );
+
+    await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'complete',
+      taskStatusesMap: { 'quiz-1': 'passed' },
+      now: NOW,
+    });
+
+    // Find the PutCommand call and verify entityTitle was stored
+    const putCall = mockDynamoSend.mock.calls.find(
+      (call: any[]) => call[0]?._tag === 'PutCommand'
+    );
+    expect(putCall).toBeDefined();
+    expect(putCall![0].input.Item.entityTitle).toBe('Expected Title');
   });
 });
 
@@ -376,6 +582,7 @@ describe('handleCertificateVerify', () => {
           learnerId: USER_ID,           // PII — should NOT appear in response
           entityType: 'module',
           entitySlug: MODULE_SLUG,
+          entityTitle: 'Fabric Operations Welcome',
           issuedAt: NOW,
           evidenceSummary: { 'quiz-1': 'passed' },  // internal — should NOT appear
         },
@@ -389,6 +596,7 @@ describe('handleCertificateVerify', () => {
     expect(body.certId).toBe(VALID_CERT_ID);
     expect(body.entityType).toBe('module');
     expect(body.entitySlug).toBe(MODULE_SLUG);
+    expect(body.entityTitle).toBe('Fabric Operations Welcome');
     expect(body.issuedAt).toBe(NOW);
 
     // PII fields must NOT be in response
@@ -409,6 +617,7 @@ describe('handleCertificateVerify', () => {
           learnerId: USER_ID,
           entityType: 'course',
           entitySlug: COURSE_SLUG,
+          entityTitle: 'NLH Foundations',
           issuedAt: NOW,
         },
       ],
