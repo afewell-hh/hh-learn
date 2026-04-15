@@ -12,6 +12,7 @@ const tasks_status_js_1 = require("./tasks-status.js");
 const tasks_status_batch_js_1 = require("./tasks-status-batch.js");
 const admin_test_reset_js_1 = require("./admin-test-reset.js");
 const certificate_verify_js_1 = require("./certificate-verify.js");
+const certificates_list_js_1 = require("./certificates-list.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -174,6 +175,11 @@ const handler = async (event) => {
         // Shadow certificate verification endpoint (Issue #427)
         if (path.includes('/shadow/certificate/') && method === 'GET')
             return await (0, certificate_verify_js_1.handleCertificateVerify)(event);
+        // Shadow certificates list endpoint (Issue #429)
+        // Accessed via api.hedgehog.cloud/shadow/certificates; base-path mapping strips /shadow
+        // so the Lambda sees /certificates.
+        if (path.endsWith('/certificates') && method === 'GET')
+            return await (0, certificates_list_js_1.handleCertificatesList)(event);
         // Legacy POST endpoints
         if (method !== 'POST')
             return bad(405, 'Method not allowed', origin);

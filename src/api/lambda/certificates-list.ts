@@ -1,21 +1,24 @@
 /**
- * GET /shadow/certificate/:certId
+ * GET /shadow/certificates
  *
- * Shadow-only public verification endpoint: looks up a certificate by its UUID
- * via the certId-index GSI on the certificates-shadow DynamoDB table.
+ * Shadow-only authenticated endpoint: returns all certificates earned by the
+ * authenticated learner, ordered by issuedAt descending.
  *
- * No auth required — certificates are public proofs of completion.
- * Only non-PII fields are returned: certId, entityType, entitySlug, issuedAt.
- *
+ * Auth: httpOnly cookie (hhl_access_token) verified against Cognito JWKS.
  * Shadow guard: returns 403 when APP_STAGE !== 'shadow'.
- * Returns 404 when certId is not found.
  *
- * @see Issue #427
+ * DynamoDB read: Query certificates-shadow by PK = USER#<sub>, SK begins_with CERT#
+ *
+ * Response shape:
+ *   { certificates: [ { certId, entityType, entitySlug, entityTitle, issuedAt } ] }
+ *
+ * @see Issue #429
  * @see infrastructure/dynamodb/certificates-shadow-table.json
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { verifyCookieAuth } from './cognito-auth.js';
 
 // ---------------------------------------------------------------------------
 // DynamoDB client (lazy init for testability)
@@ -67,23 +70,27 @@ function jsonResp(
 }
 
 // ---------------------------------------------------------------------------
-// Response type (exported for unit tests)
+// Response types (exported for unit tests)
 // ---------------------------------------------------------------------------
 
-export type CertificateVerifyResponse = {
+export type CertificateListEntry = {
   certId: string;
   entityType: 'module' | 'course';
   entitySlug: string;
-  /** Human-readable title stored at issuance time; falls back to entitySlug */
+  /** Stored at issuance time; falls back to entitySlug if absent */
   entityTitle: string;
   issuedAt: string;
+};
+
+export type CertificateListResponse = {
+  certificates: CertificateListEntry[];
 };
 
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
-export async function handleCertificateVerify(event: any) {
+export async function handleCertificatesList(event: any) {
   const origin = event.headers?.origin || event.headers?.Origin;
 
   // --- Shadow guard ---
@@ -91,29 +98,18 @@ export async function handleCertificateVerify(event: any) {
     return jsonResp(403, { error: 'Not available in this environment' }, origin);
   }
 
-  // --- Extract certId from path parameters ---
-  // API Gateway v2 path param: /shadow/certificate/{certId}
-  // After the /shadow base-path mapping strips /shadow, the Lambda sees
-  // /certificate/{certId}.  API GW puts the raw param in event.pathParameters.
-  const certId = (
-    event.pathParameters?.certId ||
-    // Fallback: parse from rawPath for local testing
-    (event.rawPath || '').split('/').pop()
-  )?.trim();
-
-  if (!certId) {
-    return jsonResp(400, { error: 'certId is required' }, origin);
-  }
-
-  // Basic UUID v4 format validation (prevents injection / oversized input)
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!UUID_RE.test(certId)) {
-    return jsonResp(400, { error: 'Invalid certId format' }, origin);
+  // --- Auth ---
+  let userId: string;
+  try {
+    const auth = await verifyCookieAuth(event);
+    userId = auth.userId;
+  } catch {
+    return jsonResp(401, { error: 'Unauthorized' }, origin);
   }
 
   const CERTS_TABLE = process.env.CERTIFICATES_TABLE;
   if (!CERTS_TABLE) {
-    console.error('[CertVerify] CERTIFICATES_TABLE not set');
+    console.error('[CertsList] CERTIFICATES_TABLE not set');
     return jsonResp(500, { error: 'Server configuration error' }, origin);
   }
 
@@ -121,29 +117,35 @@ export async function handleCertificateVerify(event: any) {
     const result = await getDynamo().send(
       new QueryCommand({
         TableName: CERTS_TABLE,
-        IndexName: 'certId-index',
-        KeyConditionExpression: 'certId = :certId',
-        ExpressionAttributeValues: { ':certId': certId },
-        Limit: 1,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+        ExpressionAttributeValues: {
+          ':pk': `USER#${userId}`,
+          ':skPrefix': 'CERT#',
+        },
       })
     );
 
-    const item = result.Items?.[0];
-    if (!item) {
-      return jsonResp(404, { error: 'Certificate not found' }, origin);
-    }
+    const items = result.Items || [];
 
-    const response: CertificateVerifyResponse = {
+    // Sort by issuedAt descending (most recent first)
+    items.sort((a, b) => {
+      const aTime = a.issuedAt ? new Date(a.issuedAt as string).getTime() : 0;
+      const bTime = b.issuedAt ? new Date(b.issuedAt as string).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    const certificates: CertificateListEntry[] = items.map((item) => ({
       certId: item.certId as string,
       entityType: item.entityType as 'module' | 'course',
       entitySlug: item.entitySlug as string,
       entityTitle: (item.entityTitle as string | undefined) || (item.entitySlug as string),
       issuedAt: item.issuedAt as string,
-    };
+    }));
 
+    const response: CertificateListResponse = { certificates };
     return jsonResp(200, response, origin);
   } catch (err: any) {
-    console.error('[CertVerify] DynamoDB query failed:', err?.message || err);
-    return jsonResp(500, { error: 'Failed to verify certificate' }, origin);
+    console.error('[CertsList] DynamoDB query failed:', err?.message || err);
+    return jsonResp(500, { error: 'Failed to retrieve certificates' }, origin);
   }
 }

@@ -47,6 +47,9 @@ export interface CertificateIssuanceResult {
  *
  * Uses a conditional PutItem (attribute_not_exists(PK)) so that concurrent
  * completions cannot create duplicate certificates.
+ *
+ * entityTitle is stored at issuance time so the certificates list endpoint
+ * can return a human-readable title without re-fetching HubDB.
  */
 async function issueOneCert(
   dynamo: DynamoDBDocumentClient,
@@ -54,6 +57,7 @@ async function issueOneCert(
   userId: string,
   entityType: 'module' | 'course',
   entitySlug: string,
+  entityTitle: string,
   evidenceSummary: Record<string, string>,
   now: string
 ): Promise<{ issued: boolean; certId: string }> {
@@ -87,6 +91,7 @@ async function issueOneCert(
           learnerId: userId,
           entityType,
           entitySlug,
+          entityTitle,
           issuedAt: now,
           evidenceSummary,
         },
@@ -120,6 +125,9 @@ async function issueOneCert(
  * have a 'complete' entity-completion record for this learner.
  * If yes, issue a course-level certificate (idempotent).
  *
+ * Respects the awards_certificate field: if the course row has awards_certificate = 0
+ * or is absent, the course cert is skipped.
+ *
  * Returns the first course certId issued (or undefined if none).
  */
 async function checkAndIssueCourseCompletion(
@@ -137,7 +145,7 @@ async function checkAndIssueCourseCompletion(
     return { issued: false };
   }
 
-  let coursesWithModule: Array<{ slug: string; moduleSlugs: string[] }> = [];
+  let coursesWithModule: Array<{ slug: string; title: string; moduleSlugs: string[]; awardsCertificate: boolean }> = [];
 
   try {
     const hubspot = getHubSpotClient();
@@ -158,7 +166,18 @@ async function checkAndIssueCourseCompletion(
       try { slugs = JSON.parse(slugsJson); } catch { continue; }
 
       if (slugs.some((s: string) => s.toLowerCase() === moduleSlug.toLowerCase())) {
-        coursesWithModule.push({ slug: courseSlug, moduleSlugs: slugs });
+        // awards_certificate: treat any truthy value as true; default false (safer)
+        const awardsCertificate = row.values?.awards_certificate === true ||
+          row.values?.awards_certificate === 1 ||
+          row.values?.awards_certificate === '1' ||
+          row.values?.awards_certificate === 'true';
+        const courseTitle: string = (row.values?.hs_name || row.values?.name || courseSlug) as string;
+        coursesWithModule.push({
+          slug: courseSlug,
+          title: courseTitle,
+          moduleSlugs: slugs,
+          awardsCertificate,
+        });
       }
     }
   } catch (err: any) {
@@ -168,9 +187,15 @@ async function checkAndIssueCourseCompletion(
 
   if (coursesWithModule.length === 0) return { issued: false };
 
-  // For each candidate course, check if every module has a complete entity-completion
+  // For each candidate course, check awards_certificate gate then check completion
   for (const course of coursesWithModule) {
     if (course.moduleSlugs.length === 0) continue;
+
+    // awards_certificate gate: skip if course does not award a certificate
+    if (!course.awardsCertificate) {
+      console.info(`[CertIssuance] Course ${course.slug} has awards_certificate=false — skipping course cert`);
+      continue;
+    }
 
     let allComplete = true;
     for (const slug of course.moduleSlugs) {
@@ -205,6 +230,7 @@ async function checkAndIssueCourseCompletion(
           userId,
           'course',
           course.slug,
+          course.title,
           taskStatusesMap, // snapshot of triggering module's task statuses
           now
         );
@@ -256,6 +282,52 @@ export async function issueCertificateIfComplete(params: {
     return { moduleCertIssued: false, courseCertIssued: false };
   }
 
+  // --- awards_certificate gate for module ---
+  // Read the module row from HubDB to check the awards_certificate flag (column id=97).
+  // Default to NOT issuing (safer: fail closed rather than open).
+  let moduleTitleForCert = moduleSlug; // fallback title
+  try {
+    const modulesTableId = process.env.HUBDB_MODULES_TABLE_ID;
+    if (!modulesTableId) {
+      console.warn('[CertIssuance] HUBDB_MODULES_TABLE_ID not set — skipping module cert issuance');
+      return { moduleCertIssued: false, courseCertIssued: false };
+    }
+
+    const hubspot = getHubSpotClient();
+    const rowsResponse = await (hubspot as any).cms.hubdb.rowsApi.getTableRows(
+      modulesTableId,
+      undefined,
+      undefined,
+      undefined
+    );
+    const rows: any[] = rowsResponse.results || [];
+    const moduleRow = rows.find(
+      (r: any) => (r.path || '').toLowerCase() === moduleSlug.toLowerCase()
+    );
+
+    if (!moduleRow) {
+      console.warn(`[CertIssuance] Module row not found in HubDB for slug=${moduleSlug} — skipping cert`);
+      return { moduleCertIssued: false, courseCertIssued: false };
+    }
+
+    // awards_certificate is a BOOLEAN column (id=97); HubDB returns 1/0/true/false
+    const awardsCertificate = moduleRow.values?.awards_certificate === true ||
+      moduleRow.values?.awards_certificate === 1 ||
+      moduleRow.values?.awards_certificate === '1' ||
+      moduleRow.values?.awards_certificate === 'true';
+
+    if (!awardsCertificate) {
+      console.info(`[CertIssuance] Module ${moduleSlug} has awards_certificate=false — skipping cert issuance`);
+      return { moduleCertIssued: false, courseCertIssued: false };
+    }
+
+    // Capture the module title for storage in the cert record
+    moduleTitleForCert = (moduleRow.values?.hs_name || moduleRow.values?.name || moduleSlug) as string;
+  } catch (err: any) {
+    console.warn('[CertIssuance] HubDB module lookup failed — skipping cert:', err?.message || err);
+    return { moduleCertIssued: false, courseCertIssued: false };
+  }
+
   let moduleCertId: string | undefined;
   let moduleCertIssued = false;
 
@@ -267,6 +339,7 @@ export async function issueCertificateIfComplete(params: {
       userId,
       'module',
       moduleSlug,
+      moduleTitleForCert,
       taskStatusesMap,
       now
     );

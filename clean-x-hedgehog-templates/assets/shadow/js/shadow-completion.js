@@ -104,7 +104,7 @@
 
         if (data.module_status === 'complete') {
           restoreAllDone(data.tasks || {});
-          showModuleComplete();
+          showModuleComplete(data.cert_id || null);
           return;
         }
 
@@ -200,7 +200,7 @@
         var score = result.score !== undefined ? result.score + '%' : '';
         if (result.pass) {
           showQuizPassed(score);
-          if (result.module_complete) showModuleComplete();
+          if (result.module_complete) showModuleComplete(result.cert_id || null);
         } else {
           showQuizFailed(score, result.attempts);
           if (btn) btn.disabled = false;
@@ -241,7 +241,7 @@
       .then(function (result) {
         if (!result) return;
         showLabCompleted();
-        if (result.module_complete) showModuleComplete();
+        if (result.module_complete) showModuleComplete(result.cert_id || null);
       })
       .catch(function () {
         showFeedback('hhl-lab-feedback', 'Could not reach the server. Please check your connection.', 'fail');
@@ -311,13 +311,20 @@
     }
   }
 
-  function showModuleComplete() {
+  function showModuleComplete(certId) {
     if (document.getElementById('hhl-module-complete-banner')) return;
     var banner = document.createElement('div');
     banner.id = 'hhl-module-complete-banner';
     banner.className = 'hhl-module-complete';
     banner.setAttribute('role', 'status');
-    banner.innerHTML = '<strong>Module Complete \u2713</strong> \u2014 All tasks finished.';
+    var certLink = '';
+    if (certId) {
+      certLink = ' \u2014 <a href="/learn-shadow/certificate?id=' +
+        encodeURIComponent(certId) +
+        '" class="hhl-cert-link" target="_blank" rel="noopener noreferrer">' +
+        '\uD83C\uDF93 View Certificate</a>';
+    }
+    banner.innerHTML = '<strong>Module Complete \u2713</strong> \u2014 All tasks finished.' + certLink;
     var detail = document.querySelector('.module-detail');
     if (detail) detail.insertBefore(banner, detail.firstChild);
   }

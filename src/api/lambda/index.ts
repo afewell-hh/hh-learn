@@ -38,6 +38,7 @@ import { handleTasksStatus } from './tasks-status.js';
 import { handleTasksStatusBatch } from './tasks-status-batch.js';
 import { handleAdminTestReset } from './admin-test-reset.js';
 import { handleCertificateVerify } from './certificate-verify.js';
+import { handleCertificatesList } from './certificates-list.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -205,6 +206,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (path.endsWith('/admin/test/reset') && method === 'POST') return await handleAdminTestReset(event);
     // Shadow certificate verification endpoint (Issue #427)
     if (path.includes('/shadow/certificate/') && method === 'GET') return await handleCertificateVerify(event);
+    // Shadow certificates list endpoint (Issue #429)
+    // Accessed via api.hedgehog.cloud/shadow/certificates; base-path mapping strips /shadow
+    // so the Lambda sees /certificates.
+    if (path.endsWith('/certificates') && method === 'GET') return await handleCertificatesList(event);
 
     // Legacy POST endpoints
     if (method !== 'POST') return bad(405, 'Method not allowed', origin);
