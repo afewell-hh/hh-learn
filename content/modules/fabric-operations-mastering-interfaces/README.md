@@ -968,6 +968,9 @@ B) Gitea
 C) Grafana
 D) ArgoCD
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** C (Grafana)
 
 **Explanation:**
@@ -975,6 +978,8 @@ D) ArgoCD
 Grafana stores time-series metrics and displays trends over time. kubectl shows current state only (a snapshot). Gitea is for configuration history, not runtime metrics. ArgoCD is for GitOps deployment, not monitoring. The Node Exporter dashboard in Grafana shows CPU usage trends.
 
 **Learning Objective:** LO #1 - Select the appropriate interface
+
+</details>
 
 ---
 
@@ -993,6 +998,9 @@ B) The VPC configuration has an error that must be fixed
 C) The VPC is waiting for switches to become available
 D) The Fabricator controller needs to be restarted
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B (The VPC configuration has an error that must be fixed)
 
 **Explanation:**
@@ -1000,6 +1008,8 @@ D) The Fabricator controller needs to be restarted
 Warning and Error events indicate configuration problems that prevent successful reconciliation. This specific event shows a subnet conflict—the VPC cannot be created until you choose a non-overlapping subnet. You need to fix the configuration in Gitea and recommit. No error/warning events = successful reconciliation.
 
 **Learning Objective:** LO #2 - Interpret kubectl output
+
+</details>
 
 ---
 
@@ -1012,6 +1022,9 @@ B) Commit history
 C) Branch manager
 D) Pull requests
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B (Commit history)
 
 **Explanation:**
@@ -1019,6 +1032,8 @@ D) Pull requests
 The commit history in Gitea shows all changes with timestamps, authors, and commit messages. Each commit records who made the change and when. The file browser shows current file contents but not history. Branch manager and pull requests are for workflow management, not historical audit.
 
 **Learning Objective:** LO #3 - Navigate Gitea
+
+</details>
 
 ---
 
@@ -1031,6 +1046,9 @@ B) Platform Dashboard
 C) Interfaces Dashboard
 D) Node Exporter Dashboard
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** C (Interfaces Dashboard)
 
 **Explanation:**
@@ -1038,6 +1056,8 @@ D) Node Exporter Dashboard
 The Interfaces Dashboard shows detailed per-port metrics including error counters (CRC errors, frame errors), drop counters, and discard counters—all indicators of physical layer issues like bad cables or transceivers. The Fabric Dashboard shows high-level health but not detailed error counters. Platform Dashboard monitors control plane, not switch ports. Node Exporter shows OS metrics, not interface errors.
 
 **Learning Objective:** LO #4 - Read Grafana dashboards
+
+</details>
 
 ---
 
@@ -1050,6 +1070,9 @@ B) Use kubectl to verify the VPC was deployed and check for error events
 C) Check Grafana for switch health
 D) Contact support immediately
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B (Use kubectl to verify the VPC was deployed and check for error events)
 
 **Explanation:**
@@ -1057,6 +1080,8 @@ D) Contact support immediately
 Follow the systematic troubleshooting flow: Config (Gitea) → Deployment (kubectl) → Health (Grafana). If Gitea config looks correct, the next step is to verify the VPC actually deployed successfully using kubectl and check for error events. The events will tell you if reconciliation failed. Only after confirming kubectl shows successful deployment should you move to Grafana to check runtime health.
 
 **Learning Objective:** LO #5 - Correlate information across interfaces
+
+</details>
 
 ---
 
@@ -1069,6 +1094,9 @@ B) Check kubectl for spine-01 Agent status and events
 C) Edit spine-01 configuration in Gitea
 D) Check Platform Dashboard
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B (Check kubectl for spine-01 Agent status and events)
 
 **Explanation:**
@@ -1076,6 +1104,8 @@ D) Check Platform Dashboard
 Grafana shows symptoms (switch down), but kubectl can tell you more detail about WHY: Agent not reporting, configuration errors, reconciliation issues, etc. Always gather more information before taking action. Rebooting (A) without understanding the root cause could make things worse. Editing config (C) is premature—you don't know if configuration is the issue yet. Platform Dashboard (D) shows control plane health, not specific switch status.
 
 **Learning Objective:** LO #6 - Apply troubleshooting methodology
+
+</details>
 
 ---
 

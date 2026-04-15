@@ -585,11 +585,16 @@ In the Hedgehog control model, what is the role of the **Fabric Controller**?
 - C) Runs on switches and applies configurations
 - D) Stores VPC definitions in a database
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B
 
 **Explanation:**
 
 The Fabric Controller runs in Kubernetes, watches for CRD changes (VPCs, VPCAttachments, etc.), computes desired switch configurations, and writes them to Agent CRD specs. It doesn't directly touch switches (that's the Switch Agent's job, C), doesn't use SSH (A), and CRDs are stored in Kubernetes etcd, not a separate database (D).
+
+</details>
 
 ---
 
@@ -602,11 +607,16 @@ You create a VPC with `kubectl apply -f vpc.yaml`. What is the correct order of 
 3. VPC CRD created in Kubernetes
 4. Fabric Controller watches VPC CRD and computes config
 
+<details>
+<summary>Show Answer</summary>
+
 **Answer:** 3 → 4 → 2 → 1
 
 **Explanation:**
 
 Correct flow: VPC CRD created (3), Fabric Controller watches and computes (4), Controller updates Agent spec (2), Switch Agent applies via gNMI (1). This is the reconciliation loop in action.
+
+</details>
 
 ---
 
@@ -614,11 +624,16 @@ Correct flow: VPC CRD created (3), Fabric Controller watches and computes (4), C
 
 True or False: If a switch reboots, you must manually re-run `kubectl apply` to reconfigure it.
 
+<details>
+<summary>Show Answer</summary>
+
 **Answer:** False
 
 **Explanation:**
 
 The switch agent automatically re-reads its Agent CRD when it comes back online and reapplies all configurations. This is **self-healing**—one of the key benefits of declarative infrastructure. Manual intervention is not required.
+
+</details>
 
 ---
 
@@ -631,17 +646,25 @@ Where can you find detailed information about a switch's BGP neighbors and inter
 - C) Fabric Controller logs only
 - D) You must SSH into the switch
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B
 
 **Explanation:**
 
 Agent CRD status contains comprehensive switch operational state reported by the switch agent, including BGP neighbors, interface states, ASIC resources, and NOS version. VPC status (A) is minimal. Controller logs (C) help but aren't the primary source. SSH (D) is possible but not the operator's tool—kubectl is.
 
+</details>
+
 ---
 
 **Question 5: Practical**
 
 You create a VPC but want to verify reconciliation completed successfully. What kubectl commands would you use? (List 2)
+
+<details>
+<summary>Show Answer</summary>
 
 **Answer:**
 
@@ -661,6 +684,8 @@ kubectl get vpc <vpc-name> -o yaml | grep -A 10 status:
 - Full credit: Any 2 valid commands that show reconciliation status
 - Partial credit: 1 valid command
 - No credit: Commands that don't reveal reconciliation state
+
+</details>
 
 ---
 

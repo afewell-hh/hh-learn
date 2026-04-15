@@ -406,16 +406,24 @@ What is the primary role of a Hedgehog Fabric Operator?
 - C) Manually configure BGP peering on each switch
 - D) Write custom Kubernetes controllers for network automation
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B
 
 **Explanation:**
 Fabric Operators manage day-to-day network operations using kubectl to provision resources (VPCs, attachments), validate connectivity, and monitor health. Physical design (A), low-level protocol configuration (C), and controller development (D) are outside the operator role scope. This pathway focuses on **operating** an existing fabric, not designing or implementing it.
+
+</details>
 
 ---
 
 **Question 2: Scenario-Based**
 
 You need to view all switches in the fabric and identify which ones are spines vs. leaves. What kubectl command would you use?
+
+<details>
+<summary>Show Answer</summary>
 
 **Answer:**
 
@@ -431,16 +439,23 @@ This lists all switches with their ROLE field showing "spine" or "server-leaf".
 - Partial credit: Mentions kubectl and switches but wrong syntax
 - No credit: Suggests logging into switches or using non-kubectl tools
 
+</details>
+
 ---
 
 **Question 3: True/False**
 
 True or False: In Hedgehog, you must manually log into each switch to configure VLANs when creating a new VPC.
 
+<details>
+<summary>Show Answer</summary>
+
 **Answer:** False
 
 **Explanation:**
 Hedgehog uses declarative management. You define the VPC in YAML and apply it with kubectl. The fabric controller automatically configures all necessary switches to realize the desired state. You never manually configure switches for routine operations—that's the whole point of the abstraction.
+
+</details>
 
 ---
 
@@ -453,16 +468,24 @@ According to the Hedgehog learning philosophy, which statement is correct?
 - C) Avoid using support—figure everything out independently
 - D) Memorize all kubectl commands before trying labs
 
+<details>
+<summary>Show Answer</summary>
+
 **Correct Answer:** B
 
 **Explanation:**
 The learning philosophy emphasizes "Focus on What Matters Most" and "Confidence Before Comprehensiveness." You'll learn the 80% of operations you'll do daily (B), not rare edge cases (A). Support is encouraged when needed (C is wrong). Learning by doing beats memorization (D is wrong).
+
+</details>
 
 ---
 
 **Question 5: Practical - Open Ended**
 
 Based on what you explored in the lab, how many total switches are in the vlab environment, and how are they split between spines and leaves?
+
+<details>
+<summary>Show Answer</summary>
 
 **Answer:**
 7 total switches: 2 spines and 5 leaves
@@ -472,6 +495,8 @@ Based on what you explored in the lab, how many total switches are in the vlab e
 - Full credit: Correct numbers (7 total, 2 spines, 5 leaves)
 - Partial credit: Correct total but wrong breakdown, or vice versa
 - No credit: Incorrect numbers
+
+</details>
 
 ---
 
