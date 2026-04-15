@@ -336,13 +336,13 @@
     // after the student submits their final requirement — no scrolling required.
     if (!document.getElementById('hhl-module-complete-banner-bottom')) {
       var lastSection = labSection || quizSection;
-      if (lastSection && lastSection.parentNode) {
+      if (lastSection) {
         var bottomBanner = document.createElement('div');
         bottomBanner.id = 'hhl-module-complete-banner-bottom';
         bottomBanner.className = 'hhl-module-complete';
         bottomBanner.setAttribute('role', 'status');
         bottomBanner.innerHTML = bannerHtml;
-        lastSection.parentNode.insertBefore(bottomBanner, lastSection.nextSibling);
+        lastSection.insertAdjacentElement('afterend', bottomBanner);
       }
     }
   }
