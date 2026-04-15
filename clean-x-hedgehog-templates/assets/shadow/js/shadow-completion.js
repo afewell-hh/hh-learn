@@ -312,11 +312,6 @@
   }
 
   function showModuleComplete(certId) {
-    if (document.getElementById('hhl-module-complete-banner')) return;
-    var banner = document.createElement('div');
-    banner.id = 'hhl-module-complete-banner';
-    banner.className = 'hhl-module-complete';
-    banner.setAttribute('role', 'status');
     var certLink = '';
     if (certId) {
       certLink = ' \u2014 <a href="/learn-shadow/certificate?id=' +
@@ -324,9 +319,32 @@
         '" class="hhl-cert-link" target="_blank" rel="noopener noreferrer">' +
         '\uD83C\uDF93 View Certificate</a>';
     }
-    banner.innerHTML = '<strong>Module Complete \u2713</strong> \u2014 All tasks finished.' + certLink;
-    var detail = document.querySelector('.module-detail');
-    if (detail) detail.insertBefore(banner, detail.firstChild);
+    var bannerHtml = '<strong>Module Complete \u2713</strong> \u2014 All tasks finished.' + certLink;
+
+    // Top banner: at the very start of .module-detail (visible after scrolling up)
+    if (!document.getElementById('hhl-module-complete-banner')) {
+      var topBanner = document.createElement('div');
+      topBanner.id = 'hhl-module-complete-banner';
+      topBanner.className = 'hhl-module-complete';
+      topBanner.setAttribute('role', 'status');
+      topBanner.innerHTML = bannerHtml;
+      var detail = document.querySelector('.module-detail');
+      if (detail) detail.insertBefore(topBanner, detail.firstChild);
+    }
+
+    // Bottom banner: right after the last task section so it appears immediately
+    // after the student submits their final requirement — no scrolling required.
+    if (!document.getElementById('hhl-module-complete-banner-bottom')) {
+      var lastSection = labSection || quizSection;
+      if (lastSection && lastSection.parentNode) {
+        var bottomBanner = document.createElement('div');
+        bottomBanner.id = 'hhl-module-complete-banner-bottom';
+        bottomBanner.className = 'hhl-module-complete';
+        bottomBanner.setAttribute('role', 'status');
+        bottomBanner.innerHTML = bannerHtml;
+        lastSection.parentNode.insertBefore(bottomBanner, lastSection.nextSibling);
+      }
+    }
   }
 
   function showAuthPrompt() {
