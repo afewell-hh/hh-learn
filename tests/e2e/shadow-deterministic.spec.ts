@@ -257,7 +257,7 @@ test.describe('fabric-operations-welcome', () => {
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('completed state persists after reload', async ({ page }) => {
@@ -266,10 +266,10 @@ test.describe('fabric-operations-welcome', () => {
     await attestLabApi('fabric-operations-welcome');
 
     await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-welcome`);
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
   });
 });
 
@@ -307,7 +307,7 @@ test.describe('fabric-operations-vpc-provisioning', () => {
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('completed state persists after reload', async ({ page }) => {
@@ -315,10 +315,10 @@ test.describe('fabric-operations-vpc-provisioning', () => {
     await attestLabApi('fabric-operations-vpc-provisioning');
 
     await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-vpc-provisioning`);
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
   });
 });
 

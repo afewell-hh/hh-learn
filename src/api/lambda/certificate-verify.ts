@@ -15,7 +15,7 @@
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 // ---------------------------------------------------------------------------
 // DynamoDB client (lazy init for testability)
@@ -119,8 +119,11 @@ export async function handleCertificateVerify(event: any) {
     return jsonResp(500, { error: 'Server configuration error' }, origin);
   }
 
+  // Primary lookup: query the certId-index GSI (O(1), requires GSI to be deployed)
+  let item: Record<string, unknown> | undefined;
+
   try {
-    const result = await getDynamo().send(
+    const gsiResult = await getDynamo().send(
       new QueryCommand({
         TableName: CERTS_TABLE,
         IndexName: 'certId-index',
@@ -129,23 +132,44 @@ export async function handleCertificateVerify(event: any) {
         Limit: 1,
       })
     );
-
-    const item = result.Items?.[0];
-    if (!item) {
-      return jsonResp(404, { error: 'Certificate not found' }, origin);
-    }
-
-    const response: CertificateVerifyResponse = {
-      certId: item.certId as string,
-      entityType: item.entityType as 'module' | 'course',
-      entitySlug: item.entitySlug as string,
-      entityTitle: (item.entityTitle as string | undefined) || (item.entitySlug as string),
-      issuedAt: item.issuedAt as string,
-    };
-
-    return jsonResp(200, response, origin);
-  } catch (err: any) {
-    console.error('[CertVerify] DynamoDB query failed:', err?.message || err);
-    return jsonResp(500, { error: 'Failed to verify certificate' }, origin);
+    item = gsiResult.Items?.[0];
+  } catch (gsiErr: any) {
+    // GSI may not exist on the deployed table (e.g., table was provisioned before
+    // the GSI was added to the CloudFormation schema). Fall through to scan.
+    console.warn('[CertVerify] GSI query failed — falling back to scan:', gsiErr?.name);
   }
+
+  // Fallback: full-table scan filtered by certId.
+  // Acceptable for low-data environments (shadow); the GSI is the fast path in
+  // production once the table is provisioned with the schema.
+  if (!item) {
+    try {
+      const scanResult = await getDynamo().send(
+        new ScanCommand({
+          TableName: CERTS_TABLE,
+          FilterExpression: 'certId = :certId',
+          ExpressionAttributeValues: { ':certId': certId },
+          Limit: 100,
+        })
+      );
+      item = scanResult.Items?.[0];
+    } catch (scanErr: any) {
+      console.error('[CertVerify] Scan fallback failed:', scanErr?.message || scanErr);
+      return jsonResp(500, { error: 'Failed to verify certificate' }, origin);
+    }
+  }
+
+  if (!item) {
+    return jsonResp(404, { error: 'Certificate not found' }, origin);
+  }
+
+  const response: CertificateVerifyResponse = {
+    certId: item.certId as string,
+    entityType: item.entityType as 'module' | 'course',
+    entitySlug: item.entitySlug as string,
+    entityTitle: (item.entityTitle as string | undefined) || (item.entitySlug as string),
+    issuedAt: item.issuedAt as string,
+  };
+
+  return jsonResp(200, response, origin);
 }
