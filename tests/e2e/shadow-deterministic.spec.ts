@@ -146,6 +146,44 @@ async function fillQuiz(page: Page, answers: Record<string, string>) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// 0. CDN Content Verification — no JS interception
+//    Captures the ACTUAL CDN URL from a real page load, then fetches it
+//    directly to verify the deployed JS contains required features.
+//    Catches CDN caching issues where old JS is still being served.
+// ─────────────────────────────────────────────────────────────
+test.describe('CDN content verification', () => {
+  test.beforeEach(async ({ context }) => {
+    await setAuthCookie(context);
+    // NOTE: NO interceptShadowJs() call — we want the real CDN content
+  });
+
+  test('CDN shadow-completion.js contains bottom module-complete banner', async ({ page }) => {
+    const completionUrls: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('shadow-completion')) completionUrls.push(req.url());
+    });
+
+    await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-welcome`);
+    await page.waitForTimeout(5000);
+
+    const cdnUrl = completionUrls[0];
+    expect(cdnUrl, 'shadow-completion.js must be loaded from CDN').toBeTruthy();
+
+    // Fetch the actual CDN JS content (bypasses browser routing, hits CDN directly)
+    const resp = await page.request.get(cdnUrl);
+    expect(resp.status()).toBe(200);
+    const body = await resp.text();
+
+    // These strings MUST be present in the deployed JS — if absent, the CDN is
+    // serving a stale version and both shadow-completion.js AND module-page.html
+    // must be re-published to HubSpot to bust the cache.
+    expect(body, 'CDN JS must create bottom banner element').toContain('hhl-module-complete-banner-bottom');
+    expect(body, 'CDN JS must use insertAdjacentElement for reliable DOM insertion').toContain('insertAdjacentElement');
+    expect(body, 'CDN JS must contain hhl-no-task-note').toContain('hhl-no-task-note');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
 // 1. Direct page load — all three pilot modules
 // ─────────────────────────────────────────────────────────────
 test.describe('Direct page load', () => {
@@ -257,7 +295,13 @@ test.describe('fabric-operations-welcome', () => {
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 10000 });
+    // Top banner (at page top)
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 10000 });
+    // Bottom banner (directly after the last task section — no scrolling required)
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 10000 });
+    // Bottom banner must be a sibling immediately after #hhl-lab-section
+    const bannerAfterLab = page.locator('#hhl-lab-section + #hhl-module-complete-banner-bottom');
+    await expect(bannerAfterLab).toBeAttached({ timeout: 5000 });
   });
 
   test('completed state persists after reload', async ({ page }) => {
@@ -266,10 +310,12 @@ test.describe('fabric-operations-welcome', () => {
     await attestLabApi('fabric-operations-welcome');
 
     await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-welcome`);
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
   });
 });
 
@@ -307,7 +353,12 @@ test.describe('fabric-operations-vpc-provisioning', () => {
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 10000 });
+    // Top banner at page start
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 10000 });
+    // Bottom banner after lab section (lab-only module: no quiz above it)
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 10000 });
+    const bannerAfterLab = page.locator('#hhl-lab-section + #hhl-module-complete-banner-bottom');
+    await expect(bannerAfterLab).toBeAttached({ timeout: 5000 });
   });
 
   test('completed state persists after reload', async ({ page }) => {
@@ -315,10 +366,12 @@ test.describe('fabric-operations-vpc-provisioning', () => {
     await attestLabApi('fabric-operations-vpc-provisioning');
 
     await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-vpc-provisioning`);
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
   });
 });
 
