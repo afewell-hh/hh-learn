@@ -146,6 +146,44 @@ async function fillQuiz(page: Page, answers: Record<string, string>) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// 0. CDN Content Verification — no JS interception
+//    Captures the ACTUAL CDN URL from a real page load, then fetches it
+//    directly to verify the deployed JS contains required features.
+//    Catches CDN caching issues where old JS is still being served.
+// ─────────────────────────────────────────────────────────────
+test.describe('CDN content verification', () => {
+  test.beforeEach(async ({ context }) => {
+    await setAuthCookie(context);
+    // NOTE: NO interceptShadowJs() call — we want the real CDN content
+  });
+
+  test('CDN shadow-completion.js contains bottom module-complete banner', async ({ page }) => {
+    const completionUrls: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('shadow-completion')) completionUrls.push(req.url());
+    });
+
+    await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-welcome`);
+    await page.waitForTimeout(5000);
+
+    const cdnUrl = completionUrls[0];
+    expect(cdnUrl, 'shadow-completion.js must be loaded from CDN').toBeTruthy();
+
+    // Fetch the actual CDN JS content (bypasses browser routing, hits CDN directly)
+    const resp = await page.request.get(cdnUrl);
+    expect(resp.status()).toBe(200);
+    const body = await resp.text();
+
+    // These strings MUST be present in the deployed JS — if absent, the CDN is
+    // serving a stale version and both shadow-completion.js AND module-page.html
+    // must be re-published to HubSpot to bust the cache.
+    expect(body, 'CDN JS must create bottom banner element').toContain('hhl-module-complete-banner-bottom');
+    expect(body, 'CDN JS must use insertAdjacentElement for reliable DOM insertion').toContain('insertAdjacentElement');
+    expect(body, 'CDN JS must contain hhl-no-task-note').toContain('hhl-no-task-note');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
 // 1. Direct page load — all three pilot modules
 // ─────────────────────────────────────────────────────────────
 test.describe('Direct page load', () => {
