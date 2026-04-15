@@ -1,0 +1,182 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+  {# Production Certificate Display (Issue #437) #}
+  {% set constants = {
+    'HUBDB_MODULES_TABLE_ID': '135621904',
+    'HUBDB_PATHWAYS_TABLE_ID': '135381504',
+    'HUBDB_COURSES_TABLE_ID': '135381433',
+    'ENABLE_CRM_PROGRESS': true,
+    'AUTH_LOGIN_URL': 'https://api.hedgehog.cloud/auth/login',
+    'AUTH_ME_URL': 'https://api.hedgehog.cloud/auth/me',
+    'AUTH_LOGOUT_URL': 'https://api.hedgehog.cloud/auth/logout'
+  } %}
+
+  <title>Certificate of Completion - Hedgehog Learn</title>
+  <meta name="description" content="Certificate of completion for Hedgehog Learn — verifiable proof of course or module completion.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn/certificate">
+{% endblock head %}
+
+{% block body %}
+<style>
+  /* Certificate Display page styles (Issue #437) */
+  .cert-page-container {
+    max-width: 760px;
+    margin: 60px auto;
+    padding: 0 24px;
+  }
+
+  .cert-display-card {
+    border: 2px solid #1a4e8a;
+    border-radius: 12px;
+    padding: 48px;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(26, 78, 138, 0.1);
+  }
+
+  .cert-display-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .cert-display-logo { font-size: 3rem; line-height: 1; }
+  .cert-display-brand {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1a4e8a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .cert-display-heading {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 16px 0;
+  }
+
+  .cert-display-subheading {
+    font-size: 1rem;
+    color: #6B7280;
+    margin: 0 0 8px 0;
+  }
+
+  .cert-display-learner {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1a4e8a;
+    margin-bottom: 16px;
+    font-style: italic;
+  }
+
+  .cert-display-entity {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+    padding: 12px 24px;
+    background: #EFF6FF;
+    border-radius: 8px;
+    display: inline-block;
+  }
+
+  .cert-display-date {
+    font-size: 0.9375rem;
+    color: #6B7280;
+    margin: 8px 0 0 0;
+  }
+
+  .cert-display-footer {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #E5E7EB;
+    text-align: left;
+  }
+
+  .cert-display-verify {
+    font-size: 0.8125rem;
+    color: #6B7280;
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+
+  .cert-verify-label { font-weight: 600; color: #374151; }
+  .cert-verify-id { font-family: monospace; font-size: 0.75rem; }
+  .cert-verify-link { color: #1a4e8a; text-decoration: none; }
+  .cert-verify-link:hover { text-decoration: underline; }
+
+  .cert-display-actions { margin-top: 16px; text-align: center; }
+
+  .cert-copy-link-btn {
+    background: #1a4e8a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cert-copy-link-btn:hover { background: #154171; }
+
+  .cert-display-loading {
+    text-align: center;
+    padding: 80px 40px;
+    color: #6B7280;
+    font-size: 1rem;
+  }
+
+  .cert-display-error {
+    text-align: center;
+    padding: 80px 40px;
+    color: #991B1B;
+  }
+
+  .cert-display-error p { font-size: 1.125rem; margin-bottom: 24px; }
+
+  .cert-back-link {
+    color: #1a4e8a;
+    text-decoration: underline;
+    font-weight: 600;
+  }
+
+  @media (max-width: 600px) {
+    .cert-display-card { padding: 24px 16px; }
+    .cert-display-heading { font-size: 1.5rem; }
+    .cert-display-learner { font-size: 1.375rem; }
+  }
+</style>
+
+<main id="main-content">
+  <div class="cert-page-container">
+
+    <div id="certificate-container">
+      <div class="cert-display-loading">Loading certificate...</div>
+    </div>
+
+  </div>
+</main>
+
+{# Auth context (used by production-certificate.js for /auth/me) #}
+{% set auth_me_url = constants.AUTH_ME_URL if constants and constants.AUTH_ME_URL else 'https://api.hedgehog.cloud/auth/me' %}
+{% set auth_login_url = constants.AUTH_LOGIN_URL if constants and constants.AUTH_LOGIN_URL else 'https://api.hedgehog.cloud/auth/login' %}
+{% set auth_logout_url = constants.AUTH_LOGOUT_URL if constants and constants.AUTH_LOGOUT_URL else 'https://api.hedgehog.cloud/auth/logout' %}
+<div id="hhl-auth-context"
+     data-auth-me-url="{{ auth_me_url }}"
+     data-auth-login-url="{{ auth_login_url }}"
+     data-auth-logout-url="{{ auth_logout_url }}"
+     data-enable-crm="{{ 'true' if constants.ENABLE_CRM_PROGRESS else 'false' }}"
+     style="display:none"></div>
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/production-certificate.js') }}"></script>
+{% endblock body %}
