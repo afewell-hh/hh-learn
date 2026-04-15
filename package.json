@@ -40,6 +40,7 @@
     "@hubspot/api-client": "^11.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/marked": "^5.0.2",
+    "bubblewrap": "^0.2.0",
     "dotenv": "^17.2.3",
     "gray-matter": "^4.0.3",
     "jsonwebtoken": "^9.0.2",
