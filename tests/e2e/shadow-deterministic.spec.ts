@@ -257,7 +257,13 @@ test.describe('fabric-operations-welcome', () => {
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 10000 });
+    // Top banner (at page top)
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 10000 });
+    // Bottom banner (directly after the last task section — no scrolling required)
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 10000 });
+    // Bottom banner must be a sibling immediately after #hhl-lab-section
+    const bannerAfterLab = page.locator('#hhl-lab-section + #hhl-module-complete-banner-bottom');
+    await expect(bannerAfterLab).toBeAttached({ timeout: 5000 });
   });
 
   test('completed state persists after reload', async ({ page }) => {
@@ -266,10 +272,12 @@ test.describe('fabric-operations-welcome', () => {
     await attestLabApi('fabric-operations-welcome');
 
     await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-welcome`);
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
   });
 });
 
@@ -307,7 +315,12 @@ test.describe('fabric-operations-vpc-provisioning', () => {
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 10000 });
+    // Top banner at page start
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 10000 });
+    // Bottom banner after lab section (lab-only module: no quiz above it)
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 10000 });
+    const bannerAfterLab = page.locator('#hhl-lab-section + #hhl-module-complete-banner-bottom');
+    await expect(bannerAfterLab).toBeAttached({ timeout: 5000 });
   });
 
   test('completed state persists after reload', async ({ page }) => {
@@ -315,10 +328,12 @@ test.describe('fabric-operations-vpc-provisioning', () => {
     await attestLabApi('fabric-operations-vpc-provisioning');
 
     await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-vpc-provisioning`);
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
 
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 15000 });
   });
 });
 

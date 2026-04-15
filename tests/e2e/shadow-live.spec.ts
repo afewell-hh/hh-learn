@@ -168,6 +168,30 @@ test.describe('CDN Asset Verification', () => {
     expect(body, 'CDN shadow-completion.js must always hide legacy buttons').not.toContain('if (quizSection || labSection)');
   });
 
+  test('shadow-completion.js CDN copy contains bottom module-complete banner fix', async ({ page }) => {
+    // Capture the actual CDN URL from a real page load — this proves what code
+    // the browser actually receives, independent of JS interception in other suites.
+    const completionUrls: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('shadow-completion')) completionUrls.push(req.url());
+    });
+
+    await page.goto(`${BASE}/learn-shadow/modules/fabric-operations-welcome`);
+    await page.waitForTimeout(5000);
+
+    const cdnUrl = completionUrls[0];
+    expect(cdnUrl, 'shadow-completion.js must be requested from CDN').toBeTruthy();
+
+    const resp = await page.request.get(cdnUrl);
+    expect(resp.status()).toBe(200);
+    const body = await resp.text();
+
+    // Bottom banner must be present — if this fails it means the CDN is serving
+    // a stale version and the template + JS must be re-published to HubSpot.
+    expect(body, 'CDN shadow-completion.js must create bottom module-complete banner').toContain('hhl-module-complete-banner-bottom');
+    expect(body, 'CDN shadow-completion.js must use insertAdjacentElement for bottom banner').toContain('insertAdjacentElement');
+  });
+
   test('shadow-my-learning.js CDN copy contains details[open] fix', async ({ page }) => {
     // Capture the actual CDN URL by listening to requests on a live page load.
     const myLearningUrls: string[] = [];
@@ -316,12 +340,21 @@ test.describe('fabric-operations-welcome [LIVE — zero mocks]', () => {
     await expect(labBtn).toBeVisible({ timeout: 10000 });
     await labBtn.click();
 
-    // Module complete banner appears when both tasks done
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 15000 });
+    // Top banner appears at start of .module-detail
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 15000 });
+
+    // Bottom banner appears directly after the last task section — no scrolling required.
+    // This is the key UX requirement: the student sees completion feedback at the point
+    // of submission, not just at the top of the page.
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 10000 });
+
+    // Bottom banner must be immediately after #hhl-lab-section in the DOM
+    const bannerAfterLab = page.locator('#hhl-lab-section + #hhl-module-complete-banner-bottom');
+    await expect(bannerAfterLab).toBeAttached({ timeout: 5000 });
 
     await page.screenshot({
       path: path.join(SCREENSHOTS_DIR, '05-welcome-module-complete.png'),
-      fullPage: false,
+      fullPage: true,
     });
   });
 });
@@ -355,7 +388,10 @@ test.describe('fabric-operations-vpc-provisioning [LIVE — zero mocks]', () => 
     const labFeedback = await page.locator('#hhl-lab-feedback').textContent();
     expect(labFeedback).toMatch(/complete|lab.*done|attested/i);
 
-    await expect(page.locator('#hhl-module-complete, .hhl-module-complete')).toBeVisible({ timeout: 10000 });
+    // Top banner (at page top)
+    await expect(page.locator('#hhl-module-complete-banner')).toBeVisible({ timeout: 10000 });
+    // Bottom banner (directly after #hhl-lab-section — no scrolling required)
+    await expect(page.locator('#hhl-module-complete-banner-bottom')).toBeVisible({ timeout: 10000 });
   });
 });
 
