@@ -1,7 +1,7 @@
 {
   "slug": "network-like-hyperscaler-foundations",
   "title": "Course 1: Foundations & Interfaces",
-  "summary_markdown": "Begin your journey to becoming a confident Hedgehog Fabric Operator! This course introduces you to Kubernetes-native network operations, exploring how Hedgehog transforms complex networking tasks into simple, declarative workflows.\n\nYou'll learn the mindset shift from traditional CLI-based networking to infrastructure-as-code, discover the three operational interfaces (kubectl, API, UI), and understand Hedgehog's architecture—all through hands-on exploration of a live Virtual Lab environment.",
+  "summary_markdown": "Begin your journey to becoming a confident Hedgehog Fabric Operator! This course introduces you to Kubernetes-native network operations, exploring how Hedgehog transforms complex networking tasks into simple, declarative workflows.\n\nYou'll learn the mindset shift from traditional CLI-based networking to infrastructure-as-code, discover the three operational interfaces (kubectl, API, UI), and understand Hedgehog's architecture\u2014all through hands-on exploration of a live Virtual Lab environment.",
   "modules": [
     "fabric-operations-welcome",
     "fabric-operations-how-it-works",
@@ -68,5 +68,6 @@
       "title": "Next Steps",
       "body_markdown": "Congratulations on completing Foundations & Interfaces! You're now ready to provision real network infrastructure in Course 2: Provisioning & Day 1 Operations."
     }
-  ]
+  ],
+  "awards_certificate": true
 }

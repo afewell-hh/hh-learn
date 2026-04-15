@@ -179,11 +179,13 @@ async function syncModules(dryRun: boolean = false) {
 
       // Read optional completion.json (CompletionTask declarations for the module)
       let completionTasksJson = '';
+      let awardsCertificate = false;
       try {
         const completionPath = join(modulesDir, moduleSlug, 'completion.json');
         const completionContent = await readFile(completionPath, 'utf-8');
         const completionData = JSON.parse(completionContent);
         completionTasksJson = JSON.stringify(completionData.completion_tasks ?? []);
+        awardsCertificate = completionData.awards_certificate ?? false;
       } catch {
         // completion.json is optional; absence treated as no tasks declared
       }
@@ -255,7 +257,9 @@ async function syncModules(dryRun: boolean = false) {
         // Completion framework fields (shadow-only consumers; safe to populate for all stages)
         completion_tasks_json: completionTasksJson,
         // quiz_schema_json contains correct answers — server-side read only; never exposed to client
-        quiz_schema_json: quizSchemaJson
+        quiz_schema_json: quizSchemaJson,
+        // Certificate eligibility flag — HubDB BOOLEAN columns require 1/0 integers, not JS booleans
+        awards_certificate: awardsCertificate ? 1 : 0
       };
 
       if (mediaItems.length) {

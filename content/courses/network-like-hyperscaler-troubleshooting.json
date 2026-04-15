@@ -16,13 +16,13 @@
       "id": "intro",
       "type": "text",
       "title": "Welcome to Troubleshooting, Recovery & Escalation",
-      "body_markdown": "This course completes your journey to becoming a confident Hedgehog Fabric Operator. You'll learn systematic approaches to diagnosing problems, recovering from failures, and collaborating with support—transforming incidents into learning opportunities."
+      "body_markdown": "This course completes your journey to becoming a confident Hedgehog Fabric Operator. You'll learn systematic approaches to diagnosing problems, recovering from failures, and collaborating with support\u2014transforming incidents into learning opportunities."
     },
     {
       "id": "section-diagnosis",
       "type": "text",
       "title": "Part 1: Systematic Issue Diagnosis",
-      "body_markdown": "Learn to use decision trees and diagnostic workflows for common fabric issues. Master the four-layer approach: Events → Agent CRD → Grafana → Logs. This section is split into two modules: first you'll learn the troubleshooting methodology and decision trees, then apply them in a hands-on diagnostic lab."
+      "body_markdown": "Learn to use decision trees and diagnostic workflows for common fabric issues. Master the four-layer approach: Events \u2192 Agent CRD \u2192 Grafana \u2192 Logs. This section is split into two modules: first you'll learn the troubleshooting methodology and decision trees, then apply them in a hands-on diagnostic lab."
     },
     {
       "id": "module-4-1a",
@@ -62,5 +62,6 @@
       "title": "Congratulations!",
       "body_markdown": "You've completed all four courses in the Network Like a Hyperscaler pathway! You're now equipped to operate Hedgehog fabrics with confidence, backed by systematic workflows and strong operational habits. Consider pursuing the Hedgehog Certified Fabric Operator (HCFO) certification to validate your skills."
     }
-  ]
+  ],
+  "awards_certificate": true
 }

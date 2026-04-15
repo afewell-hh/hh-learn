@@ -7,5 +7,6 @@
       "required": true,
       "label": "Hands-On Lab"
     }
-  ]
+  ],
+  "awards_certificate": true
 }

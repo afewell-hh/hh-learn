@@ -1,7 +1,7 @@
 {
   "slug": "network-like-hyperscaler-provisioning",
   "title": "Course 2: Provisioning & Day 1 Operations",
-  "summary_markdown": "Master the essential skills for day-one fabric operations! This course teaches you to provision VPCs, attach servers to the network, validate connectivity, and safely decommission resources—all using Kubernetes-native tools.\n\nYou'll work hands-on with the Hedgehog Virtual Lab to create real network infrastructure, building confidence with declarative provisioning patterns that eliminate manual configuration errors. By the end, you'll be ready to onboard production workloads to your Hedgehog fabric.",
+  "summary_markdown": "Master the essential skills for day-one fabric operations! This course teaches you to provision VPCs, attach servers to the network, validate connectivity, and safely decommission resources\u2014all using Kubernetes-native tools.\n\nYou'll work hands-on with the Hedgehog Virtual Lab to create real network infrastructure, building confidence with declarative provisioning patterns that eliminate manual configuration errors. By the end, you'll be ready to onboard production workloads to your Hedgehog fabric.",
   "modules": [
     "fabric-operations-vpc-provisioning",
     "fabric-operations-vpc-attachments",
@@ -68,5 +68,6 @@
       "title": "Next Steps",
       "body_markdown": "Congratulations on completing Provisioning & Day 1 Operations! You're now ready to learn about observability and fabric health monitoring in Course 3."
     }
-  ]
+  ],
+  "awards_certificate": true
 }

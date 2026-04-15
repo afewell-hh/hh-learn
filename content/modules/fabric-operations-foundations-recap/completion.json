@@ -7,5 +7,6 @@
       "required": false,
       "label": "Knowledge Check (optional)"
     }
-  ]
+  ],
+  "awards_certificate": false
 }
