@@ -8,6 +8,7 @@ coverage
 scratch.txt
 scratch/
 reference/*
+.claude/
 
 # HubSpot config file
 hubspot.config.yml

@@ -10,9 +10,17 @@ name: Shadow Live Nightly
 #   - On demand via workflow_dispatch
 #
 # If CDN verification tests fail after publishing shadow-completion.js:
-#   Republish BOTH the JS and the template to HubSpot:
-#     npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/assets/shadow/js/shadow-completion.js" --local "clean-x-hedgehog-templates/assets/shadow/js/shadow-completion.js"
-#     npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/learn-shadow/module-page.html" --local "clean-x-hedgehog-templates/learn-shadow/module-page.html"
+#   IMPORTANT: Use the HubSpot CLI (not npm run publish:template) to trigger proper compilation.
+#   The Source Code API alone does NOT regenerate the hub_generated CDN URLs for minified assets.
+#   Only `hs upload --cms-publish-mode publish` triggers HubSpot's compilation pipeline.
+#
+#   Run from /tmp (the hs CLI blocks uploads from inside a project folder):
+#     cp clean-x-hedgehog-templates/assets/shadow/js/shadow-completion.js /tmp/ && \
+#       cd /tmp && hs upload --config /path/to/hubspot.config.yml --account hh --cms-publish-mode publish \
+#       /tmp/shadow-completion.js "CLEAN x HEDGEHOG/templates/assets/shadow/js/shadow-completion.js"
+#     cp clean-x-hedgehog-templates/learn-shadow/module-page.html /tmp/ && \
+#       cd /tmp && hs upload --config /path/to/hubspot.config.yml --account hh --cms-publish-mode publish \
+#       /tmp/module-page.html "CLEAN x HEDGEHOG/templates/learn-shadow/module-page.html"
 
 on:
   schedule:

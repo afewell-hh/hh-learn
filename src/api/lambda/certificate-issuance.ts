@@ -171,7 +171,7 @@ async function checkAndIssueCourseCompletion(
           row.values?.awards_certificate === 1 ||
           row.values?.awards_certificate === '1' ||
           row.values?.awards_certificate === 'true';
-        const courseTitle: string = (row.values?.hs_name || row.values?.name || courseSlug) as string;
+        const courseTitle: string = (row.name || row.values?.hs_name || row.values?.name || courseSlug) as string;
         coursesWithModule.push({
           slug: courseSlug,
           title: courseTitle,
@@ -322,7 +322,8 @@ export async function issueCertificateIfComplete(params: {
     }
 
     // Capture the module title for storage in the cert record
-    moduleTitleForCert = (moduleRow.values?.hs_name || moduleRow.values?.name || moduleSlug) as string;
+    // HubDB rows API returns the built-in Name column as row.name (not in values)
+    moduleTitleForCert = (moduleRow.name || moduleRow.values?.hs_name || moduleRow.values?.name || moduleSlug) as string;
   } catch (err: any) {
     console.warn('[CertIssuance] HubDB module lookup failed — skipping cert:', err?.message || err);
     return { moduleCertIssued: false, courseCertIssued: false };

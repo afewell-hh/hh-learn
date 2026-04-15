@@ -64,9 +64,9 @@
   }
 
   function renderCertificate(certData, learnerName) {
-    var entityTitle = certData.entityTitle
-      ? certData.entityTitle
-      : slugToTitle(certData.entitySlug || '');
+    // If entityTitle has no spaces it's a stored slug (fallback from issuance) — convert it.
+    var rawTitle = certData.entityTitle || certData.entitySlug || '';
+    var entityTitle = rawTitle.indexOf(' ') !== -1 ? rawTitle : slugToTitle(rawTitle);
     var typeLabel = certData.entityType === 'course' ? 'Course' : 'Module';
     var dateStr = formatDate(certData.issuedAt);
     var verifyUrl = window.location.href;
@@ -75,7 +75,6 @@
     container.innerHTML =
       '<div class="cert-display-card">' +
         '<div class="cert-display-header">' +
-          '<div class="cert-display-logo">\uD83E\uDD94</div>' +
           '<div class="cert-display-brand">Hedgehog Learn</div>' +
         '</div>' +
         '<div class="cert-display-body">' +
@@ -181,10 +180,13 @@
           .then(function (meData) {
             var learnerName = null;
             if (meData) {
-              var first = meData.firstname || meData.given_name || '';
-              var last = meData.lastname || meData.family_name || '';
-              var full = (first + ' ' + last).trim();
-              if (full) learnerName = full;
+              var first = meData.givenName || '';
+              var last = meData.familyName || '';
+              if (first && last) {
+                learnerName = first + ' ' + last;
+              } else {
+                learnerName = meData.email || null;
+              }
             }
             renderCertificate(certData, learnerName);
           })
