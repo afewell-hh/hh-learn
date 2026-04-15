@@ -194,11 +194,18 @@ functions:
           path: /admin/test/reset
           method: POST
       # Shadow certificate verification endpoint (Issue #427)
+      # Shadow: api.hedgehog.cloud/shadow/certificate/:certId (base-path mapping leaves /shadow/ in rawPath)
       - httpApi:
           path: /shadow/certificate/{certId}
           method: GET
-      # Shadow certificates list endpoint (Issue #429)
-      # Accessible via api.hedgehog.cloud/shadow/certificates (base-path mapping strips /shadow)
+      # Production certificate verification endpoint (Issue #433)
+      # Production: api.hedgehog.cloud/certificate/:certId (direct route, no base-path prefix)
+      - httpApi:
+          path: /certificate/{certId}
+          method: GET
+      # Certificates list endpoint (Issue #429 / #433)
+      # Shadow: api.hedgehog.cloud/shadow/certificates (base-path mapping strips /shadow → Lambda sees /certificates)
+      # Production: api.hedgehog.cloud/certificates (direct)
       - httpApi:
           path: /certificates
           method: GET

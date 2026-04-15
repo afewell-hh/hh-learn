@@ -198,17 +198,20 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (path.endsWith('/progress/aggregate') && method === 'GET') return await getAggregatedProgress(event, origin);
     if (path.endsWith('/enrollments/list') && method === 'GET') return await listEnrollments(event, origin);
 
-    // Shadow completion framework endpoints (Issue #397)
+    // Completion framework endpoints (shadow + production, Issue #397 / #433)
     if (path.endsWith('/tasks/quiz/submit') && method === 'POST') return await handleQuizSubmit(event);
     if (path.endsWith('/tasks/lab/attest') && method === 'POST') return await handleLabAttest(event);
     if (path.endsWith('/tasks/status/batch') && method === 'GET') return await handleTasksStatusBatch(event);
     if (path.endsWith('/tasks/status') && method === 'GET') return await handleTasksStatus(event);
     if (path.endsWith('/admin/test/reset') && method === 'POST') return await handleAdminTestReset(event);
-    // Shadow certificate verification endpoint (Issue #427)
-    if (path.includes('/shadow/certificate/') && method === 'GET') return await handleCertificateVerify(event);
-    // Shadow certificates list endpoint (Issue #429)
-    // Accessed via api.hedgehog.cloud/shadow/certificates; base-path mapping strips /shadow
-    // so the Lambda sees /certificates.
+    // Certificate verification endpoint:
+    //   Shadow: api.hedgehog.cloud/shadow/certificate/:certId — base-path mapping leaves full path with /shadow/
+    //   Production: api.hedgehog.cloud/certificate/:certId — direct route, no prefix
+    if (path.includes('/certificate/') && method === 'GET') return await handleCertificateVerify(event);
+    // Certificates list endpoint:
+    //   Shadow: accessed via api.hedgehog.cloud/shadow/certificates; base-path mapping strips /shadow
+    //   Production: accessed directly at api.hedgehog.cloud/certificates
+    //   Both stages: Lambda sees /certificates
     if (path.endsWith('/certificates') && method === 'GET') return await handleCertificatesList(event);
 
     // Legacy POST endpoints

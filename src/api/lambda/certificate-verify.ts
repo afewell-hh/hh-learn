@@ -86,15 +86,17 @@ export type CertificateVerifyResponse = {
 export async function handleCertificateVerify(event: any) {
   const origin = event.headers?.origin || event.headers?.Origin;
 
-  // --- Shadow guard ---
-  if (process.env.APP_STAGE !== 'shadow') {
+  // --- Stage guard: certificate verify is public (no auth required) but only
+  // active in shadow and production stages ---
+  const stage = process.env.APP_STAGE;
+  if (stage !== 'shadow' && stage !== 'production') {
     return jsonResp(403, { error: 'Not available in this environment' }, origin);
   }
 
   // --- Extract certId from path parameters ---
-  // API Gateway v2 path param: /shadow/certificate/{certId}
-  // After the /shadow base-path mapping strips /shadow, the Lambda sees
-  // /certificate/{certId}.  API GW puts the raw param in event.pathParameters.
+  // Shadow: API GW path param via /shadow/certificate/{certId} base-path mapping
+  // Production: API GW path param via /certificate/{certId} direct route
+  // Both stages use event.pathParameters.certId; rawPath fallback for local testing.
   const certId = (
     event.pathParameters?.certId ||
     // Fallback: parse from rawPath for local testing
