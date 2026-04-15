@@ -75,7 +75,6 @@
     container.innerHTML =
       '<div class="cert-display-card">' +
         '<div class="cert-display-header">' +
-          '<div class="cert-display-logo">\uD83E\uDD94</div>' +
           '<div class="cert-display-brand">Hedgehog Learn</div>' +
         '</div>' +
         '<div class="cert-display-body">' +
