@@ -64,9 +64,9 @@
   }
 
   function renderCertificate(certData, learnerName) {
-    var entityTitle = certData.entityTitle
-      ? certData.entityTitle
-      : slugToTitle(certData.entitySlug || '');
+    // If entityTitle has no spaces it's a stored slug (fallback from issuance) — convert it.
+    var rawTitle = certData.entityTitle || certData.entitySlug || '';
+    var entityTitle = rawTitle.indexOf(' ') !== -1 ? rawTitle : slugToTitle(rawTitle);
     var typeLabel = certData.entityType === 'course' ? 'Course' : 'Module';
     var dateStr = formatDate(certData.issuedAt);
     var verifyUrl = window.location.href;
