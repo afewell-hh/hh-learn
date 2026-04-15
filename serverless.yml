@@ -1,14 +1,18 @@
 service: hedgehog-learn
 frameworkVersion: "3"
 
-# Stage-specific params — shadow gets real table names; all other stages get empty string
-# so the completion framework env vars carry no table references outside shadow.
+# Stage-specific params — shadow/production get real table names; other stages get empty strings.
 params:
   shadow:
     taskRecordsTable: ${self:service}-task-records-shadow
     taskAttemptsTable: ${self:service}-task-attempts-shadow
     entityCompletionsTable: ${self:service}-entity-completions-shadow
     certificatesTable: ${self:service}-certificates-shadow
+  production:
+    taskRecordsTable: ${self:service}-task-records-prod
+    taskAttemptsTable: ${self:service}-task-attempts-prod
+    entityCompletionsTable: ${self:service}-entity-completions-prod
+    certificatesTable: ${self:service}-certificates-prod
   default:
     taskRecordsTable: ''
     taskAttemptsTable: ''
@@ -77,9 +81,9 @@ provider:
                 - 'index/*'
             - Fn::GetAtt: [ProgressTable, Arn]
             - Fn::GetAtt: [BadgesTable, Arn]
-        # Shadow completion framework tables (Issue #405 / #397)
+        # Shadow + production completion framework tables (Issue #405/#397, Issue #432)
         # ARNs hardcoded (not Fn::GetAtt) so this statement deploys to all stages safely;
-        # tables themselves are Condition: IsShadowStage and only exist in the shadow stack
+        # tables themselves are Condition: IsShadowStage / IsProductionStage and only exist in their respective stacks.
         - Effect: Allow
           Action:
             - dynamodb:GetItem
@@ -91,12 +95,18 @@ provider:
             - dynamodb:BatchGetItem
             - dynamodb:BatchWriteItem
           Resource:
+            # Shadow tables
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-records-shadow"
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-attempts-shadow"
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-entity-completions-shadow"
-            # Shadow certificate table + certId-index GSI (Issue #427)
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-certificates-shadow"
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-certificates-shadow/index/*"
+            # Production tables (Issue #432)
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-records-prod"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-attempts-prod"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-entity-completions-prod"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-certificates-prod"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-certificates-prod/index/*"
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -343,9 +353,10 @@ package:
     - '!scratch.txt'
 
 resources:
-  # CloudFormation condition: shadow-only resources gated on stage == shadow
+  # CloudFormation conditions: stage-gated resources
   Conditions:
     IsShadowStage: !Equals ['${sls:stage}', 'shadow']
+    IsProductionStage: !Equals ['${sls:stage}', 'production']
 
   Resources:
     # -------------------------------------------------------------------------
@@ -486,6 +497,150 @@ resources:
             Value: hedgehog-learn
           - Key: Environment
             Value: shadow
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: certificate-framework
+
+    # -------------------------------------------------------------------------
+    # Production Completion Framework Tables (Issue #432 / #376 Epic A)
+    # Condition: IsProductionStage — only provisioned when sls:stage == production
+    # Mirrors the shadow table schemas exactly; uses -prod suffix for isolation.
+    # -------------------------------------------------------------------------
+
+    # Stores current task status per learner per task (mutable, updated on each attempt)
+    # PK: USER#<userId>  SK: TASK#MODULE#<moduleSlug>#<taskSlug>
+    TaskRecordsProdTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsProductionStage
+      Properties:
+        TableName: ${self:service}-task-records-prod
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: production
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: completion-framework
+
+    # Immutable append-only record of every task attempt (quiz answers, lab attestations)
+    # PK: USER#<userId>  SK: ATTEMPT#MODULE#<moduleSlug>#<taskSlug>#<isoTimestamp>
+    TaskAttemptsProdTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsProductionStage
+      Properties:
+        TableName: ${self:service}-task-attempts-prod
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: production
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: completion-framework
+
+    # Module-level completion status derived from task records (one record per learner per module)
+    # PK: USER#<userId>  SK: COMPLETION#MODULE#<moduleSlug>
+    EntityCompletionsProdTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsProductionStage
+      Properties:
+        TableName: ${self:service}-entity-completions-prod
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: production
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: completion-framework
+
+    # Issued certificates for module and course completion (one record per learner per entity)
+    # PK: USER#<userId>  SK: CERT#<entityType>#<entitySlug>
+    # GSI certId-index: certId → used for public certificate verification
+    CertificatesProdTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsProductionStage
+      Properties:
+        TableName: ${self:service}-certificates-prod
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: certId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: certId-index
+            KeySchema:
+              - AttributeName: certId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: production
           - Key: ManagedBy
             Value: serverless-framework
           - Key: Component
