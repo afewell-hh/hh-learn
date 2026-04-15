@@ -33,7 +33,10 @@ export default [
   },
   // Browser asset overrides (Design Manager JS)
   {
-    files: ['clean-x-hedgehog-templates/assets/js/**/*.js'],
+    files: [
+      'clean-x-hedgehog-templates/assets/js/**/*.js',
+      'clean-x-hedgehog-templates/assets/shadow/js/**/*.js',
+    ],
     languageOptions: {
       globals: {
         window: 'readonly',
