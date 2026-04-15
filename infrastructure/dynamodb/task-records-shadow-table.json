@@ -1,0 +1,66 @@
+{
+  "TableName": "hedgehog-learn-task-records-shadow",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "SSESpecification": {
+    "SSEEnabled": true
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "hedgehog-learn"
+    },
+    {
+      "Key": "Environment",
+      "Value": "shadow"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "serverless-framework"
+    },
+    {
+      "Key": "Component",
+      "Value": "completion-framework"
+    }
+  ],
+  "Schema": {
+    "PK": "USER#<userId>",
+    "SK": "TASK#MODULE#<moduleSlug>#<taskSlug>",
+    "description": "Current task status per learner per task. Mutable — updated on each attempt.",
+    "shadowOnly": true,
+    "condition": "CloudFormation Condition: IsShadowStage (only provisioned when stage=shadow)",
+    "attributes": {
+      "PK": "Partition key: USER#<Cognito sub>",
+      "SK": "Sort key: TASK#MODULE#<moduleSlug>#<taskSlug>",
+      "task_type": "quiz | lab_attestation | knowledge_check",
+      "graded": "Boolean — whether this task is scored",
+      "status": "not_started | in_progress | passed | failed | attested",
+      "best_score": "Number 0-100 — best quiz score across all attempts (quiz tasks only)",
+      "last_attempt_at": "ISO 8601 timestamp of most recent attempt",
+      "attempt_count": "Number — total attempts for this task",
+      "updated_at": "ISO 8601 timestamp of last record update"
+    }
+  }
+}

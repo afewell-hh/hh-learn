@@ -2,5 +2,12 @@
   "env": { "es2022": true, "node": true },
   "extends": ["eslint:recommended", "prettier"],
   "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
-  "rules": { "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }] }
+  "rules": { "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }] },
+  "overrides": [
+    {
+      "files": ["clean-x-hedgehog-templates/assets/**/*.js"],
+      "env": { "browser": true, "es2022": true },
+      "parserOptions": { "ecmaVersion": 2022, "sourceType": "script" }
+    }
+  ]
 }

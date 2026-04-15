@@ -1,0 +1,70 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-welcome",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "What is the primary role of a Hedgehog Fabric Operator?",
+      "options": [
+        {"id": "a", "text": "Design network topologies and select switch hardware"},
+        {"id": "b", "text": "Provision VPCs, validate connectivity, and monitor fabric health"},
+        {"id": "c", "text": "Manually configure BGP peering on each switch"},
+        {"id": "d", "text": "Write custom Kubernetes controllers for network automation"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "True or False: In Hedgehog, you must manually log into each switch to configure VLANs when creating a new VPC.",
+      "options": [
+        {"id": "a", "text": "True"},
+        {"id": "b", "text": "False"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "According to the Hedgehog learning philosophy, which statement is correct?",
+      "options": [
+        {"id": "a", "text": "You must master all edge cases before attempting basic operations"},
+        {"id": "b", "text": "Focus on common, high-impact tasks to build confidence and immediate productivity"},
+        {"id": "c", "text": "Avoid using support — figure everything out independently"},
+        {"id": "d", "text": "Memorize all kubectl commands before trying labs"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "Which kubectl command lists all switches in the fabric and shows whether each one is a spine or leaf?",
+      "options": [
+        {"id": "a", "text": "kubectl get nodes"},
+        {"id": "b", "text": "kubectl get switches"},
+        {"id": "c", "text": "kubectl describe fabric"},
+        {"id": "d", "text": "kubectl get pods -n network"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q5",
+      "type": "multiple_choice",
+      "stem": "Based on what you explored in the lab, how many total switches are in the vlab environment, and how are they split between spines and leaves?",
+      "options": [
+        {"id": "a", "text": "5 total: 1 spine, 4 leaves"},
+        {"id": "b", "text": "6 total: 2 spines, 4 leaves"},
+        {"id": "c", "text": "7 total: 2 spines, 5 leaves"},
+        {"id": "d", "text": "9 total: 3 spines, 6 leaves"}
+      ],
+      "correct_answer": "c",
+      "points": 1
+    }
+  ]
+}

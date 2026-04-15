@@ -314,7 +314,7 @@ function clearCookieString(name: string, path: string = '/'): string {
   return `${name}=; Max-Age=0; Path=${path}; HttpOnly; Secure; SameSite=Strict`;
 }
 
-function getCookieValue(rawCookies: string | string[] | undefined, name: string): string | null {
+export function getCookieValue(rawCookies: string | string[] | undefined, name: string): string | null {
   if (!rawCookies) return null;
   const cookieString = Array.isArray(rawCookies) ? rawCookies.join('; ') : rawCookies;
   const match = cookieString.match(new RegExp(`${name}=([^;]+)`));
@@ -1001,6 +1001,48 @@ async function updateUserHubspotContactId(userId: string, hubspotContactId: stri
   );
 
   console.log('[DynamoDB] Updated hubspotContactId for user:', userId);
+}
+
+/**
+ * Verify cookie-based Cognito auth and return user identity.
+ * Reads hhl_access_token from request cookies, verifies against Cognito JWKS.
+ * Throws if the token is missing or invalid.
+ * Used by shadow-only endpoints (Issue #407+).
+ *
+ * When ENABLE_TEST_BYPASS=true and the token is the fixed bypass sentinel value,
+ * JWT verification is skipped and a stable test identity is returned. This
+ * allows automated shadow E2E tests to exercise real DynamoDB operations without
+ * needing a live Cognito browser session. The bypass is already gated by the
+ * shadow-only ENABLE_TEST_BYPASS flag at every calling endpoint.
+ */
+export async function verifyCookieAuth(event: any): Promise<{ userId: string; email: string; decoded: any }> {
+  const rawCookies = event.cookies && event.cookies.length
+    ? event.cookies
+    : (event.headers?.cookie || event.headers?.Cookie || '');
+  const accessToken = getCookieValue(rawCookies, 'hhl_access_token');
+
+  if (!accessToken) {
+    throw new Error('Missing hhl_access_token cookie');
+  }
+
+  // Test bypass: skip JWT verification for the fixed bypass sentinel.
+  // Only active when ENABLE_TEST_BYPASS=true (shadow stage only).
+  if (ENABLE_TEST_BYPASS && accessToken === 'shadow_e2e_test_token') {
+    const decoded = { sub: 'shadow-e2e-test-user', email: 'shadow-e2e@test.internal', token_use: 'access' };
+    return { userId: 'shadow-e2e-test-user', email: 'shadow-e2e@test.internal', decoded };
+  }
+
+  const decoded = await verifyJWT(accessToken, {
+    clientId: COGNITO_CLIENT_ID,
+    tokenUse: 'access',
+  });
+
+  const userId = decoded.sub || decoded.username;
+  if (!userId) {
+    throw new Error('Invalid token payload: missing sub');
+  }
+
+  return { userId, email: decoded.email || '', decoded };
 }
 
 /**

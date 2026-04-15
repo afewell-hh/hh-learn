@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.lambda.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    "strict": true
+  },
+  "include": [
+    "src/api/**/*.ts",
+    "src/shared/**/*.ts",
+    "tests/unit/**/*.ts"
+  ]
+}

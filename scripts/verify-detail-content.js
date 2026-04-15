@@ -21,9 +21,9 @@ function firstHref(html, pattern) {
 
 async function main() {
   const BASE = process.env.E2E_BASE_URL || 'https://hedgehog.cloud';
-  const SMOKE_MODULE = process.env.SMOKE_MODULE_URL || `${BASE}/learn/modules/accessing-the-hedgehog-virtual-lab-with-google-cloud?hsLang=en-us`;
-  const SMOKE_COURSE = process.env.SMOKE_COURSE_URL || `${BASE}/learn/courses/course-authoring-101?hsLang=en-us`;
-  const SMOKE_PATHWAY = process.env.SMOKE_PATHWAY_URL || `${BASE}/learn/pathways/course-authoring-expert?hsLang=en-us`;
+  const SMOKE_MODULE = process.env.SMOKE_MODULE_URL || `${BASE}/learn/modules/fabric-operations-welcome?hsLang=en-us`;
+  const SMOKE_COURSE = process.env.SMOKE_COURSE_URL || `${BASE}/learn/courses/network-like-hyperscaler-foundations?hsLang=en-us`;
+  const SMOKE_PATHWAY = process.env.SMOKE_PATHWAY_URL || `${BASE}/learn/pathways/network-like-hyperscaler?hsLang=en-us`;
   const errors = [];
 
   try {

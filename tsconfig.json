@@ -11,5 +11,5 @@
     "types": ["node", "aws-lambda"]
   },
   "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-  "exclude": ["tests/*.test.ts", "tests/*.spec.ts", "tests/e2e/**/*.spec.ts"]
+  "exclude": ["tests/*.test.ts", "tests/*.spec.ts", "tests/e2e/**/*.spec.ts", "tests/unit/**/*.test.ts"]
 }

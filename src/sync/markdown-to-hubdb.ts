@@ -177,12 +177,44 @@ async function syncModules(dryRun: boolean = false) {
         // meta.json is optional
       }
 
+      // Read optional completion.json (CompletionTask declarations for the module)
+      let completionTasksJson = '';
+      try {
+        const completionPath = join(modulesDir, moduleSlug, 'completion.json');
+        const completionContent = await readFile(completionPath, 'utf-8');
+        const completionData = JSON.parse(completionContent);
+        completionTasksJson = JSON.stringify(completionData.completion_tasks ?? []);
+      } catch {
+        // completion.json is optional; absence treated as no tasks declared
+      }
+
+      // Read optional quiz.json (quiz questions with correct answers — server-side only)
+      // IMPORTANT: quiz.json contains correct answers and must NEVER be served to the client.
+      // It is synced to HubDB quiz_schema_json and read only by the Lambda grading endpoint.
+      let quizSchemaJson = '';
+      try {
+        const quizPath = join(modulesDir, moduleSlug, 'quiz.json');
+        const quizContent = await readFile(quizPath, 'utf-8');
+        JSON.parse(quizContent); // validate JSON before storing
+        quizSchemaJson = quizContent.trim();
+      } catch {
+        // quiz.json is optional; absence means no graded quiz for this module
+      }
+
       // Convert markdown to HTML
       let html = await marked(markdown);
       const stripH1 = (process.env.SYNC_STRIP_LEADING_H1 || 'true').toLowerCase() === 'true';
       if (stripH1) {
         html = html.replace(/^\s*<h1[^>]*>[\s\S]*?<\/h1>\s*/i, '');
       }
+
+      // Insert a plain-text sentinel immediately before the <h2>Assessment</h2>
+      // heading so the shadow module-page HubL template can split on it without
+      // using HTML angle-bracket characters inside a HubL {% %} expression block
+      // (HubSpot's template engine rejects HTML in logic-block string literals).
+      // The sentinel is stripped from rendered output when the template takes
+      // content_parts|first — the Assessment block and everything after it is discarded.
+      html = html.replace('<h2>Assessment</h2>', 'HHL_ASSESSMENT_SPLIT<h2>Assessment</h2>');
 
       // Map difficulty to HubDB SELECT option format
       const difficultyMap: Record<string, any> = {
@@ -219,7 +251,11 @@ async function syncModules(dryRun: boolean = false) {
         full_content: html,
         display_order: fm.order || 999,
         social_image_url: fm.social_image || '',
-        prerequisites_json: prerequisitesJson
+        prerequisites_json: prerequisitesJson,
+        // Completion framework fields (shadow-only consumers; safe to populate for all stages)
+        completion_tasks_json: completionTasksJson,
+        // quiz_schema_json contains correct answers — server-side read only; never exposed to client
+        quiz_schema_json: quizSchemaJson
       };
 
       if (mediaItems.length) {
