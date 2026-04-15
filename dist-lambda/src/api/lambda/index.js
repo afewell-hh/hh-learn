@@ -11,6 +11,7 @@ const tasks_lab_attest_js_1 = require("./tasks-lab-attest.js");
 const tasks_status_js_1 = require("./tasks-status.js");
 const tasks_status_batch_js_1 = require("./tasks-status-batch.js");
 const admin_test_reset_js_1 = require("./admin-test-reset.js");
+const certificate_verify_js_1 = require("./certificate-verify.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -170,6 +171,9 @@ const handler = async (event) => {
             return await (0, tasks_status_js_1.handleTasksStatus)(event);
         if (path.endsWith('/admin/test/reset') && method === 'POST')
             return await (0, admin_test_reset_js_1.handleAdminTestReset)(event);
+        // Shadow certificate verification endpoint (Issue #427)
+        if (path.includes('/shadow/certificate/') && method === 'GET')
+            return await (0, certificate_verify_js_1.handleCertificateVerify)(event);
         // Legacy POST endpoints
         if (method !== 'POST')
             return bad(405, 'Method not allowed', origin);

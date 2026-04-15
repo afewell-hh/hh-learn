@@ -25,6 +25,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { getHubSpotClient } from '../../shared/hubspot.js';
 import { verifyCookieAuth } from './cognito-auth.js';
+import { issueCertificateIfComplete } from './certificate-issuance.js';
 
 // ---------------------------------------------------------------------------
 // DynamoDB client (lazy init for testability)
@@ -410,16 +411,34 @@ export async function handleQuizSubmit(event: any) {
       })
     );
 
-    return jsonResp(
-      200,
-      {
-        score,
-        pass,
-        attempts: attemptCount,
-        module_complete: moduleStatus === 'complete',
-      },
-      origin
-    );
+    // Step 5: Certificate issuance (best-effort — never fails the response)
+    // Build a flat slug→status map for the evidenceSummary snapshot
+    const evidenceSummary: Record<string, string> = {};
+    for (const [slug, detail] of Object.entries(taskStatusesMap)) {
+      evidenceSummary[slug] = detail.status;
+    }
+
+    const certResult = await issueCertificateIfComplete({
+      dynamo,
+      userId,
+      moduleSlug: module_slug,
+      moduleStatus,
+      taskStatusesMap: evidenceSummary,
+      now,
+    });
+
+    const responseBody: Record<string, unknown> = {
+      score,
+      pass,
+      attempts: attemptCount,
+      module_complete: moduleStatus === 'complete',
+    };
+
+    if (certResult.moduleCertId) {
+      responseBody.cert_id = certResult.moduleCertId;
+    }
+
+    return jsonResp(200, responseBody, origin);
   } catch (err: any) {
     console.error('[QuizSubmit] DynamoDB write failed:', err?.message || err);
     return jsonResp(500, { error: 'Failed to persist attempt' }, origin);

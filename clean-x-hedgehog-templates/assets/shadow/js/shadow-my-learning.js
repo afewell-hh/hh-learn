@@ -129,6 +129,24 @@
   }
 
   // ----------------------------------------------------------------
+  // Build certificate badge HTML for a completed module.
+  // certId comes from the tasks/status single-module endpoint (cert_id field).
+  // When certId is available the badge links directly to the verification page.
+  // When certId is absent (batch endpoint used) the badge is display-only.
+  // ----------------------------------------------------------------
+  function buildCertBadgeHtml(certId) {
+    var label = '\uD83C\uDF93 Certificate earned';
+    if (certId) {
+      return '<div class="shadow-cert-badge">' +
+        '<a href="/shadow/certificate/' + encodeURIComponent(certId) + '" ' +
+          'class="shadow-cert-link" target="_blank" rel="noopener noreferrer">' +
+          label + ' &mdash; View Certificate</a>' +
+        '</div>';
+    }
+    return '<div class="shadow-cert-badge">' + label + '</div>';
+  }
+
+  // ----------------------------------------------------------------
   // Build task breakdown pills HTML for a module
   // ----------------------------------------------------------------
   function buildTaskBreakdownHtml(shadowStatus, taskTypes) {
@@ -227,6 +245,11 @@
           ? '\u25D0'
           : (dispStatus === 'no-tasks' ? '\u2013' : '\u25CB'));
       var breakdown = buildTaskBreakdownHtml(shadowStatus, taskTypes);
+      // cert_id is present in single-module tasks/status responses but not in batch responses.
+      // Show the badge whenever the module is complete; link to verify page when certId is available.
+      var certBadge = (dispStatus === 'complete')
+        ? buildCertBadgeHtml((shadowStatus && shadowStatus.cert_id) || null)
+        : '';
       var modLink = '/learn-shadow/modules/' + modPath;
 
       return '<div class="enrollment-module-item ' + dispStatus + '">' +
@@ -235,6 +258,7 @@
           '<a href="' + modLink + '" class="enrollment-module-link">' + modName + '</a>' +
         '</div>' +
         (breakdown || '') +
+        (certBadge || '') +
         '</div>';
     });
 
@@ -293,6 +317,7 @@
     }
 
     if (isComplete) {
+      html += '<div class="enrollment-cert-section">' + buildCertBadgeHtml(null) + '</div>';
       html += '<div class="enrollment-actions"><a href="' + href + '" class="enrollment-cta enrollment-cta--done">Review Course \u2192</a></div>';
     } else if (nextModPath) {
       html += '<div class="enrollment-actions"><a href="/learn-shadow/modules/' + nextModPath + '" class="enrollment-cta">Continue to Next Module \u2192</a></div>';
