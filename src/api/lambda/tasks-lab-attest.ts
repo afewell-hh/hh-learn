@@ -96,8 +96,9 @@ function jsonResp(
 export async function handleLabAttest(event: any) {
   const origin = event.headers?.origin || event.headers?.Origin;
 
-  // --- Shadow guard (first check after route dispatch) ---
-  if (process.env.APP_STAGE !== 'shadow') {
+  // --- Stage guard: completion endpoints require shadow or production stage ---
+  const stage = process.env.APP_STAGE;
+  if (stage !== 'shadow' && stage !== 'production') {
     return jsonResp(403, { error: 'Not available in this environment' }, origin);
   }
 
