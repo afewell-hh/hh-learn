@@ -1,0 +1,57 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-how-it-works",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "In the Hedgehog control model, what is the role of the Fabric Controller?",
+      "options": [
+        {"id": "a", "text": "Directly configures switches via SSH"},
+        {"id": "b", "text": "Watches CRDs, computes configurations, and updates Agent CRD specs"},
+        {"id": "c", "text": "Runs on switches and applies configurations"},
+        {"id": "d", "text": "Stores VPC definitions in a database"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "You run `kubectl apply -f vpc.yaml`. What is the correct order of operations that follows?",
+      "options": [
+        {"id": "a", "text": "Fabric Controller watches VPC → Switch Agent applies config → Controller updates Agent spec → VPC created"},
+        {"id": "b", "text": "VPC CRD created → Fabric Controller computes config → Controller updates Agent spec → Switch Agent applies via gNMI"},
+        {"id": "c", "text": "Switch Agent applies config → Fabric Controller watches VPC → VPC CRD created → Controller updates spec"},
+        {"id": "d", "text": "Controller updates Agent spec → VPC CRD created → Switch Agent applies config → Fabric Controller watches"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "True or False: If a switch reboots, you must manually re-run `kubectl apply` to reconfigure it.",
+      "options": [
+        {"id": "a", "text": "True — you must re-apply manifests after a switch reboot"},
+        {"id": "b", "text": "False — the Switch Agent automatically re-reads its Agent CRD and reapplies all configurations"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "Where can you find detailed information about a switch's BGP neighbors and interface states?",
+      "options": [
+        {"id": "a", "text": "VPC CRD status field"},
+        {"id": "b", "text": "Agent CRD status field"},
+        {"id": "c", "text": "Fabric Controller logs only"},
+        {"id": "d", "text": "You must SSH into the switch"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    }
+  ]
+}

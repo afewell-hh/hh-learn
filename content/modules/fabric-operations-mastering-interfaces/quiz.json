@@ -1,0 +1,85 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-mastering-interfaces",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "You need to view historical CPU usage trends for spine-01 over the last 24 hours. Which interface should you use?",
+      "options": [
+        {"id": "a", "text": "kubectl"},
+        {"id": "b", "text": "Gitea"},
+        {"id": "c", "text": "Grafana"},
+        {"id": "d", "text": "ArgoCD"}
+      ],
+      "correct_answer": "c",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "You run `kubectl describe vpc test-vpc` and see: `Warning  ReconcileFailed  2m  fabricator  Subnet 10.10.10.0/24 overlaps with existing VPC 'prod-vpc'`. What does this mean?",
+      "options": [
+        {"id": "a", "text": "The VPC is being deployed normally (this warning is expected)"},
+        {"id": "b", "text": "The VPC configuration has an error that must be fixed"},
+        {"id": "c", "text": "The VPC is waiting for switches to become available"},
+        {"id": "d", "text": "The Fabricator controller needs to be restarted"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "Your manager asks: \"When was the production-vpc modified and by whom?\" Which Gitea feature should you use?",
+      "options": [
+        {"id": "a", "text": "File browser"},
+        {"id": "b", "text": "Commit history"},
+        {"id": "c", "text": "Branch manager"},
+        {"id": "d", "text": "Pull requests"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "You suspect a switch is dropping packets due to a bad cable or transceiver. Which Grafana dashboard is MOST useful?",
+      "options": [
+        {"id": "a", "text": "Fabric Dashboard"},
+        {"id": "b", "text": "Platform Dashboard"},
+        {"id": "c", "text": "Interfaces Dashboard"},
+        {"id": "d", "text": "Node Exporter Dashboard"}
+      ],
+      "correct_answer": "c",
+      "points": 1
+    },
+    {
+      "id": "q5",
+      "type": "multiple_choice",
+      "stem": "A VPC appears to be configured correctly in Gitea, but servers aren't receiving DHCP addresses. What should you check NEXT?",
+      "options": [
+        {"id": "a", "text": "Recreate the VPC configuration file in Gitea"},
+        {"id": "b", "text": "Use kubectl to verify the VPC was deployed and check for error events"},
+        {"id": "c", "text": "Check Grafana for switch health"},
+        {"id": "d", "text": "Contact support immediately"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q6",
+      "type": "multiple_choice",
+      "stem": "Grafana shows spine-01 as 'Down'. What should you do FIRST?",
+      "options": [
+        {"id": "a", "text": "Reboot spine-01 immediately"},
+        {"id": "b", "text": "Check kubectl for spine-01 Agent status and events"},
+        {"id": "c", "text": "Edit spine-01 configuration in Gitea"},
+        {"id": "d", "text": "Check Platform Dashboard"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-post-incident-review",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "During a PIR, someone says: \"This outage happened because Alice pushed wrong YAML. She should have tested it first.\" What is the BEST blameless response?",
+      "options": [
+        {"id": "a", "text": "\"You're right, Alice should have been more careful.\""},
+        {"id": "b", "text": "\"Let's focus on Alice's training plan.\""},
+        {"id": "c", "text": "\"This isn't Alice's fault, it's the system's fault.\""},
+        {"id": "d", "text": "\"Let's discuss what process or validation would have caught this error before production.\""}
+      ],
+      "correct_answer": "d",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "Which statement represents a ROOT CAUSE (vs. a proximate cause)?",
+      "options": [
+        {"id": "a", "text": "\"Server had no connectivity because VLAN was wrong.\""},
+        {"id": "b", "text": "\"VLAN was wrong because operator chose VLAN 1025.\""},
+        {"id": "c", "text": "\"Operator chose VLAN 1025 because they didn't check existing VPCs.\""},
+        {"id": "d", "text": "\"VLANNamespace doesn't validate VLAN conflicts at creation time.\""}
+      ],
+      "correct_answer": "d",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "Which action item is BEST (most SMART)?",
+      "options": [
+        {"id": "a", "text": "\"Be more careful when selecting VLANs.\""},
+        {"id": "b", "text": "\"Update documentation about VLANs.\""},
+        {"id": "c", "text": "\"Document reserved VLAN ranges (1020-1029) in operator runbook section 'VLAN Selection', including kubectl command. Owner: Alice. Due: Oct 20, 2025.\""},
+        {"id": "d", "text": "\"Someone should write down VLAN stuff somewhere.\""}
+      ],
+      "correct_answer": "c",
+      "points": 1
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "Your team has 5 PIRs this month — all 5 were VLAN-related config errors. What is the BEST next step?",
+      "options": [
+        {"id": "a", "text": "Accept that VLAN issues are common"},
+        {"id": "b", "text": "Recognize the pattern and prioritize systemic improvement (VLAN validation tooling)"},
+        {"id": "c", "text": "Require operators to re-read VLAN documentation"},
+        {"id": "d", "text": "Add more warning labels to Gitea"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    }
+  ]
+}

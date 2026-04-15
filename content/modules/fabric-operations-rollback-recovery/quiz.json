@@ -1,0 +1,59 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-rollback-recovery",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "You need to rollback a VPC configuration change. The problematic commit is `a1b2c3d`. What is the CORRECT command sequence?",
+      "options": [
+        {"id": "a", "text": "git reset --hard HEAD~1 && git push --force"},
+        {"id": "b", "text": "git revert a1b2c3d && git push origin main"},
+        {"id": "c", "text": "kubectl delete vpc vpc-prod && kubectl apply -f vpc-prod-backup.yaml"},
+        {"id": "d", "text": "git checkout a1b2c3d~1 && git push origin main"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "You need to delete VPC `prod-vpc`, which has 3 VPCAttachments and 1 VPCPeering. What is the CORRECT deletion order?",
+      "options": [
+        {"id": "a", "text": "Delete VPC → Delete VPCAttachments → Delete VPCPeering"},
+        {"id": "b", "text": "Delete VPCAttachments → Delete VPCPeering → Delete VPC"},
+        {"id": "c", "text": "Delete VPCPeering → Delete VPC → Delete VPCAttachments"},
+        {"id": "d", "text": "Delete all resources simultaneously with kubectl delete vpc,vpcattachment,vpcpeering --all"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "You deleted VPC `test-vpc` 15 minutes ago but it's still showing 'Terminating' status with finalizers present. What should you do FIRST?",
+      "options": [
+        {"id": "a", "text": "Immediately remove finalizers with kubectl patch"},
+        {"id": "b", "text": "Check if VPCAttachments still exist and delete them"},
+        {"id": "c", "text": "Restart the fabric controller"},
+        {"id": "d", "text": "Escalate to support immediately"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "ArgoCD sync failed with 'invalid YAML'. Your rollback commit is in Git but cluster state hasn't changed. What is the NEXT step?",
+      "options": [
+        {"id": "a", "text": "Delete the Git commit and start over"},
+        {"id": "b", "text": "Validate YAML locally with kubectl apply --dry-run, fix errors, and commit the fix"},
+        {"id": "c", "text": "Force ArgoCD to sync with --force flag"},
+        {"id": "d", "text": "Manually apply YAML with kubectl, bypassing ArgoCD"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    }
+  ]
+}
