@@ -1,0 +1,86 @@
+{
+  "TableName": "hedgehog-learn-certificates-shadow",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "certId",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "certId-index",
+      "KeySchema": [
+        {
+          "AttributeName": "certId",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    }
+  ],
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "SSESpecification": {
+    "SSEEnabled": true
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "hedgehog-learn"
+    },
+    {
+      "Key": "Environment",
+      "Value": "shadow"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "serverless-framework"
+    },
+    {
+      "Key": "Component",
+      "Value": "certificate-framework"
+    }
+  ],
+  "Schema": {
+    "PK": "USER#<cognitoSub>",
+    "SK": "CERT#<entityType>#<entitySlug>",
+    "description": "Issued certificates for module and course completion. One record per learner per entity. Idempotent — re-completion does not overwrite an existing certificate.",
+    "shadowOnly": true,
+    "condition": "CloudFormation Condition: IsShadowStage (only provisioned when stage=shadow)",
+    "attributes": {
+      "PK": "Partition key: USER#<Cognito sub>",
+      "SK": "Sort key: CERT#<entityType>#<entitySlug>  (entityType: 'module' | 'course')",
+      "certId": "UUID v4 — globally unique certificate identifier; also the GSI partition key for public verification lookup",
+      "learnerId": "Cognito sub of the learner who earned the certificate",
+      "entityType": "'module' | 'course'",
+      "entitySlug": "Slug of the module or course for which the certificate was issued",
+      "issuedAt": "ISO 8601 timestamp when the certificate was first issued",
+      "evidenceSummary": "Map: {<taskSlug>: <status>} snapshot at time of issuance — immutable evidence of completion state"
+    },
+    "indexes": {
+      "certId-index": "GSI on certId (HASH only, projection ALL) — used by GET /shadow/certificate/:certId for public verification without PII exposure"
+    }
+  }
+}

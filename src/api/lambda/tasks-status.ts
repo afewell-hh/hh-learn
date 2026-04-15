@@ -18,7 +18,7 @@
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { getHubSpotClient } from '../../shared/hubspot.js';
 import { verifyCookieAuth } from './cognito-auth.js';
 
@@ -85,6 +85,8 @@ export type TaskStatusResponse = {
   module_slug: string;
   module_status: 'not_started' | 'in_progress' | 'complete';
   tasks: Record<string, TaskStatusEntry>;
+  /** Present when module_status === 'complete' and a certificate has been issued */
+  cert_id?: string;
 };
 
 /**
@@ -133,6 +135,40 @@ export function buildResponseFromRecord(
 }
 
 // ---------------------------------------------------------------------------
+// Certificate lookup helper (best-effort — never throws to caller)
+// ---------------------------------------------------------------------------
+
+/**
+ * Look up an existing certificate certId for a user+module combination.
+ * Returns undefined if not found or if CERTIFICATES_TABLE is not configured.
+ */
+async function lookupModuleCertId(
+  dynamo: DynamoDBDocumentClient,
+  userId: string,
+  moduleSlug: string
+): Promise<string | undefined> {
+  const CERTS_TABLE = process.env.CERTIFICATES_TABLE;
+  if (!CERTS_TABLE) return undefined;
+
+  try {
+    const result = await dynamo.send(
+      new GetCommand({
+        TableName: CERTS_TABLE,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: `CERT#module#${moduleSlug}`,
+        },
+        ProjectionExpression: 'certId',
+      })
+    );
+    return result.Item?.certId as string | undefined;
+  } catch (err: any) {
+    console.warn('[TasksStatus] cert lookup failed:', err?.message || err);
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -175,6 +211,11 @@ export async function handleTasksStatus(event: any) {
 
     if (result.Item) {
       const response = buildResponseFromRecord(module_slug, result.Item);
+      // Augment with cert_id if module is complete and a certificate exists
+      if (response.module_status === 'complete') {
+        const certId = await lookupModuleCertId(getDynamo(), userId, module_slug);
+        if (certId) response.cert_id = certId;
+      }
       return jsonResp(200, response, origin);
     }
   } catch (err: any) {

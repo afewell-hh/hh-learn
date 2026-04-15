@@ -8,10 +8,12 @@ params:
     taskRecordsTable: ${self:service}-task-records-shadow
     taskAttemptsTable: ${self:service}-task-attempts-shadow
     entityCompletionsTable: ${self:service}-entity-completions-shadow
+    certificatesTable: ${self:service}-certificates-shadow
   default:
     taskRecordsTable: ''
     taskAttemptsTable: ''
     entityCompletionsTable: ''
+    certificatesTable: ''
 
 provider:
   name: aws
@@ -41,12 +43,15 @@ provider:
     ENABLE_TEST_BYPASS: ${env:ENABLE_TEST_BYPASS, 'false'}
     APP_STAGE: ${env:APP_STAGE, 'dev'}
     HUBDB_MODULES_TABLE_ID: ${env:HUBDB_MODULES_TABLE_ID}
+    HUBDB_COURSES_TABLE_ID: ${env:HUBDB_COURSES_TABLE_ID, ''}
     # Shadow completion framework tables (Issue #405 / #397)
     # Values resolve to the table names only when stage=shadow (via params block above);
     # all other stages receive empty string — table names never injected into dev/prod runtime.
     TASK_RECORDS_TABLE: ${param:taskRecordsTable}
     TASK_ATTEMPTS_TABLE: ${param:taskAttemptsTable}
     ENTITY_COMPLETIONS_TABLE: ${param:entityCompletionsTable}
+    # Shadow certificate table (Issue #427)
+    CERTIFICATES_TABLE: ${param:certificatesTable}
   iam:
     role:
       statements:
@@ -89,6 +94,9 @@ provider:
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-records-shadow"
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-task-attempts-shadow"
             - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-entity-completions-shadow"
+            # Shadow certificate table + certId-index GSI (Issue #427)
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-certificates-shadow"
+            - Fn::Sub: "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-certificates-shadow/index/*"
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -175,6 +183,10 @@ functions:
       - httpApi:
           path: /admin/test/reset
           method: POST
+      # Shadow certificate verification endpoint (Issue #427)
+      - httpApi:
+          path: /shadow/certificate/{certId}
+          method: GET
 
 package:
   individually: true
@@ -431,6 +443,48 @@ resources:
             Value: serverless-framework
           - Key: Component
             Value: completion-framework
+
+    # Issued certificates for module and course completion (one record per learner per entity)
+    # PK: USER#<userId>  SK: CERT#<entityType>#<entitySlug>
+    # GSI certId-index: certId → used for public certificate verification (Issue #427)
+    CertificatesShadowTable:
+      Type: AWS::DynamoDB::Table
+      Condition: IsShadowStage
+      Properties:
+        TableName: ${self:service}-certificates-shadow
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: certId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: certId-index
+            KeySchema:
+              - AttributeName: certId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Project
+            Value: hedgehog-learn
+          - Key: Environment
+            Value: shadow
+          - Key: ManagedBy
+            Value: serverless-framework
+          - Key: Component
+            Value: certificate-framework
 
     # -------------------------------------------------------------------------
     # Shadow API path mapping on api.hedgehog.cloud (Issue #421)
