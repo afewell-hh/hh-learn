@@ -665,6 +665,121 @@
       line-height: 1.4;
     }
   }
+
+  /* ============================================================
+     Production Completion Framework — Quiz + Lab UI (Issue #434/#435)
+     ============================================================ */
+  .hhl-task-section {
+    margin: 32px 0;
+    padding: 24px;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+  }
+  .hhl-task-title {
+    margin: 0 0 16px 0;
+    font-size: 1.375rem;
+    color: #1a4e8a;
+  }
+  .hhl-quiz-question {
+    margin-bottom: 24px;
+  }
+  .hhl-quiz-stem {
+    margin: 0 0 8px 0;
+    line-height: 1.6;
+    color: #111827;
+  }
+  .hhl-quiz-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-left: 8px;
+  }
+  .hhl-quiz-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    padding: 10px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    background: #fff;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 1rem;
+    font-weight: normal;
+  }
+  .hhl-quiz-option:hover {
+    background: #EFF6FF;
+    border-color: #1a4e8a;
+  }
+  .hhl-quiz-option input[type="radio"] {
+    flex-shrink: 0;
+    margin-top: 3px;
+    cursor: pointer;
+  }
+  .hhl-task-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .hhl-task-badge--pass {
+    background: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+  }
+  .hhl-task-badge--fail {
+    background: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+  }
+  .hhl-task-badge--warning {
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+  }
+  .hhl-retake-btn {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 8px 18px;
+    background: #F3F4F6;
+    color: #1a4e8a;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 0.9375rem;
+  }
+  .hhl-retake-btn:hover {
+    background: #EFF6FF;
+    border-color: #1a4e8a;
+  }
+  .hhl-module-complete {
+    margin: 16px 0 24px 0;
+    padding: 14px 20px;
+    background: #D1FAE5;
+    border: 1px solid #A7F3D0;
+    border-radius: 8px;
+    color: #065F46;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .hhl-error-banner {
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: #FEE2E2;
+    border: 1px solid #FECACA;
+    border-radius: 8px;
+    color: #991B1B;
+    font-size: 0.9375rem;
+  }
+  .hhl-error-banner a {
+    color: #991B1B;
+    font-weight: 600;
+    text-decoration: underline;
+  }
 </style>
 
 <main id="main-content">
@@ -741,6 +856,7 @@
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/course-navigation.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/progress.js') }}"></script>
             <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/pageview.js') }}"></script>
+            <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/production-completion.js') }}"></script>
           </header>
 
           {% set module_media = [] %}
@@ -985,6 +1101,67 @@
               <p><em>Module content coming soon.</em></p>
             {% endif %}
           </div>
+
+          {# ============================================================
+             Production Completion Framework — Quiz + Lab UI (Issue #434/#435)
+             Hidden context div passes module_slug to production-completion.js.
+             Quiz and lab sections are rendered here (after full content),
+             conditional on HubDB fields quiz_schema_json and completion_tasks_json.
+             production-completion.js handles submission, result display, and state
+             restoration via GET /tasks/status. Correct answers are never written to HTML.
+             ============================================================ #}
+
+          {# Hidden context div: passes module_slug to production-completion.js #}
+          <div id="hhl-module-context"
+               data-module-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+               style="display:none"></div>
+
+          {# Quiz Section — quiz_schema_json is populated iff the module has a quiz.
+             HubL outputs only stems + options; correct_answer field is never written to HTML. #}
+          {% if dynamic_page_hubdb_row.quiz_schema_json %}
+            {% set quiz_schema = dynamic_page_hubdb_row.quiz_schema_json|fromjson %}
+            {% if quiz_schema and quiz_schema.questions %}
+              <section id="hhl-quiz-section" class="hhl-task-section"
+                       aria-label="Module Assessment"
+                       data-quiz-ref="{{ quiz_schema.quiz_id|default('quiz-1') }}">
+                <h2 class="hhl-task-title">Module Assessment</h2>
+                <div id="hhl-quiz-form">
+                  {% for question in quiz_schema.questions %}
+                    <div class="hhl-quiz-question" data-q-id="{{ question.id }}">
+                      <p class="hhl-quiz-stem"><strong>{{ loop.index }}. {{ question.stem }}</strong></p>
+                      <div class="hhl-quiz-options" role="radiogroup" aria-label="{{ question.stem }}">
+                        {% for option in question.options %}
+                          <label class="hhl-quiz-option" for="q-{{ question.id }}-{{ option.id }}">
+                            <input type="radio" id="q-{{ question.id }}-{{ option.id }}"
+                                   name="{{ question.id }}" value="{{ option.id }}">
+                            <span>{{ option.text }}</span>
+                          </label>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+                <div id="hhl-quiz-feedback" style="display:none" aria-live="polite"></div>
+                <button type="button" id="hhl-quiz-submit" class="pathways-cta-button" style="margin-top:16px;">
+                  Submit Quiz
+                </button>
+              </section>
+            {% endif %}
+          {% endif %}
+
+          {# Lab Attestation Section #}
+          {% if dynamic_page_hubdb_row.completion_tasks_json and 'lab_attestation' in dynamic_page_hubdb_row.completion_tasks_json %}
+            <section id="hhl-lab-section" class="hhl-task-section"
+                     aria-label="Hands-On Lab Attestation">
+              <h2 class="hhl-task-title">Hands-On Lab</h2>
+              <p>Complete the hands-on lab activities above, then click below to mark the lab as complete.</p>
+              <div id="hhl-lab-feedback" style="display:none" aria-live="polite"></div>
+              <button type="button" id="hhl-lab-attest-btn" class="pathways-cta-button" style="margin-top:8px;">
+                Mark Lab Complete
+              </button>
+            </section>
+          {% endif %}
+
         </div>
       </div>
     </section>
