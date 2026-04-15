@@ -180,10 +180,13 @@
           .then(function (meData) {
             var learnerName = null;
             if (meData) {
-              var first = meData.firstname || meData.given_name || '';
-              var last = meData.lastname || meData.family_name || '';
-              var full = (first + ' ' + last).trim();
-              if (full) learnerName = full;
+              var first = meData.givenName || '';
+              var last = meData.familyName || '';
+              if (first && last) {
+                learnerName = first + ' ' + last;
+              } else {
+                learnerName = meData.email || null;
+              }
             }
             renderCertificate(certData, learnerName);
           })
