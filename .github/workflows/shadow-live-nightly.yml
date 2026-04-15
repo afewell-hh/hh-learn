@@ -1,0 +1,42 @@
+name: Shadow Live Nightly
+
+# Runs the shadow-live test suite against the ACTUAL deployed site.
+# This catches CDN caching issues where old JS is still being served.
+# Unlike the PR smoke (shadow-deterministic), these tests use NO JS interception —
+# they verify what users actually experience on hedgehog.cloud.
+#
+# Runs:
+#   - Nightly at 06:00 UTC (after HubSpot CDN TTL ~10h has likely expired from last publish)
+#   - On demand via workflow_dispatch
+#
+# If CDN verification tests fail after publishing shadow-completion.js:
+#   Republish BOTH the JS and the template to HubSpot:
+#     npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/assets/shadow/js/shadow-completion.js" --local "clean-x-hedgehog-templates/assets/shadow/js/shadow-completion.js"
+#     npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/learn-shadow/module-page.html" --local "clean-x-hedgehog-templates/learn-shadow/module-page.html"
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run shadow-live CDN verification
+        env:
+          E2E_BASE_URL: https://hedgehog.cloud
+        run: npx playwright test --project=shadow-live --reporter=list
