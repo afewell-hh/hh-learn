@@ -2,12 +2,24 @@
 /**
  * Publish a Design Manager asset (template/CSS/JS/etc.) to the PUBLISHED environment via the CMS Source Code v3 API.
  *
- * Why: Uploading to `published` is equivalent to clicking "Publish" in the Design Manager UI.
+ * Why: Uploading to `published` updates the raw source file in the Design Manager.
  * Reference: https://developers.hubspot.com/docs/reference/api/cms/templates (Source Code API)
  *
+ * IMPORTANT LIMITATION: This script updates the raw source file but does NOT trigger HubSpot's
+ * template compilation pipeline. HubSpot generates minified `hub_generated` CDN URLs for JS/CSS
+ * assets only when a template is compiled via the HubSpot CLI (`hs upload --cms-publish-mode publish`).
+ *
+ * For updates that need to propagate to the CDN (i.e. changes to JS/CSS assets or templates that
+ * include them), use the HubSpot CLI from outside the project folder instead:
+ *   cp <local-file> /tmp/ && cd /tmp && hs upload --account hh --cms-publish-mode publish \
+ *     /tmp/<file> "CLEAN x HEDGEHOG/templates/<path>"
+ *
+ * This script is still useful for: HTML-only template updates, CSS/JS changes that are later
+ * compiled via the CLI, and non-minified assets served directly by HubSpot.
+ *
  * Usage examples:
- *   npm run build && node dist/scripts/hubspot/publish-template.js --path "CLEAN x HEDGEHOG/templates/learn/register.html" --local "clean-x-hedgehog-templates/learn/register.html"
- *   npm run build && node dist/scripts/hubspot/publish-template.js --path "CLEAN x HEDGEHOG/templates/assets/css/registration.css" --local "clean-x-hedgehog-templates/assets/css/registration.css"
+ *   npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/learn/register.html" --local "clean-x-hedgehog-templates/learn/register.html"
+ *   npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/assets/css/registration.css" --local "clean-x-hedgehog-templates/assets/css/registration.css"
  *
  * Notes:
  * - If --local is omitted, this script will attempt to publish the current DRAFT by downloading it and re-uploading to PUBLISHED.
