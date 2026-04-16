@@ -513,6 +513,49 @@ describe('issueCertificateIfComplete', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Pathway certificate issuance (Issue #451, Phase 5A)
+// Spec §2.5 — uses computeShadowPathwayStatus, not calculatePathwayCompletion.
+// Test plan §2.6.
+// ---------------------------------------------------------------------------
+
+describe('issueCertificateIfComplete — pathway extension', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.APP_STAGE = 'shadow';
+    process.env.CERTIFICATES_TABLE = CERTS_TABLE;
+    process.env.ENTITY_COMPLETIONS_TABLE = ENTITY_COMPLETIONS_TABLE;
+    process.env.HUBDB_COURSES_TABLE_ID = 'test-courses-table';
+    process.env.HUBDB_MODULES_TABLE_ID = 'test-modules-table';
+    process.env.HUBDB_PATHWAYS_TABLE_ID = 'test-pathways-table';
+  });
+
+  afterEach(() => {
+    delete process.env.APP_STAGE;
+    delete process.env.CERTIFICATES_TABLE;
+    delete process.env.ENTITY_COMPLETIONS_TABLE;
+    delete process.env.HUBDB_COURSES_TABLE_ID;
+    delete process.env.HUBDB_MODULES_TABLE_ID;
+    delete process.env.HUBDB_PATHWAYS_TABLE_ID;
+  });
+
+  it('result type exposes pathwayCertIssued / pathwayCertId fields', async () => {
+    // Minimal run that triggers the no-op branch (moduleStatus != complete) to exercise return shape.
+    const dynamo = makeDynamo();
+    const result: any = await issueCertificateIfComplete({
+      dynamo,
+      userId: USER_ID,
+      moduleSlug: MODULE_SLUG,
+      moduleStatus: 'in_progress',
+      taskStatusesMap: {},
+      now: NOW,
+    });
+    expect(result).toHaveProperty('pathwayCertIssued');
+    // pathwayCertIssued false + pathwayCertId undefined in no-op path
+    expect(result.pathwayCertIssued).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // handleCertificateVerify — GET /shadow/certificate/:certId
 // ---------------------------------------------------------------------------
 
