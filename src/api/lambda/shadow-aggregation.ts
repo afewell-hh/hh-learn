@@ -86,69 +86,21 @@ interface ModuleRecord {
 }
 
 // ---------------------------------------------------------------------------
-// Title resolution — reads content/*.json directly to avoid entangling the
-// CRM-aggregator cache. Pure definition reads, no semantic coupling.
+// Title resolution — reuses the metadata cache extension in completion.ts
+// (additive title field on CourseMetadata / PathwayMetadata for Issue #451).
+// No duplicate filesystem loader.
 // ---------------------------------------------------------------------------
 
-import * as fs from 'fs';
-import * as path from 'path';
-
-interface TitleMap {
-  courses: Map<string, string>;
-  pathways: Map<string, string>;
-  loaded: boolean;
-}
-
-const TITLES: TitleMap = { courses: new Map(), pathways: new Map(), loaded: false };
-
-function loadTitles(): void {
-  if (TITLES.loaded) return;
-  try {
-    const contentDir = path.join(process.cwd(), 'content');
-    const coursesDir = path.join(contentDir, 'courses');
-    if (fs.existsSync(coursesDir)) {
-      for (const file of fs.readdirSync(coursesDir).filter((f) => f.endsWith('.json'))) {
-        try {
-          const obj = JSON.parse(fs.readFileSync(path.join(coursesDir, file), 'utf-8'));
-          if (obj?.slug && typeof obj?.title === 'string') {
-            TITLES.courses.set(obj.slug, obj.title);
-          }
-        } catch {
-          /* ignore malformed */
-        }
-      }
-    }
-    const pathwaysDir = path.join(contentDir, 'pathways');
-    if (fs.existsSync(pathwaysDir)) {
-      for (const file of fs.readdirSync(pathwaysDir).filter((f) => f.endsWith('.json'))) {
-        try {
-          const obj = JSON.parse(fs.readFileSync(path.join(pathwaysDir, file), 'utf-8'));
-          if (obj?.slug && typeof obj?.title === 'string') {
-            TITLES.pathways.set(obj.slug, obj.title);
-          }
-        } catch {
-          /* ignore malformed */
-        }
-      }
-    }
-  } finally {
-    TITLES.loaded = true;
-  }
-}
-
 export function getCourseTitle(courseSlug: string): string {
-  loadTitles();
-  return TITLES.courses.get(courseSlug) ?? courseSlug;
+  return getCourseMetadata(courseSlug)?.title ?? courseSlug;
 }
 
 export function getPathwayTitle(pathwaySlug: string): string {
-  loadTitles();
-  return TITLES.pathways.get(pathwaySlug) ?? pathwaySlug;
+  return getPathwayMetadata(pathwaySlug)?.title ?? pathwaySlug;
 }
 
 // Ensure metadata cache is primed at module load (mirrors completion.ts pattern).
 loadMetadataCache();
-loadTitles();
 
 // ---------------------------------------------------------------------------
 // classifyModule — pure. Single source of truth for denominator semantics.

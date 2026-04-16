@@ -35,10 +35,10 @@ import {
 import {
   getCourseMetadata,
   getPathwayMetadata,
+  listAllCourseSlugs,
+  listAllPathwaySlugs,
   loadMetadataCache,
 } from './completion.js';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Ensure metadata is loaded for breadcrumb resolution.
 loadMetadataCache();
@@ -82,86 +82,9 @@ function jsonResp(status: number, body: unknown, origin?: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Content-definition reads for task titles and breadcrumbs
-// ---------------------------------------------------------------------------
-
-interface ModuleContentMeta {
-  slug: string;
-  title: string;
-}
-const MODULE_CONTENT: Map<string, ModuleContentMeta> = new Map();
-let MODULE_CONTENT_LOADED = false;
-
-function loadModuleContent(): void {
-  if (MODULE_CONTENT_LOADED) return;
-  try {
-    const modulesDir = path.join(process.cwd(), 'content', 'modules');
-    if (fs.existsSync(modulesDir)) {
-      for (const dirent of fs.readdirSync(modulesDir, { withFileTypes: true })) {
-        if (!dirent.isDirectory()) continue;
-        const jsonPath = path.join(modulesDir, dirent.name, 'module.json');
-        if (!fs.existsSync(jsonPath)) continue;
-        try {
-          const obj = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-          if (obj?.slug && typeof obj?.title === 'string') {
-            MODULE_CONTENT.set(obj.slug, { slug: obj.slug, title: obj.title });
-          }
-        } catch {
-          /* ignore malformed */
-        }
-      }
-    }
-  } finally {
-    MODULE_CONTENT_LOADED = true;
-  }
-}
-loadModuleContent();
-
-// Titles for breadcrumb parents — mirror shadow-aggregation title loader.
-interface TitleMap {
-  courses: Map<string, string>;
-  pathways: Map<string, string>;
-  loaded: boolean;
-}
-const TITLES: TitleMap = { courses: new Map(), pathways: new Map(), loaded: false };
-function loadTitles(): void {
-  if (TITLES.loaded) return;
-  try {
-    const contentDir = path.join(process.cwd(), 'content');
-    const coursesDir = path.join(contentDir, 'courses');
-    if (fs.existsSync(coursesDir)) {
-      for (const f of fs.readdirSync(coursesDir).filter((x) => x.endsWith('.json'))) {
-        try {
-          const obj = JSON.parse(fs.readFileSync(path.join(coursesDir, f), 'utf-8'));
-          if (obj?.slug && typeof obj?.title === 'string') {
-            TITLES.courses.set(obj.slug, obj.title);
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    const pathwaysDir = path.join(contentDir, 'pathways');
-    if (fs.existsSync(pathwaysDir)) {
-      for (const f of fs.readdirSync(pathwaysDir).filter((x) => x.endsWith('.json'))) {
-        try {
-          const obj = JSON.parse(fs.readFileSync(path.join(pathwaysDir, f), 'utf-8'));
-          if (obj?.slug && typeof obj?.title === 'string') {
-            TITLES.pathways.set(obj.slug, obj.title);
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-  } finally {
-    TITLES.loaded = true;
-  }
-}
-loadTitles();
-
-// ---------------------------------------------------------------------------
-// Breadcrumb resolution
+// Breadcrumb resolution — uses the metadata cache from completion.ts
+// (titles are available via the additive title field on CourseMetadata /
+// PathwayMetadata, loaded during loadMetadataCache).
 // ---------------------------------------------------------------------------
 
 function resolveBreadcrumbs(moduleSlug: string): {
@@ -170,52 +93,35 @@ function resolveBreadcrumbs(moduleSlug: string): {
   parent_pathway_slug: string | null;
   parent_pathway_title: string | null;
 } {
-  // Courses sorted alphabetically for deterministic first-match.
-  const contentDir = path.join(process.cwd(), 'content', 'courses');
   let parent_course_slug: string | null = null;
-  if (fs.existsSync(contentDir)) {
-    const files = fs.readdirSync(contentDir).filter((f) => f.endsWith('.json')).sort();
-    for (const f of files) {
-      try {
-        const obj = JSON.parse(fs.readFileSync(path.join(contentDir, f), 'utf-8'));
-        if (Array.isArray(obj?.modules) && obj.modules.includes(moduleSlug)) {
-          parent_course_slug = obj.slug;
-          break;
-        }
-      } catch {
-        /* ignore */
-      }
+  let parent_course_title: string | null = null;
+  for (const cs of listAllCourseSlugs()) {
+    const cm = getCourseMetadata(cs);
+    if (cm && cm.modules.includes(moduleSlug)) {
+      parent_course_slug = cs;
+      parent_course_title = cm.title ?? cs;
+      break;
     }
   }
 
   let parent_pathway_slug: string | null = null;
+  let parent_pathway_title: string | null = null;
   if (parent_course_slug) {
-    const pathwaysDir = path.join(process.cwd(), 'content', 'pathways');
-    if (fs.existsSync(pathwaysDir)) {
-      const files = fs.readdirSync(pathwaysDir).filter((f) => f.endsWith('.json')).sort();
-      for (const f of files) {
-        try {
-          const obj = JSON.parse(fs.readFileSync(path.join(pathwaysDir, f), 'utf-8'));
-          if (Array.isArray(obj?.courses) && obj.courses.includes(parent_course_slug)) {
-            parent_pathway_slug = obj.slug;
-            break;
-          }
-        } catch {
-          /* ignore */
-        }
+    for (const ps of listAllPathwaySlugs()) {
+      const pm = getPathwayMetadata(ps);
+      if (pm && pm.courses.includes(parent_course_slug)) {
+        parent_pathway_slug = ps;
+        parent_pathway_title = pm.title ?? ps;
+        break;
       }
     }
   }
 
   return {
     parent_course_slug,
-    parent_course_title: parent_course_slug
-      ? TITLES.courses.get(parent_course_slug) ?? parent_course_slug
-      : null,
+    parent_course_title,
     parent_pathway_slug,
-    parent_pathway_title: parent_pathway_slug
-      ? TITLES.pathways.get(parent_pathway_slug) ?? parent_pathway_slug
-      : null,
+    parent_pathway_title,
   };
 }
 
@@ -527,11 +433,13 @@ function buildAnswerReview(
   return answers.map((ans): AnswerReviewEntry => {
     const q = quizSchema?.questions.find((x) => x.id === ans.id);
     if (!q) {
-      // Schema drift: question no longer exists.
+      // Schema drift: question no longer exists in the current schema.
+      // Preserve the learner's submitted answer identifier/value — NEVER
+      // substitute the question id.
       return {
         question_id: ans.id,
         question_text: null,
-        submitted_answer_id: ans.id,
+        submitted_answer_id: ans.value ?? null,
         submitted_answer_text: ans.value ?? null,
         is_correct: null,
         schema_drift: true,

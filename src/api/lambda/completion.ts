@@ -34,12 +34,17 @@ interface CourseProgressState {
 interface CourseMetadata {
   slug: string;
   modules: string[];
+  // Additive for Issue #451 — shadow aggregator reads title via this cache.
+  // CRM aggregators (calculateCourseCompletion/calculatePathwayCompletion) do not consume this field.
+  title?: string;
   // Future: optional: boolean[] for optional modules
 }
 
 interface PathwayMetadata {
   slug: string;
   courses: string[];
+  // Additive for Issue #451 — shadow aggregator reads title via this cache.
+  title?: string;
   // Future: optional: boolean[] for optional courses
 }
 
@@ -102,7 +107,8 @@ export function loadMetadataCache(): void {
           if (course.slug && Array.isArray(course.modules)) {
             METADATA_CACHE.courses.set(course.slug, {
               slug: course.slug,
-              modules: course.modules
+              modules: course.modules,
+              ...(typeof course.title === 'string' ? { title: course.title } : {}),
             });
           }
         } catch (err) {
@@ -124,7 +130,8 @@ export function loadMetadataCache(): void {
           if (pathway.slug && Array.isArray(pathway.courses)) {
             METADATA_CACHE.pathways.set(pathway.slug, {
               slug: pathway.slug,
-              courses: pathway.courses
+              courses: pathway.courses,
+              ...(typeof pathway.title === 'string' ? { title: pathway.title } : {}),
             });
           }
         } catch (err) {
@@ -156,6 +163,22 @@ export function getCourseMetadata(courseSlug: string): CourseMetadata | undefine
  */
 export function getPathwayMetadata(pathwaySlug: string): PathwayMetadata | undefined {
   return METADATA_CACHE.pathways.get(pathwaySlug);
+}
+
+/**
+ * Iterate all cached courses. Additive accessor for Issue #451;
+ * used by the shadow module-progress handler for breadcrumb resolution.
+ * Callers receive an alphabetically-sorted slug list for deterministic first-match.
+ */
+export function listAllCourseSlugs(): string[] {
+  return Array.from(METADATA_CACHE.courses.keys()).sort();
+}
+
+/**
+ * Iterate all cached pathways. Additive accessor for Issue #451.
+ */
+export function listAllPathwaySlugs(): string[] {
+  return Array.from(METADATA_CACHE.pathways.keys()).sort();
 }
 
 // ============================================================================

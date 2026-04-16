@@ -169,7 +169,7 @@ describe('answer-review — schema resolution', () => {
     expect(body.attempts[0].answer_review[0].submitted_answer_text).toBe('kubectl get pods');
   });
 
-  it('schema drift: deleted question → is_correct=null, question_text=null, schema_drift=true', async () => {
+  it('schema drift: deleted question → exact drifted payload preserves submitted answer (NOT question id)', async () => {
     const DRIFTED_SCHEMA = {
       quiz_id: 'welcome-quiz',
       passing_score: 75,
@@ -192,7 +192,7 @@ describe('answer-review — schema resolution', () => {
             pass: false,
             answers: [
               { id: 'q1', value: 'kubectl get switch' },
-              { id: 'q2', value: 'old-answer' }, // question q2 no longer exists
+              { id: 'q2', value: 'old-submitted-option' }, // question q2 no longer exists
             ],
             learner_identity: { userId: AUTH_RESULT.userId, email: AUTH_RESULT.email },
           },
@@ -203,16 +203,28 @@ describe('answer-review — schema resolution', () => {
     const result = await handleShadowModuleProgress(makeEvent());
     const body = JSON.parse(result.body);
     const review = body.attempts[0].answer_review;
-    const drifted = review.find((r: any) => r.question_id === 'q2');
-    expect(drifted).toBeDefined();
-    expect(drifted.is_correct).toBeNull();
-    expect(drifted.question_text).toBeNull();
-    expect(drifted.schema_drift).toBe(true);
-    expect(drifted.submitted_answer_text).toBe('old-answer');
 
+    // Assert the exact drifted payload shape — including the specific bug
+    // fix for submitted_answer_id: it MUST carry the learner's submitted
+    // option identifier, NEVER the question id.
+    const drifted = review.find((r: any) => r.question_id === 'q2');
+    expect(drifted).toEqual({
+      question_id: 'q2',
+      question_text: null,
+      submitted_answer_id: 'old-submitted-option',  // the submitted value, not 'q2'
+      submitted_answer_text: 'old-submitted-option',
+      is_correct: null,
+      schema_drift: true,
+    });
+    // Defensive regression guard against the exact prior bug:
+    expect(drifted.submitted_answer_id).not.toBe('q2');
+    expect(drifted.submitted_answer_id).not.toBe(drifted.question_id);
+
+    // Non-drifted row still resolves.
     const resolved = review.find((r: any) => r.question_id === 'q1');
     expect(resolved.schema_drift).toBe(false);
     expect(resolved.is_correct).toBe(true);
+    expect(resolved.question_text).toBe('Which command lists fabric switches?');
   });
 });
 
