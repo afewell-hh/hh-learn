@@ -21,6 +21,7 @@
 import { randomUUID } from 'crypto';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { getHubSpotClient } from '../../shared/hubspot.js';
+import { computeShadowPathwayStatus } from './shadow-aggregation.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,6 +36,10 @@ export interface CertificateIssuanceResult {
   courseCertIssued: boolean;
   /** The certId of the course certificate if issued */
   courseCertId?: string;
+  /** Whether a new pathway certificate was issued (Issue #451, Phase 5A) */
+  pathwayCertIssued: boolean;
+  /** The certId of the pathway certificate if issued */
+  pathwayCertId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +60,7 @@ async function issueOneCert(
   dynamo: DynamoDBDocumentClient,
   certsTable: string,
   userId: string,
-  entityType: 'module' | 'course',
+  entityType: 'module' | 'course' | 'pathway',
   entitySlug: string,
   entityTitle: string,
   evidenceSummary: Record<string, string>,
@@ -274,12 +279,12 @@ export async function issueCertificateIfComplete(params: {
   const ENTITY_COMPLETIONS_TABLE = process.env.ENTITY_COMPLETIONS_TABLE;
 
   if (moduleStatus !== 'complete') {
-    return { moduleCertIssued: false, courseCertIssued: false };
+    return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
   }
 
   if (!CERTS_TABLE) {
     console.warn('[CertIssuance] CERTIFICATES_TABLE not set — skipping cert issuance');
-    return { moduleCertIssued: false, courseCertIssued: false };
+    return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
   }
 
   // --- awards_certificate gate for module ---
@@ -290,7 +295,7 @@ export async function issueCertificateIfComplete(params: {
     const modulesTableId = process.env.HUBDB_MODULES_TABLE_ID;
     if (!modulesTableId) {
       console.warn('[CertIssuance] HUBDB_MODULES_TABLE_ID not set — skipping module cert issuance');
-      return { moduleCertIssued: false, courseCertIssued: false };
+      return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
     }
 
     const hubspot = getHubSpotClient();
@@ -307,7 +312,7 @@ export async function issueCertificateIfComplete(params: {
 
     if (!moduleRow) {
       console.warn(`[CertIssuance] Module row not found in HubDB for slug=${moduleSlug} — skipping cert`);
-      return { moduleCertIssued: false, courseCertIssued: false };
+      return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
     }
 
     // awards_certificate is a BOOLEAN column (id=97); HubDB returns 1/0/true/false
@@ -318,7 +323,7 @@ export async function issueCertificateIfComplete(params: {
 
     if (!awardsCertificate) {
       console.info(`[CertIssuance] Module ${moduleSlug} has awards_certificate=false — skipping cert issuance`);
-      return { moduleCertIssued: false, courseCertIssued: false };
+      return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
     }
 
     // Capture the module title for storage in the cert record
@@ -326,7 +331,7 @@ export async function issueCertificateIfComplete(params: {
     moduleTitleForCert = (moduleRow.name || moduleRow.values?.hs_name || moduleRow.values?.name || moduleSlug) as string;
   } catch (err: any) {
     console.warn('[CertIssuance] HubDB module lookup failed — skipping cert:', err?.message || err);
-    return { moduleCertIssued: false, courseCertIssued: false };
+    return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
   }
 
   let moduleCertId: string | undefined;
@@ -353,7 +358,7 @@ export async function issueCertificateIfComplete(params: {
   } catch (err: any) {
     console.error('[CertIssuance] Failed to issue module cert:', err?.message || err);
     // Return partial result — do not fail the overall response
-    return { moduleCertIssued: false, courseCertIssued: false };
+    return { moduleCertIssued: false, courseCertIssued: false, pathwayCertIssued: false };
   }
 
   // Check for course completion (best-effort)
@@ -379,10 +384,177 @@ export async function issueCertificateIfComplete(params: {
     }
   }
 
+  // Check for pathway completion (Issue #451, Phase 5A).
+  // Uses the shadow aggregator (computeShadowPathwayStatus); MUST NOT use
+  // the CRM-progress aggregator from completion.ts — that function reads
+  // hhl_progress_state which is never populated on the shadow write path.
+  let pathwayCertIssued = false;
+  let pathwayCertId: string | undefined;
+
+  if (ENTITY_COMPLETIONS_TABLE) {
+    try {
+      const pathwayResult = await checkAndIssuePathwayCompletion(
+        dynamo,
+        CERTS_TABLE,
+        userId,
+        moduleSlug,
+        now
+      );
+      pathwayCertIssued = pathwayResult.issued;
+      pathwayCertId = pathwayResult.certId;
+    } catch (err: any) {
+      console.error('[CertIssuance] Pathway cert check failed:', err?.message || err);
+      // Non-fatal — upstream certs were already issued
+    }
+  }
+
   return {
     moduleCertIssued,
     moduleCertId,
     courseCertIssued,
     courseCertId,
+    pathwayCertIssued,
+    pathwayCertId,
   };
+}
+
+// ---------------------------------------------------------------------------
+// checkAndIssuePathwayCompletion — Issue #451, Phase 5A
+//
+// For every pathway whose content/pathways/<slug>.json courses[] contains a
+// course that contains the just-completed module, evaluate the pathway under
+// shadow aggregation semantics. If complete and awards_certificate=true on
+// the pathway HubDB row, issue a pathway-level certificate.
+//
+// Architectural guarantee: this helper calls computeShadowPathwayStatus from
+// ./shadow-aggregation. It does NOT call calculatePathwayCompletion from
+// ./completion.ts. The negative-control test in
+// tests/unit/shadow-aggregation-negative-control.test.ts verifies this.
+// ---------------------------------------------------------------------------
+
+async function checkAndIssuePathwayCompletion(
+  dynamo: DynamoDBDocumentClient,
+  certsTable: string,
+  userId: string,
+  moduleSlug: string,
+  now: string
+): Promise<{ issued: boolean; certId?: string }> {
+  const pathwaysTableId = process.env.HUBDB_PATHWAYS_TABLE_ID;
+  const coursesTableId = process.env.HUBDB_COURSES_TABLE_ID;
+  if (!pathwaysTableId || !coursesTableId) {
+    console.warn('[CertIssuance] Pathway or courses table id not set — skipping pathway cert check');
+    return { issued: false };
+  }
+
+  let candidatePathwaySlugs: string[] = [];
+  const pathwayTitles: Map<string, string> = new Map();
+  const pathwayAwardsCert: Map<string, boolean> = new Map();
+  try {
+    const hubspot = getHubSpotClient();
+
+    const coursesResp = await (hubspot as any).cms.hubdb.rowsApi.getTableRows(
+      coursesTableId,
+      undefined,
+      undefined,
+      undefined
+    );
+    const courseRows: any[] = coursesResp?.results || [];
+    const coursesContainingModule: string[] = [];
+    for (const row of courseRows) {
+      const courseSlug: string = (row.path || row.values?.hs_path || '').toLowerCase();
+      if (!courseSlug) continue;
+      try {
+        const slugs: string[] = JSON.parse(row.values?.module_slugs_json || '[]');
+        if (slugs.some((s: string) => s.toLowerCase() === moduleSlug.toLowerCase())) {
+          coursesContainingModule.push(courseSlug);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (coursesContainingModule.length === 0) return { issued: false };
+
+    const pathwaysResp = await (hubspot as any).cms.hubdb.rowsApi.getTableRows(
+      pathwaysTableId,
+      undefined,
+      undefined,
+      undefined
+    );
+    const pathwayRows: any[] = pathwaysResp?.results || [];
+    for (const row of pathwayRows) {
+      const pathwaySlug: string = (row.path || row.values?.hs_path || '').toLowerCase();
+      if (!pathwaySlug) continue;
+      let childCourseSlugs: string[] = [];
+      try {
+        childCourseSlugs = JSON.parse(row.values?.course_slugs_json || '[]');
+      } catch {
+        childCourseSlugs = [];
+      }
+      const matches = childCourseSlugs.some((cs: string) =>
+        coursesContainingModule.includes(cs.toLowerCase())
+      );
+      if (!matches) continue;
+
+      candidatePathwaySlugs.push(pathwaySlug);
+      pathwayTitles.set(
+        pathwaySlug,
+        (row.name || row.values?.hs_name || row.values?.name || pathwaySlug) as string
+      );
+      const awards = row.values?.awards_certificate === true ||
+        row.values?.awards_certificate === 1 ||
+        row.values?.awards_certificate === '1' ||
+        row.values?.awards_certificate === 'true';
+      pathwayAwardsCert.set(pathwaySlug, awards);
+    }
+  } catch (err: any) {
+    console.warn('[CertIssuance] HubDB pathway discovery failed:', err?.message || err);
+    return { issued: false };
+  }
+
+  for (const pathwaySlug of candidatePathwaySlugs) {
+    const awards = pathwayAwardsCert.get(pathwaySlug) === true;
+    if (!awards) {
+      console.info(`[CertIssuance] Pathway ${pathwaySlug} has awards_certificate=false — skipping pathway cert`);
+      continue;
+    }
+
+    let status;
+    try {
+      status = await computeShadowPathwayStatus({
+        dynamo,
+        userId,
+        pathwaySlug,
+      });
+    } catch (err: any) {
+      console.warn(`[CertIssuance] Shadow aggregator failed for pathway ${pathwaySlug}:`, err?.message || err);
+      continue;
+    }
+    if (!status || status.pathway_status !== 'complete') continue;
+
+    const evidenceSummary: Record<string, string> = {};
+    for (const c of status.courses) {
+      evidenceSummary[`course_${c.course_slug}`] = c.course_status;
+    }
+
+    try {
+      const certResult = await issueOneCert(
+        dynamo,
+        certsTable,
+        userId,
+        'pathway' as any,
+        pathwaySlug,
+        pathwayTitles.get(pathwaySlug) ?? pathwaySlug,
+        evidenceSummary,
+        now
+      );
+      if (certResult.issued) {
+        console.info(`[CertIssuance] Pathway cert issued: user=${userId} pathway=${pathwaySlug} certId=${certResult.certId}`);
+        return { issued: true, certId: certResult.certId };
+      }
+    } catch (err: any) {
+      console.error(`[CertIssuance] Failed to issue pathway cert for ${pathwaySlug}:`, err?.message || err);
+    }
+  }
+
+  return { issued: false };
 }

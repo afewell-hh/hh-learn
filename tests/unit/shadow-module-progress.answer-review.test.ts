@@ -23,7 +23,9 @@ jest.mock('@aws-sdk/client-dynamodb', () => ({
 }));
 
 const mockDynamoSend = jest.fn();
-const queryCommandSpy = jest.fn().mockImplementation((input: any) => ({ input, _tag: 'QueryCommand' }));
+// QueryCommand acts as a constructor (the handler uses `new QueryCommand(...)`),
+// and the captured `input` is later inspected in the ownership-scoping assertion.
+const queryCommandInputs: any[] = [];
 jest.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: {
     from: jest.fn().mockReturnValue({
@@ -31,7 +33,10 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
     }),
   },
   GetCommand: jest.fn().mockImplementation((input: any) => ({ input, _tag: 'GetCommand' })),
-  QueryCommand: (input: any) => queryCommandSpy(input),
+  QueryCommand: jest.fn().mockImplementation((input: any) => {
+    queryCommandInputs.push(input);
+    return { input, _tag: 'QueryCommand' };
+  }),
 }));
 
 import { getHubSpotClient } from '../../src/shared/hubspot';
@@ -83,7 +88,7 @@ function makeEvent(qs: any = { module_slug: MODULE_SLUG }) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  queryCommandSpy.mockClear();
+  queryCommandInputs.length = 0;
   process.env.APP_STAGE = 'shadow';
   process.env.TASK_RECORDS_TABLE = 'task-records';
   process.env.TASK_ATTEMPTS_TABLE = 'task-attempts';
@@ -310,10 +315,8 @@ describe('answer-review — ownership scoping', () => {
     );
 
     // Every QueryCommand must have its PK bound to the caller's userId
-    const queryCalls = queryCommandSpy.mock.calls;
-    expect(queryCalls.length).toBeGreaterThan(0);
-    for (const call of queryCalls) {
-      const input = call[0];
+    expect(queryCommandInputs.length).toBeGreaterThan(0);
+    for (const input of queryCommandInputs) {
       const pk = input.ExpressionAttributeValues?.[':pk'];
       expect(pk).toBe(`USER#${AUTH_RESULT.userId}`);
       expect(pk).not.toBe(`USER#${OTHER_USER_ID}`);
