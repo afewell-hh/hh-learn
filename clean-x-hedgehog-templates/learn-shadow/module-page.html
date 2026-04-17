@@ -808,7 +808,7 @@
             <h1>{{ dynamic_page_hubdb_row.hs_name }}</h1>
             {# Issue #452 Phase 5B — additive learner-record link #}
             <a data-module-learner-record-link
-               href="/learn-shadow/modules/{{ dynamic_page_hubdb_row.hs_path }}/progress"
+               href="/learn-shadow/module-progress?module={{ dynamic_page_hubdb_row.hs_path }}"
                style="display:inline-block;margin-bottom:8px;font-size:0.875rem;color:#1a4e8a;text-decoration:none;font-weight:600;">
               View learner record &rarr;
             </a>

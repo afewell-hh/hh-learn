@@ -6,7 +6,7 @@
  *   - Redesigned My Learning dashboard (pathway-first, thin renderer)
  *   - Shadow pathway detail page at /learn-shadow/pathways/<slug>
  *   - Shadow course detail page at /learn-shadow/courses/<slug>
- *   - Module learner-record page at /learn-shadow/modules/<slug>/progress
+ *   - Module learner-record page at /learn-shadow/module-progress?module=<slug>
  *
  * Follows the existing shadow-deterministic pattern:
  *   - Intercepts new shadow JS files with byte-identical local repo source.
@@ -532,7 +532,7 @@ test.describe('Module learner-record page', () => {
 
   test('with attempts: task list + timeline rendered DESC', async ({ page }) => {
     await mockModuleProgress(page, 200, MODULE_PROGRESS_WITH_ATTEMPTS);
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
 
     await expect(page.locator('[data-module-title]')).toContainText('Welcome to Fabric Operations');
     await expect(page.locator('[data-module-task-row]')).toHaveCount(2);
@@ -554,29 +554,31 @@ test.describe('Module learner-record page', () => {
       module_cert_id: null,
       breadcrumbs: MODULE_PROGRESS_WITH_ATTEMPTS.breadcrumbs,
     });
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
     await expect(page.locator('[data-module-task-row]')).toHaveCount(1);
     await expect(page.locator('[data-module-attempts-empty]')).toBeVisible();
   });
 
   test('expand quiz attempt: answer-review drawer shows submitted answer + correctness', async ({ page }) => {
     await mockModuleProgress(page, 200, MODULE_PROGRESS_WITH_ATTEMPTS);
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
 
-    // Click the first attempt to expand its answer-review drawer
-    await page.locator('[data-module-attempt-row]').first().click();
+    // Click the <summary> inside the <details> to expand the answer-review drawer
+    // (shadow-module-progress.js renders a <details> with a <summary> inside each quiz attempt row)
+    await page.locator('[data-module-attempt-row] details summary').first().click();
     await expect(page.locator('[data-module-answer-review-row]')).toBeVisible();
     // Submitted answer is rendered
     await expect(page.locator('[data-module-answer-review-row]').first()).toContainText('kubectl get pods');
-    // The correctness indicator is present and shows "incorrect"
-    await expect(page.locator('[data-module-answer-review-row] [data-is-correct]').first())
+    // data-is-correct is on the row element itself, not a child
+    await expect(page.locator('[data-module-answer-review-row][data-is-correct]').first())
       .toHaveAttribute('data-is-correct', 'false');
   });
 
   test('SAFETY: no correct-answer text anywhere in rendered DOM', async ({ page }) => {
     await mockModuleProgress(page, 200, MODULE_PROGRESS_WITH_ATTEMPTS);
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
-    await page.locator('[data-module-attempt-row]').first().click();
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
+    // Expand the answer-review drawer via the <summary> element
+    await page.locator('[data-module-attempt-row] details summary').first().click();
     const html = await page.content();
     expect(html).not.toContain(KNOWN_CORRECT_ANSWER_TEXT);
   });
@@ -588,7 +590,7 @@ test.describe('Module learner-record page', () => {
       capturedBody = body;
       await route.fulfill({ status: 200, contentType: 'application/json', body });
     });
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
     expect(capturedBody).not.toMatch(/"correct_answer"/);
     expect(capturedBody).not.toMatch(/"learner_identity"/);
     expect(capturedBody).not.toContain(KNOWN_CORRECT_ANSWER_TEXT);
@@ -608,16 +610,16 @@ test.describe('Module learner-record page', () => {
       ],
     };
     await mockModuleProgress(page, 200, fixture);
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
-    await page.locator('[data-module-attempt-row]').first().click();
-    // The attempt row exists but no answer-review section
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
+    // Lab attestation row has no <details>/<summary> expandable drawer — only a flat note
     await expect(page.locator('[data-module-attempt-row]')).toHaveCount(1);
+    await expect(page.locator('[data-module-attempt-row] details')).toHaveCount(0);
     await expect(page.locator('[data-module-answer-review-row]')).toHaveCount(0);
   });
 
   test('breadcrumbs resolve parent course and pathway links', async ({ page }) => {
     await mockModuleProgress(page, 200, MODULE_PROGRESS_WITH_ATTEMPTS);
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
     await expect(page.locator('[data-module-breadcrumb-course]'))
       .toHaveAttribute('href', /courses\/network-like-hyperscaler-foundations/);
     await expect(page.locator('[data-module-breadcrumb-pathway]'))
@@ -626,7 +628,7 @@ test.describe('Module learner-record page', () => {
 
   test('error 500: retry banner', async ({ page }) => {
     await mockModuleProgress(page, 500, { error: 'Failed to read module progress' });
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
     await expect(page.locator('[data-module-error]')).toBeVisible();
   });
 });
@@ -642,9 +644,9 @@ test.describe('Module content page additive link', () => {
     await mockAuthMe(page);
   });
 
-  test('module content page shows a learner-record link pointing to /progress', async ({ page }) => {
+  test('module content page shows a learner-record link pointing to module-progress', async ({ page }) => {
     await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}`);
     await expect(page.locator('[data-module-learner-record-link]'))
-      .toHaveAttribute('href', /modules\/fabric-operations-welcome\/progress$/);
+      .toHaveAttribute('href', /module-progress\?module=fabric-operations-welcome/);
   });
 });

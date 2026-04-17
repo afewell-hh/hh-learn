@@ -49,7 +49,7 @@
 
   function renderModuleRow(m) {
     var link = '/learn-shadow/modules/' + encodeURIComponent(m.module_slug);
-    var record = '/learn-shadow/modules/' + encodeURIComponent(m.module_slug) + '/progress';
+    var record = '/learn-shadow/module-progress?module=' + encodeURIComponent(m.module_slug);
     var pill = '';
     if (m.module_status === 'no_tasks') {
       pill = '<span class="shadow-task-pill task-pill-no-tasks">No required tasks</span>';

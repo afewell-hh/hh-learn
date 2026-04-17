@@ -502,6 +502,25 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       slug: 'learn/register',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/register.html',
       tableEnvVar: 'STATIC'
+    },
+    // Shadow learner progress center (Issue #452, Phase 5B)
+    {
+      name: 'Shadow Courses',
+      slug: 'learn-shadow/courses',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn-shadow/courses-page.html',
+      tableEnvVar: 'HUBDB_COURSES_TABLE_ID'
+    },
+    {
+      name: 'Shadow Pathways',
+      slug: 'learn-shadow/pathways',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn-shadow/pathways-page.html',
+      tableEnvVar: 'HUBDB_PATHWAYS_TABLE_ID'
+    },
+    {
+      name: 'Shadow Module Progress',
+      slug: 'learn-shadow/module-progress',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn-shadow/module-progress.html',
+      tableEnvVar: 'STATIC'
     }
   ];
 

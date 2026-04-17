@@ -8,12 +8,17 @@
   {{ super() }}
   <meta name="robots" content="noindex, nofollow">
 
-  {% if dynamic_page_hubdb_row %}
-    {% set page_title = dynamic_page_hubdb_row.hs_name ~ " Progress (Shadow) - Hedgehog Learn" %}
-    {% set canonical_url = "https://" ~ request.domain ~ "/learn-shadow/modules/" ~ dynamic_page_hubdb_row.hs_path ~ "/progress" %}
-    <title>{{ page_title }}</title>
-    <meta name="description" content="Shadow learner record: {{ dynamic_page_hubdb_row.hs_name }}">
-    <link rel="canonical" href="{{ canonical_url }}">
+  {# Static page — reads module slug from ?module= query parameter.
+     HubSpot CMS does not support two dynamic-page templates on the same
+     HubDB table, so the module learner-record is a static page that reads
+     the slug from the URL rather than from a dynamic_page_hubdb_row.
+     Phase 3 §4.4 approved this as the deployable fallback.
+  #}
+  {% set module_slug = request.query_dict.module %}
+
+  {% if module_slug %}
+    <title>{{ module_slug }} Progress (Shadow) - Hedgehog Learn</title>
+    <meta name="description" content="Shadow learner record for module: {{ module_slug }}">
   {% else %}
     <title>Module Progress (Shadow) - Hedgehog Learn</title>
   {% endif %}
@@ -45,7 +50,7 @@
   .module-task-meta { font-size:0.8125rem; color:#6B7280; }
   .module-record-timeline { margin-bottom:32px; }
   .module-attempt-row { border:1px solid #E5E7EB; border-radius:8px; padding:16px; margin-bottom:8px; }
-  .module-attempt-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .module-attempt-header { display:flex; justify-content:space-between; align-items:center; }
   .module-attempt-when { font-size:0.875rem; color:#6B7280; }
   .module-attempt-outcome { font-size:0.875rem; font-weight:600; color:#374151; }
   .module-attempt-detail summary { font-size:0.8125rem; color:#1a4e8a; cursor:pointer; margin-top:8px; }
@@ -70,20 +75,25 @@
   .module-error button { background:#1a4e8a; color:#fff; border:none; border-radius:4px; padding:6px 16px; cursor:pointer; margin-left:8px; }
   .module-loading { text-align:center; padding:60px; color:#6B7280; }
   .learn-container { max-width:1200px; margin:40px auto; background:#fff; padding:40px; border-radius:12px; box-shadow:0 2px 24px rgba(26,78,138,0.06); }
+  .module-no-slug { text-align:center; padding:60px; color:#6B7280; }
 </style>
 
 <main id="main-content">
   <div class="learn-container">
-    {% if dynamic_page_hubdb_row %}
+    {% set module_slug = request.query_dict.module %}
+    {% if module_slug %}
       <div id="shadow-module-progress-context"
-           data-module-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+           data-module-slug="{{ module_slug }}"
            style="display:none"></div>
       <div id="shadow-module-progress-root">
         <div class="module-loading">Loading learner record...</div>
       </div>
     {% else %}
-      <h1>Module Progress (Shadow)</h1>
-      <p>Select a module to view your learner record.</p>
+      <div class="module-no-slug">
+        <h2>Module Progress</h2>
+        <p>No module specified. Navigate here from a course detail page or module content page.</p>
+        <a href="/learn-shadow/my-learning" class="enrollment-cta">Back to My Learning &rarr;</a>
+      </div>
     {% endif %}
   </div>
 </main>

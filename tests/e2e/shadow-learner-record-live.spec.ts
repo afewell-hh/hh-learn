@@ -151,7 +151,7 @@ test.describe.skip('Module learner-record live — requires deployment', () => {
       }
     });
 
-    await page.goto(`${BASE}/learn-shadow/modules/${MODULE_SLUG}/progress`);
+    await page.goto(`${BASE}/learn-shadow/module-progress?module=${MODULE_SLUG}`);
     await expect(page.locator('[data-module-title]')).toBeVisible({ timeout: 30000 });
     await page.locator('[data-module-attempt-row]').first().click({ trial: true }).catch(() => {});
 

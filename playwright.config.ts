@@ -31,7 +31,10 @@ export default defineConfig({
       // committed source) to prove shadow-completion.js and shadow-my-learning.js render
       // the correct UI for all three shadow module types. CDN lag is not a variable here.
       name: 'shadow-deterministic',
-      testMatch: ['tests/e2e/shadow-deterministic.spec.ts'],
+      testMatch: [
+        'tests/e2e/shadow-deterministic.spec.ts',
+        'tests/e2e/shadow-learner-record-deterministic.spec.ts',
+      ],
       use: {
         // Cap individual page loads at 60s so a hung CDN/Lambda call fails fast
         // rather than consuming the full 120s per-test timeout.
@@ -44,7 +47,10 @@ export default defineConfig({
       // My Learning: three documented unavoidable mocks (/auth/me, /enrollments/list, HubDB).
       // Includes CDN asset content verification and 6 key-state screenshots.
       name: 'shadow-live',
-      testMatch: ['tests/e2e/shadow-live.spec.ts'],
+      testMatch: [
+        'tests/e2e/shadow-live.spec.ts',
+        'tests/e2e/shadow-learner-record-live.spec.ts',
+      ],
     },
   ],
 });
