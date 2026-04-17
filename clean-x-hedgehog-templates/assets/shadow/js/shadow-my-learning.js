@@ -1,51 +1,33 @@
 /**
- * Shadow My Learning dashboard (Issue #411, updated Issue #429)
+ * Shadow My Learning dashboard — thin renderer (Issue #452, Phase 5B).
  *
- * Displays task-based completion status for enrolled modules/courses in the
- * shadow environment. Task data comes from DynamoDB via the shadow backend —
- * NOT from CRM hhl_progress_state.
+ * Rewrites the previous implementation to consume the Phase 5A backend
+ * endpoints as server-authoritative sources. No client-side rollup
+ * computation.
  *
- * Page-load flow (2 Lambda API calls):
- *   1. GET /enrollments/list  — which courses the learner is enrolled in (CRM)
- *   2. GET /tasks/status/batch?module_slugs=…  — shadow DynamoDB task statuses
+ * Flow (dashboard load):
+ *   1. GET /enrollments/list            — source of truth for enrollments (CRM)
+ *   2. For each enrolled pathway:
+ *        GET /shadow/pathway/status?pathway_slug=<slug>
+ *   3. For each standalone course (pathway_slug === null in enrollments):
+ *        GET /shadow/course/status?course_slug=<slug>
+ *   4. GET /shadow/certificates          — unchanged certificates section
  *
- * Plus HubDB API calls to resolve module metadata (name, completion_tasks_json)
- * for enrolled courses — these are not Lambda calls.
- *
- * Issue #429 additions:
- *   - GET /shadow/certificates  — learner's earned certificates
- *   - Renders a "My Certificates" section below the enrollments section
- *   - Per-module certificate badge removed from module list (consolidated to certificates section)
- *
- * All module links use /learn-shadow/modules/<slug>.
- * Course completion is derived client-side from module statuses.
- *
- * Modules with no required tasks (empty completion_tasks or required:false only)
- * are shown with a "No required tasks" pill but are NOT auto-counted as complete.
- * They are excluded from the course completion denominator — only modules with
- * at least one required task count toward course progress. Per policy #402/#403/#404:
- * empty task declarations do not become implicit completion-by-default.
+ * Contract:
+ *   - Progress bars use modules_completed / modules_total (or courses_*)
+ *     verbatim from the server response. The client NEVER recomputes.
+ *   - /tasks/status/batch is NOT called on dashboard load.
+ *   - Partial failure is per-card: Promise.allSettled is used; failed
+ *     cards render an inline error with a Retry button; other cards render.
  *
  * Shadow-only: gracefully no-ops if #hhl-auth-context[data-shadow] is absent.
- *
- * @see Issue #411
- * @see Issue #429
- * @see GET /tasks/status/batch (#411)
- * @see GET /enrollments/list (production endpoint, CRM-backed)
- * @see GET /tasks/status (#409) — single-module version used by module page
- * @see GET /shadow/certificates (#429)
  */
 (function () {
   'use strict';
 
-  // Production API base: enrollments and auth endpoints (on custom domain).
   var API_BASE = 'https://api.hedgehog.cloud';
-  // Shadow task endpoints use the /shadow path mapping on the same custom domain.
-  // Keeps the request host as api.hedgehog.cloud so the host-only SameSite=Strict
-  // cookie is sent.  See Issue #421 and serverless.yml ShadowApiPathMapping.
   var SHADOW_API_BASE = 'https://api.hedgehog.cloud/shadow';
 
-  // Guard: only run on shadow pages
   var ctxEl = document.getElementById('hhl-auth-context');
   if (!ctxEl || ctxEl.getAttribute('data-shadow') !== 'true') return;
 
@@ -55,17 +37,21 @@
 
   function q(id) { return document.getElementById(id); }
 
-  function fetchJSON(url) {
-    return fetch(url, { credentials: 'include' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      });
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
   }
 
-  function slugToTitle(slug) {
-    if (!slug) return '';
-    return slug.replace(/-/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+  function fetchJSON(url) {
+    return fetch(url, { credentials: 'include' }).then(function (r) {
+      if (!r.ok) {
+        var err = new Error('HTTP ' + r.status);
+        err.status = r.status;
+        throw err;
+      }
+      return r.json();
+    });
   }
 
   function formatDate(isoString) {
@@ -99,220 +85,211 @@
     return { enableCrm: enableCrm, email: email, contactId: contactId, loginUrl: loginUrl };
   }
 
-  function getTableIds() {
-    var el = document.getElementById('hhl-auth-context');
-    return {
-      courses: (el && el.getAttribute('data-hubdb-courses-table-id')) || '135381433',
-      modules: (el && el.getAttribute('data-hubdb-modules-table-id')) || '135621904',
-    };
-  }
-
   function statusBadgeHtml(label, cssClass) {
     return '<span class="enrollment-status-badge ' + cssClass + '">' + label + '</span>';
   }
 
   // ----------------------------------------------------------------
-  // Determine if a module has required shadow-tracked tasks.
-  // Returns an object: { hasQuiz, hasLab, hasNoRequiredTasks }
+  // Renderers — thin over server-provided shape
   // ----------------------------------------------------------------
-  function parseTaskTypes(completionTasksJson) {
-    var tasks = [];
-    if (completionTasksJson) {
-      try { tasks = JSON.parse(completionTasksJson); } catch (e) {}
-    }
-    var hasQuiz = false;
-    var hasLab = false;
-    var hasAnyRequired = false;
-    tasks.forEach(function (t) {
-      if (t.task_type === 'quiz' && t.required !== false) hasQuiz = true;
-      if (t.task_type === 'lab_attestation' && t.required !== false) hasLab = true;
-      if (t.required !== false) hasAnyRequired = true;
-    });
-    return {
-      hasQuiz: hasQuiz,
-      hasLab: hasLab,
-      hasNoRequiredTasks: !hasAnyRequired
-    };
+
+  function firstIncompleteCourseSlug(pathwayData) {
+    var c = (pathwayData.courses || []).find(function (x) { return x.course_status !== 'complete'; });
+    return c ? c.course_slug : ((pathwayData.courses || [])[0] || {}).course_slug;
   }
 
-  // ----------------------------------------------------------------
-  // Build task breakdown pills HTML for a module
-  // ----------------------------------------------------------------
-  function buildTaskBreakdownHtml(shadowStatus, taskTypes) {
-    if (taskTypes.hasNoRequiredTasks) {
-      return '<div class="shadow-task-breakdown">' +
-        '<span class="shadow-task-pill task-pill-no-tasks">No required tasks</span>' +
-        '</div>';
-    }
-
-    var pills = [];
-    var tasks = (shadowStatus && shadowStatus.tasks) || {};
-
-    if (taskTypes.hasQuiz) {
-      var quizTask = tasks['quiz-1'];
-      if (quizTask && quizTask.status === 'passed') {
-        var scoreStr = quizTask.score !== undefined ? ' (' + quizTask.score + '%)' : '';
-        pills.push('<span class="shadow-task-pill task-pill-passed">Quiz: Passed' + scoreStr + '</span>');
-      } else if (quizTask && quizTask.status === 'failed') {
-        var failScore = quizTask.score !== undefined ? ' (' + quizTask.score + '%' : '';
-        var attempts = quizTask.attempts ? ', attempt ' + quizTask.attempts : '';
-        var closeStr = (failScore || attempts) ? failScore + attempts + ')' : '';
-        pills.push('<span class="shadow-task-pill task-pill-failed">Quiz: Failed' + closeStr + '</span>');
-      } else {
-        pills.push('<span class="shadow-task-pill task-pill-not-started">Quiz: Not started</span>');
-      }
-    }
-
-    if (taskTypes.hasLab) {
-      var labTask = tasks['lab-main'];
-      if (labTask && labTask.status === 'attested') {
-        pills.push('<span class="shadow-task-pill task-pill-attested">Lab: Completed</span>');
-      } else {
-        pills.push('<span class="shadow-task-pill task-pill-not-started">Lab: Not started</span>');
-      }
-    }
-
-    if (!pills.length) return '';
-    return '<div class="shadow-task-breakdown">' + pills.join('') + '</div>';
+  function pathwayBadge(status) {
+    if (status === 'complete') return statusBadgeHtml('Completed', 'status-completed');
+    if (status === 'in_progress') return statusBadgeHtml('In Progress', 'status-in-progress');
+    return statusBadgeHtml('Not Started', 'status-not-started');
   }
 
-  // ----------------------------------------------------------------
-  // Determine module display status from shadow data.
-  // Returns: 'complete' | 'in-progress' | 'not-started' | 'no-tasks'
-  //
-  // 'no-tasks' is a distinct neutral state for modules with no required tasks.
-  // These modules are NOT auto-completed and do NOT count toward course
-  // completion totals. Per policy #402/#403/#404.
-  // ----------------------------------------------------------------
-  function moduleDisplayStatus(shadowStatus, taskTypes) {
-    if (taskTypes.hasNoRequiredTasks) return 'no-tasks';
-    if (!shadowStatus || shadowStatus.module_status === 'not_started') return 'not-started';
-    if (shadowStatus.module_status === 'complete') return 'complete';
-    return 'in-progress';
-  }
-
-  // ----------------------------------------------------------------
-  // Render a single enrollment course card with shadow task data
-  // ----------------------------------------------------------------
-  function renderShadowCourseCard(course, moduleRows, shadowStatuses) {
+  function renderPathwayCardElement(enrollment, data) {
     var card = document.createElement('div');
     card.className = 'enrollment-card';
-    var slug = course.slug || '';
-    var enrolledAt = course.enrolled_at || '';
+    card.setAttribute('data-dashboard-pathway-card', '');
+    card.setAttribute('data-pathway-slug', data.pathway_slug);
 
-    var title = slugToTitle(slug);
-    var href = '/learn-shadow/courses/' + slug;
+    var pct = data.courses_total > 0 ? Math.round((data.courses_completed / data.courses_total) * 100) : 0;
+    var href = '/learn-shadow/pathways/' + encodeURIComponent(data.pathway_slug);
+    var firstIncomplete = firstIncompleteCourseSlug(data);
+    var ctaHref = firstIncomplete
+      ? '/learn-shadow/courses/' + encodeURIComponent(firstIncomplete)
+      : href;
+    var ctaLabel = data.pathway_status === 'complete' ? 'Review Pathway \u2192' :
+      data.pathway_status === 'not_started' ? 'Start Pathway \u2192' : 'Continue \u2192';
 
-    // Build module status list.
-    // completedCount and taskModuleCount exclude 'no-tasks' modules:
-    // per policy #402/#403/#404, modules with no required tasks do not count
-    // toward or against course completion — only modules with explicit required
-    // tasks (quiz / lab_attestation) participate in the progress denominator.
-    var modulesHtml = '';
-    var completedCount = 0;
-    var taskModuleCount = 0; // modules that have at least one required task
-    var nextModPath = null;
+    var enrolledAt = enrollment.enrolled_at ? '<div>Enrolled ' + formatDate(enrollment.enrolled_at) + '</div>' : '';
 
-    var moduleItems = moduleRows.map(function (mod) {
-      var modPath = (mod.values && mod.values.hs_path) || mod.hs_path || (mod.path || '');
-      var modName = (mod.values && mod.values.hs_name) || mod.hs_name || slugToTitle(modPath);
-      var taskJson = (mod.values && mod.values.completion_tasks_json) || '';
-      var taskTypes = parseTaskTypes(taskJson);
-      var shadowStatus = shadowStatuses[modPath];
-      var dispStatus = moduleDisplayStatus(shadowStatus, taskTypes);
-
-      if (dispStatus !== 'no-tasks') {
-        taskModuleCount++;
-        if (dispStatus === 'complete') completedCount++;
-        // First non-complete task-module is the next action target
-        if (dispStatus !== 'complete' && !nextModPath) nextModPath = modPath;
-      }
-
-      var statusIcon = dispStatus === 'complete'
-        ? '\u2713'
-        : (dispStatus === 'in-progress'
-          ? '\u25D0'
-          : (dispStatus === 'no-tasks' ? '\u2013' : '\u25CB'));
-      var breakdown = buildTaskBreakdownHtml(shadowStatus, taskTypes);
-      var modLink = '/learn-shadow/modules/' + modPath;
-
-      return '<div class="enrollment-module-item ' + dispStatus + '">' +
-        '<div class="enrollment-module-row">' +
-          '<span class="enrollment-module-status">' + statusIcon + '</span>' +
-          '<a href="' + modLink + '" class="enrollment-module-link">' + modName + '</a>' +
-        '</div>' +
-        (breakdown || '') +
-        '</div>';
-    });
-
-    modulesHtml = moduleItems.join('');
-
-    // Progress math uses taskModuleCount (not total module count) so that
-    // no-task modules do not dilute or inflate completion percentage.
-    var pct = taskModuleCount > 0 ? Math.round((completedCount / taskModuleCount) * 100) : 0;
-    var isComplete = (taskModuleCount > 0 && completedCount === taskModuleCount);
-    // hasStarted: at least one task-module has DynamoDB activity
-    var hasStarted = completedCount > 0 || moduleRows.some(function (mod) {
-      var modPath = (mod.values && mod.values.hs_path) || mod.hs_path || (mod.path || '');
-      var taskJson = (mod.values && mod.values.completion_tasks_json) || '';
-      var taskTypes = parseTaskTypes(taskJson);
-      if (taskTypes.hasNoRequiredTasks) return false; // exclude no-task modules
-      var shadowStatus = shadowStatuses[modPath];
-      return shadowStatus && shadowStatus.module_status !== 'not_started';
-    });
-
-    var badge = isComplete
-      ? statusBadgeHtml('Completed', 'status-completed')
-      : (hasStarted
-        ? statusBadgeHtml('In Progress', 'status-in-progress')
-        : statusBadgeHtml('Not Started', 'status-not-started'));
-
-    var html = '<div class="enrollment-card-header">' +
-      '<h3><a href="' + href + '" style="color:#1a4e8a;text-decoration:none;">' + title + '</a></h3>' +
-      '<div class="enrollment-badges"><span class="enrollment-badge">course</span>' + badge + '</div>' +
-      '</div>';
-
-    if (enrolledAt) {
-      html += '<div class="enrollment-meta"><div>Enrolled ' + formatDate(enrolledAt) + '</div></div>';
-    }
-
-    var totalCount = moduleRows.length; // all modules, for "View Modules (N)" label
-    if (totalCount > 0) {
-      // Progress label uses taskModuleCount so no-task modules don't appear in denominator
-      var progressLabel = taskModuleCount > 0
-        ? completedCount + ' of ' + taskModuleCount + ' task modules complete'
-        : 'No task modules';
-      html += '<div class="enrollment-progress">' +
+    card.innerHTML =
+      '<div class="enrollment-card-header">' +
+        '<h3><a href="' + href + '" style="color:#1a4e8a;text-decoration:none;">' + escapeHtml(data.pathway_title) + '</a></h3>' +
+        '<div class="enrollment-badges"><span class="enrollment-badge">pathway</span>' + pathwayBadge(data.pathway_status) + '</div>' +
+      '</div>' +
+      (enrolledAt ? '<div class="enrollment-meta">' + enrolledAt + '</div>' : '') +
+      '<div class="enrollment-progress">' +
         '<div class="enrollment-progress-header">' +
-          '<span class="enrollment-progress-label">' + progressLabel + '</span>' +
+          '<span class="enrollment-progress-label">' + data.courses_completed + ' of ' + data.courses_total + ' courses complete</span>' +
         '</div>' +
-        '<div class="enrollment-progress-bar">' +
-          '<div class="enrollment-progress-fill" style="width:' + pct + '%"></div>' +
+        '<div class="enrollment-progress-bar"><div class="enrollment-progress-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>' +
+      '<div class="enrollment-actions"><a class="enrollment-cta" href="' + ctaHref + '">' + ctaLabel + '</a></div>';
+    return card;
+  }
+
+  function firstIncompleteModuleSlug(courseData) {
+    var m = (courseData.modules || []).find(function (x) {
+      return x.has_required_tasks && x.module_status !== 'complete';
+    });
+    if (m) return m.module_slug;
+    var any = (courseData.modules || [])[0];
+    return any ? any.module_slug : null;
+  }
+
+  function courseBadge(status) {
+    if (status === 'complete') return statusBadgeHtml('Completed', 'status-completed');
+    if (status === 'in_progress') return statusBadgeHtml('In Progress', 'status-in-progress');
+    return statusBadgeHtml('Not Started', 'status-not-started');
+  }
+
+  function renderStandaloneCourseCardElement(enrollment, data) {
+    var card = document.createElement('div');
+    card.className = 'enrollment-card';
+    card.setAttribute('data-dashboard-standalone-course-card', '');
+    card.setAttribute('data-course-slug', data.course_slug);
+
+    var pct = data.modules_total > 0 ? Math.round((data.modules_completed / data.modules_total) * 100) : 0;
+    var href = '/learn-shadow/courses/' + encodeURIComponent(data.course_slug);
+    var nextMod = firstIncompleteModuleSlug(data);
+    var ctaHref = data.course_status === 'complete'
+      ? href
+      : nextMod
+        ? '/learn-shadow/modules/' + encodeURIComponent(nextMod)
+        : href;
+    var ctaLabel = data.course_status === 'complete' ? 'Review Course \u2192' :
+      data.course_status === 'not_started' ? 'Start Course \u2192' : 'Continue to Next Module \u2192';
+
+    var enrolledAt = enrollment.enrolled_at ? '<div>Enrolled ' + formatDate(enrollment.enrolled_at) + '</div>' : '';
+
+    card.innerHTML =
+      '<div class="enrollment-card-header">' +
+        '<h3><a href="' + href + '" style="color:#1a4e8a;text-decoration:none;">' + escapeHtml(data.course_title) + '</a></h3>' +
+        '<div class="enrollment-badges"><span class="enrollment-badge">course</span>' + courseBadge(data.course_status) + '</div>' +
+      '</div>' +
+      (enrolledAt ? '<div class="enrollment-meta">' + enrolledAt + '</div>' : '') +
+      '<div class="enrollment-progress">' +
+        '<div class="enrollment-progress-header">' +
+          '<span class="enrollment-progress-label">' + data.modules_completed + ' of ' + data.modules_total + ' modules complete</span>' +
         '</div>' +
-        '</div>';
+        '<div class="enrollment-progress-bar"><div class="enrollment-progress-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>' +
+      '<div class="enrollment-actions"><a class="enrollment-cta" href="' + ctaHref + '">' + ctaLabel + '</a></div>';
+    return card;
+  }
 
-      // open by default so task pills are visible without requiring user interaction.
-      // Shadow reviewers need to see task state immediately — AC #424 requirement.
-      html += '<details class="enrollment-modules-toggle" open>' +
-        '<summary class="enrollment-modules-summary">Modules (' + totalCount + ')</summary>' +
-        '<div class="enrollment-modules-list">' + modulesHtml + '</div>' +
-        '</details>';
-    }
-
-    if (isComplete) {
-      html += '<div class="enrollment-actions"><a href="' + href + '" class="enrollment-cta enrollment-cta--done">Review Course \u2192</a></div>';
-    } else if (nextModPath) {
-      html += '<div class="enrollment-actions"><a href="/learn-shadow/modules/' + nextModPath + '" class="enrollment-cta">Continue to Next Module \u2192</a></div>';
+  function renderPartialFailureCard(kind, enrollment, retryFn) {
+    var card = document.createElement('div');
+    card.className = 'enrollment-card';
+    if (kind === 'pathway') {
+      card.setAttribute('data-dashboard-pathway-card', '');
+      card.setAttribute('data-error', 'true');
+      card.setAttribute('data-pathway-slug', enrollment.slug);
     } else {
-      html += '<div class="enrollment-actions"><a href="' + href + '" class="enrollment-cta">Start Course \u2192</a></div>';
+      card.setAttribute('data-dashboard-standalone-course-card', '');
+      card.setAttribute('data-error', 'true');
+      card.setAttribute('data-course-slug', enrollment.slug);
     }
-
-    card.innerHTML = html;
-    return { card: card, isComplete: isComplete, isStarted: hasStarted };
+    card.innerHTML =
+      '<div class="enrollment-card-header"><h3>' + escapeHtml(enrollment.slug) + '</h3></div>' +
+      '<div class="dashboard-card-error">' +
+        'Couldn\u2019t load progress for this ' + kind + '. ' +
+        '<button type="button" data-dashboard-retry>Retry</button>' +
+      '</div>';
+    card.querySelector('[data-dashboard-retry]').addEventListener('click', function () {
+      card.innerHTML = '<div class="dashboard-card-loading">Retrying...</div>';
+      retryFn();
+    });
+    return card;
   }
 
   // ----------------------------------------------------------------
-  // Main entry point
+  // Certificates section (unchanged from prior implementation)
+  // ----------------------------------------------------------------
+
+  function fetchAndRenderCertificates() {
+    var certsSection = q('certificates-section');
+    if (!certsSection) return;
+
+    fetch(SHADOW_API_BASE + '/certificates', { credentials: 'include' })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 403) return null;
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then(function (data) {
+        renderCertificatesSection(certsSection, data && data.certificates ? data.certificates : []);
+      })
+      .catch(function () {
+        renderCertificatesSection(certsSection, []);
+      });
+  }
+
+  function renderCertificatesSection(certsSection, certificates) {
+    var certsGrid = q('certificates-grid');
+    var certsCount = q('certificates-count');
+    if (!certsGrid) return;
+    if (certsCount) certsCount.textContent = '(' + certificates.length + ')';
+
+    if (certificates.length === 0) {
+      certsGrid.innerHTML =
+        '<p class="certs-empty-note">No certificates earned yet. Complete a module or course to earn your first certificate.</p>';
+    } else {
+      var html = '';
+      certificates.forEach(function (cert) {
+        var title = cert.entityTitle || cert.entitySlug || 'Certificate';
+        var dateStr = cert.issuedAt ? formatDate(cert.issuedAt) : '';
+        var viewUrl = '/learn-shadow/certificate?id=' + encodeURIComponent(cert.certId);
+        var typeLabel = cert.entityType === 'pathway' ? 'Pathway' : cert.entityType === 'course' ? 'Course' : 'Module';
+        html +=
+          '<div class="cert-card">' +
+            '<div class="cert-card-icon">\uD83C\uDF93</div>' +
+            '<div class="cert-card-body">' +
+              '<div class="cert-card-title">' + escapeHtml(title) + '</div>' +
+              '<div class="cert-card-meta">' +
+                '<span class="cert-type-badge cert-type-' + escapeHtml(cert.entityType) + '">' + typeLabel + '</span>' +
+                (dateStr ? '<span class="cert-date">Earned ' + dateStr + '</span>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="cert-card-actions">' +
+              '<a href="' + viewUrl + '" class="cert-action-btn cert-action-view" target="_blank" rel="noopener noreferrer">View Certificate</a>' +
+              '<button type="button" class="cert-action-btn cert-action-copy" data-cert-url="' + viewUrl + '">Copy Link</button>' +
+            '</div>' +
+          '</div>';
+      });
+      certsGrid.innerHTML = html;
+
+      var copyBtns = certsGrid.querySelectorAll('.cert-action-copy');
+      copyBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var url = btn.getAttribute('data-cert-url');
+          var absUrl = window.location.origin + url;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(absUrl).then(function () {
+              btn.textContent = 'Copied!';
+              setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+            }).catch(function () {
+              btn.textContent = 'Copy failed';
+              setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+            });
+          }
+        });
+      });
+    }
+    certsSection.style.display = 'block';
+  }
+
+  // ----------------------------------------------------------------
+  // Main entry
   // ----------------------------------------------------------------
 
   function ready(fn) {
@@ -323,7 +300,6 @@
   ready(function () {
     waitForIdentityReady().finally(function () {
       var auth = getAuth();
-      var tableIds = getTableIds();
 
       function showMain() {
         var ls = q('loading-state');
@@ -339,250 +315,131 @@
       }
 
       if (!auth.enableCrm || (!auth.email && !auth.contactId)) {
-        // Unauthenticated: show auth prompt
         showMain();
         var authPrompt = q('auth-prompt');
         if (authPrompt) authPrompt.style.display = 'block';
         return;
       }
 
-      // --- Step 1: Fetch enrollments ---
       var query = auth.contactId
         ? '?contactId=' + encodeURIComponent(auth.contactId)
         : '?email=' + encodeURIComponent(auth.email);
-
       var enrollUrl = API_BASE + '/enrollments/list' + query;
 
-      fetchJSON(enrollUrl)
-        .then(function (enrollData) {
-          if (!enrollData || enrollData.mode !== 'authenticated') {
-            showEmpty();
-            return;
-          }
-          var courses = (enrollData.enrollments && enrollData.enrollments.courses) || [];
-          if (courses.length === 0) {
-            showEmpty();
-            return;
-          }
+      fetchJSON(enrollUrl).catch(function (err) {
+        if (err && err.status === 401) {
+          window.location.href = (auth.loginUrl || 'https://api.hedgehog.cloud/auth/login') +
+            '?redirect_url=' + encodeURIComponent(window.location.pathname);
+        } else {
+          console.error('[shadow-my-learning] /enrollments/list failed:', err);
+        }
+        showEmpty();
+        return null;
+      }).then(function (enrollData) {
+        if (!enrollData) return;
+        if (enrollData.mode !== 'authenticated') { showEmpty(); return; }
+        var pathways = (enrollData.enrollments && enrollData.enrollments.pathways) || [];
+        var courses = (enrollData.enrollments && enrollData.enrollments.courses) || [];
+        var standalones = courses.filter(function (c) { return !c.pathway_slug; });
 
-          // --- Step 2: Fetch HubDB module metadata for all enrolled courses ---
-          var courseSlugs = courses.map(function (c) { return c.slug; }).filter(Boolean);
+        if (pathways.length === 0 && standalones.length === 0) { showEmpty(); return; }
 
-          var courseFetches = courseSlugs.map(function (slug) {
-            return fetch('/hs/api/hubdb/v3/tables/' + tableIds.courses + '/rows?hs_path__eq=' + encodeURIComponent(slug))
-              .then(function (r) { return r.ok ? r.json() : null; })
-              .then(function (d) {
-                if (!d || !d.results || !d.results.length) return { courseSlug: slug, moduleSlugs: [] };
-                var row = d.results[0];
-                var json = (row.values && row.values.module_slugs_json) || row.module_slugs_json || '[]';
-                var slugs = [];
-                try { slugs = JSON.parse(json); } catch (e) {}
-                return { courseSlug: slug, moduleSlugs: slugs };
-              })
-              .catch(function () { return { courseSlug: slug, moduleSlugs: [] }; });
-          });
+        renderDashboard(pathways, standalones);
+      });
 
-          Promise.all(courseFetches).then(function (courseMetaArr) {
-            // Collect all unique module slugs
-            var allModSlugsSet = {};
-            courseMetaArr.forEach(function (cm) {
-              cm.moduleSlugs.forEach(function (s) { allModSlugsSet[s] = true; });
-            });
-            var allModSlugs = Object.keys(allModSlugsSet);
+      function renderDashboard(pathways, standalones) {
+        var grid = q('enrolled-grid');
+        var section = q('enrolled-section');
+        if (!grid || !section) { showMain(); return; }
 
-            if (allModSlugs.length === 0) {
-              renderEnrolledSection(courses, courseMetaArr, {}, {});
-              return;
-            }
-
-            // Fetch HubDB module rows (includes completion_tasks_json)
-            var filter = allModSlugs
-              .map(function (s) { return 'hs_path__eq=' + encodeURIComponent(s); })
-              .join('&');
-            var modFetch = fetch('/hs/api/hubdb/v3/tables/' + tableIds.modules + '/rows?' + filter + '&tags__not__icontains=archived')
-              .then(function (r) { return r.ok ? r.json() : { results: [] }; })
-              .catch(function () { return { results: [] }; });
-
-            // --- Step 3: Fetch shadow task statuses (batch) ---
-            // Uses SHADOW_API_BASE (/shadow path mapping) so the auth cookie is sent.
-            var batchUrl = SHADOW_API_BASE + '/tasks/status/batch?module_slugs=' +
-              allModSlugs.map(encodeURIComponent).join(',');
-            var batchFetch = fetch(batchUrl, { credentials: 'include' })
-              .then(function (r) { return r.ok ? r.json() : null; })
-              .catch(function () { return null; });
-
-            Promise.all([modFetch, batchFetch]).then(function (results) {
-              var modData = results[0];
-              var batchData = results[1];
-
-              // Build module row lookup: slug → HubDB row
-              var modRowMap = {};
-              ((modData && modData.results) || []).forEach(function (row) {
-                var s = (row.values && row.values.hs_path) || row.hs_path || row.path;
-                if (s) modRowMap[s] = row;
-              });
-
-              // Shadow statuses map: slug → { module_status, tasks }
-              var shadowStatuses = (batchData && batchData.statuses) || {};
-
-              renderEnrolledSection(courses, courseMetaArr, modRowMap, shadowStatuses);
-            });
-          });
-        })
-        .catch(function (err) {
-          console.error('[shadow-my-learning] Error fetching enrollments:', err);
-          showEmpty();
-        });
-
-      // ----------------------------------------------------------------
-      // Render enrolled section with resolved data
-      // ----------------------------------------------------------------
-      function renderEnrolledSection(courses, courseMetaArr, modRowMap, shadowStatuses) {
-        var enrolledSection = q('enrolled-section');
-        var enrolledGrid = q('enrolled-grid');
-        if (!enrolledSection || !enrolledGrid) { showMain(); return; }
-
-        // Build course slug → moduleSlugs map
-        var courseModMap = {};
-        courseMetaArr.forEach(function (cm) {
-          courseModMap[cm.courseSlug] = cm.moduleSlugs;
-        });
-
-        var totalEnrolled = 0;
+        var totalEnrolled = pathways.length + standalones.length;
         var totalComplete = 0;
         var totalInProgress = 0;
+        var cardsRendered = 0;
+        var cardsExpected = totalEnrolled;
 
-        courses.forEach(function (course) {
-          var slug = course.slug || '';
-          var moduleSlugs = courseModMap[slug] || [];
-          var moduleRows = moduleSlugs
-            .map(function (s) { return modRowMap[s] || null; })
-            .filter(Boolean);
+        function finalize() {
+          cardsRendered++;
+          if (cardsRendered >= cardsExpected) {
+            var countEl = q('enrolled-count');
+            if (countEl) countEl.textContent = '(' + totalEnrolled + ')';
+            var statComplete = q('stat-complete');
+            var statInProg = q('stat-in-progress');
+            var statEnrolled = q('stat-enrolled');
+            if (statComplete) statComplete.textContent = totalComplete;
+            if (statInProg) statInProg.textContent = totalInProgress;
+            if (statEnrolled) statEnrolled.textContent = totalEnrolled;
+            section.style.display = 'block';
+            showMain();
+            fetchAndRenderCertificates();
+          }
+        }
 
-          var result = renderShadowCourseCard(course, moduleRows, shadowStatuses);
-          enrolledGrid.appendChild(result.card);
-          totalEnrolled++;
-          if (result.isComplete) totalComplete++;
-          else if (result.isStarted) totalInProgress++;
+        // Pathway cards
+        pathways.forEach(function (enrollment) {
+          var placeholder = document.createElement('div');
+          placeholder.className = 'enrollment-card';
+          placeholder.setAttribute('data-dashboard-pathway-card', '');
+          placeholder.setAttribute('data-pathway-slug', enrollment.slug);
+          placeholder.innerHTML = '<div class="dashboard-card-loading">Loading pathway...</div>';
+          grid.appendChild(placeholder);
+
+          function loadPathway() {
+            fetchJSON(SHADOW_API_BASE + '/pathway/status?pathway_slug=' + encodeURIComponent(enrollment.slug))
+              .then(function (data) {
+                var real = renderPathwayCardElement(enrollment, data);
+                placeholder.replaceWith(real);
+                if (data.pathway_status === 'complete') totalComplete++;
+                else if (data.pathway_status === 'in_progress') totalInProgress++;
+              })
+              .catch(function (err) {
+                if (err && err.status === 401) {
+                  window.location.href = (auth.loginUrl || 'https://api.hedgehog.cloud/auth/login') +
+                    '?redirect_url=' + encodeURIComponent(window.location.pathname);
+                  return;
+                }
+                var err2 = renderPartialFailureCard('pathway', enrollment, function () { loadPathway(); });
+                placeholder.replaceWith(err2);
+                placeholder = err2;
+              })
+              .finally(finalize);
+          }
+          loadPathway();
         });
 
-        // Update counters
-        var countEl = q('enrolled-count');
-        if (countEl) countEl.textContent = '(' + totalEnrolled + ')';
+        // Standalone course cards
+        standalones.forEach(function (enrollment) {
+          var placeholder = document.createElement('div');
+          placeholder.className = 'enrollment-card';
+          placeholder.setAttribute('data-dashboard-standalone-course-card', '');
+          placeholder.setAttribute('data-course-slug', enrollment.slug);
+          placeholder.innerHTML = '<div class="dashboard-card-loading">Loading course...</div>';
+          grid.appendChild(placeholder);
 
-        var statComplete = q('stat-complete');
-        var statInProg = q('stat-in-progress');
-        var statEnrolled = q('stat-enrolled');
-        if (statComplete) statComplete.textContent = totalComplete;
-        if (statInProg) statInProg.textContent = totalInProgress;
-        if (statEnrolled) statEnrolled.textContent = totalEnrolled;
-
-        enrolledSection.style.display = 'block';
-        showMain();
-
-        if (totalEnrolled === 0) {
-          var es = q('empty-state');
-          if (es) es.style.display = 'block';
-        }
-
-        // Fetch and render certificates section after enrollments are shown
-        fetchAndRenderCertificates();
-      }
-
-      // ----------------------------------------------------------------
-      // Fetch and render the "My Certificates" section (Issue #429)
-      // ----------------------------------------------------------------
-      function fetchAndRenderCertificates() {
-        var certsSection = q('certificates-section');
-        if (!certsSection) return; // Section not in template; skip gracefully
-
-        fetch(SHADOW_API_BASE + '/certificates', { credentials: 'include' })
-          .then(function (r) {
-            if (r.status === 401 || r.status === 403) return null;
-            if (!r.ok) return null;
-            return r.json();
-          })
-          .then(function (data) {
-            renderCertificatesSection(certsSection, data && data.certificates ? data.certificates : []);
-          })
-          .catch(function (err) {
-            console.warn('[shadow-my-learning] Certificates fetch failed:', err);
-            renderCertificatesSection(certsSection, []);
-          });
-      }
-
-      function renderCertificatesSection(certsSection, certificates) {
-        var certsGrid = q('certificates-grid');
-        var certsCount = q('certificates-count');
-        if (!certsGrid) return;
-
-        if (certsCount) certsCount.textContent = '(' + certificates.length + ')';
-
-        if (certificates.length === 0) {
-          certsGrid.innerHTML =
-            '<p class="certs-empty-note">No certificates earned yet. Complete a module or course to earn your first certificate.</p>';
-        } else {
-          var html = '';
-          certificates.forEach(function (cert) {
-            var title = cert.entityTitle || cert.entitySlug || 'Certificate';
-            var dateStr = cert.issuedAt ? formatDate(cert.issuedAt) : '';
-            var viewUrl = '/learn-shadow/certificate?id=' + encodeURIComponent(cert.certId);
-            var typeLabel = cert.entityType === 'course' ? 'Course' : 'Module';
-            html +=
-              '<div class="cert-card">' +
-                '<div class="cert-card-icon">\uD83C\uDF93</div>' +
-                '<div class="cert-card-body">' +
-                  '<div class="cert-card-title">' + title + '</div>' +
-                  '<div class="cert-card-meta">' +
-                    '<span class="cert-type-badge cert-type-' + cert.entityType + '">' + typeLabel + '</span>' +
-                    (dateStr ? '<span class="cert-date">Earned ' + dateStr + '</span>' : '') +
-                  '</div>' +
-                '</div>' +
-                '<div class="cert-card-actions">' +
-                  '<a href="' + viewUrl + '" class="cert-action-btn cert-action-view" target="_blank" rel="noopener noreferrer">View Certificate</a>' +
-                  '<button type="button" class="cert-action-btn cert-action-copy" data-cert-url="' + viewUrl + '">Copy Link</button>' +
-                '</div>' +
-              '</div>';
-          });
-          certsGrid.innerHTML = html;
-
-          // Bind copy link buttons
-          var copyBtns = certsGrid.querySelectorAll('.cert-action-copy');
-          copyBtns.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-              var url = btn.getAttribute('data-cert-url');
-              var absUrl = window.location.origin + url;
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(absUrl).then(function () {
-                  btn.textContent = 'Copied!';
-                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
-                }).catch(function () {
-                  btn.textContent = 'Copy failed';
-                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
-                });
-              } else {
-                // Fallback for older browsers
-                try {
-                  var ta = document.createElement('textarea');
-                  ta.value = absUrl;
-                  ta.style.position = 'fixed';
-                  ta.style.opacity = '0';
-                  document.body.appendChild(ta);
-                  ta.select();
-                  document.execCommand('copy');
-                  document.body.removeChild(ta);
-                  btn.textContent = 'Copied!';
-                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
-                } catch (e) {
-                  btn.textContent = 'Copy failed';
-                  setTimeout(function () { btn.textContent = 'Copy Link'; }, 2000);
+          function loadCourse() {
+            fetchJSON(SHADOW_API_BASE + '/course/status?course_slug=' + encodeURIComponent(enrollment.slug))
+              .then(function (data) {
+                var real = renderStandaloneCourseCardElement(enrollment, data);
+                placeholder.replaceWith(real);
+                if (data.course_status === 'complete') totalComplete++;
+                else if (data.course_status === 'in_progress') totalInProgress++;
+              })
+              .catch(function (err) {
+                if (err && err.status === 401) {
+                  window.location.href = (auth.loginUrl || 'https://api.hedgehog.cloud/auth/login') +
+                    '?redirect_url=' + encodeURIComponent(window.location.pathname);
+                  return;
                 }
-              }
-            });
-          });
-        }
+                var err2 = renderPartialFailureCard('course', enrollment, function () { loadCourse(); });
+                placeholder.replaceWith(err2);
+                placeholder = err2;
+              })
+              .finally(finalize);
+          }
+          loadCourse();
+        });
 
-        certsSection.style.display = 'block';
+        if (totalEnrolled === 0) finalize();
       }
     });
   });

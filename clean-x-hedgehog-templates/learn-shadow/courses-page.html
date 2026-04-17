@@ -1,0 +1,94 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+  <meta name="robots" content="noindex, nofollow">
+
+  {% set constants = {
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png'
+  } %}
+
+  {% if dynamic_page_hubdb_row %}
+    {% set page_title = dynamic_page_hubdb_row.hs_name ~ " (Shadow) - Hedgehog Learn" %}
+    {% set canonical_url = "https://" ~ request.domain ~ "/learn-shadow/courses/" ~ dynamic_page_hubdb_row.hs_path %}
+    <title>{{ page_title }}</title>
+    <meta name="description" content="Shadow course detail: {{ dynamic_page_hubdb_row.hs_name }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+  {% else %}
+    <title>Shadow Courses - Hedgehog Learn</title>
+  {% endif %}
+
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+{% endblock head %}
+
+{% block body %}
+<style>
+  .shadow-mode-banner { background:#FEF9C3; border:1px solid #FDE047; border-radius:8px; padding:12px 20px; margin-bottom:28px; font-size:0.9375rem; color:#713F12; display:flex; align-items:flex-start; gap:10px; }
+  .shadow-mode-banner strong { color:#92400E; }
+  .shadow-breadcrumbs { margin-bottom:16px; font-size:0.875rem; color:#6B7280; }
+  .shadow-breadcrumbs a { color:#1a4e8a; text-decoration:none; }
+  .shadow-breadcrumbs a:hover { text-decoration:underline; }
+  .shadow-breadcrumbs .sep { margin:0 6px; }
+  .course-header { margin-bottom:32px; }
+  .course-header h1 { font-size:2rem; font-weight:700; color:#111827; margin:0 0 12px; }
+  .enrollment-status-badge { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:10px; white-space:nowrap; }
+  .status-completed { background:#D1FAE5; color:#065F46; }
+  .status-in-progress { background:#DBEAFE; color:#1E40AF; }
+  .status-not-started { background:#F3F4F6; color:#6B7280; }
+  .enrollment-progress-label { font-size:0.875rem; color:#374151; font-weight:600; margin:12px 0 8px; }
+  .enrollment-progress-bar { width:100%; height:8px; background:#E5E7EB; border-radius:4px; overflow:hidden; }
+  .enrollment-progress-fill { height:100%; background:linear-gradient(90deg,#1a4e8a 0%,#2563EB 100%); transition:width 0.3s ease; border-radius:4px; }
+  .course-modules { margin-top:24px; }
+  .enrollment-module-item { padding:10px 0; display:flex; flex-direction:column; gap:4px; border-bottom:1px solid #F3F4F6; }
+  .enrollment-module-item:last-child { border-bottom:none; }
+  .enrollment-module-row { display:flex; align-items:center; gap:10px; }
+  .enrollment-module-status { font-size:1.125rem; width:24px; text-align:center; flex-shrink:0; }
+  .enrollment-module-item.completed .enrollment-module-status { color:#059669; }
+  .enrollment-module-item.in-progress .enrollment-module-status { color:#2563EB; }
+  .enrollment-module-item.not-started .enrollment-module-status { color:#9CA3AF; }
+  .enrollment-module-item.no-tasks .enrollment-module-status { color:#D1D5DB; }
+  .enrollment-module-link { color:#374151; text-decoration:none; flex:1; font-size:0.9375rem; }
+  .enrollment-module-link:hover { color:#1a4e8a; text-decoration:underline; }
+  .enrollment-module-record-link { font-size:0.75rem; color:#6B7280; text-decoration:none; }
+  .enrollment-module-record-link:hover { color:#1a4e8a; text-decoration:underline; }
+  .shadow-task-breakdown { padding-left:34px; display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+  .shadow-task-pill { font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; }
+  .task-pill-passed { background:#D1FAE5; color:#065F46; }
+  .task-pill-failed { background:#FEE2E2; color:#991B1B; }
+  .task-pill-attested { background:#D1FAE5; color:#065F46; }
+  .task-pill-not-started { background:#F3F4F6; color:#6B7280; }
+  .task-pill-no-tasks { background:#F0FDF4; color:#166534; font-style:italic; }
+  .enrollment-actions { display:flex; justify-content:flex-end; margin-top:16px; }
+  .enrollment-cta { color:#0066CC; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; }
+  .enrollment-cta:hover { color:#0052A3; }
+  .course-error { background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:16px 20px; color:#991B1B; }
+  .course-error button { background:#1a4e8a; color:#fff; border:none; border-radius:4px; padding:6px 16px; cursor:pointer; margin-left:8px; }
+  .course-cert-link { margin-top:16px; }
+  .course-cert-link a { color:#059669; font-weight:600; text-decoration:none; }
+  .course-loading { text-align:center; padding:60px; color:#6B7280; }
+  .learn-container { max-width:1200px; margin:40px auto; background:#fff; padding:40px; border-radius:12px; box-shadow:0 2px 24px rgba(26,78,138,0.06); }
+</style>
+
+<main id="main-content">
+  <div class="learn-container">
+    {% if dynamic_page_hubdb_row %}
+      <div id="shadow-course-detail-context"
+           data-course-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+           style="display:none"></div>
+      <div id="shadow-course-detail-root">
+        <div class="course-loading">Loading course progress...</div>
+      </div>
+    {% else %}
+      <h1>Shadow Courses</h1>
+      <p>Select a course to view your progress.</p>
+    {% endif %}
+  </div>
+</main>
+
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/shadow-course-detail.js') }}"></script>
+{% endblock body %}

@@ -1,0 +1,93 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+  <meta name="robots" content="noindex, nofollow">
+
+  {% if dynamic_page_hubdb_row %}
+    {% set page_title = dynamic_page_hubdb_row.hs_name ~ " Progress (Shadow) - Hedgehog Learn" %}
+    {% set canonical_url = "https://" ~ request.domain ~ "/learn-shadow/modules/" ~ dynamic_page_hubdb_row.hs_path ~ "/progress" %}
+    <title>{{ page_title }}</title>
+    <meta name="description" content="Shadow learner record: {{ dynamic_page_hubdb_row.hs_name }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+  {% else %}
+    <title>Module Progress (Shadow) - Hedgehog Learn</title>
+  {% endif %}
+
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+{% endblock head %}
+
+{% block body %}
+<style>
+  .shadow-mode-banner { background:#FEF9C3; border:1px solid #FDE047; border-radius:8px; padding:12px 20px; margin-bottom:28px; font-size:0.9375rem; color:#713F12; display:flex; align-items:flex-start; gap:10px; }
+  .shadow-mode-banner strong { color:#92400E; }
+  .shadow-breadcrumbs { margin-bottom:16px; font-size:0.875rem; color:#6B7280; }
+  .shadow-breadcrumbs a { color:#1a4e8a; text-decoration:none; }
+  .shadow-breadcrumbs a:hover { text-decoration:underline; }
+  .shadow-breadcrumbs .sep { margin:0 6px; }
+  .shadow-breadcrumbs .current { color:#374151; }
+  .module-record-header { margin-bottom:32px; }
+  .module-record-header h1 { font-size:2rem; font-weight:700; color:#111827; margin:0 0 12px; }
+  .enrollment-status-badge { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:10px; white-space:nowrap; }
+  .status-completed { background:#D1FAE5; color:#065F46; }
+  .status-in-progress { background:#DBEAFE; color:#1E40AF; }
+  .status-not-started { background:#F3F4F6; color:#6B7280; }
+  .module-record-tasks { margin-bottom:32px; }
+  .module-record-tasks h2, .module-record-timeline h2 { font-size:1.25rem; font-weight:700; color:#111827; margin:0 0 16px; }
+  .module-task-row { padding:12px 0; border-bottom:1px solid #F3F4F6; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .module-task-row:last-child { border-bottom:none; }
+  .module-task-title { font-size:0.9375rem; color:#374151; }
+  .module-task-optional { font-size:0.75rem; color:#9CA3AF; font-style:italic; }
+  .module-task-meta { font-size:0.8125rem; color:#6B7280; }
+  .module-record-timeline { margin-bottom:32px; }
+  .module-attempt-row { border:1px solid #E5E7EB; border-radius:8px; padding:16px; margin-bottom:8px; }
+  .module-attempt-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .module-attempt-when { font-size:0.875rem; color:#6B7280; }
+  .module-attempt-outcome { font-size:0.875rem; font-weight:600; color:#374151; }
+  .module-attempt-detail summary { font-size:0.8125rem; color:#1a4e8a; cursor:pointer; margin-top:8px; }
+  .module-attempt-note { font-size:0.8125rem; color:#6B7280; margin-top:8px; font-style:italic; }
+  .answer-review-list { margin-top:8px; }
+  .answer-review-row { padding:8px; border-bottom:1px solid #F9FAFB; }
+  .answer-review-row:last-child { border-bottom:none; }
+  .answer-review-row.correct { background:#F0FDF4; }
+  .answer-review-row.incorrect { background:#FEF2F2; }
+  .answer-review-row.drift { background:#FFFBEB; }
+  .answer-review-q { font-size:0.875rem; color:#374151; font-weight:500; }
+  .answer-review-submitted { font-size:0.8125rem; color:#6B7280; margin-top:4px; }
+  .answer-review-indicator { font-size:0.8125rem; font-weight:600; margin-top:4px; }
+  .answer-review-row.correct .answer-review-indicator { color:#059669; }
+  .answer-review-row.incorrect .answer-review-indicator { color:#DC2626; }
+  .module-attempts-empty { color:#6B7280; font-size:0.9375rem; font-style:italic; padding:24px 0; }
+  .module-tasks-none { color:#6B7280; font-size:0.9375rem; font-style:italic; }
+  .enrollment-actions { display:flex; gap:16px; margin-top:16px; }
+  .enrollment-cta { color:#0066CC; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; }
+  .enrollment-cta:hover { color:#0052A3; }
+  .module-error { background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:16px 20px; color:#991B1B; }
+  .module-error button { background:#1a4e8a; color:#fff; border:none; border-radius:4px; padding:6px 16px; cursor:pointer; margin-left:8px; }
+  .module-loading { text-align:center; padding:60px; color:#6B7280; }
+  .learn-container { max-width:1200px; margin:40px auto; background:#fff; padding:40px; border-radius:12px; box-shadow:0 2px 24px rgba(26,78,138,0.06); }
+</style>
+
+<main id="main-content">
+  <div class="learn-container">
+    {% if dynamic_page_hubdb_row %}
+      <div id="shadow-module-progress-context"
+           data-module-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+           style="display:none"></div>
+      <div id="shadow-module-progress-root">
+        <div class="module-loading">Loading learner record...</div>
+      </div>
+    {% else %}
+      <h1>Module Progress (Shadow)</h1>
+      <p>Select a module to view your learner record.</p>
+    {% endif %}
+  </div>
+</main>
+
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/shadow/js/shadow-module-progress.js') }}"></script>
+{% endblock body %}
