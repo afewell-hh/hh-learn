@@ -13,6 +13,9 @@ const tasks_status_batch_js_1 = require("./tasks-status-batch.js");
 const admin_test_reset_js_1 = require("./admin-test-reset.js");
 const certificate_verify_js_1 = require("./certificate-verify.js");
 const certificates_list_js_1 = require("./certificates-list.js");
+const shadow_course_status_js_1 = require("./shadow-course-status.js");
+const shadow_pathway_status_js_1 = require("./shadow-pathway-status.js");
+const shadow_module_progress_js_1 = require("./shadow-module-progress.js");
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://hedgehog.cloud',
@@ -170,6 +173,15 @@ const handler = async (event) => {
             return await (0, tasks_status_batch_js_1.handleTasksStatusBatch)(event);
         if (path.endsWith('/tasks/status') && method === 'GET')
             return await (0, tasks_status_js_1.handleTasksStatus)(event);
+        // Shadow learner progress center endpoints (Issue #451, Phase 5A).
+        // Public URLs: api.hedgehog.cloud/shadow/{course/status, pathway/status, module/progress}
+        // Lambda-visible suffixes (after base-path mapping strips /shadow) are the stripped forms below.
+        if (path.endsWith('/course/status') && method === 'GET')
+            return await (0, shadow_course_status_js_1.handleShadowCourseStatus)(event);
+        if (path.endsWith('/pathway/status') && method === 'GET')
+            return await (0, shadow_pathway_status_js_1.handleShadowPathwayStatus)(event);
+        if (path.endsWith('/module/progress') && method === 'GET')
+            return await (0, shadow_module_progress_js_1.handleShadowModuleProgress)(event);
         if (path.endsWith('/admin/test/reset') && method === 'POST')
             return await (0, admin_test_reset_js_1.handleAdminTestReset)(event);
         // Certificate verification endpoint:

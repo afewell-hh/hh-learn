@@ -61,6 +61,71 @@ interface ValidationResult {
   reason?: string;
 }
 
+const FALLBACK_COURSE_METADATA: Array<Required<Pick<CourseMetadata, 'slug' | 'modules' | 'title'>>> = [
+  {
+    slug: 'hedgehog-lab-foundations',
+    title: 'Hedgehog Lab Foundations',
+    modules: [
+      'accessing-the-hedgehog-virtual-lab-with-google-cloud',
+      'accessing-the-hedgehog-virtual-lab-with-amazon-web-services',
+      'accessing-the-hedgehog-virtual-lab-with-microsoft-azure',
+    ],
+  },
+  {
+    slug: 'network-like-hyperscaler-foundations',
+    title: 'Course 1: Foundations & Interfaces',
+    modules: [
+      'fabric-operations-welcome',
+      'fabric-operations-how-it-works',
+      'fabric-operations-mastering-interfaces',
+      'fabric-operations-foundations-recap',
+    ],
+  },
+  {
+    slug: 'network-like-hyperscaler-observability',
+    title: 'Course 3: Observability & Fabric Health',
+    modules: [
+      'fabric-operations-telemetry-overview',
+      'fabric-operations-dashboard-interpretation',
+      'fabric-operations-events-status',
+      'fabric-operations-pre-support-diagnostics',
+    ],
+  },
+  {
+    slug: 'network-like-hyperscaler-provisioning',
+    title: 'Course 2: Provisioning & Day 1 Operations',
+    modules: [
+      'fabric-operations-vpc-provisioning',
+      'fabric-operations-vpc-attachments',
+      'fabric-operations-connectivity-validation',
+      'fabric-operations-decommission-cleanup',
+    ],
+  },
+  {
+    slug: 'network-like-hyperscaler-troubleshooting',
+    title: 'Course 4: Troubleshooting, Recovery & Escalation',
+    modules: [
+      'fabric-operations-troubleshooting-framework',
+      'fabric-operations-diagnosis-lab',
+      'fabric-operations-rollback-recovery',
+      'fabric-operations-post-incident-review',
+    ],
+  },
+];
+
+const FALLBACK_PATHWAY_METADATA: Array<Required<Pick<PathwayMetadata, 'slug' | 'courses' | 'title'>>> = [
+  {
+    slug: 'network-like-hyperscaler',
+    title: 'Network Like a Hyperscaler',
+    courses: [
+      'network-like-hyperscaler-foundations',
+      'network-like-hyperscaler-provisioning',
+      'network-like-hyperscaler-observability',
+      'network-like-hyperscaler-troubleshooting',
+    ],
+  },
+];
+
 // ============================================================================
 // Metadata Cache
 // ============================================================================
@@ -137,6 +202,26 @@ export function loadMetadataCache(): void {
         } catch (err) {
           console.warn(`Failed to load pathway metadata from ${file}:`, err);
         }
+      }
+    }
+
+    if (METADATA_CACHE.courses.size === 0 && METADATA_CACHE.pathways.size === 0) {
+      console.warn('[Completion] Filesystem metadata missing at runtime; using compiled fallback metadata');
+
+      for (const course of FALLBACK_COURSE_METADATA) {
+        METADATA_CACHE.courses.set(course.slug, {
+          slug: course.slug,
+          modules: course.modules,
+          title: course.title,
+        });
+      }
+
+      for (const pathway of FALLBACK_PATHWAY_METADATA) {
+        METADATA_CACHE.pathways.set(pathway.slug, {
+          slug: pathway.slug,
+          courses: pathway.courses,
+          title: pathway.title,
+        });
       }
     }
 

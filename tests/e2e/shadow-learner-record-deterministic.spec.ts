@@ -439,7 +439,7 @@ test.describe('Shadow pathway detail page', () => {
 
     await page.goto(`${BASE}/learn-shadow/pathways/${PATHWAY_SLUG}`);
     await expect(page.locator('[data-pathway-title]')).toContainText('Network Like a Hyperscaler');
-    await expect(page.locator('[data-pathway-status-badge]')).toContainText(/in.?progress/i);
+    await expect(page.locator('.pathway-header [data-pathway-status-badge]')).toContainText(/in.?progress/i);
     await expect(page.locator('[data-pathway-course-row]')).toHaveCount(4);
     // First course shown in_progress, rest not_started
     await expect(page.locator('[data-pathway-course-row]').first()).toContainText(/2 of 4/);
@@ -512,9 +512,9 @@ test.describe('Shadow course detail page', () => {
     await expect(page.locator('[data-course-error]')).toBeVisible();
   });
 
-  test('not found (400): "Course not found" error block', async ({ page }) => {
+  test('not found (400): existing course route shows "Course not found" error block', async ({ page }) => {
     await mockCourseStatus(page, 400, { error: 'course not found' });
-    await page.goto(`${BASE}/learn-shadow/courses/nonexistent-slug`);
+    await page.goto(`${BASE}/learn-shadow/courses/${COURSE_SLUG}`);
     await expect(page.locator('[data-course-error]')).toContainText(/not found/i);
   });
 });
@@ -566,7 +566,7 @@ test.describe('Module learner-record page', () => {
     // Click the <summary> inside the <details> to expand the answer-review drawer
     // (shadow-module-progress.js renders a <details> with a <summary> inside each quiz attempt row)
     await page.locator('[data-module-attempt-row] details summary').first().click();
-    await expect(page.locator('[data-module-answer-review-row]')).toBeVisible();
+    await expect(page.locator('[data-module-answer-review-row]').first()).toBeVisible();
     // Submitted answer is rendered
     await expect(page.locator('[data-module-answer-review-row]').first()).toContainText('kubectl get pods');
     // data-is-correct is on the row element itself, not a child

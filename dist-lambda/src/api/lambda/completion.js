@@ -13,12 +13,77 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadMetadataCache = loadMetadataCache;
 exports.getCourseMetadata = getCourseMetadata;
 exports.getPathwayMetadata = getPathwayMetadata;
+exports.listAllCourseSlugs = listAllCourseSlugs;
+exports.listAllPathwaySlugs = listAllPathwaySlugs;
 exports.calculateCourseCompletion = calculateCourseCompletion;
 exports.calculatePathwayCompletion = calculatePathwayCompletion;
 exports.validateExplicitCompletion = validateExplicitCompletion;
 exports.validateCompletionTimestamp = validateCompletionTimestamp;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const FALLBACK_COURSE_METADATA = [
+    {
+        slug: 'hedgehog-lab-foundations',
+        title: 'Hedgehog Lab Foundations',
+        modules: [
+            'accessing-the-hedgehog-virtual-lab-with-google-cloud',
+            'accessing-the-hedgehog-virtual-lab-with-amazon-web-services',
+            'accessing-the-hedgehog-virtual-lab-with-microsoft-azure',
+        ],
+    },
+    {
+        slug: 'network-like-hyperscaler-foundations',
+        title: 'Course 1: Foundations & Interfaces',
+        modules: [
+            'fabric-operations-welcome',
+            'fabric-operations-how-it-works',
+            'fabric-operations-mastering-interfaces',
+            'fabric-operations-foundations-recap',
+        ],
+    },
+    {
+        slug: 'network-like-hyperscaler-observability',
+        title: 'Course 3: Observability & Fabric Health',
+        modules: [
+            'fabric-operations-telemetry-overview',
+            'fabric-operations-dashboard-interpretation',
+            'fabric-operations-events-status',
+            'fabric-operations-pre-support-diagnostics',
+        ],
+    },
+    {
+        slug: 'network-like-hyperscaler-provisioning',
+        title: 'Course 2: Provisioning & Day 1 Operations',
+        modules: [
+            'fabric-operations-vpc-provisioning',
+            'fabric-operations-vpc-attachments',
+            'fabric-operations-connectivity-validation',
+            'fabric-operations-decommission-cleanup',
+        ],
+    },
+    {
+        slug: 'network-like-hyperscaler-troubleshooting',
+        title: 'Course 4: Troubleshooting, Recovery & Escalation',
+        modules: [
+            'fabric-operations-troubleshooting-framework',
+            'fabric-operations-diagnosis-lab',
+            'fabric-operations-rollback-recovery',
+            'fabric-operations-post-incident-review',
+        ],
+    },
+];
+const FALLBACK_PATHWAY_METADATA = [
+    {
+        slug: 'network-like-hyperscaler',
+        title: 'Network Like a Hyperscaler',
+        courses: [
+            'network-like-hyperscaler-foundations',
+            'network-like-hyperscaler-provisioning',
+            'network-like-hyperscaler-observability',
+            'network-like-hyperscaler-troubleshooting',
+        ],
+    },
+];
 // ============================================================================
 // Metadata Cache
 // ============================================================================
@@ -55,7 +120,8 @@ function loadMetadataCache() {
                     if (course.slug && Array.isArray(course.modules)) {
                         METADATA_CACHE.courses.set(course.slug, {
                             slug: course.slug,
-                            modules: course.modules
+                            modules: course.modules,
+                            ...(typeof course.title === 'string' ? { title: course.title } : {}),
                         });
                     }
                 }
@@ -75,13 +141,31 @@ function loadMetadataCache() {
                     if (pathway.slug && Array.isArray(pathway.courses)) {
                         METADATA_CACHE.pathways.set(pathway.slug, {
                             slug: pathway.slug,
-                            courses: pathway.courses
+                            courses: pathway.courses,
+                            ...(typeof pathway.title === 'string' ? { title: pathway.title } : {}),
                         });
                     }
                 }
                 catch (err) {
                     console.warn(`Failed to load pathway metadata from ${file}:`, err);
                 }
+            }
+        }
+        if (METADATA_CACHE.courses.size === 0 && METADATA_CACHE.pathways.size === 0) {
+            console.warn('[Completion] Filesystem metadata missing at runtime; using compiled fallback metadata');
+            for (const course of FALLBACK_COURSE_METADATA) {
+                METADATA_CACHE.courses.set(course.slug, {
+                    slug: course.slug,
+                    modules: course.modules,
+                    title: course.title,
+                });
+            }
+            for (const pathway of FALLBACK_PATHWAY_METADATA) {
+                METADATA_CACHE.pathways.set(pathway.slug, {
+                    slug: pathway.slug,
+                    courses: pathway.courses,
+                    title: pathway.title,
+                });
             }
         }
         METADATA_CACHE.loaded = true;
@@ -106,6 +190,20 @@ function getCourseMetadata(courseSlug) {
  */
 function getPathwayMetadata(pathwaySlug) {
     return METADATA_CACHE.pathways.get(pathwaySlug);
+}
+/**
+ * Iterate all cached courses. Additive accessor for Issue #451;
+ * used by the shadow module-progress handler for breadcrumb resolution.
+ * Callers receive an alphabetically-sorted slug list for deterministic first-match.
+ */
+function listAllCourseSlugs() {
+    return Array.from(METADATA_CACHE.courses.keys()).sort();
+}
+/**
+ * Iterate all cached pathways. Additive accessor for Issue #451.
+ */
+function listAllPathwaySlugs() {
+    return Array.from(METADATA_CACHE.pathways.keys()).sort();
 }
 // ============================================================================
 // Completion Calculation
