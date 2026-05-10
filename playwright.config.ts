@@ -52,5 +52,14 @@ export default defineConfig({
         'tests/e2e/shadow-learner-record-live.spec.ts',
       ],
     },
+    {
+      // Layer 4 — Production smoke (Issue #458, Phase 5A).
+      // Hits real https://api.hedgehog.cloud/... with no Cognito setup.
+      // Defense-in-depth gate for the production stage of dual-stage assets.
+      name: 'production-smoke',
+      testMatch: [
+        'tests/e2e/admin-test-reset-production.spec.ts',
+      ],
+    },
   ],
 });
