@@ -55,5 +55,16 @@ export default defineConfig({
         'tests/e2e/admin-test-reset-production.spec.ts',
       ],
     },
+    {
+      // Layer 1 — Production learner-record deterministic (Issue #459, Phase 5B).
+      // Intercepts production JS files + the bare-host /course/status, /pathway/status,
+      // /module/progress, /certificates endpoints so the production parity slice
+      // renders and is asserted independently of CDN lag.
+      name: 'production-learner-record-deterministic',
+      testMatch: ['tests/e2e/production-learner-record-deterministic.spec.ts'],
+      use: {
+        navigationTimeout: 60000,
+      },
+    },
   ],
 });
