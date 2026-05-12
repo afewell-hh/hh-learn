@@ -1,0 +1,126 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+{# Production Module Learner-Record Page (Issue #459, Phase 5B)
+
+   Static page (no HubDB dynamic binding) reading the module slug from the
+   `?module=<slug>` query parameter. Mirrors the route amendment chain
+   through #449 — the shadow analogue lives at /learn-shadow/module-progress.
+
+   HubSpot CMS does not support binding two dynamic-page templates to the
+   modules table (the content page already owns that binding), so this is
+   intentionally a static page. The client JS reads the slug from the
+   `data-module-slug` attribute set below and calls the bare production
+   /module/progress endpoint.
+
+   Production constraints:
+     - NO <meta name="robots" content="noindex">.
+     - NO .shadow-mode-banner.
+     - Canonical points to the production /learn/module-progress URL form,
+       including the ?module=<slug> query string when present.
+#}
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+
+  {% set module_slug = request.query_dict.module %}
+
+  {% if module_slug %}
+    <title>{{ module_slug }} Progress - Hedgehog Learn</title>
+    <meta name="description" content="Your learner record for module: {{ module_slug }}.">
+    <link rel="canonical" href="https://{{ request.domain }}/learn/module-progress?module={{ module_slug }}">
+  {% else %}
+    <title>Module Progress - Hedgehog Learn</title>
+    <meta name="description" content="View your learner record for a Hedgehog Learn module.">
+    <link rel="canonical" href="https://{{ request.domain }}/learn/module-progress">
+  {% endif %}
+
+  <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/left-nav.css') }}">
+{% endblock head %}
+
+{% block body %}
+<style>
+  .module-record-breadcrumbs { margin-bottom:16px; font-size:0.875rem; color:#6B7280; }
+  .module-record-breadcrumbs a { color:#1a4e8a; text-decoration:none; }
+  .module-record-breadcrumbs a:hover { text-decoration:underline; }
+  .module-record-breadcrumbs .sep { margin:0 6px; }
+  .module-record-breadcrumbs .current { color:#374151; }
+  .module-record-header { margin-bottom:32px; }
+  .module-record-header h1 { font-size:2rem; font-weight:700; color:#111827; margin:0 0 12px; }
+  .enrollment-status-badge { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:10px; white-space:nowrap; }
+  .status-completed { background:#D1FAE5; color:#065F46; }
+  .status-in-progress { background:#DBEAFE; color:#1E40AF; }
+  .status-not-started { background:#F3F4F6; color:#6B7280; }
+  .module-record-tasks { margin-bottom:32px; }
+  .module-record-tasks h2, .module-record-timeline h2 { font-size:1.25rem; font-weight:700; color:#111827; margin:0 0 16px; }
+  .module-task-row { padding:12px 0; border-bottom:1px solid #F3F4F6; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .module-task-row:last-child { border-bottom:none; }
+  .module-task-title { font-size:0.9375rem; color:#374151; }
+  .module-task-optional { font-size:0.75rem; color:#9CA3AF; font-style:italic; }
+  .module-task-meta { font-size:0.8125rem; color:#6B7280; }
+  .module-record-timeline { margin-bottom:32px; }
+  .module-attempt-row { border:1px solid #E5E7EB; border-radius:8px; padding:16px; margin-bottom:8px; }
+  .module-attempt-header { display:flex; justify-content:space-between; align-items:center; }
+  .module-attempt-when { font-size:0.875rem; color:#6B7280; }
+  .module-attempt-outcome { font-size:0.875rem; font-weight:600; color:#374151; }
+  .module-attempt-detail summary { font-size:0.8125rem; color:#1a4e8a; cursor:pointer; margin-top:8px; }
+  .module-attempt-note { font-size:0.8125rem; color:#6B7280; margin-top:8px; font-style:italic; }
+  .answer-review-list { margin-top:8px; }
+  .answer-review-row { padding:8px; border-bottom:1px solid #F9FAFB; }
+  .answer-review-row:last-child { border-bottom:none; }
+  .answer-review-row.correct { background:#F0FDF4; }
+  .answer-review-row.incorrect { background:#FEF2F2; }
+  .answer-review-row.drift { background:#FFFBEB; }
+  .answer-review-q { font-size:0.875rem; color:#374151; font-weight:500; }
+  .answer-review-submitted { font-size:0.8125rem; color:#6B7280; margin-top:4px; }
+  .answer-review-indicator { font-size:0.8125rem; font-weight:600; margin-top:4px; }
+  .answer-review-row.correct .answer-review-indicator { color:#059669; }
+  .answer-review-row.incorrect .answer-review-indicator { color:#DC2626; }
+  .module-attempts-empty { color:#6B7280; font-size:0.9375rem; font-style:italic; padding:24px 0; }
+  .module-tasks-none { color:#6B7280; font-size:0.9375rem; font-style:italic; }
+  .enrollment-actions { display:flex; gap:16px; margin-top:16px; }
+  .enrollment-cta { color:#0066CC; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; }
+  .enrollment-cta:hover { color:#0052A3; }
+  .module-error { background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:16px 20px; color:#991B1B; }
+  .module-error button { background:#1a4e8a; color:#fff; border:none; border-radius:4px; padding:6px 16px; cursor:pointer; margin-left:8px; }
+  .module-loading { text-align:center; padding:60px; color:#6B7280; }
+  .learn-container { max-width:1200px; margin:40px auto; background:#fff; padding:40px; border-radius:12px; box-shadow:0 2px 24px rgba(26,78,138,0.06); }
+  .module-no-slug { text-align:center; padding:60px; color:#6B7280; }
+</style>
+
+<main id="main-content">
+  <div class="learn-container">
+    {% set module_slug = request.query_dict.module %}
+    {% if module_slug %}
+      <div id="module-progress-context"
+           data-module-slug="{{ module_slug }}"
+           style="display:none"></div>
+      <div id="module-progress-root">
+        <div class="module-loading">Loading learner record...</div>
+      </div>
+    {% else %}
+      <div class="module-no-slug">
+        <h2>Module Progress</h2>
+        <p>No module specified. Navigate here from a course detail page or module content page.</p>
+        <a href="/learn/my-learning" class="enrollment-cta">Back to My Learning &rarr;</a>
+      </div>
+    {% endif %}
+  </div>
+</main>
+
+{# Auth context — cookie-based, used by cognito-auth-integration.js #}
+{% set auth_me_url = 'https://api.hedgehog.cloud/auth/me' %}
+{% set auth_login_url = 'https://api.hedgehog.cloud/auth/login' %}
+{% set auth_logout_url = 'https://api.hedgehog.cloud/auth/logout' %}
+<div id="hhl-auth-context"
+     data-auth-me-url="{{ auth_me_url }}"
+     data-auth-login-url="{{ auth_login_url }}"
+     data-auth-logout-url="{{ auth_logout_url }}"
+     data-enable-crm="true"
+     data-track-events-url="https://api.hedgehog.cloud/events/track"
+     style="display:none"></div>
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
+<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/production-module-progress.js') }}"></script>
+{% endblock body %}
