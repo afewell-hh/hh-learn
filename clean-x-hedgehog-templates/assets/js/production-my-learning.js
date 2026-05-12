@@ -24,11 +24,32 @@
  * Production-only: gracefully no-ops when #hhl-auth-context[data-shadow="true"]
  * is present (i.e., on shadow pages where shadow-my-learning.js handles the UI).
  *
- * Coexistence with my-learning.js (legacy section renderer):
- *   The legacy script populates the Resume Panel / In Progress / Completed
- *   sections via /progress/read + HubDB lookups. We leave those DOM nodes
- *   alone and only own the #enrolled-grid + #certificates-grid surfaces
- *   plus the loading-state / main-content-container toggle.
+ * Ownership boundary with my-learning.js (Issue #459):
+ *   The dashboard runs both this script and the legacy my-learning.js. To
+ *   prevent stomp/race on shared DOM, each script owns a disjoint surface:
+ *
+ *     production-my-learning.js (this file) owns:
+ *       - #enrolled-grid (cards)
+ *       - #enrolled-section (visibility)
+ *       - #enrolled-count (the (N) label next to the section header)
+ *       - #stat-enrolled (enrollment-level count)
+ *       - #certificates-grid + #certificates-section + #certificates-count
+ *       - the #loading-state / #main-content-container toggle
+ *
+ *     my-learning.js (legacy) owns:
+ *       - #last-viewed-panel (Resume Panel)
+ *       - #in-progress-section / #in-progress-modules / #in-progress-count
+ *       - #completed-section / #completed-modules / #completed-count
+ *       - #stat-in-progress (module-level — semantically NOT the same as
+ *         this script's pathways-in-progress count)
+ *       - #stat-completed (module-level — semantically NOT the same as
+ *         this script's pathways-completed count)
+ *
+ *   The boundary is declared by the template via
+ *   data-enrollment-renderer="production-my-learning" on #hhl-auth-context.
+ *   my-learning.js checks that marker and skips its own #enrolled-grid
+ *   rendering; this script checks it as a precondition and no-ops without it.
+ *   With this guarded boundary the dashboard has exactly one owner per node.
  */
 (function () {
   'use strict';
@@ -36,9 +57,16 @@
   // Bare production endpoints — no /shadow/ prefix (see #460 root-mapping fix).
   var API_BASE = 'https://api.hedgehog.cloud';
 
-  // Guard: only run on production pages — skip shadow.
+  // Guard 1: only run on production pages — skip shadow.
   var ctxEl = document.getElementById('hhl-auth-context');
   if (!ctxEl || ctxEl.getAttribute('data-shadow') === 'true') return;
+
+  // Guard 2 (Issue #459): only render enrollments when this template has
+  // explicitly declared us as the enrollment-grid owner. Without the marker,
+  // legacy my-learning.js owns #enrolled-grid + enrolled-count + stat-enrolled
+  // and we must not write to those nodes. Templates opt in by setting
+  // data-enrollment-renderer="production-my-learning" on #hhl-auth-context.
+  if (ctxEl.getAttribute('data-enrollment-renderer') !== 'production-my-learning') return;
 
   // ----------------------------------------------------------------
   // Utilities
@@ -362,8 +390,6 @@
         if (!grid || !section) { showMain(); return; }
 
         var totalEnrolled = pathways.length + standalones.length;
-        var totalComplete = 0;
-        var totalInProgress = 0;
         var cardsRendered = 0;
         var cardsExpected = totalEnrolled;
 
@@ -372,14 +398,15 @@
           if (cardsRendered >= cardsExpected) {
             var countEl = q('enrolled-count');
             if (countEl) countEl.textContent = '(' + totalEnrolled + ')';
-            // Stat number IDs differ slightly between shadow and production templates:
-            //   shadow: stat-complete / stat-in-progress / stat-enrolled
-            //   production: stat-completed / stat-in-progress / stat-enrolled
-            var statComplete = q('stat-complete') || q('stat-completed');
-            var statInProg = q('stat-in-progress');
+            // Issue #459 — single ownership of the dashboard summary stats.
+            // production-my-learning.js owns ONLY #enrolled-grid,
+            // #enrolled-section, enrolled-count, and stat-enrolled. The
+            // existing production semantics of stat-in-progress and
+            // stat-completed are module-level (populated by my-learning.js
+            // from CRM /progress/read). We deliberately do NOT write to
+            // those nodes here to avoid stomping the legacy module-level
+            // semantics under the same DOM IDs.
             var statEnrolled = q('stat-enrolled');
-            if (statComplete) statComplete.textContent = totalComplete;
-            if (statInProg) statInProg.textContent = totalInProgress;
             if (statEnrolled) statEnrolled.textContent = totalEnrolled;
             section.style.display = 'block';
             showMain();
@@ -401,8 +428,6 @@
               .then(function (data) {
                 var real = renderPathwayCardElement(enrollment, data);
                 placeholder.replaceWith(real);
-                if (data.pathway_status === 'complete') totalComplete++;
-                else if (data.pathway_status === 'in_progress') totalInProgress++;
               })
               .catch(function (err) {
                 if (err && err.status === 401) {
@@ -433,8 +458,6 @@
               .then(function (data) {
                 var real = renderStandaloneCourseCardElement(enrollment, data);
                 placeholder.replaceWith(real);
-                if (data.course_status === 'complete') totalComplete++;
-                else if (data.course_status === 'in_progress') totalInProgress++;
               })
               .catch(function (err) {
                 if (err && err.status === 401) {
