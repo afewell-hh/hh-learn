@@ -165,6 +165,37 @@ async function mockCertificates(page: Page) {
   });
 }
 
+/**
+ * Mock the legacy /progress/read endpoint that my-learning.js consumes. The
+ * ownership tests use this to ensure both renderers have a known data path
+ * so we can prove production-my-learning.js owns #enrolled-grid uniquely
+ * (Issue #459 — single-ownership boundary).
+ */
+async function mockProgressRead(page: Page, shape: any) {
+  await page.route(/api\.hedgehog\.cloud\/progress\/read/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(shape),
+    });
+  });
+}
+
+/**
+ * Stub the HubDB row API the legacy my-learning.js calls so it can complete
+ * its async path without hitting the network. Empty results are sufficient
+ * for ownership tests — the legacy renderer must not populate cards anyway.
+ */
+async function stubHubDbRows(page: Page) {
+  await page.route(/\/hs\/api\/hubdb\//, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ results: [] }),
+    });
+  });
+}
+
 async function setAuthCookie(ctx: BrowserContext) {
   await ctx.addCookies([TEST_COOKIE]);
 }
@@ -505,6 +536,240 @@ test.describe('Production My Learning dashboard', () => {
     await page.goto(`${BASE}/learn/my-learning`);
     await page.waitForLoadState('networkidle');
     expect(shadowCalls).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// 1b. Dashboard single-ownership boundary (Issue #459 lead review)
+//
+// /learn/my-learning loads BOTH production-my-learning.js and the legacy
+// my-learning.js. These tests prove the ownership boundary holds — the
+// new server-authoritative renderer is the sole owner of #enrolled-grid,
+// enrolled-count, #enrolled-section, and stat-enrolled. The legacy
+// renderer is the sole owner of stat-in-progress, stat-completed, and the
+// in-progress / completed module sections. Neither stomps the other and
+// no timing-dependent race remains.
+// ─────────────────────────────────────────────────────────────
+
+test.describe('Production My Learning dashboard — single-ownership boundary', () => {
+  test.beforeEach(async ({ context, page }) => {
+    await setAuthCookie(context);
+    await interceptProductionJs(page);
+    // Intercept the legacy my-learning.js too so the test exercises the
+    // committed repo source on both renderers — not the CDN copy.
+    const repoMyLearning = fs.readFileSync(
+      path.join(REPO_ROOT, 'clean-x-hedgehog-templates/assets/js/my-learning.js'),
+      'utf-8'
+    );
+    await page.route(/\/assets\/js\/my-learning\.js/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/javascript', body: repoMyLearning });
+    });
+    await mockAuthMe(page);
+    await stubHubDbRows(page);
+  });
+
+  test('ownership marker is present on #hhl-auth-context (template-level declaration)', async ({ page }) => {
+    await mockEnrollments(page, { mode: 'authenticated', enrollments: { pathways: [], courses: [] } });
+    await mockProgressRead(page, { mode: 'authenticated', progress: {}, last_viewed: null });
+    await mockCertificates(page);
+    await page.goto(`${BASE}/learn/my-learning`);
+    const marker = await page
+      .locator('#hhl-auth-context')
+      .first()
+      .getAttribute('data-enrollment-renderer');
+    expect(marker).toBe('production-my-learning');
+  });
+
+  test('every #enrolled-grid card carries a data-dashboard-* marker (no legacy cards stomp the grid)', async ({ page }) => {
+    await mockEnrollments(page, {
+      mode: 'authenticated',
+      enrollments: {
+        pathways: [{ slug: PATHWAY_SLUG, enrolled_at: '2026-04-01T00:00:00.000Z' }],
+        courses: [{ slug: 'hedgehog-lab-foundations', pathway_slug: null, enrolled_at: '2026-04-01T00:00:00.000Z' }],
+      },
+    });
+    await mockPathwayStatus(page, 200, PATHWAY_MIXED);
+    await mockCourseStatus(page, 200, {
+      course_slug: 'hedgehog-lab-foundations',
+      course_title: 'Hedgehog Lab Foundations',
+      course_status: 'not_started',
+      modules_completed: 0,
+      modules_total: 3,
+      modules: [],
+      course_cert_id: null,
+    });
+    // Legacy renderer also gets a valid /progress/read response. If single
+    // ownership holds, the legacy renderer must NOT add cards to the grid
+    // even though its data path completes successfully.
+    await mockProgressRead(page, {
+      mode: 'authenticated',
+      progress: { 'some-legacy-pathway': { enrolled: true, courses: {} } },
+      last_viewed: null,
+    });
+    await mockCertificates(page);
+
+    await page.goto(`${BASE}/learn/my-learning`);
+    await expect(page.locator('[data-dashboard-pathway-card]')).toBeVisible({ timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+
+    // Every direct child card under #enrolled-grid must be owned by the new
+    // renderer (data-dashboard-* attribute present). A legacy card would
+    // appear as .enrollment-card without either dashboard attribute.
+    const stragglers = await page
+      .locator('#enrolled-grid > .enrollment-card:not([data-dashboard-pathway-card]):not([data-dashboard-standalone-course-card])')
+      .count();
+    expect(stragglers).toBe(0);
+
+    // And the new renderer's expected card count is observed verbatim.
+    await expect(page.locator('[data-dashboard-pathway-card]')).toHaveCount(1);
+    await expect(page.locator('[data-dashboard-standalone-course-card]')).toHaveCount(1);
+  });
+
+  test('stat-enrolled reflects the server-authoritative count, not the legacy /progress/read count', async ({ page }) => {
+    await mockEnrollments(page, {
+      mode: 'authenticated',
+      enrollments: {
+        pathways: [
+          { slug: PATHWAY_SLUG },
+          { slug: 'second-pathway' },
+        ],
+        courses: [{ slug: 'hedgehog-lab-foundations', pathway_slug: null }],
+      },
+    });
+    await mockPathwayStatus(page, 200, PATHWAY_MIXED);
+    await mockCourseStatus(page, 200, {
+      course_slug: 'hedgehog-lab-foundations',
+      course_title: 'Hedgehog Lab Foundations',
+      course_status: 'in_progress',
+      modules_completed: 1,
+      modules_total: 3,
+      modules: [],
+      course_cert_id: null,
+    });
+    // Legacy renderer is told there are 5 enrollments. If single ownership
+    // holds, stat-enrolled must reflect the new renderer's value of 3
+    // (2 pathways + 1 standalone course), NOT the legacy 5.
+    await mockProgressRead(page, {
+      mode: 'authenticated',
+      progress: {
+        'a': { enrolled: true, courses: {} },
+        'b': { enrolled: true, courses: {} },
+        'c': { enrolled: true, courses: {} },
+        'd': { enrolled: true, courses: {} },
+        'e': { enrolled: true, courses: {} },
+      },
+      last_viewed: null,
+    });
+    await mockCertificates(page);
+
+    await page.goto(`${BASE}/learn/my-learning`);
+    await expect(page.locator('[data-dashboard-pathway-card]')).toHaveCount(2, { timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+
+    const statEnrolled = await page.locator('#stat-enrolled').textContent();
+    expect(statEnrolled?.trim()).toBe('3');
+  });
+
+  test('new renderer does NOT write to stat-in-progress or stat-completed (those remain module-level, owned by my-learning.js)', async ({ page }) => {
+    await mockEnrollments(page, {
+      mode: 'authenticated',
+      enrollments: {
+        pathways: [{ slug: PATHWAY_SLUG }],
+        courses: [],
+      },
+    });
+    // Tampered: every pathway is "complete" on the server. If the new
+    // renderer mistakenly wrote stat-completed (enrollment-level), it would
+    // read "1". The legacy renderer's module-level value (zero progress in
+    // the mock below) must win — stat-completed should be "0".
+    await mockPathwayStatus(page, 200, {
+      ...PATHWAY_MIXED,
+      pathway_status: 'complete',
+      courses_completed: 4,
+      courses_total: 4,
+    });
+    await mockProgressRead(page, {
+      mode: 'authenticated',
+      progress: {},
+      last_viewed: null,
+    });
+    await mockCertificates(page);
+
+    await page.goto(`${BASE}/learn/my-learning`);
+    await expect(page.locator('[data-dashboard-pathway-card]')).toBeVisible({ timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+
+    // Legacy renderer's module-level semantics held: zero in-progress, zero
+    // completed modules. Were the new renderer leaking enrollment-level
+    // counts here, this would be "0"/"1".
+    const inProg = (await page.locator('#stat-in-progress').textContent())?.trim();
+    const completed = (await page.locator('#stat-completed').textContent())?.trim();
+    expect(inProg).toBe('0');
+    expect(completed).toBe('0');
+  });
+
+  test('grid is stable after network idle — no late stomp from either renderer', async ({ page }) => {
+    await mockEnrollments(page, {
+      mode: 'authenticated',
+      enrollments: {
+        pathways: [{ slug: PATHWAY_SLUG }],
+        courses: [],
+      },
+    });
+    await mockPathwayStatus(page, 200, PATHWAY_MIXED);
+    await mockProgressRead(page, {
+      mode: 'authenticated',
+      progress: { 'some-other-pathway': { enrolled: true, courses: {} } },
+      last_viewed: null,
+    });
+    await mockCertificates(page);
+
+    await page.goto(`${BASE}/learn/my-learning`);
+    await expect(page.locator('[data-dashboard-pathway-card]')).toBeVisible({ timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+
+    // Snapshot, give the event loop a generous window for any late
+    // microtask to fire, then re-snapshot. The two must be identical.
+    const snapshot1 = await page.locator('#enrolled-grid').innerHTML();
+    await page.waitForTimeout(750);
+    const snapshot2 = await page.locator('#enrolled-grid').innerHTML();
+    expect(snapshot2).toBe(snapshot1);
+  });
+
+  test('removing the ownership marker disables the new renderer (legacy renderer regains exclusive ownership)', async ({ page }) => {
+    // Strip the marker at document_start so the new renderer's Guard 2
+    // (data-enrollment-renderer precondition) trips early and short-circuits
+    // before any /pathway/status or /enrollments/list fetch is issued.
+    await page.addInitScript(() => {
+      const obs = new MutationObserver(() => {
+        const el = document.getElementById('hhl-auth-context');
+        if (el && el.getAttribute('data-enrollment-renderer')) {
+          el.removeAttribute('data-enrollment-renderer');
+        }
+      });
+      obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+    });
+
+    const pathwayCalls: string[] = [];
+    page.on('request', (req) => {
+      if (/api\.hedgehog\.cloud\/pathway\/status/.test(req.url())) pathwayCalls.push(req.url());
+    });
+    await mockEnrollments(page, {
+      mode: 'authenticated',
+      enrollments: { pathways: [{ slug: PATHWAY_SLUG }], courses: [] },
+    });
+    await mockPathwayStatus(page, 200, PATHWAY_MIXED);
+    await mockProgressRead(page, { mode: 'authenticated', progress: {}, last_viewed: null });
+    await mockCertificates(page);
+
+    await page.goto(`${BASE}/learn/my-learning`);
+    await page.waitForLoadState('networkidle');
+
+    // The new renderer must have short-circuited before issuing
+    // /pathway/status — proves the marker is the real gate.
+    expect(pathwayCalls).toHaveLength(0);
+    // Also: no [data-dashboard-pathway-card] node appears.
+    await expect(page.locator('[data-dashboard-pathway-card]')).toHaveCount(0);
   });
 });
 
