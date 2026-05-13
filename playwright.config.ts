@@ -55,5 +55,24 @@ export default defineConfig({
         'tests/e2e/admin-test-reset-production.spec.ts',
       ],
     },
+    {
+      // Layer 1 — Production learner-record deterministic (Issue #459, Phase 5B).
+      // Intercepts production JS files + the bare-host /course/status, /pathway/status,
+      // /module/progress, /certificates endpoints so the production parity slice
+      // renders and is asserted independently of CDN lag.
+      name: 'production-learner-record-deterministic',
+      testMatch: ['tests/e2e/production-learner-record-deterministic.spec.ts'],
+      use: {
+        navigationTimeout: 60000,
+      },
+    },
+    {
+      // Layer 2 — Production learner-record live (Issue #459, Phase 5B).
+      // Real CDN JS, real Lambda, real DynamoDB. Skip-until-deployment by default
+      // (see spec file for the two prerequisites). Unavoidable mocks for /auth/me
+      // and /enrollments/list mirror the shadow-live pattern.
+      name: 'production-learner-record-live',
+      testMatch: ['tests/e2e/production-learner-record-live.spec.ts'],
+    },
   ],
 });

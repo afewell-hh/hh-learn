@@ -630,6 +630,18 @@
                data-total-modules="{% if dynamic_page_hubdb_row.module_slugs_json %}{{ dynamic_page_hubdb_row.module_slugs_json|fromjson|length }}{% else %}0{% endif %}"
                style="display:none"></div>
 
+          {# Issue #459: server-authoritative progress mount (additive).
+             Renders below the legacy #course-progress tracker. Preserves the
+             enrollment CTA, content blocks, JSON-LD, and breadcrumbs above. #}
+          <div id="course-detail-context"
+               data-course-slug="{{ dynamic_page_hubdb_row.hs_path }}"
+               style="display:none"></div>
+          <section id="course-progress-detail-root"
+                   class="course-progress-detail"
+                   aria-label="Your course progress"
+                   style="margin: 24px 0;"></section>
+          <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/production-course-detail.js') }}"></script>
+
           <!-- Course Summary -->
           {% if dynamic_page_hubdb_row.summary_markdown %}
             <div class="course-summary">

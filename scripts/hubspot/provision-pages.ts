@@ -307,7 +307,7 @@ async function createOrUpdatePage(
 ): Promise<PageResult | null> {
   // Guardrails: allow only expected templates/slugs unless override is enabled
   const override = allowlistOverrideEnabled();
-  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning','learn/register']);
+  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning','learn/module-progress','learn/register']);
   const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
 
   if (!override) {
@@ -496,6 +496,15 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       slug: 'learn/my-learning',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/my-learning.html',
       tableEnvVar: 'HUBDB_MODULES_TABLE_ID'
+    },
+    {
+      // Issue #459, Phase 5B — production module learner-record page.
+      // Static page (no HubDB binding) reading ?module=<slug>. Mirrors the
+      // route amendment chain through #449 for the shadow analogue.
+      name: 'Module Progress',
+      slug: 'learn/module-progress',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/module-progress.html',
+      tableEnvVar: 'STATIC'
     },
     {
       name: 'Register',

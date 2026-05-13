@@ -361,7 +361,24 @@
     return card;
   }
 
+  // Issue #459: ownership marker — when the production server-authoritative
+  // renderer is active for #enrolled-grid + #enrolled-section + enrolled-count
+  // + stat-enrolled, this script must not touch any of those nodes. The
+  // production renderer claims ownership via data-enrollment-renderer on
+  // #hhl-auth-context (declared by the template).
+  function productionEnrollmentRendererActive(){
+    var el = document.getElementById('hhl-auth-context');
+    if (!el) return false;
+    return el.getAttribute('data-enrollment-renderer') === 'production-my-learning';
+  }
+
   function renderEnrolledContent(enrollments, constants, progressData){
+    // Issue #459 ownership guard — defense in depth alongside the call-site
+    // skip below. If production-my-learning.js is the declared owner of the
+    // enrollment grid + summary, this script must not render enrollments at
+    // all (no writes to #enrolled-grid, enrolled-count, stat-enrolled, or
+    // #enrolled-section visibility).
+    if (productionEnrollmentRendererActive()) return;
     try {
       var pathways = enrollments.pathways || [];
       var courses = enrollments.courses || [];
@@ -591,7 +608,16 @@
             var hasEnrollments = !!(enrollmentData && enrollmentData.mode === 'authenticated' && enrollmentData.enrollments &&
               ((enrollmentData.enrollments.pathways || []).length + (enrollmentData.enrollments.courses || []).length) > 0);
 
-            if (enrollmentData && enrollmentData.mode === 'authenticated' && enrollmentData.enrollments){
+            // Issue #459: skip enrollment-grid rendering when the production
+            // server-authoritative renderer is the declared owner. The function
+            // also self-guards, but skipping at the call site avoids the wasted
+            // HubDB fetches inside renderEnrolledContent.
+            if (
+              enrollmentData &&
+              enrollmentData.mode === 'authenticated' &&
+              enrollmentData.enrollments &&
+              !productionEnrollmentRendererActive()
+            ){
               renderEnrolledContent(enrollmentData.enrollments, constants, progressData);
             }
 

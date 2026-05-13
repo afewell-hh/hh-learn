@@ -845,6 +845,12 @@
               <button type="button" class="pathways-cta-button" id="hhl-mark-complete" aria-label="Mark module as complete" style="padding:8px 14px;">
                 Mark complete
               </button>
+              {# Issue #459: additive learner-record link to the new /learn/module-progress page. #}
+              <a data-module-learner-record-link
+                 href="/learn/module-progress?module={{ dynamic_page_hubdb_row.hs_path }}"
+                 style="color:#0066CC; text-decoration:none; font-weight:600;">
+                View Progress Record →
+              </a>
               <a id="hhl-back-to-pathway" href="#" style="display:none; color:#0066CC; text-decoration:none; font-weight:600;">← Back to pathway</a>
             </div>
             {# Load external JS to avoid inline script CSP issues #}
