@@ -193,6 +193,40 @@ CI gates:
 
 ## Release Notes
 
+### 2026-05-13: Phase 5B `/learn` Parity with Approved Shadow Learner-Progress Center (Issue #459 / PR #463)
+
+Brings production `/learn` up to the approved shadow learner-progress center (#452). All client renderers now consume the bare production server-authoritative endpoints (`/pathway/status`, `/course/status`, `/module/progress`, `/certificates`) — no client-side rollup recomputation, no `/tasks/status/batch` call on dashboard load.
+
+New / changed production surfaces:
+- `/learn/my-learning` — `production-my-learning.js` rewritten to use `/enrollments/list` → per-pathway `/pathway/status` + per-standalone-course `/course/status` → `/certificates`.
+- `/learn/courses/<slug>` (detail mode) — additive `#course-progress-detail-root` mount + new `production-course-detail.js`. Preserves existing JSON-LD `Course`, OG/Twitter metadata, content blocks, enrollment CTA.
+- `/learn/pathways/<slug>` (detail mode) — additive `#pathway-progress-detail-root` mount + new `production-pathway-detail.js`. Preserves existing JSON-LD `ItemList`, breadcrumbs, enrollment CTA.
+- `/learn/modules/<slug>` — additive `View Progress Record →` link pointing at `/learn/module-progress?module=<slug>`.
+- **NEW** `/learn/module-progress?module=<slug>` — static page reading `request.query_dict.module` (mirrors the route amendment chain through #449 for the shadow analogue). Renders module title, status badge, per-task rows, attempt timeline DESC, and an expandable answer-review drawer for quiz attempts. Sensitive-handling defense in depth: never prints `correct_answer`/`learner_identity`; schema-drift fallback text; lab attestations never expose a drawer.
+
+Production-specific deltas from the shadow source (#452):
+- No `<meta name="robots" content="noindex">` anywhere under `/learn/*`.
+- No `.shadow-mode-banner` DOM injected by any renderer.
+- Canonical URLs use `/learn/...`; in-DOM links route through `/learn/...`; clients call the bare production endpoints (no `/shadow/` prefix).
+- Detail pages get *additive* progress mounts, not the thin-shell replacement shadow uses — preserves canonical URLs, JSON-LD, OG/Twitter, breadcrumbs, archived warning, content blocks, and the enrollment CTA.
+
+Dashboard ownership boundary:
+- `/learn/my-learning` loads both `production-my-learning.js` and the legacy `my-learning.js`. The ownership contract is declared in the template via `data-enrollment-renderer="production-my-learning"` on `#hhl-auth-context`.
+- `production-my-learning.js` owns `#enrolled-grid`, `#enrolled-section`, `enrolled-count`, `stat-enrolled`, the certificates surfaces, and the `#loading-state` / `#main-content-container` toggle.
+- `my-learning.js` owns the Resume Panel, In Progress / Completed module sections (which keep their *module-level* semantics — those stats are intentionally not surfaced by the new renderer), and the module-level `stat-in-progress` / `stat-completed`.
+- Coverage: deterministic spec `Production My Learning dashboard — single-ownership boundary` describe (6 tests).
+
+Provisioning split (rollout vs. code):
+- **In code (PR #463):** template files, renderer JS, and an entry in `scripts/hubspot/provision-pages.ts` adding `learn/module-progress` to `ALLOWED_SLUGS` and the `pageConfigs` array (`tableEnvVar: 'STATIC'`).
+- **Rollout-only (separate publish step):** uploading the new templates to HubSpot and registering the new `/learn/module-progress` page on the production portal (`npm run provision:pages` or equivalent). Layer 2 live tests stay `test.describe.skip(...)` until the templates are published *and* a production-side e2e auth mechanism exists (production-side of #461).
+
+CMS published-deps validator note (carrying lesson learned):
+- The CMS dry-run validator renders templates with empty `request.query_dict` and asserts every `get_asset_url(...)` reference resolves in the *published* environment. When introducing a new static page that loads a brand-new JS asset, gate the `<script>` tag behind a `{% if request.query_dict.<param> %}` conditional so the validator's no-query-string render path does not trip on the missing asset. This is the pattern used in `learn/module-progress.html`. After rollout publishes the asset, the conditional remains as a behavioral optimization (no JS download on the no-slug branch).
+
+Tests:
+- `tests/e2e/production-learner-record-deterministic.spec.ts` (project `production-learner-record-deterministic`) — 38 tests across 5 describes, including the 6-test single-ownership boundary describe.
+- `tests/e2e/production-learner-record-live.spec.ts` (project `production-learner-record-live`) — 4 describes, all skip-until-deployment.
+
 ### 2025-10-19: PR + CI Enforcement (Issue #217)
 - **MANDATORY process established**: All issues now require PRs and CI validation
 - Updated Definition of Done with 8-step enforcement checklist
