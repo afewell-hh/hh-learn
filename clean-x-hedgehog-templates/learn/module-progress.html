@@ -122,5 +122,13 @@
      data-track-events-url="https://api.hedgehog.cloud/events/track"
      style="display:none"></div>
 <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/learn/assets/js/cognito-auth-integration.js') }}"></script>
-<script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/production-module-progress.js') }}"></script>
+{# Issue #459: only load the learner-record JS when there is a slug to render.
+   This is both an honest behavioral optimization (no JS download on the
+   no-slug branch) and makes the CMS published-deps validator pass before
+   production-module-progress.js is uploaded — the validator renders the
+   template with empty request.query_dict, so module_slug is falsy and the
+   get_asset_url call is never evaluated against the published environment. #}
+{% if request.query_dict.module %}
+  <script defer src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/production-module-progress.js') }}"></script>
+{% endif %}
 {% endblock body %}
