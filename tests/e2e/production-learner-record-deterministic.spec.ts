@@ -737,17 +737,22 @@ test.describe('Production My Learning dashboard — single-ownership boundary', 
   });
 
   test('removing the ownership marker disables the new renderer (legacy renderer regains exclusive ownership)', async ({ page }) => {
-    // Strip the marker at document_start so the new renderer's Guard 2
-    // (data-enrollment-renderer precondition) trips early and short-circuits
-    // before any /pathway/status or /enrollments/list fetch is issued.
-    await page.addInitScript(() => {
-      const obs = new MutationObserver(() => {
-        const el = document.getElementById('hhl-auth-context');
-        if (el && el.getAttribute('data-enrollment-renderer')) {
-          el.removeAttribute('data-enrollment-renderer');
-        }
+    // Strip the marker from the document HTML before any script runs. Using a
+    // MutationObserver-via-addInitScript races the renderer's DOMContentLoaded
+    // read of the attribute; mutating the response body is deterministic — the
+    // renderer never sees the marker because the HTML never carries it.
+    await page.route(/hedgehog\.cloud\/learn\/my-learning/, async (route) => {
+      const resp = await route.fetch();
+      const original = await resp.text();
+      const stripped = original.replace(
+        /(id=["']hhl-auth-context["'][^>]*?)\s+data-enrollment-renderer=(["'])[^"']*\2/i,
+        '$1'
+      );
+      await route.fulfill({
+        response: resp,
+        body: stripped,
+        headers: { ...resp.headers(), 'content-length': String(Buffer.byteLength(stripped, 'utf-8')) },
       });
-      obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
     });
 
     const pathwayCalls: string[] = [];
@@ -812,7 +817,11 @@ test.describe('Production pathway detail page', () => {
     await mockPathwayStatus(page, 200, PATHWAY_MIXED);
     await page.goto(`${BASE}/learn/pathways/${PATHWAY_SLUG}`);
     await expect(page.locator('[data-pathway-title]')).toContainText('Network Like a Hyperscaler');
+    // Header pathway-level badge is now uniquely marked; per-course-row badges
+    // moved to [data-pathway-course-status-badge] in the renderer to remove the
+    // strict-mode collision (Issue #465).
     await expect(page.locator('[data-pathway-status-badge]')).toContainText(/in.?progress/i);
+    await expect(page.locator('[data-pathway-course-status-badge]')).toHaveCount(4);
     await expect(page.locator('[data-pathway-course-row]')).toHaveCount(4);
     await expect(page.locator('[data-pathway-course-row]').first()).toContainText(/2 of 4/);
   });
@@ -916,8 +925,14 @@ test.describe('Production course detail page', () => {
   });
 
   test('not found (400): "Course not found" error block', async ({ page }) => {
+    // Navigate to a valid course slug so the production template renders
+    // #course-detail-context + #course-progress-detail-root. The 400 path
+    // models "API responds course-not-found even on a valid CMS URL" — which
+    // is exactly the renderer branch we want to exercise (Issue #465: prior
+    // navigation to a nonexistent slug 404'd at the CMS level and the
+    // renderer never ran).
     await mockCourseStatus(page, 400, { error: 'course not found' });
-    await page.goto(`${BASE}/learn/courses/nonexistent-slug`);
+    await page.goto(`${BASE}/learn/courses/${COURSE_SLUG}`);
     await expect(page.locator('[data-course-error]')).toContainText(/not found/i);
   });
 });
@@ -978,7 +993,10 @@ test.describe('Production module learner-record page', () => {
     await mockModuleProgress(page, 200, MODULE_PROGRESS_WITH_ATTEMPTS);
     await page.goto(`${BASE}/learn/module-progress?module=${MODULE_SLUG}`);
     await page.locator('[data-module-attempt-row] details summary').first().click();
-    await expect(page.locator('[data-module-answer-review-row]')).toBeVisible();
+    // Two attempts in the fixture → two answer-review rows in DOM (only the
+    // opened drawer is visible). Scope the visibility check to the first row
+    // to match the next two assertions' explicit `.first()` (Issue #465).
+    await expect(page.locator('[data-module-answer-review-row]').first()).toBeVisible();
     await expect(page.locator('[data-module-answer-review-row]').first()).toContainText('kubectl get pods');
     await expect(page.locator('[data-module-answer-review-row][data-is-correct]').first()).toHaveAttribute(
       'data-is-correct',
