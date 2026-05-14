@@ -39,10 +39,15 @@
     });
   }
 
-  function statusBadge(status) {
+  // `scope` differentiates the pathway-level header badge from per-course-row
+  // badges so callers can target a single node (Issue #465 — removes the
+  // [data-pathway-status-badge] strict-mode collision in the deterministic
+  // suite while keeping the same visual + semantic styling).
+  function statusBadge(status, scope) {
     var label = status === 'complete' ? 'Completed' : status === 'in_progress' ? 'In Progress' : 'Not Started';
     var cls = status === 'complete' ? 'status-completed' : status === 'in_progress' ? 'status-in-progress' : 'status-not-started';
-    return '<span class="enrollment-status-badge ' + cls + '" data-pathway-status-badge>' + label + '</span>';
+    var attr = scope === 'course' ? 'data-pathway-course-status-badge' : 'data-pathway-status-badge';
+    return '<span class="enrollment-status-badge ' + cls + '" ' + attr + '>' + label + '</span>';
   }
 
   function renderCourseRow(c) {
@@ -50,7 +55,7 @@
     return '<a data-pathway-course-row data-course-slug="' + escapeHtml(c.course_slug) + '" class="pathway-course-row" href="' + link + '">' +
       '<div class="pathway-course-title">' + escapeHtml(c.course_title) + '</div>' +
       '<div class="pathway-course-meta">' +
-        statusBadge(c.course_status) +
+        statusBadge(c.course_status, 'course') +
         '<span class="pathway-course-progress">' + c.modules_completed + ' of ' + c.modules_total + ' modules</span>' +
       '</div>' +
       '</a>';

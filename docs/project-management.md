@@ -193,6 +193,17 @@ CI gates:
 
 ## Release Notes
 
+### 2026-05-14: Phase 5B Deterministic Suite Stabilization + Pathway Badge Marker Disambiguation (Issue #465 / PR #466)
+
+Stabilizes the four `production-learner-record-deterministic` failures observed during the #464 post-publish run. Three were test-side (a `MutationObserver`-vs-`DOMContentLoaded` race on the ownership marker, a 400 path that navigated to a CMS-404 slug so the renderer never ran, and a strict-mode `toBeVisible()` missing `.first()` on the answer-review fixture). The fourth was a small renderer-side DOM contract change.
+
+DOM contract change in `production-pathway-detail.js`:
+- Header pathway-level badge keeps `data-pathway-status-badge` (single occurrence, the pathway's own status).
+- Per-course-row badges now emit `data-pathway-course-status-badge` (one per course row).
+- Visual rendering is unchanged (same CSS classes and labels); only the data attribute differs. This matches how `production-course-detail.js` already keeps `data-course-status-badge` to a single header occurrence and removes the strict-mode collision that previously resolved the locator to 5 nodes.
+
+The deterministic spec intercepts production JS via `interceptProductionJs`, so the suite is green against live `hedgehog.cloud` (38/38) without re-publishing the renderer. A small follow-up rollout can publish the updated `production-pathway-detail.js` to PUBLISHED if/when desired; that change has no other consumers (verified with `grep -rn 'data-pathway-status-badge\|data-pathway-course-status-badge'`).
+
 ### 2026-05-13: Phase 5B `/learn` Parity with Approved Shadow Learner-Progress Center (Issue #459 / PR #463)
 
 Brings production `/learn` up to the approved shadow learner-progress center (#452). All client renderers now consume the bare production server-authoritative endpoints (`/pathway/status`, `/course/status`, `/module/progress`, `/certificates`) — no client-side rollup recomputation, no `/tasks/status/batch` call on dashboard load.
