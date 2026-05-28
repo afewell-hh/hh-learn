@@ -58,8 +58,27 @@ if (!process.env.JWT_SECRET) {
 }
 const STATE_SECRET = process.env.JWT_SECRET;
 
-// Test bypass for mock auth codes
-const ENABLE_TEST_BYPASS = process.env.ENABLE_TEST_BYPASS === 'true';
+/**
+ * Defense-in-depth dual guard for all test bypass code paths in this module
+ * (Issue #461).
+ *
+ * Test bypass behavior is only permitted when BOTH:
+ *   - process.env.APP_STAGE === 'shadow'
+ *   - process.env.ENABLE_TEST_BYPASS === 'true'
+ *
+ * Any other stage — including 'production', 'prod', 'staging', 'dev', or
+ * unset — must reject every bypass mechanism. This guard is evaluated per
+ * request (no module-level caching of the flag) so a misconfigured prod
+ * deployment cannot opt itself into test behavior with a single env var.
+ *
+ * Mirrors the reference pattern in src/api/lambda/admin-test-reset.ts.
+ */
+export function isTestBypassEnabled(): boolean {
+  return (
+    process.env.APP_STAGE === 'shadow' &&
+    process.env.ENABLE_TEST_BYPASS === 'true'
+  );
+}
 
 // DynamoDB client
 const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: COGNITO_REGION }));
@@ -501,8 +520,9 @@ export async function handleCallback(event: any): Promise<APIGatewayProxyResultV
       };
     }
 
-    // Test bypass for mock codes
-    if (ENABLE_TEST_BYPASS && code.startsWith('MOCK_')) {
+    // Test bypass for mock codes — gated by the dual guard
+    // (APP_STAGE=shadow AND ENABLE_TEST_BYPASS=true). See isTestBypassEnabled().
+    if (isTestBypassEnabled() && code.startsWith('MOCK_')) {
       console.warn('[TEST] Using mock auth bypass for code:', code);
 
       const stateData = decodeState(state);
@@ -1009,11 +1029,13 @@ async function updateUserHubspotContactId(userId: string, hubspotContactId: stri
  * Throws if the token is missing or invalid.
  * Used by shadow-only endpoints (Issue #407+).
  *
- * When ENABLE_TEST_BYPASS=true and the token is the fixed bypass sentinel value,
+ * When the dual guard is satisfied (APP_STAGE=shadow AND
+ * ENABLE_TEST_BYPASS=true) and the token is the fixed bypass sentinel value,
  * JWT verification is skipped and a stable test identity is returned. This
- * allows automated shadow E2E tests to exercise real DynamoDB operations without
- * needing a live Cognito browser session. The bypass is already gated by the
- * shadow-only ENABLE_TEST_BYPASS flag at every calling endpoint.
+ * allows automated shadow E2E tests to exercise real DynamoDB operations
+ * without needing a live Cognito browser session. The dual guard is enforced
+ * here directly via isTestBypassEnabled(); the same predicate gates every
+ * other bypass path in this module (Issue #461).
  */
 export async function verifyCookieAuth(event: any): Promise<{ userId: string; email: string; decoded: any }> {
   const rawCookies = event.cookies && event.cookies.length
@@ -1026,8 +1048,8 @@ export async function verifyCookieAuth(event: any): Promise<{ userId: string; em
   }
 
   // Test bypass: skip JWT verification for the fixed bypass sentinel.
-  // Only active when ENABLE_TEST_BYPASS=true (shadow stage only).
-  if (ENABLE_TEST_BYPASS && accessToken === 'shadow_e2e_test_token') {
+  // Dual-guarded — only active when APP_STAGE=shadow AND ENABLE_TEST_BYPASS=true.
+  if (isTestBypassEnabled() && accessToken === 'shadow_e2e_test_token') {
     const decoded = { sub: 'shadow-e2e-test-user', email: 'shadow-e2e@test.internal', token_use: 'access' };
     return { userId: 'shadow-e2e-test-user', email: 'shadow-e2e@test.internal', decoded };
   }
