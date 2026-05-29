@@ -1,0 +1,10 @@
+      600 |       body: JSON.stringify({ error: 'Authentication failed' }),
+
+      at handleCallback (src/api/lambda/cognito-auth.ts:597:13)
+      at Object.<anonymous> (tests/unit/cognito-auth-bypass.test.ts:142:22)
+
+Test Suites: 1 passed, 1 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        2.935 s, estimated 3 s
+Ran all test suites matching tests/unit/cognito-auth-bypass.test.ts.
