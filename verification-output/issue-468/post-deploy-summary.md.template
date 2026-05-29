@@ -1,0 +1,75 @@
+# Issue #468 — Post-deploy verification summary [TEMPLATE]
+
+> Copy this file to `post-deploy-summary.md` after the lead confirms
+> deployment is complete, then fill in every `<...>` placeholder using
+> the AWS snapshot and the curl evidence file. Delete this blockquote
+> and the `[TEMPLATE]` suffix in the title once filled in.
+
+## Deployment confirmation
+
+- **Merge commit deployed:** `009127530d3e5e37827859fbcde1a3ff5deea30c` (PR #467)
+- **Deploy completed at:** `<TIMESTAMP_UTC>`
+- **Deployed by:** `<operator/lead>`
+- **Deploy method:** `<workflow_dispatch | manual serverless deploy | other>`
+
+## AWS Lambda configuration snapshot
+
+- **Captured at:** `<TIMESTAMP_UTC>`
+- **Function:** `hedgehog-learn-production-api`
+- **Region:** `us-west-2`
+- **LastModified:** `<...>`
+- **CodeSha256:** `<...>`
+- **Environment.APP_STAGE:** `<production | other>`
+- **Environment.ENABLE_TEST_BYPASS:** `<false | unset | true>`
+- **Artifact:** [`lambda-config-snapshot.json`](./lambda-config-snapshot.json)
+
+Safe-state verdict:
+- [ ] `APP_STAGE` is `production`
+- [ ] `ENABLE_TEST_BYPASS` is `false` or absent
+- [ ] Dual guard active even if `ENABLE_TEST_BYPASS` is true (code-level invariant)
+
+## Probe matrix results
+
+- **Captured at:** `<TIMESTAMP_UTC>`
+- **Target:** `https://api.hedgehog.cloud`
+- **Artifact:** [`post-deploy-evidence.txt`](./post-deploy-evidence.txt)
+
+| ID | Probe | Expected | Actual | Verdict | Note |
+| --- | --- | --- | --- | --- | --- |
+| S-NOAUTH-1 | `GET /course/status` no cookie | 401 | `<...>` | `<PASS/FAIL>` | `<drift?>` |
+| S-NOAUTH-2 | `GET /pathway/status` no cookie | 401 | `<...>` | `<PASS/FAIL>` | `<drift?>` |
+| S-NOAUTH-3 | `GET /module/progress` no cookie | 401 | `<...>` | `<PASS/FAIL>` | `<drift?>` |
+| S-NOAUTH-4 | `GET /certificates` no cookie | 401 | `<...>` | `<PASS/FAIL>` |  |
+| S-NOAUTH-5 | `GET /certificate/{nonexistent}` no cookie | 404 | `<...>` | `<PASS/FAIL>` |  |
+| S-ADMIN-1 | `POST /admin/test/reset` with sentinel | 403 | `<...>` | `<PASS/FAIL>` |  |
+| **S-PRIMARY** | **`GET /course/status` with sentinel** | **401** | `<...>` | `<PASS/FAIL>` | load-bearing |
+
+## Security verdict
+
+- **Primary security probe (S-PRIMARY):** `<PASS / FAIL>`
+- **Bypass cookie returns user data (`200` with body):** `<NO / YES>`
+- **Dual-guard hardening live in production:** `<YES / NO>`
+
+## Layer 2 live verification blocker
+
+- [ ] Auth-side blocker for Layer 2 live verification is now **CLEARED**
+- [ ] Auth-side blocker is **NOT cleared** because: `<reason>`
+
+## Drift notes (if any)
+
+`<Record any probe whose actual status differs from the literal expected.
+Explain whether the difference is route-drift from the #458 trail
+(harmless: same security property is satisfied) or a real regression
+(blocking: bypass actually honored).>`
+
+## Pointers
+
+- Issue: #468
+- Source merge: PR #467 / merge commit `009127530d3e5e37827859fbcde1a3ff5deea30c`
+- Code-side issue: #461
+- Prior trail: #458 (production-test-bypass-evidence-post-hotfix.txt), #464, #465
+- Harness: `scripts/verify-issue-468-post-deploy.sh`
+- Commands: [`commands.md`](./commands.md)
+- Evidence artifacts:
+  - [`post-deploy-evidence.txt`](./post-deploy-evidence.txt)
+  - [`lambda-config-snapshot.json`](./lambda-config-snapshot.json)

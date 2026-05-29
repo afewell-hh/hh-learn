@@ -1,0 +1,76 @@
+{
+  "issue": 468,
+  "merge_commit": "009127530d3e5e37827859fbcde1a3ff5deea30c",
+  "api_base_default": "https://api.hedgehog.cloud",
+  "sentinel_cookie": "hhl_access_token=shadow_e2e_test_token",
+  "probes": [
+    {
+      "id": "S-NOAUTH-1",
+      "label": "GET /course/status (no cookie)",
+      "method": "GET",
+      "path": "/course/status?course_slug=hedgehog-lab-foundations",
+      "cookie": null,
+      "expected_status": 401,
+      "notes": "Drift: route not registered on current main; may resolve as 404 from dispatcher fallback."
+    },
+    {
+      "id": "S-NOAUTH-2",
+      "label": "GET /pathway/status (no cookie)",
+      "method": "GET",
+      "path": "/pathway/status?pathway_slug=network-like-hyperscaler",
+      "cookie": null,
+      "expected_status": 401,
+      "notes": "Drift: route not registered on current main; may resolve as 404 from dispatcher fallback."
+    },
+    {
+      "id": "S-NOAUTH-3",
+      "label": "GET /module/progress (no cookie)",
+      "method": "GET",
+      "path": "/module/progress?module_slug=fabric-operations-welcome",
+      "cookie": null,
+      "expected_status": 401,
+      "notes": "Drift: route not registered on current main; may resolve as 404 from dispatcher fallback."
+    },
+    {
+      "id": "S-NOAUTH-4",
+      "label": "GET /certificates (no cookie)",
+      "method": "GET",
+      "path": "/certificates",
+      "cookie": null,
+      "expected_status": 401
+    },
+    {
+      "id": "S-NOAUTH-5",
+      "label": "GET /certificate/{nonexistent} (no cookie)",
+      "method": "GET",
+      "path": "/certificate/<cert-id>",
+      "cookie": null,
+      "expected_status": 404,
+      "notes": "cert-id is supplied at runtime (UUID or random hex)."
+    },
+    {
+      "id": "S-ADMIN-1",
+      "label": "POST /admin/test/reset with sentinel cookie",
+      "method": "POST",
+      "path": "/admin/test/reset",
+      "cookie": "hhl_access_token=shadow_e2e_test_token",
+      "expected_status": 403,
+      "notes": "Verifies the long-standing admin-test-reset dual guard still rejects shadow tokens on prod."
+    },
+    {
+      "id": "S-PRIMARY",
+      "label": "GET /course/status with sentinel cookie",
+      "method": "GET",
+      "path": "/course/status?course_slug=hedgehog-lab-foundations",
+      "cookie": "hhl_access_token=shadow_e2e_test_token",
+      "expected_status": 401,
+      "load_bearing": true,
+      "notes": "PRIMARY security probe. Whether 401 (auth-layer rejection) or 404 (route-drift rejection), the security property under test — bypass cookie not honored — is satisfied. Harness fails non-zero only if neither acceptable code is returned. Lead adjudicates the final verdict in the post-deploy summary."
+    }
+  ],
+  "aws_snapshot_command": "aws lambda get-function-configuration --function-name hedgehog-learn-production-api --region us-west-2",
+  "safe_state": {
+    "APP_STAGE": "production",
+    "ENABLE_TEST_BYPASS_must_not_equal": "true"
+  }
+}
