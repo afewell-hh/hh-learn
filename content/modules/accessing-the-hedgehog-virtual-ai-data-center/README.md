@@ -65,79 +65,9 @@ The vAIDC requires an **n1-standard-32** instance (32 vCPUs, 120 GB RAM). You ma
 
 ---
 
-## Deployment Options
+## Deploy the vAIDC
 
-> **Important course guidance:** If you plan to continue with the hands-on labs in this pathway, use **Option C: Manual Deployment**.
->
-> The two script-based paths below currently provision an environment that does **not** match the rest of this course's assumptions. Later lab exercises expect you to log in as the `ubuntu` user and start in `/home/ubuntu`, but the script-based setup does not currently preserve that expected workflow. Until those scripts are corrected, treat Options A and B as experimental and use the manual path for coursework.
-
-## Option A: Deploy Using Scripts (Currently Not Recommended For This Course)
-
-We provide a set of simple scripts to manage your vAIDC lifecycle. They may still be useful for ad hoc experimentation, but they are **not** the recommended path for this course right now.
-
-### Step 1: Clone the Lab Repository
-
-```bash
-git clone https://github.com/afewell-hh/labapp.git
-cd labapp
-```
-
-### Step 2: Deploy the vAIDC
-
-Replace `YOUR_PROJECT_ID` with your actual GCP project ID:
-
-```bash
-./deploy-lab.sh YOUR_PROJECT_ID
-```
-
-The script will:
-1. Configure your GCP project
-2. Enable required APIs
-3. Create the VM from the vAIDC image
-4. Configure firewall rules to allow access to lab services
-5. Display the VM's IP address and service URLs when complete
-
-> **Course compatibility warning:** Do **not** use this option if you plan to complete the rest of the Network Like a Hyperscaler labs. Use **Option C: Manual Deployment** instead.
-
-**Deployment takes 2–5 minutes.** Services will be fully ready within 5–10 minutes of VM startup.
-
-### Managing Your Lab (Stop, Start, Delete)
-
-Use these scripts to control your vAIDC:
-
-| Script | Purpose |
-|--------|---------|
-| `./stop-lab.sh YOUR_PROJECT_ID` | Pause the VM to save costs (data is preserved) |
-| `./start-lab.sh YOUR_PROJECT_ID` | Resume a stopped VM |
-| `./cleanup-lab.sh YOUR_PROJECT_ID` | Delete everything when you're completely done |
-
-**Always stop your lab when not actively using it.** See the Cost Management section below.
-
----
-
-## Option B: One-Click Deploy via Cloud Shell (Currently Not Recommended For This Course)
-
-If you don't have the gcloud CLI installed locally, use Google Cloud Shell:
-
-1. Click the button below to open Cloud Shell with the lab repository:
-
-   [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/afewell-hh/labapp&cloudshell_open_in_editor=STUDENT_QUICK_START.md)
-
-2. In Cloud Shell, run:
-
-   ```bash
-   ./deploy-lab.sh YOUR_PROJECT_ID
-   ```
-
-Cloud Shell is free, pre-authenticated with your Google account, and has gcloud pre-installed.
-
-> **Course compatibility warning:** This option uses the same script-based deployment path as Option A and has the same mismatch with later course labs. If you are following this pathway as a student, use **Option C: Manual Deployment** instead.
-
----
-
-## Option C: Manual Deployment (Recommended For This Course)
-
-This is the recommended deployment path for the course because it preserves the environment assumptions used throughout the later labs.
+Use the following steps to deploy the vAIDC in a way that matches the environment assumptions used throughout the rest of this course.
 
 ### Step 1: Set Your Project
 
@@ -181,6 +111,20 @@ gcloud compute instances describe hedgehog-lab \
   --zone=us-west1-c \
   --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
 ```
+
+**Deployment takes 2–5 minutes.** Services will be fully ready within 5–10 minutes of VM startup.
+
+### Managing Your Lab (Stop, Start, Delete)
+
+Use these commands to control your vAIDC lifecycle:
+
+| Command | Purpose |
+|--------|---------|
+| `gcloud compute instances stop hedgehog-lab --zone=us-west1-c` | Pause the VM to save costs (data is preserved) |
+| `gcloud compute instances start hedgehog-lab --zone=us-west1-c` | Resume a stopped VM |
+| `gcloud compute instances delete hedgehog-lab --zone=us-west1-c` | Delete everything when you're completely done |
+
+**Always stop your lab when not actively using it.** See the Cost Management section below.
 
 ---
 
