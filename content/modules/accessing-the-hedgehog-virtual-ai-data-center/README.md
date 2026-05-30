@@ -65,69 +65,9 @@ The vAIDC requires an **n1-standard-32** instance (32 vCPUs, 120 GB RAM). You ma
 
 ---
 
-## Option A: Deploy Using Scripts (Recommended)
+## Deploy the vAIDC
 
-We provide a set of simple scripts to manage your vAIDC lifecycle. This is the easiest approach.
-
-### Step 1: Clone the Lab Repository
-
-```bash
-git clone https://github.com/afewell-hh/labapp.git
-cd labapp
-```
-
-### Step 2: Deploy the vAIDC
-
-Replace `YOUR_PROJECT_ID` with your actual GCP project ID:
-
-```bash
-./deploy-lab.sh YOUR_PROJECT_ID
-```
-
-The script will:
-1. Configure your GCP project
-2. Enable required APIs
-3. Create the VM from the vAIDC image
-4. Configure firewall rules to allow access to lab services
-5. Display the VM's IP address and service URLs when complete
-
-**Deployment takes 2–5 minutes.** Services will be fully ready within 5–10 minutes of VM startup.
-
-### Managing Your Lab (Stop, Start, Delete)
-
-Use these scripts to control your vAIDC:
-
-| Script | Purpose |
-|--------|---------|
-| `./stop-lab.sh YOUR_PROJECT_ID` | Pause the VM to save costs (data is preserved) |
-| `./start-lab.sh YOUR_PROJECT_ID` | Resume a stopped VM |
-| `./cleanup-lab.sh YOUR_PROJECT_ID` | Delete everything when you're completely done |
-
-**Always stop your lab when not actively using it.** See the Cost Management section below.
-
----
-
-## Option B: One-Click Deploy via Cloud Shell
-
-If you don't have the gcloud CLI installed locally, use Google Cloud Shell:
-
-1. Click the button below to open Cloud Shell with the lab repository:
-
-   [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/afewell-hh/labapp&cloudshell_open_in_editor=STUDENT_QUICK_START.md)
-
-2. In Cloud Shell, run:
-
-   ```bash
-   ./deploy-lab.sh YOUR_PROJECT_ID
-   ```
-
-Cloud Shell is free, pre-authenticated with your Google account, and has gcloud pre-installed.
-
----
-
-## Option C: Manual Deployment
-
-If you prefer to run each step individually (or for troubleshooting):
+Use the following steps to deploy the vAIDC in a way that matches the environment assumptions used throughout the rest of this course.
 
 ### Step 1: Set Your Project
 
@@ -172,6 +112,20 @@ gcloud compute instances describe hedgehog-lab \
   --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
 ```
 
+**Deployment takes 2–5 minutes.** Services will be fully ready within 5–10 minutes of VM startup.
+
+### Managing Your Lab (Stop, Start, Delete)
+
+Use these commands to control your vAIDC lifecycle:
+
+| Command | Purpose |
+|--------|---------|
+| `gcloud compute instances stop hedgehog-lab --zone=us-west1-c` | Pause the VM to save costs (data is preserved) |
+| `gcloud compute instances start hedgehog-lab --zone=us-west1-c` | Resume a stopped VM |
+| `gcloud compute instances delete hedgehog-lab --zone=us-west1-c` | Delete everything when you're completely done |
+
+**Always stop your lab when not actively using it.** See the Cost Management section below.
+
 ---
 
 ## Accessing Lab Services
@@ -191,9 +145,21 @@ Replace `YOUR_VM_IP` with the IP address shown after deployment.
 
 ### Get the ArgoCD Admin Password
 
+The VM's default `kubectl` context is `vlab`, but the ArgoCD admin secret lives in the management cluster. Switch to the management cluster first, retrieve the password, then switch back to `vlab` before continuing with the rest of the lab work.
+
 ```bash
-gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo"
+gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl config use-context k3d-k3d-observability >/dev/null && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo; kubectl config use-context vlab >/dev/null"
 ```
+
+If you are already logged into the VM over SSH, run the commands directly:
+
+```bash
+kubectl config use-context k3d-k3d-observability
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
+kubectl config use-context vlab
+```
+
+Run all three commands in order. If you do not switch back to `vlab`, later labs will start from the wrong Kubernetes context.
 
 ---
 
@@ -250,9 +216,9 @@ The n1-standard-32 instance is a powerful machine with meaningful costs. Manage 
 
 ### Best Practices
 
-- **Stop the VM whenever you're not actively working** — `./stop-lab.sh YOUR_PROJECT_ID`
-- **Resume when you return** — `./start-lab.sh YOUR_PROJECT_ID`
-- **Delete when completely done** — `./cleanup-lab.sh YOUR_PROJECT_ID`
+- **Stop the VM whenever you're not actively working** — `gcloud compute instances stop hedgehog-lab --zone=us-west1-c`
+- **Resume when you return** — `gcloud compute instances start hedgehog-lab --zone=us-west1-c`
+- **Delete when completely done** — `gcloud compute instances delete hedgehog-lab --zone=us-west1-c`
 
 Stopping vs. deleting: stopping preserves your VM state (kubectl context, any changes you made) and only charges for disk storage. Deleting removes everything. For a multi-week course, stop between sessions; delete when you've finished the pathway.
 
@@ -267,7 +233,7 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 1. Go to GCP Console → IAM & Admin → Quotas
 2. Filter by "CPUs" for your region
 3. Request a quota increase (usually approved within minutes for modest requests)
-4. Try an alternative zone: `./deploy-lab.sh YOUR_PROJECT_ID us-central1-a`
+4. If needed, rerun **Step 3: Create the VM** with a different zone such as `us-central1-a` instead of `us-west1-c`
 
 ### Services Not Accessible After 10 Minutes
 
@@ -281,14 +247,6 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 - Try Cloud Console SSH: Console → Compute Engine → VM instances → SSH button
 - Try IAP tunneling: `gcloud compute ssh hedgehog-lab --zone=us-west1-c --tunnel-through-iap`
 
-### Script Permission Denied
-
-```bash
-chmod +x deploy-lab.sh stop-lab.sh start-lab.sh cleanup-lab.sh
-```
-
----
-
 ## Wrap-Up
 
 You now have a fully functional Hedgehog Virtual AI Data Center running. Here's what you have:
@@ -296,16 +254,15 @@ You now have a fully functional Hedgehog Virtual AI Data Center running. Here's 
 - ✅ A Hedgehog VLAB with spine/leaf switches and servers
 - ✅ kubectl configured and pointing at the Hedgehog control plane
 - ✅ Grafana, Gitea, ArgoCD, and Prometheus all accessible via browser
-- ✅ Scripts to start, stop, and clean up your lab
+- ✅ Direct `gcloud` commands to stop, start, and delete your lab safely
 
-**Keep this module bookmarked.** You'll refer back to it throughout the Network Like a Hyperscaler pathway — especially the service access table and the start/stop scripts.
+**Keep this module bookmarked.** You'll refer back to it throughout the Network Like a Hyperscaler pathway — especially the service access table and the VM lifecycle commands.
 
 ---
 
 ## Resources
 
 - [Hedgehog Documentation](https://docs.hedgehog.cloud)
-- [Lab Repository (scripts)](https://github.com/afewell-hh/labapp)
 - [Google Cloud SDK Installation](https://cloud.google.com/sdk/docs/install)
 - [GCP Quota Management](https://cloud.google.com/docs/quota)
 - [Course Materials](https://hedgehog.cloud/learn)
