@@ -65,9 +65,15 @@ The vAIDC requires an **n1-standard-32** instance (32 vCPUs, 120 GB RAM). You ma
 
 ---
 
-## Option A: Deploy Using Scripts (Recommended)
+## Deployment Options
 
-We provide a set of simple scripts to manage your vAIDC lifecycle. This is the easiest approach.
+> **Important course guidance:** If you plan to continue with the hands-on labs in this pathway, use **Option C: Manual Deployment**.
+>
+> The two script-based paths below currently provision an environment that does **not** match the rest of this course's assumptions. Later lab exercises expect you to log in as the `ubuntu` user and start in `/home/ubuntu`, but the script-based setup does not currently preserve that expected workflow. Until those scripts are corrected, treat Options A and B as experimental and use the manual path for coursework.
+
+## Option A: Deploy Using Scripts (Currently Not Recommended For This Course)
+
+We provide a set of simple scripts to manage your vAIDC lifecycle. They may still be useful for ad hoc experimentation, but they are **not** the recommended path for this course right now.
 
 ### Step 1: Clone the Lab Repository
 
@@ -91,6 +97,8 @@ The script will:
 4. Configure firewall rules to allow access to lab services
 5. Display the VM's IP address and service URLs when complete
 
+> **Course compatibility warning:** Do **not** use this option if you plan to complete the rest of the Network Like a Hyperscaler labs. Use **Option C: Manual Deployment** instead.
+
 **Deployment takes 2–5 minutes.** Services will be fully ready within 5–10 minutes of VM startup.
 
 ### Managing Your Lab (Stop, Start, Delete)
@@ -107,7 +115,7 @@ Use these scripts to control your vAIDC:
 
 ---
 
-## Option B: One-Click Deploy via Cloud Shell
+## Option B: One-Click Deploy via Cloud Shell (Currently Not Recommended For This Course)
 
 If you don't have the gcloud CLI installed locally, use Google Cloud Shell:
 
@@ -123,11 +131,13 @@ If you don't have the gcloud CLI installed locally, use Google Cloud Shell:
 
 Cloud Shell is free, pre-authenticated with your Google account, and has gcloud pre-installed.
 
+> **Course compatibility warning:** This option uses the same script-based deployment path as Option A and has the same mismatch with later course labs. If you are following this pathway as a student, use **Option C: Manual Deployment** instead.
+
 ---
 
-## Option C: Manual Deployment
+## Option C: Manual Deployment (Recommended For This Course)
 
-If you prefer to run each step individually (or for troubleshooting):
+This is the recommended deployment path for the course because it preserves the environment assumptions used throughout the later labs.
 
 ### Step 1: Set Your Project
 
@@ -191,8 +201,18 @@ Replace `YOUR_VM_IP` with the IP address shown after deployment.
 
 ### Get the ArgoCD Admin Password
 
+The VM's default `kubectl` context is `vlab`, but the ArgoCD admin secret lives in the management cluster. Switch to the management cluster first, retrieve the password, then switch back to `vlab` before continuing with the rest of the lab work.
+
 ```bash
-gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo"
+gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl config use-context k3d-k3d-observability >/dev/null && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo && kubectl config use-context vlab >/dev/null"
+```
+
+If you are already logged into the VM over SSH, run the commands directly:
+
+```bash
+kubectl config use-context k3d-k3d-observability
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
+kubectl config use-context vlab
 ```
 
 ---
