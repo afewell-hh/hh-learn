@@ -148,7 +148,7 @@ Replace `YOUR_VM_IP` with the IP address shown after deployment.
 The VM's default `kubectl` context is `vlab`, but the ArgoCD admin secret lives in the management cluster. Switch to the management cluster first, retrieve the password, then switch back to `vlab` before continuing with the rest of the lab work.
 
 ```bash
-gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl config use-context k3d-k3d-observability >/dev/null && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo && kubectl config use-context vlab >/dev/null"
+gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl config use-context k3d-k3d-observability >/dev/null && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo; kubectl config use-context vlab >/dev/null"
 ```
 
 If you are already logged into the VM over SSH, run the commands directly:
@@ -233,7 +233,7 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 1. Go to GCP Console → IAM & Admin → Quotas
 2. Filter by "CPUs" for your region
 3. Request a quota increase (usually approved within minutes for modest requests)
-4. If needed, rerun the VM creation step in a different zone such as `us-central1-a` instead of `us-west1-c`
+4. If needed, rerun **Step 3: Create the VM** with a different zone such as `us-central1-a` instead of `us-west1-c`
 
 ### Services Not Accessible After 10 Minutes
 
