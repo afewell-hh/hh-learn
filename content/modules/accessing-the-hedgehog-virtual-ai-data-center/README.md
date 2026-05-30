@@ -159,6 +159,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 kubectl config use-context vlab
 ```
 
+Run all three commands in order. If you do not switch back to `vlab`, later labs will start from the wrong Kubernetes context.
+
 ---
 
 ## Connecting to the VM
@@ -214,9 +216,9 @@ The n1-standard-32 instance is a powerful machine with meaningful costs. Manage 
 
 ### Best Practices
 
-- **Stop the VM whenever you're not actively working** — `./stop-lab.sh YOUR_PROJECT_ID`
-- **Resume when you return** — `./start-lab.sh YOUR_PROJECT_ID`
-- **Delete when completely done** — `./cleanup-lab.sh YOUR_PROJECT_ID`
+- **Stop the VM whenever you're not actively working** — `gcloud compute instances stop hedgehog-lab --zone=us-west1-c`
+- **Resume when you return** — `gcloud compute instances start hedgehog-lab --zone=us-west1-c`
+- **Delete when completely done** — `gcloud compute instances delete hedgehog-lab --zone=us-west1-c`
 
 Stopping vs. deleting: stopping preserves your VM state (kubectl context, any changes you made) and only charges for disk storage. Deleting removes everything. For a multi-week course, stop between sessions; delete when you've finished the pathway.
 
@@ -231,7 +233,7 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 1. Go to GCP Console → IAM & Admin → Quotas
 2. Filter by "CPUs" for your region
 3. Request a quota increase (usually approved within minutes for modest requests)
-4. Try an alternative zone: `./deploy-lab.sh YOUR_PROJECT_ID us-central1-a`
+4. If needed, rerun the VM creation step in a different zone such as `us-central1-a` instead of `us-west1-c`
 
 ### Services Not Accessible After 10 Minutes
 
@@ -245,14 +247,6 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 - Try Cloud Console SSH: Console → Compute Engine → VM instances → SSH button
 - Try IAP tunneling: `gcloud compute ssh hedgehog-lab --zone=us-west1-c --tunnel-through-iap`
 
-### Script Permission Denied
-
-```bash
-chmod +x deploy-lab.sh stop-lab.sh start-lab.sh cleanup-lab.sh
-```
-
----
-
 ## Wrap-Up
 
 You now have a fully functional Hedgehog Virtual AI Data Center running. Here's what you have:
@@ -260,16 +254,15 @@ You now have a fully functional Hedgehog Virtual AI Data Center running. Here's 
 - ✅ A Hedgehog VLAB with spine/leaf switches and servers
 - ✅ kubectl configured and pointing at the Hedgehog control plane
 - ✅ Grafana, Gitea, ArgoCD, and Prometheus all accessible via browser
-- ✅ Scripts to start, stop, and clean up your lab
+- ✅ Direct `gcloud` commands to stop, start, and delete your lab safely
 
-**Keep this module bookmarked.** You'll refer back to it throughout the Network Like a Hyperscaler pathway — especially the service access table and the start/stop scripts.
+**Keep this module bookmarked.** You'll refer back to it throughout the Network Like a Hyperscaler pathway — especially the service access table and the VM lifecycle commands.
 
 ---
 
 ## Resources
 
 - [Hedgehog Documentation](https://docs.hedgehog.cloud)
-- [Lab Repository (scripts)](https://github.com/afewell-hh/labapp)
 - [Google Cloud SDK Installation](https://cloud.google.com/sdk/docs/install)
 - [GCP Quota Management](https://cloud.google.com/docs/quota)
 - [Course Materials](https://hedgehog.cloud/learn)
