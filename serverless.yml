@@ -318,6 +318,14 @@ package:
     - '!src/**'
     - '!tests/**'
     - '!content/**'
+    # Re-include ONLY the course/pathway metadata the restored learner-progress
+    # handlers read at runtime (Issue #476; defect found in #475). loadMetadataCache()
+    # in completion.ts reads content/courses + content/pathways from process.cwd();
+    # without these the deployed Lambda's metadata cache is empty and
+    # /course/status + /pathway/status return handler 400 "not found".
+    # content/modules is NOT needed — module titles come from HubDB (HUBDB_MODULES_TABLE_ID).
+    - 'content/courses/**'
+    - 'content/pathways/**'
     - '!docs/**'
     - '!reference/**'
     - '!hubdb-schemas/**'
