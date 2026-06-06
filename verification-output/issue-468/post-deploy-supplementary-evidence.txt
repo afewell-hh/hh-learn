@@ -1,0 +1,36 @@
+=== Issue #468 — SUPPLEMENTARY load-bearing probes (registered routes) ===
+Captured at: 2026-06-06T00:01:28Z
+Target host: https://api.hedgehog.cloud
+Rationale: the canonical S-PRIMARY probe targets /course/status,
+  which is not a registered route on production (lead caveat).
+  These probes exercise the dual-guard code path through a registered
+  handler (handleTasksStatus calls verifyCookieAuth → isTestBypassEnabled).
+
+--------------------------------------------------------------------------------
+[SUP-0 GET /tasks/status (no cookie)              (expect 401)]
+Probe URL: https://api.hedgehog.cloud/tasks/status?module_slug=fabric-operations-welcome
+--- summary line (status code) ---
+401
+--- -i headers + body ---
+HTTP/2 401 
+date: Sat, 06 Jun 2026 00:01:28 GMT
+content-type: application/json
+content-length: 24
+apigw-requestid: egx19gk_vHcEJaw=
+
+{"error":"Unauthorized"}
+
+--------------------------------------------------------------------------------
+[SUP-1 GET /tasks/status with sentinel cookie  (expect 401)]
+Probe URL: https://api.hedgehog.cloud/tasks/status?module_slug=fabric-operations-welcome
+--- summary line (status code) ---
+401
+--- -i headers + body ---
+HTTP/2 401 
+date: Sat, 06 Jun 2026 00:01:29 GMT
+content-type: application/json
+content-length: 24
+apigw-requestid: egx1_g8pPHcEJMA=
+
+{"error":"Unauthorized"}
+

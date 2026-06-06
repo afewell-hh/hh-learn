@@ -11,20 +11,41 @@ Until the lead confirms, do **not** run anything below.
 Run with operator AWS credentials in the production account:
 
 ```bash
+# IMPORTANT: do not commit the raw `aws lambda get-function-configuration`
+# output. The Variables block contains live HubSpot tokens / JWT secret /
+# Cognito client ID. The jq filter below redacts those before write so the
+# resulting file is safe to commit. GitHub push-protection enforces this
+# too — a raw snapshot is rejected as a HubSpot API Key match.
+
 aws lambda get-function-configuration \
   --function-name hedgehog-learn-production-api \
   --region us-west-2 \
-  > verification-output/issue-468/lambda-config-snapshot.json
+  | jq '
+      {
+        FunctionName, LastModified, Runtime, Version, CodeSha256,
+        MemorySize, Timeout, Handler,
+        Environment: {
+          Variables: (
+            .Environment.Variables
+            | to_entries
+            | map(
+                if (.key|IN("APP_STAGE","ENABLE_TEST_BYPASS","ENABLE_CRM_PROGRESS","AWS_REGION")) then .
+                elif (.key|test("HUBSPOT|SECRET|TOKEN|KEY|PASS|JWT|COGNITO_CLIENT|REFRESH|API_KEY";"i")) then
+                  {key: .key, value: "<REDACTED>"}
+                else . end
+              )
+            | from_entries
+          )
+        }
+      }
+    ' > verification-output/issue-468/aws-lambda-config-sanitized.json
 
+# Quick readability check:
 jq '{
-  FunctionName,
-  LastModified,
-  Runtime,
-  Version,
-  CodeSha256,
+  FunctionName, LastModified, CodeSha256,
   app_stage: .Environment.Variables.APP_STAGE,
   enable_test_bypass: .Environment.Variables.ENABLE_TEST_BYPASS
-}' verification-output/issue-468/lambda-config-snapshot.json
+}' verification-output/issue-468/aws-lambda-config-sanitized.json
 ```
 
 Expected (the canonical safe-state for the dual guard):

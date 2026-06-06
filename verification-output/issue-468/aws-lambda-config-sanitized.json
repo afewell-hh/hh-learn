@@ -1,0 +1,39 @@
+{
+  "FunctionName": "hedgehog-learn-production-api",
+  "LastModified": "2026-06-05T23:57:16.000+0000",
+  "Runtime": "nodejs20.x",
+  "Version": "$LATEST",
+  "CodeSha256": "5+qUSLZpGz1XN9yQ02+s1TMvxQW8ERDA+gtGr0O0fEI=",
+  "MemorySize": 1024,
+  "Timeout": 6,
+  "Handler": "dist-lambda/src/api/lambda/index.handler",
+  "Environment": {
+    "Variables": {
+      "HUBDB_COURSES_TABLE_ID": "135381433",
+      "DYNAMODB_BADGES_TABLE": "hedgehog-learn-badges-production",
+      "HUBSPOT_PROJECT_ACCESS_TOKEN": "<REDACTED>",
+      "ENTITY_COMPLETIONS_TABLE": "hedgehog-learn-entity-completions-prod",
+      "DYNAMODB_USERS_TABLE": "hedgehog-learn-users-production",
+      "DYNAMODB_PROGRESS_TABLE": "hedgehog-learn-progress-production",
+      "JWT_SECRET": "<REDACTED>",
+      "ENABLE_CRM_PROGRESS": "true",
+      "COGNITO_CLIENT_ID": "<REDACTED>",
+      "DYNAMODB_ENROLLMENTS_TABLE": "hedgehog-learn-enrollments-production",
+      "CERTIFICATES_TABLE": "hedgehog-learn-certificates-prod",
+      "APP_STAGE": "production",
+      "HUBSPOT_API_TOKEN": "<REDACTED>",
+      "HUBSPOT_ACCOUNT_ID": "<REDACTED>",
+      "TASK_ATTEMPTS_TABLE": "hedgehog-learn-task-attempts-prod",
+      "COGNITO_ISSUER": "https://cognito-idp.us-west-2.amazonaws.com/us-west-2_XWB9UclRK",
+      "COGNITO_USER_POOL_ID": "us-west-2_XWB9UclRK",
+      "TASK_RECORDS_TABLE": "hedgehog-learn-task-records-prod",
+      "HUBDB_MODULES_TABLE_ID": "135621904",
+      "COGNITO_DOMAIN": "hedgehog-learn.auth.us-west-2.amazoncognito.com",
+      "HUBSPOT_PRIVATE_APP_TOKEN": "<REDACTED>",
+      "COGNITO_REDIRECT_URI": "https://api.hedgehog.cloud/auth/callback",
+      "COGNITO_REGION": "us-west-2",
+      "PROGRESS_BACKEND": "properties",
+      "ENABLE_TEST_BYPASS": "false"
+    }
+  }
+}

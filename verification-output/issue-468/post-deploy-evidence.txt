@@ -1,0 +1,147 @@
+=== Issue #468 — Post-deploy verification matrix ===
+Captured at: 2026-06-06T00:01:06Z
+API base:    https://api.hedgehog.cloud
+Cert ID:     4db85470-555f-481d-bd84-527d725378e8
+Tooling:     curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 OpenSSL/3.0.2 zlib/1.2.11 brotli/1.0.9 zstd/1.4.8 libidn2/2.3.2 libpsl/0.21.0 (+libidn2/2.3.2) libssh/0.9.6/openssl/zlib nghttp2/1.43.0 librtmp/2.3 OpenLDAP/2.5.18
+Branch HEAD: 7299dc4
+
+--------------------------------------------------------------------------------
+[S-NOAUTH-1] GET /course/status (no cookie)
+Probe URL : https://api.hedgehog.cloud/course/status?course_slug=hedgehog-lab-foundations
+Method    : GET
+Expected  : 401
+Cookie    : <none>
+Extra args: <none>
+--- summary line (status code) ---
+404
+--- -i headers + body ---
+HTTP/2 404 
+date: Sat, 06 Jun 2026 00:01:07 GMT
+content-type: application/json
+content-length: 23
+apigw-requestid: egxyjgJmvHcEJXA=
+
+{"message":"Not Found"}
+
+--------------------------------------------------------------------------------
+[S-NOAUTH-2] GET /pathway/status (no cookie)
+Probe URL : https://api.hedgehog.cloud/pathway/status?pathway_slug=network-like-hyperscaler
+Method    : GET
+Expected  : 401
+Cookie    : <none>
+Extra args: <none>
+--- summary line (status code) ---
+404
+--- -i headers + body ---
+HTTP/2 404 
+date: Sat, 06 Jun 2026 00:01:07 GMT
+content-type: application/json
+content-length: 23
+apigw-requestid: egxykjxlvHcEJNw=
+
+{"message":"Not Found"}
+
+--------------------------------------------------------------------------------
+[S-NOAUTH-3] GET /module/progress (no cookie)
+Probe URL : https://api.hedgehog.cloud/module/progress?module_slug=fabric-operations-welcome
+Method    : GET
+Expected  : 401
+Cookie    : <none>
+Extra args: <none>
+--- summary line (status code) ---
+404
+--- -i headers + body ---
+HTTP/2 404 
+date: Sat, 06 Jun 2026 00:01:07 GMT
+content-type: application/json
+content-length: 23
+apigw-requestid: egxymihEvHcEJNg=
+
+{"message":"Not Found"}
+
+--------------------------------------------------------------------------------
+[S-NOAUTH-4] GET /certificates (no cookie)
+Probe URL : https://api.hedgehog.cloud/certificates
+Method    : GET
+Expected  : 401
+Cookie    : <none>
+Extra args: <none>
+--- summary line (status code) ---
+401
+--- -i headers + body ---
+HTTP/2 401 
+date: Sat, 06 Jun 2026 00:01:07 GMT
+content-type: application/json
+content-length: 24
+apigw-requestid: egxyojylvHcEJNw=
+
+{"error":"Unauthorized"}
+
+--------------------------------------------------------------------------------
+[S-NOAUTH-5] GET /certificate/{nonexistent} (no cookie)
+Probe URL : https://api.hedgehog.cloud/certificate/4db85470-555f-481d-bd84-527d725378e8
+Method    : GET
+Expected  : 404
+Cookie    : <none>
+Extra args: <none>
+--- summary line (status code) ---
+404
+--- -i headers + body ---
+HTTP/2 404 
+date: Sat, 06 Jun 2026 00:01:07 GMT
+content-type: application/json
+content-length: 33
+apigw-requestid: egxyqgiLvHcEJjA=
+
+{"error":"Certificate not found"}
+
+--------------------------------------------------------------------------------
+[S-ADMIN-1] POST /admin/test/reset with sentinel cookie
+Probe URL : https://api.hedgehog.cloud/admin/test/reset
+Method    : POST
+Expected  : 403
+Cookie    : hhl_access_token=shadow_e2e_test_token
+Extra args: <none>d {}
+--- summary line (status code) ---
+403
+--- -i headers + body ---
+HTTP/2 403 
+date: Sat, 06 Jun 2026 00:01:08 GMT
+content-type: application/json
+content-length: 45
+apigw-requestid: egxysi0APHcEJvw=
+
+{"error":"Not available in this environment"}
+
+--------------------------------------------------------------------------------
+[S-PRIMARY] GET /course/status with sentinel cookie
+Probe URL : https://api.hedgehog.cloud/course/status?course_slug=hedgehog-lab-foundations
+Method    : GET
+Expected  : 401
+Cookie    : hhl_access_token=shadow_e2e_test_token
+Extra args: <none>
+--- summary line (status code) ---
+404
+--- -i headers + body ---
+HTTP/2 404 
+date: Sat, 06 Jun 2026 00:01:08 GMT
+content-type: application/json
+content-length: 23
+apigw-requestid: egxyuiswPHcEJKw=
+
+{"message":"Not Found"}
+
+--------------------------------------------------------------------------------
+=== SUMMARY ===
+ID           | Label                                              | Expected | Actual | Verdict
+-------------+----------------------------------------------------+----------+--------+--------
+S-NOAUTH-1   | GET /course/status (no cookie)                     | 401      | 404    | FAIL
+S-NOAUTH-2   | GET /pathway/status (no cookie)                    | 401      | 404    | FAIL
+S-NOAUTH-3   | GET /module/progress (no cookie)                   | 401      | 404    | FAIL
+S-NOAUTH-4   | GET /certificates (no cookie)                      | 401      | 401    | PASS
+S-NOAUTH-5   | GET /certificate/{nonexistent} (no cookie)         | 404      | 404    | PASS
+S-ADMIN-1    | POST /admin/test/reset with sentinel cookie        | 403      | 403    | PASS
+S-PRIMARY    | GET /course/status with sentinel cookie            | 401      | 404    | FAIL
+
+Primary security probe (S-PRIMARY): FAIL
+Total failures: 4 of 7

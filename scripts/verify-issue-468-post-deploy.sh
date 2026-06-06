@@ -135,20 +135,21 @@ run_probe() {
     printf 'Extra args: %s\n' "${extra/-/<none>}"
   } >> "$OUT_FILE"
 
-  local headers_file=/tmp/issue-468-headers.$$
+  # With -i + -o, curl writes headers AND body to the -o file. The -w
+  # '%{http_code}' is the only thing on stdout, so $() captures it cleanly.
+  local body_file=/tmp/issue-468-body.$$
   local status_code
-  status_code="$(curl "${curl_args[@]}" 2>/dev/null > "$headers_file" || echo '000')"
+  status_code="$(curl "${curl_args[@]}" 2>/dev/null)" || status_code='000'
+  [[ -z "$status_code" ]] && status_code='000'
 
   {
     printf -- '--- summary line (status code) ---\n%s\n' "$status_code"
-    printf -- '--- -i headers ---\n'
-    cat "$headers_file" 2>/dev/null || true
-    printf -- '\n--- body ---\n'
-    cat /tmp/issue-468-body.$$ 2>/dev/null || true
+    printf -- '--- -i headers + body ---\n'
+    cat "$body_file" 2>/dev/null || true
     printf '\n\n'
   } >> "$OUT_FILE"
 
-  rm -f "$headers_file" /tmp/issue-468-body.$$
+  rm -f "$body_file"
 
   local verdict
   if [[ "$status_code" == "$expected" ]]; then
