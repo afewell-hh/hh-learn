@@ -39,6 +39,10 @@ import { handleTasksStatusBatch } from './tasks-status-batch.js';
 import { handleAdminTestReset } from './admin-test-reset.js';
 import { handleCertificateVerify } from './certificate-verify.js';
 import { handleCertificatesList } from './certificates-list.js';
+// Server-authoritative learner-progress read endpoints (Issue #451 backend, restored for production parity in #473)
+import { handleShadowCourseStatus } from './shadow-course-status.js';
+import { handleShadowPathwayStatus } from './shadow-pathway-status.js';
+import { handleShadowModuleProgress } from './shadow-module-progress.js';
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -203,6 +207,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (path.endsWith('/tasks/lab/attest') && method === 'POST') return await handleLabAttest(event);
     if (path.endsWith('/tasks/status/batch') && method === 'GET') return await handleTasksStatusBatch(event);
     if (path.endsWith('/tasks/status') && method === 'GET') return await handleTasksStatus(event);
+    // Server-authoritative learner-progress read endpoints (Issue #451 backend; restored for Layer 2 parity in #473)
+    //   Shadow: api.hedgehog.cloud/shadow/{course/status,pathway/status,module/progress} (base-path mapping leaves /shadow/ in rawPath)
+    //   Production: api.hedgehog.cloud/{course/status,pathway/status,module/progress} (direct route, no prefix)
+    //   Auth + stage gating reuse the same verifyCookieAuth path as /tasks/status — #461 hardening is inherited.
+    if (path.endsWith('/course/status') && method === 'GET') return await handleShadowCourseStatus(event);
+    if (path.endsWith('/pathway/status') && method === 'GET') return await handleShadowPathwayStatus(event);
+    if (path.endsWith('/module/progress') && method === 'GET') return await handleShadowModuleProgress(event);
     if (path.endsWith('/admin/test/reset') && method === 'POST') return await handleAdminTestReset(event);
     // Certificate verification endpoint:
     //   Shadow: api.hedgehog.cloud/shadow/certificate/:certId — base-path mapping leaves full path with /shadow/

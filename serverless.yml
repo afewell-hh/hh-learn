@@ -190,6 +190,18 @@ functions:
       - httpApi:
           path: /tasks/status/batch
           method: GET
+      # Server-authoritative learner-progress read endpoints (Issue #451 backend; restored for Layer 2 parity in #433/#473)
+      # Static bare paths — registered like /tasks/status: the /shadow base-path mapping strips the prefix,
+      # so both api.hedgehog.cloud/<route> (production) and api.hedgehog.cloud/shadow/<route> (shadow) reach the same HttpApi route.
+      - httpApi:
+          path: /course/status
+          method: GET
+      - httpApi:
+          path: /pathway/status
+          method: GET
+      - httpApi:
+          path: /module/progress
+          method: GET
       - httpApi:
           path: /admin/test/reset
           method: POST
