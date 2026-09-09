@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fabric Operator (flag off, RED fixture)</title>
+  <link rel="stylesheet" href="../../../clean-x-hedgehog-templates/assets/css/experience-player.css">
+  <script type="application/json" id="hhl-exp-scenario">
+{"scenarioId":"fabric-operator","version":"1","title":"Operate a Hedgehog fabric","honestyLabel":"Guided replay — not a live fabric.","continuity":"composite","leadBridge":{"primary":{"label":"VLAB","href":"/vlab"},"secondary":[]},"entities":{"switches":[],"servers":[],"vpcs":[]},"acts":[{"id":"provision","title":"x","primaryEntities":[],"steps":[{"id":"a","kind":"narrative","narrative":"x"}]}]}
+  </script>
+</head>
+<body>
+  <!-- EXPERIENCE_LAB_ENABLED is off: the flag half of the kill switch. The player
+       must render NOTHING. -->
+  <div data-hhl-experience
+       data-flag-enabled="false"
+       data-scenario-el="hhl-exp-scenario"
+       data-cta-primary-label="VLAB"
+       data-cta-primary-url="/vlab">
+  </div>
+  <script src="../../../clean-x-hedgehog-templates/assets/js/experience-player.js" defer></script>
+</body>
+</html>

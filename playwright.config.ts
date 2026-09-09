@@ -74,5 +74,12 @@ export default defineConfig({
       name: 'production-learner-record-live',
       testMatch: ['tests/e2e/production-learner-record-live.spec.ts'],
     },
+    {
+      // Slice 1 — Fabric Operator replay, deterministic (Epic #478, Phase 4 #485).
+      // Loads a committed local file:// fixture (no published page, no CDN, no network).
+      // RED until the experience-player browser asset is implemented (GREEN).
+      name: 'experience-deterministic',
+      testMatch: ['tests/e2e/experience-deterministic.spec.ts'],
+    },
   ],
 });

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "scenarioId": "fabric-operator",
+  "version": "1",
+  "title": "Operate a Hedgehog fabric (fixture)",
+  "summary": "Fixture scenario for RED tests; not the shipped content artifact.",
+  "honestyLabel": "Guided replay of a real validated workflow — not a live fabric.",
+  "continuity": "composite",
+  "leadBridge": {
+    "primary": { "label": "Launch the full Virtual Lab", "href": "/vlab" },
+    "secondary": [
+      { "label": "Talk to us", "href": "/contact" },
+      { "label": "Continue: Network Like a Hyperscaler", "href": "/learn" }
+    ]
+  },
+  "entities": {
+    "switches": [{ "id": "leaf-01", "role": "leaf", "ports": ["E1/1", "E1/5"] }],
+    "servers": [{ "id": "server-01" }],
+    "vpcs": [{ "id": "webapp-prod", "vlans": [1010, 1020] }]
+  },
+  "acts": [
+    {
+      "id": "provision",
+      "title": "Provision a VPC",
+      "primaryEntities": ["webapp-prod"],
+      "steps": [
+        {
+          "id": "apply-vpc",
+          "kind": "command",
+          "narrative": "Provisioning a VPC is a single declarative apply.",
+          "command": "kubectl apply -f webapp-prod-vpc.yaml",
+          "output": { "mode": "static", "text": "vpc.vpc.githedgehog.com/webapp-prod created", "format": "text" },
+          "annotations": ["highlight:leaf-01"],
+          "timingMs": 600,
+          "source": {
+            "module": "fixture-vpc-provisioning",
+            "validated_on": "2025-10-16",
+            "command": { "anchor": "Step 2: Apply the VPC", "blockLang": "bash", "blockIndex": 0, "match": "exact-line" },
+            "output": { "anchor": "Step 2: Apply the VPC", "blockLang": "text", "blockIndex": 0, "match": "exact-block" }
+          }
+        }
+      ]
+    }
+  ]
+}
