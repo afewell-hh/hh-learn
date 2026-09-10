@@ -107,36 +107,46 @@ describe('validateScenario — dual-source anchoring + exact match (#482 amendme
   });
 });
 
-describe('validateScenario — fact-lint', () => {
-  it('flags stale "reconciliation events" language in narrative', () => {
+describe('validateScenario — fact-lint (all 12 approved rules from #482 must be enforced)', () => {
+  // Each positive case only mutates `narrative` (free text, fact-linted but not
+  // anchored), so FACT_LINT is the only expected error — proving the specific rule
+  // is enforced, not merely that "something" fails.
+  const positives: Array<{ rule: string; narrative?: string; command?: string }> = [
+    { rule: '1 reconciliation events', narrative: 'You saw reconciliation events in the output.' },
+    { rule: '2 Events provide visibility', narrative: 'Events provide visibility into the provisioning process.' },
+    { rule: '3 Observed reconciliation events', narrative: 'Observed reconciliation events during apply.' },
+    { rule: '4 kubectl get events w/o disclaimer', narrative: 'Run kubectl get events to watch VPC status.' },
+    { rule: '5 EthernetN naming', narrative: 'Inspect interface Ethernet5 on the leaf.' },
+    { rule: '6 fabric-controller-manager', narrative: 'Restart the fabric-controller-manager pod.' },
+    { rule: '8 localhost:PORT', narrative: 'Open http://localhost:3000 for Grafana.' },
+    { rule: '9 prom-operator', narrative: 'Log in to Grafana with prom-operator.' },
+    { rule: '10 student (not student01)', narrative: 'Log in to Gitea as user student today.' },
+    { rule: '11a stale metric cpu_usage_percent', narrative: 'Query cpu_usage_percent in Prometheus.' },
+    { rule: '11b stale metric interface_bytes_out', narrative: 'Query interface_bytes_out.' },
+    { rule: '11c stale metric bgp_neighbor_state', narrative: 'Query bgp_neighbor_state.' },
+    { rule: '12 BGP Established as string', narrative: 'Confirm BGP neighbor state is the string "Established".' },
+    { rule: '7 -n fab on fabric CRD', command: 'kubectl get vpcs -n fab' },
+  ];
+  it.each(positives)('flags rule [$rule]', ({ narrative, command }) => {
     const s = loadValid();
-    s.acts[0].steps[0].narrative = 'You Observed reconciliation events in the output.';
+    if (narrative !== undefined) s.acts[0].steps[0].narrative = narrative;
+    if (command !== undefined) s.acts[0].steps[0].command = command;
     const r = validateScenario(s, { resolveModule });
     expect(r.ok).toBe(false);
     expect(codes(r)).toContain('FACT_LINT');
   });
 
-  it('flags EthernetN interface naming (should be E1/N)', () => {
+  // Context-sensitive / correct usages must NOT be flagged.
+  const negatives: Array<{ rule: string; narrative: string }> = [
+    { rule: '7 -n fab on pod/log/exec is legitimate', narrative: 'Pods live in fab: kubectl logs -n fab deploy/fabric-ctrl' },
+    { rule: '10 student01 is the correct Gitea user', narrative: 'Log in to Gitea as student01.' },
+    { rule: '5 E1/N is the correct interface format', narrative: 'Inspect interface E1/5 on the leaf.' },
+    { rule: '6 fabric-ctrl is the correct controller name', narrative: 'Restart the fabric-ctrl pod.' },
+    { rule: '4 kubectl get events WITH the expected-empty disclaimer', narrative: 'kubectl get events returns no results — this is expected for fabric CRDs.' },
+  ];
+  it.each(negatives)('does NOT flag [$rule]', ({ narrative }) => {
     const s = loadValid();
-    s.acts[0].steps[0].narrative = 'Check interface Ethernet5 on the leaf.';
-    const r = validateScenario(s, { resolveModule });
-    expect(r.ok).toBe(false);
-    expect(codes(r)).toContain('FACT_LINT');
-  });
-
-  it('context-sensitive -n fab: flags it on a fabric-CRD verb', () => {
-    const s = loadValid();
-    s.acts[0].steps[0].command = 'kubectl get vpcs -n fab';
-    // (also breaks exact-match, but the fact-lint code must be present)
-    const r = validateScenario(s, { resolveModule });
-    expect(r.ok).toBe(false);
-    expect(codes(r)).toContain('FACT_LINT');
-  });
-
-  it('context-sensitive -n fab: does NOT flag it on pod/log/exec commands', () => {
-    const s = loadValid();
-    // legitimate per lab-validation/reports/session-20260219-01.md:116
-    s.acts[0].steps[0].narrative = 'Pods are in fab: kubectl logs -n fab deploy/fabric-ctrl';
+    s.acts[0].steps[0].narrative = narrative;
     const r = validateScenario(s, { resolveModule });
     expect(codes(r)).not.toContain('FACT_LINT');
   });

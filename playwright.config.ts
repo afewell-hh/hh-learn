@@ -79,7 +79,7 @@ export default defineConfig({
       // Loads a committed local file:// fixture (no published page, no CDN, no network).
       // RED until the experience-player browser asset is implemented (GREEN).
       name: 'experience-deterministic',
-      testMatch: ['tests/e2e/experience-deterministic.spec.ts'],
+      testMatch: ['tests/e2e/experience-deterministic.spec.ts', 'tests/e2e/experience-island-safety.spec.ts'],
     },
   ],
 });

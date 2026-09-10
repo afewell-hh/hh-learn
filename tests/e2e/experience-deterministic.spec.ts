@@ -19,13 +19,22 @@ import * as path from 'path';
 const FIXTURE = pathToFileURL(path.resolve(__dirname, 'fixtures/experience-fixture.html')).href;
 const FIXTURE_FLAG_OFF = pathToFileURL(path.resolve(__dirname, 'fixtures/experience-flag-off.html')).href;
 
-/** Attach network guards that fail the test if any forbidden request is issued. */
+/**
+ * Attach a network guard that fails on ANY off-box request.
+ *
+ * Slice 1's contract is "no backend / no API / no CORS": the file:// fixture loads
+ * only local assets (file:// scheme), so any http(s)/ws(s) request is by definition
+ * a backend call and must fail — this catches a GREEN impl that called ANY Lambda/API
+ * URL, not just /events/track or api.hedgehog.cloud (which are still called out
+ * explicitly in the failure message for clarity).
+ */
 function guardNetwork(page: import('@playwright/test').Page): string[] {
   const forbidden: string[] = [];
   page.on('request', (req) => {
     const url = req.url();
-    if (/\/events\/track/.test(url) || /api\.hedgehog\.cloud/.test(url)) {
-      forbidden.push(url);
+    if (/^(https?|wss?):/i.test(url)) {
+      const flagged = /\/events\/track/.test(url) || /api\.hedgehog\.cloud/.test(url);
+      forbidden.push(flagged ? `${url} [NON-NEGOTIABLE endpoint]` : url);
     }
   });
   return forbidden;
@@ -56,12 +65,12 @@ test.describe('Fabric Operator replay — deterministic', () => {
     await expect(cta.getByRole('link', { name: /launch the full virtual lab/i })).toHaveAttribute('href', '/vlab');
   });
 
-  test('NON-NEGOTIABLE: makes zero requests to /events/track or api.hedgehog.cloud', async ({ page }) => {
+  test('NON-NEGOTIABLE: makes zero off-box http(s) requests (incl. /events/track, api.hedgehog.cloud)', async ({ page }) => {
     const forbidden = guardNetwork(page);
     await page.goto(FIXTURE);
     await page.getByRole('button', { name: /skip to end/i }).click();
     await page.waitForTimeout(500);
-    expect(forbidden, `forbidden requests: ${forbidden.join(', ')}`).toHaveLength(0);
+    expect(forbidden, `off-box requests: ${forbidden.join(', ')}`).toHaveLength(0);
   });
 
   test('parses the inline island (never fetches scenario JSON)', async ({ page }) => {
