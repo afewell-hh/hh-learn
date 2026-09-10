@@ -31,6 +31,33 @@ function el(tag: string, attrs?: Record<string, string>, text?: string): HTMLEle
   return node;
 }
 
+/** Render the fabric entities as labelled chips (real ids: leaf-01, E1/1, server-01, VPCs). */
+function renderTopology(container: HTMLElement, scenario: Scenario): void {
+  const entities = (scenario as any).entities || {};
+  const group = (label: string, items: HTMLElement[]): HTMLElement | null => {
+    if (!items.length) return null;
+    const wrap = el('div', { class: 'hhl-exp__topo-group' });
+    wrap.appendChild(el('span', { class: 'hhl-exp__topo-label' }, label));
+    items.forEach((i) => wrap.appendChild(i));
+    return wrap;
+  };
+  const chip = (id: string, sub?: string): HTMLElement => {
+    const c = el('span', { class: 'hhl-exp__topo-chip', 'data-entity': id }, id);
+    if (sub) c.appendChild(el('span', { class: 'hhl-exp__topo-sub' }, ` ${sub}`));
+    return c;
+  };
+  const switches = (entities.switches || []).map((s: any) =>
+    chip(s.id, (s.ports || []).length ? (s.ports as string[]).join(', ') : s.role),
+  );
+  const servers = (entities.servers || []).map((s: any) => chip(s.id));
+  const vpcs = (entities.vpcs || []).map((v: any) =>
+    chip(v.id, (v.vlans || []).length ? `VLAN ${(v.vlans as number[]).join('/')}` : ''),
+  );
+  [group('Switches', switches), group('Servers', servers), group('VPCs', vpcs)].forEach((g) => {
+    if (g) container.appendChild(g);
+  });
+}
+
 export function mountExperiencePlayer(root: HTMLElement): void {
   // Kill switch (flag half). Render nothing when disabled.
   if (root.getAttribute('data-flag-enabled') !== 'true') return;
@@ -92,6 +119,7 @@ export function mountExperiencePlayer(root: HTMLElement): void {
     role: 'img',
     'aria-label': 'Fabric topology',
   });
+  renderTopology(topology, scenario);
 
   stage.appendChild(narrative);
   stage.appendChild(terminal);
@@ -115,7 +143,28 @@ export function mountExperiencePlayer(root: HTMLElement): void {
   }
 
   section.append(stage, controls, cta);
+  // Clear any static no-JS fallback the template rendered inside the mount before
+  // the player takes over (finding #5). The scenario island is a separate element.
+  root.textContent = '';
   root.appendChild(section);
+
+  function updateTopology(step: Step): void {
+    const highlights: string[] = [];
+    for (const ann of step.annotations || []) {
+      const m = /^(?:highlight|pulse|link):(.+)$/.exec(ann);
+      if (m) highlights.push(m[1]);
+    }
+    const chips = topology.querySelectorAll('[data-entity]');
+    chips.forEach((c) => {
+      const id = c.getAttribute('data-entity') || '';
+      if (highlights.indexOf(id) !== -1) c.classList.add('is-highlighted');
+      else c.classList.remove('is-highlighted');
+    });
+    topology.setAttribute(
+      'aria-label',
+      highlights.length ? `Fabric topology; highlighting ${highlights.join(', ')}` : 'Fabric topology',
+    );
+  }
 
   // ---- Core + rendering ----
   const core = createPlayerCore(scenario);
@@ -150,6 +199,7 @@ export function mountExperiencePlayer(root: HTMLElement): void {
       stepTitle.textContent = step.actTitle ? `${step.actTitle}: ${step.narrative || step.id}` : step.narrative || step.id;
       stepBody.textContent = step.narrative || '';
       progress.textContent = `Step ${vs.index + 1} of ${total}`;
+      updateTopology(step);
       cta.setAttribute('hidden', '');
       if (focusTarget === 'step') stepTitle.focus();
     } else if (vs.status === 'arcComplete') {

@@ -15,7 +15,7 @@
        island clean; the e2e asserts it is parsed (never fetched) and that exactly
        one non-executable application/json island exists. -->
   <script type="application/json" id="hhl-exp-scenario">
-{"scenarioId":"fabric-operator","version":"1","title":"Operate a Hedgehog fabric","summary":"fixture","honestyLabel":"Guided replay of a real validated workflow — not a live fabric.","continuity":"composite","leadBridge":{"primary":{"label":"Launch the full Virtual Lab","href":"/vlab"},"secondary":[{"label":"Talk to us","href":"/contact"}]},"entities":{"switches":[{"id":"leaf-01","role":"leaf","ports":["E1/1"]}],"servers":[{"id":"server-01"}],"vpcs":[{"id":"webapp-prod","vlans":[1010,1020]}]},"acts":[{"id":"provision","title":"Provision a VPC","primaryEntities":["webapp-prod"],"steps":[{"id":"apply-vpc","kind":"command","narrative":"Provisioning a VPC is a single declarative apply.","command":"kubectl apply -f webapp-prod-vpc.yaml","output":{"mode":"static","text":"vpc.vpc.githedgehog.com/webapp-prod created","format":"text"}},{"id":"get-vpcs","kind":"command","narrative":"List the VPCs.","command":"kubectl get vpcs","output":{"mode":"static","text":"NAME          AGE\nwebapp-prod   5s","format":"table"}},{"id":"get-agents","kind":"command","narrative":"Confirm reconciliation via Agent status.","command":"kubectl get agents","output":{"mode":"static","text":"NAME       APPLIEDG   CURRENTG","format":"table"}}]}]}
+{"scenarioId":"fabric-operator","version":"1","title":"Operate a Hedgehog fabric","summary":"fixture","honestyLabel":"Guided replay of a real validated workflow — not a live fabric.","continuity":"composite","leadBridge":{"primary":{"label":"Launch the full Virtual Lab","href":"/vlab"},"secondary":[{"label":"Talk to us","href":"/contact"}]},"entities":{"switches":[{"id":"leaf-01","role":"leaf","ports":["E1/1"]}],"servers":[{"id":"server-01"}],"vpcs":[{"id":"webapp-prod","vlans":[1010,1020]}]},"acts":[{"id":"provision","title":"Provision a VPC","primaryEntities":["webapp-prod"],"steps":[{"id":"apply-vpc","kind":"command","narrative":"Provisioning a VPC is a single declarative apply.","command":"kubectl apply -f webapp-prod-vpc.yaml","output":{"mode":"static","text":"vpc.vpc.githedgehog.com/webapp-prod created","format":"text"},"annotations":["highlight:leaf-01"]},{"id":"get-vpcs","kind":"command","narrative":"List the VPCs.","command":"kubectl get vpcs","output":{"mode":"static","text":"NAME          AGE\nwebapp-prod   5s","format":"table"}},{"id":"get-agents","kind":"command","narrative":"Confirm reconciliation via Agent status.","command":"kubectl get agents","output":{"mode":"static","text":"NAME       APPLIEDG   CURRENTG","format":"table"}}]}]}
   </script>
 </head>
 <body>
@@ -25,6 +25,10 @@
        data-cta-primary-label="Launch the full Virtual Lab"
        data-cta-primary-url="/vlab"
        data-cta-secondary-json='[{"label":"Talk to us","url":"/contact"},{"label":"Continue learning","url":"/learn"}]'>
+    <div data-hhl-fallback>
+      <h1>Operate a Hedgehog fabric</h1>
+      <p>This interactive replay needs JavaScript.</p>
+    </div>
   </div>
 
   <script src="../../../clean-x-hedgehog-templates/assets/js/experience-player.js" defer></script>

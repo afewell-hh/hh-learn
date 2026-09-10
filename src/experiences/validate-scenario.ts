@@ -23,6 +23,7 @@ export type ErrorCode =
   | 'EXACT_MATCH'
   | 'FACT_LINT'
   | 'CONTINUITY'
+  | 'MISSING_SOURCE'
   | 'MODULE_NOT_FOUND';
 
 export interface ValidationError {
@@ -116,14 +117,17 @@ function collectBlocks(md: string, start: number, end: number, lang: string): st
   return blocks;
 }
 
-/** Normalization applied identically to both sides of an exact-block comparison. */
+/**
+ * Normalization applied identically to both sides of an exact-block comparison.
+ * Only strips LEADING "# " annotation lines (e.g. "# Expected output (similar to):")
+ * and trailing whitespace — interior comment lines are preserved so real comment-line
+ * drift inside an output block is NOT silently accepted.
+ */
 function normalizeBlock(text: string): string {
-  return text
-    .split('\n')
-    .filter((l) => !/^#\s/.test(l)) // strip leading "# " expected-output annotation lines
-    .join('\n')
-    .replace(/\s+$/g, '')
-    .trim();
+  const lines = text.split('\n');
+  let start = 0;
+  while (start < lines.length && /^#\s/.test(lines[start])) start += 1;
+  return lines.slice(start).join('\n').replace(/\s+$/g, '');
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +237,16 @@ export function validateScenario(scenario: any, opts: ValidateOptions): Validati
         });
       }
 
+      // Gate: expert-visible content MUST be pinned to a source selector, so a command
+      // or output cannot bypass anti-drift by simply omitting its provenance.
       const source = step.source;
+      if (step.kind === 'command' && !(source && source.command)) {
+        errors.push({ code: 'MISSING_SOURCE', stepId, message: 'command step requires source.command selector' });
+      }
+      if (step.output && step.output.text !== undefined && !(source && source.output)) {
+        errors.push({ code: 'MISSING_SOURCE', stepId, message: 'output.text requires source.output selector' });
+      }
+
       if (!source) continue;
 
       // Read the cited module once.

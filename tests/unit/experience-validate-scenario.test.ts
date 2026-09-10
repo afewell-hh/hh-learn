@@ -152,6 +152,32 @@ describe('validateScenario — fact-lint (all 12 approved rules from #482 must b
   });
 });
 
+describe('validateScenario — mandatory provenance selectors (devb #486)', () => {
+  it('fails a command step that omits source.command', () => {
+    const s = loadValid();
+    delete s.acts[0].steps[0].source.command;
+    const r = validateScenario(s, { resolveModule });
+    expect(r.ok).toBe(false);
+    expect(codes(r)).toContain('MISSING_SOURCE');
+  });
+
+  it('fails when output.text is present but source.output is missing', () => {
+    const s = loadValid();
+    delete s.acts[0].steps[0].source.output;
+    const r = validateScenario(s, { resolveModule });
+    expect(r.ok).toBe(false);
+    expect(codes(r)).toContain('MISSING_SOURCE');
+  });
+
+  it('fails a command step with no source at all', () => {
+    const s = loadValid();
+    delete s.acts[0].steps[0].source;
+    const r = validateScenario(s, { resolveModule });
+    expect(r.ok).toBe(false);
+    expect(codes(r)).toContain('MISSING_SOURCE');
+  });
+});
+
 describe('validateScenario — continuity coherence (#482 §0/§4.5)', () => {
   it('fails a "continuous" scenario whose acts reference different primary VPCs', () => {
     const s = loadValid();

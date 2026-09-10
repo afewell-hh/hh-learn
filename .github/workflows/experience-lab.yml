@@ -10,11 +10,20 @@ on:
       - 'src/experiences/**'
       - 'scripts/experiences/**'
       - 'content/experiences/**'
+      # Cited source modules — a change here can alter an anchored command/output block,
+      # so anti-drift (validate:scenario) must re-run (finding #2).
+      - 'content/modules/**'
       - 'clean-x-hedgehog-templates/assets/js/experience-player.js'
       - 'clean-x-hedgehog-templates/assets/css/experience-player.css'
       - 'clean-x-hedgehog-templates/learn/experience/**'
       - 'tests/unit/experience-*.test.ts'
       - 'tests/e2e/experience-*.spec.ts'
+      # Dependency / config inputs that affect the build & test tooling.
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - 'jest.config.js'
+      - 'playwright.config.ts'
       - '.github/workflows/experience-lab.yml'
   workflow_dispatch:
 

@@ -114,6 +114,22 @@ test.describe('Fabric Operator replay — deterministic', () => {
     expect(overflow).toBe(false);
   });
 
+  test('renders the fabric topology from scenario entities and highlights per step', async ({ page }) => {
+    await page.goto(FIXTURE);
+    const topo = page.getByRole('img', { name: /fabric topology/i });
+    await expect(topo).toContainText('leaf-01');
+    await expect(topo).toContainText('server-01');
+    await expect(topo).toContainText('webapp-prod');
+    // step 0 (apply-vpc) carries annotation highlight:leaf-01
+    await expect(page.locator('.hhl-exp__topo-chip.is-highlighted[data-entity="leaf-01"]')).toHaveCount(1);
+  });
+
+  test('replaces the static no-JS fallback once the player mounts', async ({ page }) => {
+    await page.goto(FIXTURE);
+    await expect(page.locator('[data-hhl-fallback]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /next/i })).toBeVisible();
+  });
+
   test('a11y: no serious/critical axe violations with rendered content', async ({ page }) => {
     await page.goto(FIXTURE);
     await page.getByRole('button', { name: /next/i }).click(); // render additional steps

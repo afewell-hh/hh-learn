@@ -10,8 +10,14 @@
   {{ super() }}
 
   {#
-    Inlined constants (HubL cannot read JSON at render time — Issue #327).
-    Source of truth: clean-x-hedgehog-templates/config/constants.json
+    Inlined constants (HubL cannot read constants.json at render time — Issue #327).
+    Source of truth: clean-x-hedgehog-templates/config/constants.json (kept in sync).
+
+    FEATURE FLAG / KILL SWITCH (finding #486-1): EXPERIENCE_LAB_ENABLED is evaluated
+    server-side from THIS inlined value — `npm run publish:constants` does NOT change it.
+    To enable/disable at runtime, edit this value (and constants.json) and REPUBLISH THIS
+    TEMPLATE (HTML-only): `npm run publish:template -- --path "CLEAN x HEDGEHOG/templates/learn/experience/fabric-operator.html" --local "clean-x-hedgehog-templates/learn/experience/fabric-operator.html"`.
+    That is the documented kill switch — a single fast HTML republish (no JS/CSS CDN compile needed).
   #}
   {% set constants = {
     'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
@@ -52,6 +58,15 @@
         data-cta-primary-label="Launch the full Virtual Lab"
         data-cta-primary-url="https://hedgehog.cloud/download"
         data-cta-secondary-json='[{"label":"Talk to us","url":"https://hedgehog.cloud/contact"},{"label":"Continue: Network Like a Hyperscaler","url":"https://hedgehog.cloud/learn"}]'>
+        {# Static no-JS fallback (finding #5): visible if the player asset fails to load.
+           The player clears this before rendering. #}
+        <div data-hhl-fallback>
+          <h1>Operate a Hedgehog fabric</h1>
+          <p>Guided replay of real, validated Network-Like-a-Hyperscaler workflows — not a live fabric.</p>
+          <p>This interactive replay needs JavaScript. You can also
+             <a href="https://hedgehog.cloud/learn">continue with the Network Like a Hyperscaler learning path</a>
+             or <a href="https://hedgehog.cloud/download">run the full Virtual Lab</a>.</p>
+        </div>
       </div>
     {% else %}
       <section class="hhl-exp-coming-soon" style="max-width:720px;margin:3rem auto;padding:1rem;text-align:center;">
