@@ -1,0 +1,202 @@
+/*
+ * experience-player.css — Slice 1 Fabric Operator replay (Epic #478 / #483).
+ * Uses neutral tokens that sit inside the Clean.Pro theme; a distinct terminal
+ * treatment for the product-demo moment. Responsive (single-column < 900px),
+ * WCAG AA contrast, no page-level horizontal overflow.
+ */
+
+.hhl-exp {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+  color: #0f172a;
+}
+.hhl-exp__title {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin: 0 0 0.25rem;
+}
+.hhl-exp__honesty {
+  font-size: 0.9rem;
+  color: #475569;
+  margin: 0 0 1rem;
+  font-style: italic;
+}
+
+.hhl-exp__stage {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 900px) {
+  .hhl-exp__stage {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hhl-exp__topology {
+    grid-column: 1 / -1;
+  }
+}
+
+.hhl-exp__narrative {
+  min-width: 0;
+}
+.hhl-exp__step-title {
+  font-size: 1.125rem;
+  margin: 0 0 0.5rem;
+  outline-offset: 3px;
+}
+.hhl-exp__step-body {
+  margin: 0;
+  color: #334155;
+}
+
+.hhl-exp__terminal {
+  background: #0b1020;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  overflow-x: auto; /* wide output scrolls inside the terminal, never the page */
+  min-width: 0;
+  max-width: 100%;
+}
+.hhl-exp__line {
+  margin-bottom: 0.75rem;
+}
+.hhl-exp__prompt {
+  color: #38bdf8;
+}
+.hhl-exp__cmd {
+  color: #f8fafc;
+}
+.hhl-exp__out {
+  margin: 0.25rem 0 0;
+  white-space: pre;
+  color: #a7f3d0;
+  font-family: inherit;
+}
+/* Visual-only typing cue; present only when motion is allowed (see player-view). */
+.hhl-exp__terminal.is-typing .hhl-exp__line:last-child .hhl-exp__cmd::after {
+  content: '▋';
+  color: #38bdf8;
+  animation: hhl-blink 1s step-end infinite;
+}
+@keyframes hhl-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hhl-exp__terminal.is-typing .hhl-exp__line:last-child .hhl-exp__cmd::after {
+    animation: none;
+  }
+}
+
+.hhl-exp__topology {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: #475569;
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+.hhl-exp__topo-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.hhl-exp__topo-label {
+  font-weight: 600;
+  color: #334155;
+  margin-right: 0.25rem;
+}
+.hhl-exp__topo-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #0f172a;
+  white-space: nowrap;
+}
+.hhl-exp__topo-sub {
+  color: #64748b;
+  font-size: 0.8em;
+}
+.hhl-exp__topo-chip.is-highlighted {
+  border-color: #1d4ed8;
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.hhl-exp__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.hhl-exp__controls button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.hhl-exp__controls button:hover {
+  background: #1e40af;
+}
+.hhl-exp__controls button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+.hhl-exp__progress {
+  margin-left: auto;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.hhl-exp__cta {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+.hhl-exp__cta-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+}
+.hhl-exp__cta-primary {
+  display: inline-block;
+  padding: 0.6rem 1.1rem;
+  background: #059669;
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  margin-right: 0.75rem;
+}
+.hhl-exp__cta-secondary {
+  color: #1d4ed8;
+  margin-right: 0.75rem;
+}
+
+.hhl-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
