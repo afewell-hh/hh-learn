@@ -12,5 +12,6 @@
   "AUTH_LOGOUT_URL": "https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/auth/logout",
   "TRACK_EVENTS_ENABLED": true,
   "TRACK_EVENTS_URL": "https://hvoog2lnha.execute-api.us-west-2.amazonaws.com/events/track",
-  "ACTION_RUNNER_URL": "/learn/action-runner"
+  "ACTION_RUNNER_URL": "/learn/action-runner",
+  "EXPERIENCE_LAB_ENABLED": false
 }

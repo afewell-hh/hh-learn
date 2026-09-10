@@ -1,0 +1,64 @@
+<!--
+  templateType: page
+  isAvailableForNewContent: true
+  label: Fabric Operator Experience (Slice 1)
+  description: Browser-native guided replay of validated Network-Like-a-Hyperscaler operator workflows. Static, same-origin, backend-free. Gated by EXPERIENCE_LAB_ENABLED. Epic #478.
+-->
+{% extends "/CLEAN x HEDGEHOG/templates/layouts/base.html" %}
+
+{% block head %}
+  {{ super() }}
+
+  {#
+    Inlined constants (HubL cannot read JSON at render time — Issue #327).
+    Source of truth: clean-x-hedgehog-templates/config/constants.json
+  #}
+  {% set constants = {
+    'DEFAULT_SOCIAL_IMAGE_URL': 'https://hedgehog.cloud/hubfs/social-share-default.png',
+    'EXPERIENCE_LAB_ENABLED': false
+  } %}
+
+  <title>Fabric Operator — Guided Replay | Hedgehog</title>
+  <meta name="description" content="A browser-native guided replay of real, validated Hedgehog fabric operator workflows.">
+  <link rel="canonical" href="https://{{ request.domain }}/learn/experience/fabric-operator">
+
+  {#
+    Gate the brand-new asset references behind the feature flag so the CMS published-deps
+    dry-run validator's no-flag render path does not trip on not-yet-published assets
+    (carrying the #459 lesson). After rollout the guard also avoids loading the player when off.
+  #}
+  {% if constants.EXPERIENCE_LAB_ENABLED %}
+    <link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/experience-player.css') }}">
+    <script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/experience-player.js') }}" defer></script>
+  {% endif %}
+{% endblock head %}
+
+{% block body %}
+  <main class="hhl-exp-page">
+    {% if constants.EXPERIENCE_LAB_ENABLED %}
+      {#
+        Inline scenario island. Content is injected at build time by
+        scripts/experiences/generate-experience-page.ts using serializeIsland()
+        (safe against </script> / <!-- / ]]> / U+2028 / U+2029). Do not hand-edit the island body.
+      #}
+      <!-- HHL_SCENARIO_ISLAND:START -->
+      <script type="application/json" id="hhl-exp-scenario">{"schemaVersion":"1.0","scenarioId":"fabric-operator","version":"1","title":"Operate a Hedgehog fabric: provision, validate, and recover","summary":"A guided replay of real, validated Network-Like-a-Hyperscaler operator workflows: provision a VPC, attach a server, validate, then diagnose and recover from a change gone wrong.","honestyLabel":"Guided replay of real, validated workflows — not a live fabric.","continuity":"composite","leadBridge":{"primary":{"label":"Launch the full Virtual Lab","href":"https://hedgehog.cloud/download"},"secondary":[{"label":"Talk to us","href":"https://hedgehog.cloud/contact"},{"label":"Continue: Network Like a Hyperscaler","href":"https://hedgehog.cloud/learn"}]},"entities":{"switches":[{"id":"leaf-01","role":"leaf","ports":["E1/1","E1/5"]}],"servers":[{"id":"server-01"},{"id":"server-07"}],"vpcs":[{"id":"webapp-prod","vlans":[1010,1020]},{"id":"webapp-vpc","vlans":[1010]},{"id":"customer-app-vpc","vlans":[]}]},"acts":[{"id":"provision","title":"Provision a VPC","primaryEntities":["webapp-prod"],"steps":[{"id":"apply-vpc","kind":"command","narrative":"Provisioning a VPC on Hedgehog is a single declarative apply — no box-by-box configuration.","command":"kubectl apply -f webapp-prod-vpc.yaml","output":{"mode":"static","text":"vpc.vpc.githedgehog.com/webapp-prod created","format":"text"},"annotations":["highlight:leaf-01"],"timingMs":500,"source":{"module":"fabric-operations-vpc-provisioning","validated_on":"2025-10-16","command":{"anchor":"Step 2: Apply VPC Configuration","blockLang":"bash","blockIndex":0,"match":"exact-line"},"output":{"anchor":"Step 2: Apply VPC Configuration","blockLang":"text","blockIndex":0,"match":"exact-block"}}},{"id":"verify-agents","kind":"command","narrative":"Fabric CRDs emit no Kubernetes events; reconciliation is confirmed when each Agent's APPLIEDG equals its CURRENTG.","command":"kubectl get agents","timingMs":400,"source":{"module":"fabric-operations-vpc-provisioning","validated_on":"2025-10-16","command":{"anchor":"Step 4: Verify Reconciliation via Agent Status","blockLang":"bash","blockIndex":0,"match":"exact-line"}}}]},{"id":"attach","title":"Attach a server","primaryEntities":["webapp-prod"],"steps":[{"id":"apply-attach","kind":"command","narrative":"A VPCAttachment binds a server's connection to a VPC subnet — here server-01 to the web-servers subnet over MCLAG.","command":"kubectl apply -f server-01-attachment.yaml","output":{"mode":"static","text":"vpcattachment.vpc.githedgehog.com/server-01-web-servers created","format":"text"},"timingMs":500,"source":{"module":"fabric-operations-vpc-attachments","validated_on":"2025-10-16","command":{"anchor":"Create VPCAttachment for server-01","blockLang":"bash","blockIndex":1,"match":"exact-line"},"output":{"anchor":"Create VPCAttachment for server-01","blockLang":"text","blockIndex":0,"match":"exact-block"}}}]},{"id":"validate","title":"Validate the deployment","primaryEntities":["webapp-prod"],"steps":[{"id":"list-vpcs","kind":"command","narrative":"Before declaring success, confirm the expected resources exist.","command":"kubectl get vpcs","timingMs":400,"source":{"module":"fabric-operations-connectivity-validation","validated_on":"2025-10-16","command":{"anchor":"Step 1: Review Deployed Infrastructure","blockLang":"bash","blockIndex":0,"match":"exact-line"}}},{"id":"list-attachments","kind":"command","narrative":"And confirm the attachment is present and bound to the right subnet.","command":"kubectl get vpcattachments","timingMs":400,"source":{"module":"fabric-operations-connectivity-validation","validated_on":"2025-10-16","command":{"anchor":"Step 1: Review Deployed Infrastructure","blockLang":"bash","blockIndex":1,"match":"exact-line"}}}]},{"id":"break","title":"A change goes wrong (different scenario)","primaryEntities":["webapp-vpc"],"steps":[{"id":"break-note","kind":"narrative","narrative":"We now switch to the troubleshooting course's separate validated scenario. On a different VPC, webapp-vpc, a routine change moved the frontend subnet to VLAN 1050 — which already belonged to another tenant. The conflict broke connectivity for the web tier."}]},{"id":"diagnose","title":"Diagnose the failure","primaryEntities":["customer-app-vpc"],"steps":[{"id":"diagnose-intro","kind":"narrative","narrative":"The diagnosis walkthrough uses its own validated fabric: server-07 on customer-app-vpc cannot reach its gateway. The resource exists and agents are converged, so the fault is in the configuration, not the control plane."},{"id":"inspect-attachment","kind":"command","narrative":"Start by reading the attachment's full spec to check the subnet and connection references.","command":"kubectl get vpcattachment customer-app-vpc-server-07 -o yaml","timingMs":500,"source":{"module":"fabric-operations-diagnosis-lab","validated_on":"2025-10-17","command":{"anchor":"Step 2.1: Check VPCAttachment Configuration","blockLang":"bash","blockIndex":0,"match":"exact-line"}}}]},{"id":"recover","title":"Recover with GitOps","primaryEntities":["webapp-vpc"],"steps":[{"id":"recover-intro","kind":"narrative","narrative":"Back on webapp-vpc, recovery is a Git revert — the fabric is driven by GitOps, so undoing the bad commit restores the desired state with a full audit trail."},{"id":"git-revert","kind":"command","narrative":"Revert the offending commit (this creates a new commit that undoes the change).","command":"git revert a1b2c3d","timingMs":500,"source":{"module":"fabric-operations-rollback-recovery","validated_on":"2025-10-17","command":{"anchor":"Step 2: Revert the Commit (Git)","blockLang":"bash","blockIndex":0,"match":"exact-line"}}},{"id":"verify-vlan","kind":"command","narrative":"After ArgoCD syncs, confirm the frontend subnet is back on its original VLAN.","command":"kubectl get vpc webapp-vpc -o jsonpath='{.spec.subnets.frontend.vlan}'","timingMs":400,"source":{"module":"fabric-operations-rollback-recovery","validated_on":"2025-10-17","command":{"anchor":"Step 4: Verify Rollback","blockLang":"bash","blockIndex":0,"match":"exact-line"}}}]}]}</script>
+      <!-- HHL_SCENARIO_ISLAND:END -->
+
+      <div
+        data-hhl-experience
+        data-flag-enabled="true"
+        data-scenario-el="hhl-exp-scenario"
+        data-cta-primary-label="Launch the full Virtual Lab"
+        data-cta-primary-url="https://hedgehog.cloud/download"
+        data-cta-secondary-json='[{"label":"Talk to us","url":"https://hedgehog.cloud/contact"},{"label":"Continue: Network Like a Hyperscaler","url":"https://hedgehog.cloud/learn"}]'>
+      </div>
+    {% else %}
+      <section class="hhl-exp-coming-soon" style="max-width:720px;margin:3rem auto;padding:1rem;text-align:center;">
+        <h1>Fabric Operator experience</h1>
+        <p>This interactive experience is not available yet. In the meantime, explore the
+           <a href="/learn">Network Like a Hyperscaler</a> learning path.</p>
+      </section>
+    {% endif %}
+  </main>
+{% endblock body %}

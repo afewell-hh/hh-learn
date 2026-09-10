@@ -13,6 +13,7 @@
  * GREEN target: implement experience-player.js (+ generated core/view) so all pass.
  */
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { pathToFileURL } from 'url';
 import * as path from 'path';
 
@@ -111,5 +112,18 @@ test.describe('Fabric Operator replay — deterministic', () => {
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
     expect(overflow).toBe(false);
+  });
+
+  test('a11y: no serious/critical axe violations with rendered content', async ({ page }) => {
+    await page.goto(FIXTURE);
+    await page.getByRole('button', { name: /next/i }).click(); // render additional steps
+    const results = await new AxeBuilder({ page }).analyze();
+    const seriousOrWorse = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(
+      seriousOrWorse,
+      `axe violations: ${JSON.stringify(seriousOrWorse.map((v) => v.id))}`,
+    ).toHaveLength(0);
   });
 });
