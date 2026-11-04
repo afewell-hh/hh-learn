@@ -1,0 +1,36 @@
+name: Auto Code Review (Copilot)
+
+# Requests GitHub Copilot code review on every new PR.
+#
+# Requires Copilot code review to be enabled for this repository
+# (Settings -> Copilot, or github.com/settings/copilot for a personal repo).
+# Copilot code review does NOT expose model selection; thoroughness is controlled
+# by review effort level (Lite / Balanced / Max), configured in those settings.
+#
+# If Copilot is not enabled or not licensed, this job fails soft and logs a notice
+# rather than blocking the PR.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  request-copilot-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Copilot as reviewer
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if gh pr edit "$PR" --repo "$REPO" --add-reviewer "@copilot"; then
+            echo "::notice::Requested Copilot code review on PR #$PR"
+          else
+            echo "::warning::Could not request Copilot review on PR #$PR. \
+            Verify Copilot code review is enabled and licensed for $REPO."
+          fi
