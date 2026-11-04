@@ -28,9 +28,16 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if gh pr edit "$PR" --repo "$REPO" --add-reviewer "@copilot"; then
-            echo "::notice::Requested Copilot code review on PR #$PR"
+          # "Copilot" is the reviewer login the REST API accepts.
+          # Note: if Copilot code review is not enabled/licensed for the repo,
+          # the API returns 200 and silently adds no reviewer -- so we verify.
+          echo '{"reviewers":["Copilot"]}' \
+            | gh api -X POST "/repos/$REPO/pulls/$PR/requested_reviewers" --input - >/dev/null || true
+
+          if gh api "/repos/$REPO/pulls/$PR/requested_reviewers" \
+               --jq '[.users[].login] | index("Copilot")' | grep -qv '^$'; then
+            echo "::notice::Copilot code review requested on PR #$PR"
           else
-            echo "::warning::Could not request Copilot review on PR #$PR. \
-            Verify Copilot code review is enabled and licensed for $REPO."
+            echo "::warning::Copilot was not added as a reviewer on PR #$PR. \
+            Enable Copilot code review for $REPO (Settings -> Copilot) and confirm the account is licensed."
           fi
