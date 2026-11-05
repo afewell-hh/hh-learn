@@ -31,7 +31,7 @@ gcloud iam service-accounts create hotlab-vm-reaper  --project=$P --display-name
 gcloud iam roles create hotlabVmCreator --project=$P --title="Hot Lab VM creator" \
   --permissions=compute.instances.create,compute.instances.get,compute.instances.list,compute.instances.delete,compute.instances.start,compute.instances.stop,compute.instances.setLabels,compute.instances.setMetadata,compute.disks.create,compute.disks.get,compute.subnetworks.use,compute.subnetworks.get,compute.networks.get,compute.machineTypes.get,compute.zones.get,compute.regions.get,compute.zoneOperations.get,compute.globalOperations.get,compute.projects.get,compute.images.useReadOnly
 gcloud iam roles create hotlabVmReaper --project=$P --title="Hot Lab VM reaper" \
-  --permissions=compute.instances.list,compute.instances.get,compute.instances.delete,compute.zoneOperations.get,compute.zones.list
+  --permissions=compute.instances.list,compute.instances.get,compute.instances.delete,compute.disks.list,compute.zoneOperations.get,compute.zones.list
 ```
 
 ### 2.4 Pools, providers, bindings (separate pool per identity)
@@ -53,7 +53,7 @@ gcloud iam workload-identity-pools providers create-oidc github --project=$P --l
 gcloud iam workload-identity-pools providers create-oidc github --project=$P --location=global \
   --workload-identity-pool=hotlab-reaper --issuer-uri=https://token.actions.githubusercontent.com \
   --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.workflow_ref=assertion.workflow_ref" \
-  --attribute-condition="$COMMON && assertion.workflow_ref == '$REAPER_WF' && assertion.event_name in ['schedule','workflow_dispatch']"
+  --attribute-condition="$COMMON && assertion.workflow_ref == '$REAPER_WF' && assertion.event_name in ['schedule','workflow_dispatch','workflow_run']"
 
 # impersonation: exact workflow_ref only
 gcloud iam service-accounts add-iam-policy-binding hotlab-vm-creator@$P.iam.gserviceaccount.com \
@@ -105,13 +105,21 @@ DESIGN §8.
 If `teched-473722` is in an Organization: custom org-policy constraint on
 `compute.googleapis.com/Instance` denying creation when `resource.machineType` is not in
 the allowlist, scoped to this project. Skip if standalone.
+Same mechanism could, if the constraint language supports it (`U`, not verified), require
+`resource.scheduling.terminationTime` to be set and `maxRunDuration` unset on `hotlab-*`
+instances; see DESIGN §1 item 1 and §6a. Until that exists, the reaper is load-bearing.
 
 ## 3. Day-to-day
 * Create: Actions → *Hot Lab VM (creator)* → `create`, ticket, machine, zone, ttl, hold.
 * Inspect any time: *Hot Lab Cloud (trusted)* → `inventory` (shows labels; read-only).
 * Reaper first use: run *Hot Lab VM (reaper)* via **workflow_dispatch with dry_run=true**,
-  read the summary, then let the schedule run live.
-* Early teardown: cancel the creator run (teardown step runs), or `delete` operation.
+  read the summary, then let the schedule run live. The reaper also fires on every
+  creator-run completion (`workflow_run`), plus cron at :07,:17,:27,:37,:47,:57.
+* Early teardown: cancel the creator run (the teardown step normally runs and deletes,
+  because it is conditioned on `always()` and on `job.status`; a force-cancel or lost
+  runner can skip it, in which case the completion-triggered reaper run, the cron reaper
+  and `terminationTime` apply), or use the `delete` operation. Verify with `inventory`.
+* Residual exposure of the creator identity: see DESIGN §6a.
 
 ## 4. Out-of-band verification (replaces "provoke a failure" tests)
 

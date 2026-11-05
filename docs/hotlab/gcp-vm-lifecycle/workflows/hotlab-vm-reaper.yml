@@ -12,7 +12,7 @@ name: Hot Lab VM (reaper)
 #   repository_owner_id == 193945001
 #   ref                 == refs/heads/main
 #   workflow_ref        == afewell-hh/hh-learn/.github/workflows/hotlab-vm-reaper.yml@refs/heads/main
-#   event_name          in ['schedule', 'workflow_dispatch']
+#   event_name          in ['schedule', 'workflow_dispatch', 'workflow_run']
 #
 # SCOPE: only instances whose NAME starts with `hotlab-` are ever considered, and
 # the SA's delete permission is additionally IAM-conditioned to that prefix. The
@@ -27,10 +27,22 @@ name: Hot Lab VM (reaper)
 #   - zone or machine type is outside the allowlist
 #   - scheduling.terminationTime missing / not DELETE / not the same instant as
 #     expires-at, or scheduling.maxRunDuration is PRESENT (resets on restart)
-#   - an external IP, an attached service account, or deletionProtection is set
-#     (deletionProtection would also block this reaper from deleting: it is
-#     reported and the run goes red so a human intervenes)
-#   - disk list is not exactly one auto-delete boot disk
+#   - the deadline (terminationTime, or expires-at) is further than MAX_LIFETIME_S
+#     from server-side creationTimestamp or from now (distant deadlines do not survive)
+#   - scheduling.automaticRestart != false, onHostMaintenance != TERMINATE,
+#     provisioningModel != STANDARD
+#   - metadata enable-oslogin / block-project-ssh-keys != TRUE
+#   - not exactly 1 NIC, an external IP, an attached service account, or
+#     deletionProtection is set (deletionProtection would also block this reaper from
+#     deleting: it is reported and the run goes red so a human intervenes)
+#   - disk list is not exactly one auto-delete boot disk, or (via `disks list`) that
+#     disk is not pd-standard or is outside MIN_DISK_GB..MAX_DISK_GB
+#
+# NOT checked (so this is NOT "complete validation"): image, network/subnet identity,
+# nested-virt flag, CPU platform, labels beyond presence/format of the required ones,
+# extra metadata keys, and anything GCP adds to the API that is not listed above.
+# Checks run against whatever the API returns at sweep time; a VM that violates and is
+# fixed/deleted between sweeps is not seen.
 #   - it is beyond MAX_CONCURRENT (newest are deleted first)
 #
 # The job FAILS (red, emails watchers) if any violating instance still exists after
@@ -42,9 +54,18 @@ name: Hot Lab VM (reaper)
 # why scheduling.terminationTime (absolute) on the instance is the real backstop;
 # this is layer 4.
 
+# TRIGGERS: cron every 10 min (labapp's cadence) AND workflow_run on completion of
+# the creator, so leftovers from a failed/cancelled creator are swept immediately
+# rather than at the next cron tick. workflow_run only fires for workflow files on the
+# default branch, and the OIDC `ref` for it is the default branch, so the pinned
+# attribute condition (event_name in schedule/workflow_dispatch/workflow_run) still
+# holds. This job checks out nothing and uses nothing from the triggering run.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7,17,27,37,47,57 * * * *"
+  workflow_run:
+    workflows: ["Hot Lab VM (creator)"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -65,7 +86,9 @@ env:
   PROJECT: ${{ vars.HOTLAB_GCP_PROJECT }}
   # Reaper-owned copies of the caps (intentionally independent of the creator).
   MAX_CONCURRENT: "2"
-  MAX_LIFETIME_S: "29400"   # 480 min + 10 min slack
+  MAX_LIFETIME_S: "29400"   # 480 min + 10 min slack; policy maximum for ANY deadline
+  MIN_DISK_GB: "50"
+  MAX_DISK_GB: "500"
   ALLOWED_ZONES: "us-west4-a,us-west4-b,us-west4-c"
   ALLOWED_MACHINES: "n2-standard-8,n2-highmem-4,n2-standard-16"
 
@@ -103,38 +126,68 @@ jobs:
           list > all.json     # a list error aborts the run (set -e): never read as "empty"
           jq -e 'type=="array"' all.json >/dev/null
 
-          # Pass 0: normalise each instance's terminationTime to epoch seconds
-          # (GCP may return offsets/fractions). Unparseable => "bad"; absent => "".
+          # Disks are listed separately because instance JSON carries only the disk
+          # SOURCE url, not its type. A list error aborts the run (set -e).
+          gcloud compute disks list --project="$PROJECT" --filter="name~'^hotlab-'" --format=json > disks.json
+          jq -e 'type=="array"' disks.json >/dev/null
+          disks_json="$(jq '[.[] | {(.name): {type: (.type|split("/")|last), size: (.sizeGb|tonumber)}}] | add // {}' disks.json)"
+
+          # Pass 0: normalise terminationTime and creationTimestamp (server-set, not a
+          # label) to epoch seconds (GCP may return offsets/fractions).
+          # Unparseable => "bad"; absent => "".
           : > tt.tsv
-          while IFS=$'\t' read -r n t; do
+          while IFS=$'\t' read -r n t c; do
             [ -n "$n" ] || continue
             if [ -n "$t" ]; then e="$(date -d "$t" +%s 2>/dev/null || echo bad)"; else e=""; fi
-            printf '%s\t%s\n' "$n" "$e" >> tt.tsv
-          done < <(jq -r '.[] | [.name, (.scheduling.terminationTime // "")] | @tsv' all.json)
-          tt_json="$(jq -Rn '[inputs | split("\t") | {(.[0]): .[1]}] | add // {}' < tt.tsv)"
+            if [ -n "$c" ]; then ce="$(date -d "$c" +%s 2>/dev/null || echo bad)"; else ce=""; fi
+            printf '%s\t%s\t%s\n' "$n" "$e" "$ce" >> tt.tsv
+          done < <(jq -r '.[] | [.name, (.scheduling.terminationTime // ""), (.creationTimestamp // "")] | @tsv' all.json)
+          tt_json="$(jq -Rn '[inputs | split("\t") | {(.[0]): {tt: .[1], cr: .[2]}}] | add // {}' < tt.tsv)"
 
-          # Pass 1: per-instance rule violations.
-          jq -r --arg now "$now" --arg ml "$MAX_LIFETIME_S" --arg zones "$ALLOWED_ZONES" --arg machines "$ALLOWED_MACHINES" --argjson tt "$tt_json" '
-            ($now|tonumber) as $now | ($ml|tonumber) as $ml |
+          # Pass 1: per-instance rule violations. First match wins.
+          # The deadline cap uses server-side creationTimestamp, NOT the created-at
+          # label, so a tampered label cannot hide an overlong deadline.
+          jq -r --arg now "$now" --arg ml "$MAX_LIFETIME_S" --arg zones "$ALLOWED_ZONES" --arg machines "$ALLOWED_MACHINES" \
+                --arg mind "$MIN_DISK_GB" --arg maxd "$MAX_DISK_GB" \
+                --argjson tt "$tt_json" --argjson dk "$disks_json" '
+            ($now|tonumber) as $now | ($ml|tonumber) as $ml | ($mind|tonumber) as $mind | ($maxd|tonumber) as $maxd |
             .[] | . as $i
             | ($i.labels // {}) as $l
             | ($i.zone|split("/")|last) as $z
             | ($i.machineType|split("/")|last) as $mt
+            | ($i.scheduling // {}) as $s
+            | ($tt[$i.name] // {}) as $t
+            | ([($i.metadata.items // [])[] | {(.key): .value}] | add // {}) as $md
+            | ((($i.disks // [])[0].source // "") | split("/") | last) as $dname
+            | ($dk[$dname] // null) as $disk
             | (["managed-by","owner","ticket","run-id","created-at","expires-at"] | map(select($l[.] == null))) as $missing
             | (if ($missing|length) > 0 then "missing-labels:" + ($missing|join(","))
                elif $l["managed-by"] != "hotlab" then "managed-by-not-hotlab"
                elif (($l["created-at"]|test("^[0-9]+$"))|not) or (($l["expires-at"]|test("^[0-9]+$"))|not) then "malformed-timestamps"
                elif ($l["expires-at"]|tonumber) <= $now then "expired"
-               elif (($i.scheduling // {}) | has("maxRunDuration")) then "maxRunDuration-present-resets-on-restart"
-               elif ($i.scheduling.instanceTerminationAction // "") != "DELETE" then "terminationAction-not-DELETE"
-               elif ($tt[$i.name] // "") == "" then "terminationTime-missing"
-               elif $tt[$i.name] == "bad" then "terminationTime-unparseable"
-               elif ($tt[$i.name]|tonumber) <= $now then "terminationTime-passed"
-               elif (($tt[$i.name]|tonumber) - ($l["expires-at"]|tonumber) | fabs) > 60 then "terminationTime-differs-from-expires-at"
+               elif ($s | has("maxRunDuration")) then "maxRunDuration-present-resets-on-restart"
+               elif ($s.instanceTerminationAction // "") != "DELETE" then "terminationAction-not-DELETE"
+               elif ($t.tt // "") == "" then "terminationTime-missing"
+               elif $t.tt == "bad" then "terminationTime-unparseable"
+               elif ($t.tt|tonumber) <= $now then "terminationTime-passed"
+               elif ($t.cr // "") == "" or $t.cr == "bad" then "creationTimestamp-missing-or-unparseable"
+               elif (($t.tt|tonumber) - ($t.cr|tonumber)) > $ml then "deadline-exceeds-policy-max"
+               elif (($t.tt|tonumber) - $now) > $ml then "deadline-too-far-in-future"
+               elif (($l["expires-at"]|tonumber) - $now) > $ml then "expires-at-too-far-in-future"
+               elif (($t.tt|tonumber) - ($l["expires-at"]|tonumber) | fabs) > 60 then "terminationTime-differs-from-expires-at"
+               elif ($s.automaticRestart // true) != false then "automaticRestart-not-false"
+               elif ($s.onHostMaintenance // "") != "TERMINATE" then "onHostMaintenance-not-TERMINATE"
+               elif ($s.provisioningModel // "STANDARD") != "STANDARD" then "provisioningModel-not-STANDARD"
+               elif (($md["enable-oslogin"] // "") | ascii_upcase) != "TRUE" then "enable-oslogin-not-TRUE"
+               elif (($md["block-project-ssh-keys"] // "") | ascii_upcase) != "TRUE" then "block-project-ssh-keys-not-TRUE"
+               elif (($i.networkInterfaces // []) | length) != 1 then "nic-count-not-1"
                elif (($i.networkInterfaces // []) | map((.accessConfigs // []) + (.ipv6AccessConfigs // [])) | add // [] | length) > 0 then "external-ip"
                elif (($i.serviceAccounts // []) | length) > 0 then "service-account-attached"
                elif ($i.deletionProtection // false) then "deletion-protection-set"
                elif (($i.disks // []) | (length != 1 or (.[0].boot != true) or (.[0].autoDelete != true))) then "disk-list-not-single-autodelete-boot"
+               elif $disk == null then "boot-disk-not-found-in-disk-list"
+               elif $disk.type != "pd-standard" then "boot-disk-type-not-pd-standard"
+               elif ($disk.size < $mind or $disk.size > $maxd) then "boot-disk-size-out-of-range"
                elif (($l["expires-at"]|tonumber) - ($l["created-at"]|tonumber)) > $ml then "lifetime-exceeds-cap"
                elif (($z | IN($zones|split(",")[])) | not) then "zone-not-allowed"
                elif (($mt | IN($machines|split(",")[])) | not) then "machine-type-not-allowed"

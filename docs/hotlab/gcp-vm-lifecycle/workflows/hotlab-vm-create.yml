@@ -373,13 +373,19 @@ jobs:
           esac
 
       # -------------------------------------------------------------- teardown
-      # always() (not !cancelled()) so failure, timeout AND cancellation all run it.
+      # always() (not !cancelled()) lets this run after failure, timeout or
+      # cancellation, but the condition ALSO has to be true. It deletes unless the
+      # ONLY reason to keep the VM applies: teardown=at-expiry AND the job is still
+      # succeeding (job.status == 'success') AND verify passed. So a failure or
+      # cancellation in any step before this one deletes, even with at-expiry.
+      # Limits: a runner killed outright or a force-cancel can skip this step; then
+      # the completion-triggered reaper run, terminationTime and the cron reaper apply.
       # Gated on auth success: if auth failed nothing could have been created.
       # Deletes by the deterministic name, so a half-finished create is still found.
       - name: Teardown (always)
         if: >-
           always() && inputs.operation == 'create' && steps.auth.outcome == 'success' &&
-          (inputs.teardown == 'now' || steps.verify.outcome != 'success')
+          (inputs.teardown == 'now' || steps.verify.outcome != 'success' || job.status != 'success')
         env:
           ZONE: ${{ inputs.zone }}
           NAME: ${{ steps.plan.outputs.name }}

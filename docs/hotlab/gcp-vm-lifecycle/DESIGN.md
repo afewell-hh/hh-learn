@@ -33,20 +33,40 @@ stopped and started. Simultaneously failing: GitHub down, runner never starting,
 `always()` step skipped by a force-cancel, reaper schedule dropped or disabled after 60
 days of inactivity, WIF/OIDC broken. None of those is on the path. `D, U`
 
-Concretely, the worst case with all of GitHub gone is **the TTL cap, ≤ 480 minutes from
-creation → at most 8 hours of VM time (§8), not a month**, and a stop/start cannot push
-that out.
+Concretely, the worst case with all of GitHub gone, **for a VM created by this
+workflow**, is the TTL cap, ≤ 480 minutes from creation → at most 8 hours of VM time
+(§8), not a month, and a stop/start cannot push that out. For a VM created by the
+creator identity *outside* this workflow without the field, see caveat 1: with GitHub
+gone nothing GCP-side bounds it.
 
 What this answer does and does **not** cover, stated plainly:
 
-1. It holds only for instances **created with the field**. The creator workflow always
-   sets it and reads it back (`scheduling.terminationTime`, `instanceTerminationAction`,
-   absence of `maxRunDuration`) and tears the VM down if the read-back differs. But the
-   creator SA could, if its workflow were altered, create without it. IAM cannot condition
-   on scheduling fields. Mitigations: workflow is pinned by `workflow_ref`+`ref=main`
-   (changes need a reviewed merge); the reaper deletes any `hotlab-*` VM lacking a
-   matching `terminationTime` or carrying `maxRunDuration`; an optional org-policy custom
-   constraint (§6, `U`) would make it server-enforced.
+1. **The backstop is workflow-enforced, NOT identity-enforced.** It holds for instances
+   created *through `hotlab-vm-create.yml`*. The creator **identity** is not constrained
+   to set it: nothing in IAM stops `hotlab-vm-creator` from calling `instances.insert`
+   without `terminationTime` (or with one years away) — e.g. from an altered workflow
+   merged to `main`, or any other code path that obtains a token for that identity.
+   *Can IAM Conditions express "only with an acceptable `scheduling.terminationTime`"?*
+   I believe **no**: Compute IAM conditions are evaluated on resource attributes
+   (`resource.type`, `resource.name`, `resource.service`) and request time, not on
+   request-body/field values such as `scheduling.*` or machine type. `U` — this is from
+   my knowledge of the IAM Conditions attribute reference; I could not fetch the docs or
+   run a policy simulation in this run, so RUNBOOK §4.2 / §2.8 check it with owner
+   credentials. The only server-side route to enforce a field is an **Organization Policy
+   custom constraint** on `compute.googleapis.com/Instance`; whether it can see
+   `scheduling.terminationTime`, and whether `teched-473722` is in an Organization at
+   all, is `U`. **Therefore this design takes the honest position: the creator-side
+   read-back and `always()` teardown are checks inside one workflow, and the reaper is
+   load-bearing, not merely a second line of defence.** Against an identity that creates
+   an unbounded instance, the actual controls are: the reaper (which deletes any
+   `hotlab-*` VM lacking a valid `terminationTime`, with `maxRunDuration`, or with a
+   deadline beyond the policy maximum — measured from server-set `creationTimestamp`,
+   not from labels — within ≤10 min of a cron tick, or immediately after a creator run
+   completes), the IAM name/zone conditions, quota and the budget alert (detection only).
+   If the reaper is also down (schedule dropped/disabled), an out-of-policy VM is **not**
+   stopped by any GCP-side mechanism. Remaining caveat: the reaper cannot delete a VM
+   with `deletionProtection` set (it goes red instead), and a creator-identity VM named
+   outside `hotlab-` is prevented by IAM condition (`U`), not by the reaper.
 2. **Stop → start no longer extends life** (the defect in revision 1). The deadline is
    absolute. `U`: what GCP does when the deadline passes while the instance is
    *stopped* (deleted at the deadline vs. at next start) is not something I could confirm;
@@ -121,7 +141,8 @@ Deliberately **absent**: `compute.instances.setScheduling` (cannot strip the sel
 after creation), `setMachineType`, `setServiceAccount`, `compute.instances.osLogin`/SSH,
 `iam.serviceAccounts.actAs` (VMs carry no SA), any IAM/billing/firewall/network write.
 
-`hotlabVmReaper`: `compute.instances.{list,get,delete}`, `compute.zoneOperations.get`,
+`hotlabVmReaper`: `compute.instances.{list,get,delete}`, `compute.disks.list` (to verify
+boot-disk type/size), `compute.zoneOperations.get`,
 `compute.zones.list`. **No create, no setLabels, no setMetadata.**
 
 IAM conditions on the mutating bindings (`U` – confirm condition support per permission):
@@ -142,11 +163,11 @@ instance resource to condition on.
 
 | # | Control | Mechanism | Where | Enforced by |
 |---|---|---|---|---|
-| 1 | Self-destruct | `scheduling.terminationTime` (absolute; = `expires-at`) + `instanceTerminationAction=DELETE` (ttl 15-480 min). `maxRunDuration` **forbidden** | create step; read-back in "Verify" (absent `maxRunDuration` asserted); reaper rechecks | **GCP control plane** |
+| 1 | Self-destruct | `scheduling.terminationTime` (absolute; = `expires-at`) + `instanceTerminationAction=DELETE` (ttl 15-480 min). `maxRunDuration` **forbidden** | create step; read-back in "Verify" (absent `maxRunDuration` asserted); reaper rechecks | **GCP control plane for VMs created via the workflow**; *not* identity-enforced (§1 caveat 1) |
 | 2 | Ownership labels | `managed-by, owner, ticket, run-id, created-at, expires-at` (epoch seconds) | create step; read-back; reaper treats missing/malformed as orphan | creator + reaper |
-| 2b | Reviewed shape (labapp-derived) | no `accessConfigs`/IPv6, no SA, `deletionProtection=false`, `automaticRestart=false`, `block-project-ssh-keys`+`enable-oslogin`=TRUE, one auto-delete boot disk, machine type in allowlist | read-back; reaper rechecks | creator + reaper |
-| 3 | Failure/cancel cleanup | `Teardown (always)` step, `always()` not `!cancelled()`, deletes by deterministic name `hotlab-<run_id>-<attempt>`, then re-lists to confirm | creator | GitHub Actions |
-| 4 | Independent reaper | `hotlab-vm-reaper.yml`, 15-min cron, own pool+SA, no create permission, fails red if anything violating survives | reaper | GitHub Actions + IAM |
+| 2b | Reviewed shape (labapp-derived) | no `accessConfigs`/IPv6, exactly 1 NIC, no SA, `deletionProtection=false`, `automaticRestart=false`, `onHostMaintenance=TERMINATE`, `provisioningModel=STANDARD`, `block-project-ssh-keys`+`enable-oslogin`=TRUE, one auto-delete boot disk, `pd-standard` 50–500 GB (reaper via `disks list`), machine type/zone in allowlist | read-back; the reaper re-checks every item listed here | creator + reaper (GitHub-side; not identity-enforced) |
+| 3 | Failure/cancel cleanup | `Teardown (always)`: `always()` plus `job.status != 'success'`, so failure/timeout/cancel delete even with `teardown=at-expiry`; only `at-expiry` + all-green keeps the VM. Deletes by deterministic name, then re-lists | creator | GitHub Actions; best-effort (force-cancel / lost runner can skip it) |
+| 4 | Independent reaper | `hotlab-vm-reaper.yml`: cron `7,17,27,37,47,57` **and** `workflow_run` on creator completion; own pool+SA, no create permission; fails red if a violator survives. **Load-bearing** for anything not created through the creator workflow | reaper | GitHub Actions + IAM |
 | 5 | Hard caps | concurrency ≤ 2, N2 machine allowlist, zone allowlist, TTL ≤ 480 min, disk ≤ 500 GB | see §6 | mixed — honest table below |
 | 6 | Budget alert | Billing budget on the project, thresholds in RUNBOOK §3 | GCP Billing | GCP (alert only) |
 | 7 | Visible inventory | existing `hotlab-cloud.yml` `inventory` (shows `labels`) | read-only identity | viewer role |
@@ -159,7 +180,7 @@ instance resource to condition on.
 | 2 labels missing/wrong | Reaper cannot know expiry | Reaper treats as orphan and deletes on next sweep; `terminationTime` (1) still deletes |
 | 3 teardown skipped (force-cancel, runner lost, auth fail mid-way) | VM left after proof | `terminationTime` (1) at the deadline; reaper at `expires-at` (4) |
 | 4 reaper not running (schedule dropped/disabled, SA broken) | No sweep | (1) and (3) still delete; failures of the reaper are visible (red run, or absence of runs in Actions) |
-| 5 a cap is bypassed (e.g. creator edited) | Over-size/over-count VM | Reaper holds independent copies of the machine/zone/concurrency caps and lifetime cap; IAM zone/prefix condition; quota ceiling `INSTANCES=24`, `CPUS=200`, `N2_CPUS=200`; (1) still bounds duration |
+| 5 a cap is bypassed (e.g. creator edited, or identity used directly) | Over-size/over-count VM | Reaper holds independent copies of the machine/zone/concurrency/lifetime/disk caps and deletes within one cron tick; IAM zone/prefix condition (`U`); quota ceiling (shared, loose: §6a); (1) bounds duration only if the field was set |
 | 2b shape violated (public IP, SA, extra disk, deletion protection) | Larger blast radius, or reaper cannot delete | Read-back fails → teardown; reaper reports reason and deletes; `deletion-protection-set` makes the run red because the reaper cannot delete it |
 | stop/start abused to extend life | Would defeat a duration | Not possible with an absolute `terminationTime`; `start` refuses past `expires-at`; reaper deletes stopped expired VMs |
 | 6 budget alert not delivered | No human notice | (1)(3)(4) are unaffected — alert is detection only, **it does not stop spend** |
@@ -168,7 +189,7 @@ instance resource to condition on.
 
 Two-at-once worth naming: *1 and 4 both fail* = a VM without the flag AND no reaper:
 only teardown (3) and the budget alert remain. This is why the read-back in the creator
-makes (1) fail loudly instead of silently, and why the reaper is scheduled every 15 min
+makes (1) fail loudly instead of silently, and why the reaper is scheduled every 10 min (and on creator completion)
 with a red-on-failure contract.
 
 ## 5. Avoiding false assurance (lesson from #507)
@@ -194,15 +215,40 @@ with a red-on-failure contract.
 |---|---|---|
 | Zone allowlist | `us-west4-{a,b,c}` | **Yes** — IAM condition on `resource.name` for create (`U`: confirm condition support); also reaper |
 | Name scope | `hotlab-*` | **Yes** — IAM condition on create/delete |
-| Machine type | N2: `n2-standard-8`, `n2-highmem-4`, `n2-standard-16` | **Partly.** Not expressible in IAM conditions. Optional custom org-policy constraint on `compute.googleapis.com/Instance` (`resource.machineType`) **if the project sits in an Organization** (`U`). Otherwise: creator allowlist + independent reaper allowlist (deletes violators within ≤15 min) |
+| Machine type | N2: `n2-standard-8`, `n2-highmem-4`, `n2-standard-16` | **Partly.** Not expressible in IAM conditions. Optional custom org-policy constraint on `compute.googleapis.com/Instance` (`resource.machineType`) **if the project sits in an Organization** (`U`). Otherwise: creator allowlist + independent reaper allowlist (deletes violators within one ≤10 min cron tick or on creator completion, if the reaper is running; not server-side) |
 | Max concurrent | 2 | **No dedicated server-side cap.** Project quota `INSTANCES=24` is shared with Labapp and cannot be lowered without hurting it. Enforced by creator (serialised via `concurrency:`) and by the reaper (deletes newest beyond 2) |
 | Lifetime | ≤ 480 min | Instance-level (`terminationTime`) + reaper `lifetime-exceeds-cap` |
 | Total capacity | `CPUS` 200, `N2_CPUS` 200, `INSTANCES` 24, `DISKS_TOTAL_GB` 4096, `SSD_TOTAL_GB` 500 (quota; identical in us-west4/us-central1/us-east4; JSON-parsed by key per coordinator's correction) | Yes (project quota, shared) |
 
-Honest summary: *duration, name scope and zone* are server-enforced; *machine type and
-concurrency* are enforced by two independent GitHub-side workflows and bounded in blast
-radius by quota. Hardening to server-side requires an Organization policy; whether
+Honest summary: *name scope and zone* are server-enforced by IAM conditions (`U`, until
+checked); *instance lifetime* is server-enforced **only for instances created with the
+field** (not identity-enforced, §1); *machine type, concurrency, disk and deadline caps*
+are enforced by two GitHub-side workflows (creator, reaper) and bounded in blast radius
+only by shared quota. Hardening to server-side requires an Organization policy; whether
 `teched-473722` is in an Organization is unknown to me (`U`).
+
+### 6a. Residual exposure of the creator identity, precisely
+
+Assume the creator identity is used outside the workflow (altered workflow merged, or
+token obtained some other way). It can, until the reaper next runs (≤10 min cron lag, or
+sooner via `workflow_run`; unbounded if the reaper is down):
+* create `hotlab-*` instances in `us-west4-*` of **any machine type**; IAM cannot
+  restrict machine type. Ceiling = remaining shared quota: `N2_CPUS` 200 / `CPUS` 200
+  (e.g. two `n2-standard-80`s, or ~6 `n2-standard-32`s), `INSTANCES` 24 minus Labapp's.
+  A burst like that costs on the order of several $/hour per VM-hour (`U`, no dated
+  prices); it is not capped by anything GCP-side except quota and is only detected by the
+  budget alert.
+* create more than 2 concurrently (concurrency is a workflow list-then-create check, and
+  the `concurrency:` group serialises only this workflow); the reaper deletes the newest
+  beyond 2 on its next sweep.
+* omit or set a far-future `terminationTime`; the reaper deletes these on its next sweep.
+It cannot: touch non-`hotlab-*` instances, create outside `us-west4` (IAM, `U`),
+`setScheduling` / change machine type / attach an SA (permissions absent), or attach a
+public IP unless the instance JSON allows it — that is **not** blocked by IAM; the reaper
+deletes such VMs (`external-ip`) but cannot prevent their brief existence.
+Closing this gap needs an Org Policy (machine-type allowlist, `terminationTime` required,
+external IP denied via the existing `constraints/compute.vmExternalIpAccess`), which
+depends on the project being in an Organization (`U`).
 
 ## 7. `gcloud` invocation for the #501 proof
 
@@ -333,7 +379,7 @@ concurrent creators cannot both pass a count check (a TOCTOU race). My concurren
 a *list-then-create* check serialised by a GitHub `concurrency:` group. That is **weaker**:
 it only serialises runs of this one workflow; a second creator path, a re-run racing a
 cancel, or a runner in another repo would not be serialised. It is bounded by the reaper
-(deletes newest beyond the cap within 15 min), `INSTANCES`=24 quota, and cost caps, so
+(deletes newest beyond the cap within one ≤10 min cron tick or on creator completion), `INSTANCES`=24 quota, and cost caps, so
 the failure mode is a brief overshoot of 1–2 small VMs, not unbounded spend. If the
 Hot Lab grows beyond a single manual creator, adopt the CAS ledger (a GCS bucket with
 object-generation preconditions, a **GCP resource I have not created**) rather than
@@ -343,12 +389,15 @@ strengthening the list-count.
 1. *Python controller for a 1-VM prototype* is a large trusted surface (the cleanup job
    executes ≈12 fetched modules with cleanup-identity credentials). Appropriate for
    labapp's multi-profile access-recovery flows; disproportionate here.
-2. *`workflow_run` trigger on the reaper.* Good for promptness, but a `workflow_run`
-   trigger runs with the privileged identity based on another workflow's completion; labapp
-   mitigates with a long path/branch/repo-id allowlist. I kept a pure `schedule` +
-   `workflow_dispatch` reaper (smaller trust surface), accepting ≤15 min lag; the
-   `terminationTime` is the prompt backstop. Adding `workflow_run` is a reasonable later
-   change and I'd copy labapp's guard conditions verbatim if so.
+2. *`workflow_run` trigger on the reaper.* **Adopted in review round 2.** The earlier
+   draft omitted it; now the reaper runs on `workflow_run: completed` of "Hot Lab VM
+   (creator)" plus cron `7,17,27,37,47,57 * * * *` (labapp's cadence). Trust note: the
+   job checks out nothing and reads nothing from the triggering run (not even its
+   conclusion), and `workflow_run` only fires for workflow files on the default branch, so
+   a fork/PR cannot cause it to run attacker content. The WIF condition allows
+   `event_name == workflow_run` for this one pinned `workflow_ref`. I did *not* copy
+   labapp's fetch-by-pinned-SHA step (see item 3). It is a reasonable further
+   hardening; the reaper script here is inline in the workflow file itself.
 3. *Fetching code from `main` by SHA at runtime* is a strong anti-checkout-of-PR pattern
    and I'd adopt it **if** the reaper ever executes repo code. Today it executes only
    inline `gcloud`/`jq` from the workflow file, which is itself pinned by `workflow_ref`,
