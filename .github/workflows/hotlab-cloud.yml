@@ -1,0 +1,101 @@
+name: Hot Lab Cloud (trusted)
+
+# Trusted GCP operations for the Hot Lab workstream (#497).
+#
+# Trust model: GitHub OIDC -> Workload Identity Federation -> dedicated service
+# account. No service-account JSON keys exist for this path.
+#
+# The WIF provider's attribute condition pins ALL of the following, so this file's
+# name, branch and trigger are part of the trust boundary and cannot be changed
+# without also updating the provider:
+#   repository_id      == 1046667618      (afewell-hh/hh-learn)
+#   repository_owner_id== 193945001       (afewell-hh)
+#   ref                == refs/heads/main
+#   workflow_ref       == afewell-hh/hh-learn/.github/workflows/hotlab-cloud.yml@refs/heads/main
+#   event_name         == workflow_dispatch
+#
+# SCOPE LIMIT: the bound service account holds roles/compute.viewer only. It
+# cannot create, modify or delete any resource. VM lifecycle is deliberately NOT
+# in this workflow -- that requires runtime/cost bounds, ownership labels,
+# failure/cancellation cleanup and an independent expiry sweeper, and will be a
+# separate identity and workflow reviewed on its own.
+#
+# This workflow never checks out or executes PR-authored content, and runs only
+# fixed, reviewed read-only commands.
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Read-only operation to perform"
+        required: true
+        default: inventory
+        type: choice
+        options:
+          - inventory      # list instances + confirm identity
+          - quota          # report Compute quota headroom
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  gcp-readonly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.HOTLAB_WIF_PROVIDER }}
+          service_account: ${{ vars.HOTLAB_SA_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          project_id: ${{ vars.HOTLAB_GCP_PROJECT }}
+
+      - name: Confirm federated identity
+        run: |
+          echo "### Federated identity" >> "$GITHUB_STEP_SUMMARY"
+          gcloud auth list --format="value(account)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Read-only operation
+        env:
+          OP: ${{ inputs.operation }}
+          PROJECT: ${{ vars.HOTLAB_GCP_PROJECT }}
+        run: |
+          set -euo pipefail
+          case "$OP" in
+            inventory)
+              echo "### Compute instances in $PROJECT" >> "$GITHUB_STEP_SUMMARY"
+              gcloud compute instances list --project="$PROJECT" \
+                --format="table(name,zone,machineType,status,labels)" \
+                | tee -a "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "Instance count: $(gcloud compute instances list --project="$PROJECT" --format='value(name)' | wc -l)" \
+                >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            quota)
+              echo "### Compute quota (us-west4)" >> "$GITHUB_STEP_SUMMARY"
+              gcloud compute regions describe us-west4 --project="$PROJECT" \
+                --format="table(quotas.metric,quotas.usage,quotas.limit)" \
+                | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            *)
+              echo "Unsupported operation: $OP" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Assert no mutation capability
+        run: |
+          # Proves the identity is genuinely read-only: this MUST fail.
+          if gcloud compute networks create hotlab-should-not-exist \
+               --project="${{ vars.HOTLAB_GCP_PROJECT }}" --subnet-mode=custom 2>/dev/null; then
+            echo "::error::Identity was able to CREATE a resource. Permissions are too broad."
+            gcloud compute networks delete hotlab-should-not-exist \
+              --project="${{ vars.HOTLAB_GCP_PROJECT }}" --quiet || true
+            exit 1
+          fi
+          echo "::notice::Confirmed: identity cannot create resources (expected denial)."
+          echo "Mutation attempt correctly denied -- identity is read-only." >> "$GITHUB_STEP_SUMMARY"
