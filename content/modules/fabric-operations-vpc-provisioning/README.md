@@ -323,7 +323,7 @@ kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 - ✅ Created production-ready VPC manifest with two subnets
 - ✅ Applied VPC configuration using kubectl
 - ✅ Validated VPC status and configuration
-- ✅ Observed reconciliation events
+- ✅ Verified reconciliation via Agent APPLIEDG/CURRENTG status
 - ✅ Confirmed desired state matches actual state
 
 **What you learned:**
@@ -331,7 +331,7 @@ kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 - IPv4 subnets (no DHCP) are for static IP assignments
 - DHCPv4 subnets (DHCP enabled) provide dynamic IP allocation
 - VPC reconciliation happens automatically via the control loop
-- Events provide visibility into the provisioning process
+- Agent APPLIEDG/CURRENTG status (not Kubernetes events) confirms reconciliation for fabric CRDs
 - kubectl is your primary tool for VPC lifecycle management
 
 **Next steps:**
