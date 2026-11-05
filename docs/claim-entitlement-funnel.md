@@ -3,7 +3,7 @@
 **Status:** design for review. No implementation, no HubSpot activity, no cookie or auth changes.
 Tags: **[repo]** read in code · **[design]** proposal · **[unverified]** a fact to check before build · **[LEGAL]** needs a legal answer, not an engineering one.
 
-Parent #478. Consumes the badge model of #520 (`docs/authoring-platform.md` on branch `claude/issue-520-20261105-1013`). Beside #498. Reuses the Cognito auth and storage of #385/#397. Bounded by #489 and #492 (guidance is bypassable). Supersedes the earlier "anonymous credit" draft on branch `claude/issue-521-20261105-1033`, which rested on a premise the customer has since corrected.
+Parent #478. Consumes the badge model of #520 (PR #522, `docs/authoring-platform.md` §4.6; where this doc restates #520, #520 governs). Beside #498. Reuses the Cognito auth and storage of #385/#397. Bounded by #489 and #492 (guidance is bypassable). Supersedes the earlier "anonymous credit" draft on branch `claude/issue-521-20261105-1033`, which rested on a premise the customer has since corrected.
 
 ---
 
@@ -38,18 +38,29 @@ One first-party cookie, written by page script **[design]**:
 
 ```
 hhl_ent = v1.<base64url(JSON)>
-{ "e": [["<badge_id>", <unlocked_day>], ...],   // unlocked_day = days since epoch
+{ "e": [["<module_slug>.<milestone_id>", <unlocked_day>], ...],   // unlocked_day = days since epoch
   "d": [<dismissed_day>, <count_at_dismissal>, <dismissals>] }   // prompting state, §4
 ```
 
-- **Entitlements are badge IDs plus the day they were unlocked.** Nothing else about the visitor: no visitor ID, no page history, no timestamps finer than a day, no device data.
+- **Entitlements are #520 badge IDs (`<module_slug>.<milestone_id>`, immutable once published) plus the day they were unlocked.** Nothing else about the visitor: no visitor ID, no page history, no timestamps finer than a day, no device data.
 - Cap of 16 entries (a few hundred bytes, far under the 4 KB cookie limit). Beyond the cap, the oldest is dropped.
-- `Max-Age` 30 days, `SameSite=Lax`, `Secure`, not `HttpOnly` (page script must read it).
+- `Max-Age` 30 days, `SameSite=Lax`, `Secure`, not `HttpOnly` (page script must read it). **Increment 1 is host-only** (no `Domain=`, so the `__Host-` prefix is available; see §2.2). `Domain=` arrives only with cross-host product pages (Increment 3).
+
+### 2.1a Dependency on #520: what the browser can evaluate before an account exists
+
+The cookie stores the **outcome** of a browser-side evaluation (a badge ID), not the task credits beneath it. That is sufficient only if the milestone can be decided **within one page view**. A milestone needing two experiences completed on different pages or visits would leave the browser unable to tell that both were done, because no task evidence persists. #520 owns this decision and has not settled it; this doc does not pre-empt it.
+
+| #520 decides | What this doc does |
+|---|---|
+| **A. v1 claimable milestones are evaluated within a single page view** (the §4.6 recommendation) | Cookie shape stays as in §2.1. The #520 validator must reject a `claimable` milestone whose rule spans more than one page view. **Increment 1 assumes this.** |
+| **B. A temporary task-evidence shape is defined** (the "carry the credits" option) | Add a `t` field holding satisfied `[module_slug, task_slug]` pairs, written under the same notice, TTL and caps. The browser evaluates `evalRule` over `t` to derive `e`, and redemption re-evaluates server-side. Shape, caps and trust rules are whatever #520 specifies; this doc only persists it. Needs cookie `v2` and a revised size cap. **Not built until #520 specifies it.** |
+
+Increment 1 works unchanged under either answer, because a single-page-view milestone is the common subset. Multi-experience milestones wait on this row (§9).
 
 ### 2.2 Cookie rather than `localStorage`
 
 - The customer says cookie, and a cookie has native expiry, which matches "temporary".
-- The visitor arrives from a **product page**. If product pages and `/learn` are different hosts under one registrable domain, only a cookie with `Domain=` set can be shared between them; `localStorage` cannot **[unverified: confirm the hosts]**. The cost is that the cookie is sent on requests to every host under that domain; at a few hundred bytes this is acceptable, and the domain choice should be minimal (not a parent of unrelated systems).
+- A visitor may arrive from a **product page**. If product pages and `/learn` are different hosts under one registrable domain, only a cookie with `Domain=` set can be shared between them; `localStorage` cannot **[unverified: confirm the hosts]**. A `Domain=` cookie is sent to, and writable from, every host under that domain, which adds cookie-tossing exposure (any sibling host or script can overwrite it, and `__Host-` is unavailable). Forged contents are already accepted (§2.4), so the harm is limited to overwrite or deletion, but it is why **Increment 1 is host-only, on the host that serves both the experience and the claim**. `Domain=` (limited to hosts we control, and L6) waits for Increment 3.
 - Server-set vs script-set: script-set is chosen so that no anonymous server endpoint is needed, which keeps "no server-side anonymous records" true. **[unverified]** Some browsers (Safari's tracking prevention) cap the lifetime of script-written cookies at about 7 days. The effective lifetime is therefore browser-dependent, and the TTL in §2.3 is an **upper bound, never a promise**. UI copy says "up to" and "at the latest".
 
 ### 2.3 TTL recommendation: yes, a fixed 30-day TTL per entitlement
@@ -84,7 +95,7 @@ What is trusted vs verified at claim time is in §3.3. The one place forgery wou
 #480 limits experience routes to HubSpot-native analytics and removed the custom beacon. This cookie differs in kind:
 - It is **read only to render the visitor's own UI** (the chip, the offer) and to be handed to the claim endpoint when *they* press Claim.
 - It carries **no identifier**, so it cannot be joined, counted or used to recognise a returning visitor.
-- **Nothing is sent anywhere before the visitor claims.** There is no unlock event, no server log of unlocks, and nothing is given to HubSpot or any other tool.
+- **We send nothing on unlock, and no server code reads the cookie before the visitor claims.** There is no unlock event, no unlock log, and nothing is given to HubSpot or any other tool. Stated precisely: like any cookie, the browser attaches it to ordinary requests to the host, so it can appear in CDN or access logs even though nothing reads it. That is in scope for L1 and L5, and the design does not log the `hhl_ent` header where we control logging.
 
 This argument fails, and the cookie becomes analytics, the moment anyone (a) adds an ID, (b) reports unlocks to a server or pixel "to measure the funnel", or (c) reads it from an analytics script. Funnel conversion is measured the #480 way: registrations and badge mints are visible in HubSpot-native tooling and the claim write. **Do not add unlock beacons.** Put this sentence in the build ticket as an acceptance criterion.
 
@@ -94,9 +105,9 @@ This argument fails, and the cookie becomes analytics, the moment anyone (a) add
 
 ### 3.1 Flow
 
-1. The visitor presses **Claim** on the offer or chip. Page script stores a tiny `claim intent` marker in `sessionStorage` (a handoff across the redirect, deleted after use) and sends them to the existing `GET /auth/signup?redirect_url=<this page>` (or `/auth/login`) **[repo: `cognito-auth.ts` `handleSignup`/`handleLogin`, PKCE, redirect sanitised]**.
+1. The visitor presses **Claim** on the offer or chip. This is only possible when entitlements are held in the cookie (§7.2: claiming requires accepted storage). Page script sends them to the existing `GET /auth/signup?redirect_url=<this page>?hhl_claim=1` (or `/auth/login`) **[repo: `cognito-auth.ts` `handleSignup`/`handleLogin`, PKCE, redirect sanitised; [unverified] that the sanitiser preserves the query string]**. The intent travels in the return URL, so no `sessionStorage` is used.
 2. Cognito registers or authenticates them. `handleCallback` sets the existing `hhl_access_token`/`hhl_refresh_token` cookies and redirects back to the page **[repo]**. The entitlement cookie is untouched by this: different cookie, first-party.
-3. On return, script sees an authenticated session (`/auth/me` **[repo]**) and the entitlements, and calls **`POST /entitlements/redeem`** with `{ "entitlements": [["badge_id", day], ...] }`. The body is sent explicitly, not relied on from the cookie jar.
+3. On return the entitlements are still in the cookie. It survives the redirect, and page memory is not relied on anywhere. With an authenticated session (`/auth/me` **[repo]**) and `hhl_claim=1`, script calls **`POST /entitlements/redeem`** with `{ "entitlements": [["<module_slug>.<milestone_id>", day], ...] }`. Without the parameter (normal login, §3.4) it shows the confirm card instead. The body is sent explicitly, not relied on from the cookie jar.
 4. The server authenticates from the existing cookies, and for each entry writes a badge (§3.2). It responds `{ minted: [...], already_held: [...], rejected: [...] }`.
 5. Script removes **every returned id** (minted, already held, or rejected) from the cookie, then shows "2 badges added to your account" and, if relevant, "1 was already in your account".
 
@@ -113,20 +124,23 @@ This argument fails, and the cookie becomes analytics, the moment anyone (a) add
 | Verified at claim time | Taken on trust |
 |---|---|
 | The caller is an authenticated Cognito user (session cookie, existing path) | That the visitor did the experience, and when |
-| Each `badge_id` exists in the published catalog and is flagged claimable-by-entitlement | The unlock day (checked only for plausibility: not in the future, within TTL plus 3 days of grace) |
+| Each `badge_id` exists in the published catalog and is flagged `claimable: "entitlement"` | The unlock day (checked only for plausibility: not more than 1 day in the future, to allow clock skew; not older than the 30-day TTL plus 3 days of grace) |
 | Badge label and criteria are taken from the catalog, never from the request | Nothing about the visitor's identity beyond the account |
 
-**Provenance** on the minted item, a single small attribute **[design]**: `source: "claim-entitlement"`, plus `unlocked_day` and `minted_at`. Reason: the evidence is self-reported in a browser, and badges earned while signed in through server-graded checks are stronger evidence. Keeping the label costs one string, lets the learner record and any future Open Badges export (#520 §4.5) describe the badge honestly, and means the cookie never has to be hardened. If the customer does not want any distinction, this is the one line to drop.
+**Provenance** on the minted item follows #520 §4.6 **[adopted, not invented]**: `source: "claim-entitlement"`, `unlocked_day`, `minted_at`, and **`module_version`**, the module version in the catalog **at mint time, read server-side and frozen** (never taken from the request). The badge identifier is the canonical `<module_slug>.<milestone_id>`, so `SK = BADGE#<module_slug>.<milestone_id>`. A minted badge is never revoked or rewritten by later edits to the module.
+
+Caveat, stated plainly: `module_version` records the definition in force when the badge was minted, not when the visitor unlocked it. The cookie does not carry a version, because it would be as forgeable as everything else in it. If the milestone was retired or made non-claimable in between, redemption rejects it (#520 condition 4). The provenance label exists because the evidence is self-reported in a browser; it lets the learner record and any future Open Badges export describe the badge honestly.
 
 **Existing certificates, completion records and `task_statuses` are never read or written by this flow.** Entitlement badges are eligible only for exploration-tier badges that no milestone, `module-complete` or certificate depends on (see §6 for what that needs from #520).
 
 ### 3.4 An existing user who explored anonymously, then signs in
 
-The visitor signs in with the normal login rather than pressing Claim, so no `claim intent` marker exists.
+The visitor signs in with the normal login rather than pressing Claim, so the return URL has no `hhl_claim=1`. This card is also the fallback whenever that parameter is lost.
 - On return, script sees an authenticated session **and** entitlements.
 - It shows a **one-time inline card**: "This browser has 2 unlocked badges you can add to <email>." with **Add them** and **Not now**, plus a quiet **Discard** link.
 - Nothing is minted without the click. A shared or borrowed computer could otherwise mint someone else's exploration onto a signed-in account.
 - If the account already holds some of them, those show as "already in your account" and are not re-minted (§3.2).
+- This card is not a push offer and does not count against the once-per-session limit in §4. It appears at most once per session, only on a signed-in page that holds entitlements.
 - **Not now** leaves entitlements to expire normally and does not ask again that session. **Discard** clears them.
 
 ### 3.5 Different device or cleared cookie
@@ -156,7 +170,7 @@ State lives in the same cookie (`d`), so the rules are enforced in the client an
 **Never:**
 - Block, dim, or cover content; delay the next step; or make any content depend on registering (#492).
 - Use a modal, interstitial, sticky overlay that hides content, auto-focus, or sound.
-- Show a push when the visitor's storage choice is "declined" (§7), other than the chip.
+- Show a push, chip or Claim button when the visitor's storage choice is "declined" (§7.2). There is nothing to claim without stored state.
 - Pre-tick marketing consent, or tie claiming to a newsletter opt-in.
 - Write copy that implies the badge already exists, or invents scarcity or urgency.
 
@@ -189,12 +203,14 @@ I rely on #520's badge idea (milestone → badge, `BADGE#` prefix, stable IDs **
 
 | Need | Why |
 |---|---|
-| **Stable, immutable `badge_id`** once published | The cookie and the server both refer to it; renaming would orphan unlocks |
+| **Stable, immutable `badge_id` = `<module_slug>.<milestone_id>`** once published (#520 §4.6) | The cookie and the server both refer to it; renaming would orphan unlocks |
 | **A public catalog of badges** (`id`, `label`, `criteria`) readable without auth | The chip and offer render names from it; the server validates against it |
 | **A flag marking a badge claimable-by-entitlement** (e.g. `claimable: "entitlement"`) | Only exploration badges may be minted from a self-reported cookie |
 | **That flag is refused for any badge a certificate, `module-complete` or verified milestone depends on** (validator rule) | Keeps verified attainment unforgeable and certificates untouched |
-| **A defined unlock event for entitlement badges** | #520 says viewing earns nothing and credit comes from server-graded checks. Anonymous unlocks cannot use an answer key in the browser (#298 hides quiz answers), so the unlock event must be client-observable (finishing a guided walkthrough, replay or explorer) **or** use a stateless pass/fail check endpoint that stores nothing |
-| **Provenance attribute allowed on `BADGE#` items** | §3.3 |
+| **A defined unlock event for entitlement badges** | #520 §4.6: the finish of an Observed-tier (`grading: client`) `interactive_check`, evaluated in the browser with no answer key (#298). A stateless pass/fail endpoint is the alternative; browser-only first |
+| **Option A (single-page-view evaluation) or Option B (temporary task-evidence shape)** | §2.1a. #520 decides; Increment 1 needs only Option A |
+| **Evidence strength kept separate from activity type** | An Observed `interactive_check` must be able to back an exploration badge without being relabelled lab, assessment or transfer, or the badge criteria would imply assessment. Badge copy says "completed the walkthrough", never "demonstrated" or "passed". #520 is addressing this; I align to its answer |
+| **Provenance and frozen `module_version` on `BADGE#` items** | §3.3 |
 
 If #520 prefers that exploration badges not exist at all, this funnel has nothing to mint, so that is the first question to settle with the customer.
 
@@ -207,13 +223,19 @@ The exposure is lighter than durable progress tracking: one first-party function
 ### 7.1 What the visitor is told, and when
 
 At the moment of first unlock, before the first write (inline, next to the offer):
-> This browser will remember the badges you've unlocked, for up to 30 days, so you can claim them if you register. It doesn't identify you. Clearing cookies removes them. **[OK]** **[Don't remember]**
+> To claim this badge you need to register, and this browser has to remember that you unlocked it, for up to 30 days. It doesn't identify you. If you clear cookies or use another browser, the chance to claim it is gone, and you won't have the badge. **[Remember it so I can claim]** **[No thanks]**
 
 ### 7.2 If storage is declined, or the site's cookie banner says no to functional cookies
 
-The experience works fully. Entitlements are held **in memory for the current page view only**; the chip shows for that view; the visitor can still press Claim, and the handoff marker goes through `sessionStorage` for the duration of the redirect. No push offers are shown. Nothing persists across visits. That is the honest result: the right is temporary and they declined to let the browser keep it.
+**Claiming requires accepting functional storage.** The entitlement *is* the stored state, and registering means leaving the page for Cognito, which destroys anything held in page memory. So there is no declined-storage claim path, and none is offered: no chip, no Claim button, no push, and no `sessionStorage` handoff.
+
+The experience itself works fully and is unchanged. After "No thanks" the visitor sees one plain line, "Not remembered. You won't be able to claim a badge for this.", with a **Change my mind** link that shows the §7.1 notice again. The right is temporary and tied to storage, and they chose not to keep it.
+
+Global Privacy Control is treated as "No thanks" in Increment 1. That only removes persistence, so it is a safe conservative default pending L4.
 
 ### 7.3 Legal answers needed (none guessed here)
+
+**Gating, one rule used everywhere:** Increment 1 ships only after **L1, L2, L3 and L5** are answered. L4 has a safe default (GPC treated as decline). L6 is not triggered by a host-only cookie; it gates Increment 3.
 
 - **L1 [LEGAL]** Is a cookie remembering badges the visitor just unlocked "strictly necessary" or an equivalent exemption in each jurisdiction we serve? The visitor did not explicitly ask us to save it, which makes the exemption arguable rather than clear.
 - **L2 [LEGAL]** Does the notice-and-choice in §7.1 satisfy consent where consent is needed, and must the write wait for the answer (the design assumes it does)?
@@ -228,19 +250,19 @@ The experience works fully. Entitlements are held **in memory for the current pa
 
 ## 8. Worked walkthrough
 
-The visitor Sam arrives from a product page on day 0.
+This is the **full-design** walkthrough (multiple badges, cross-page, re-offer rules), so it describes Increment 3 behaviour. Each badge here is a single-page-view milestone (Option A, §2.1a). §8.1 shows exactly what Increment 1 does. Sam arrives from a product page on day 0.
 
 | Step | Stored | Shown | Verified |
 |---|---|---|---|
 | **0. Arrives from a product page** | Nothing | The page looks as expected. No banner, no prompt | Nothing |
-| **1. Completes the first guided experience (day 0)** | After the notice and OK (§7.1): `hhl_ent` = `{e:[[fabric-basics,D0]]}` | Inline card: "You've unlocked the Fabric Basics badge. It's yours to claim if you register." Content stays fully usable | Nothing. No request is made |
+| **1. Completes the first guided experience (day 0)** | After the notice and "Remember it so I can claim" (§7.1): `hhl_ent` = `{e:[["fabric-basics.explored-fabric",D0]]}` | Inline card: "You've unlocked the Fabric Basics badge. It's yours to claim if you register." Content stays fully usable | Nothing. No request is made |
 | **1b. Presses "Not now"** | `d = [D0, 1, 1]` | Card closes. Chip: "1 badge available to claim" | Nothing |
 | **2. Completes a second experience (day 0, same session)** | `e` = `[fabric-basics, vlan-basics]` | Chip updates to "2 badges available to claim · until D30 at the latest". **No push**: dismissed today, and +1 < +2 | Nothing |
 | **3. Leaves, returns on day 9, same browser** | Cookie unchanged | Chip: "2 badges available" (unlock dates visible). No push on load | Nothing |
 | **4. Completes a third experience (day 9)** | `e` = 3 entries; `d` unchanged | Push allowed: new unlock, ≥7 days since dismissal, first push this session. Card: "You've unlocked 3 badges you can claim." Chip shows 3 | Nothing |
-| **5. Presses Claim** | `claim intent` in `sessionStorage` | Redirect to Cognito signup (existing flow) | Cognito: email, password, account creation |
-| **6. Returns, signed in** | Auth cookies (existing). Entitlement cookie still has 3 | "Adding 3 badges…" | Session valid via `/auth/me` |
-| **7. `POST /entitlements/redeem`** | Server: 3 × `BADGE#…` items, each with `source: claim-entitlement`, unlocked day, mint time. Client: cookie entries removed, `sessionStorage` cleared | "3 badges added to your account." Links to the badges page and to the learning paths | Identity: yes. Each badge id in catalog and claimable: yes. Unlocked day plausible and within TTL+3d: yes. That Sam did the experiences: **no, trusted** |
+| **5. Presses Claim** | Nothing new. Entitlement cookie holds 3 | Redirect to Cognito signup with return URL `…?hhl_claim=1` (existing flow) | Cognito: email, password, account creation |
+| **6. Returns, signed in** | Auth cookies (existing). Entitlement cookie still has 3 (page memory is not used) | "Adding 3 badges…" | Session valid via `/auth/me` |
+| **7. `POST /entitlements/redeem`** | Server: 3 × `BADGE#<module_slug>.<milestone_id>` items, each with `source: claim-entitlement`, `unlocked_day`, `minted_at`, frozen `module_version`. Client: cookie entries removed | "3 badges added to your account." Links to the badges page and to the learning paths | Identity: yes. Each badge id in catalog and claimable: yes. Unlocked day plausible and within TTL+3d: yes. That Sam did the experiences: **no, trusted** |
 | **8. Double click / reload on step 7** | Nothing new | "Already in your account" | Conditional write rejects repeats |
 | **9. Later, a different device (phone)** | Phone: nothing | No chip. Signing in shows the 3 badges from the account. Any new exploration on the phone starts fresh entitlements (a badge Sam holds shows as "already in your account" if redeemed again) | Account badges: server record |
 
@@ -248,7 +270,26 @@ The visitor Sam arrives from a product page on day 0.
 - *Cookie cleared between steps 3 and 5:* chip gone, no entitlements. Nothing was promised, so nothing is reported as lost.
 - *Existing account:* Sam signs in via normal login at step 5 instead. On return, the card in §3.4 asks before minting.
 - *Expired:* an entitlement 31 days old is dropped on read and not mentioned. Re-doing the experience unlocks it again.
-- *Storage declined at step 1:* steps 1–2 work for that page view only; no push; chip and Claim still work within the view; nothing survives leaving.
+- *Storage declined at step 1 ("No thanks"):* nothing is stored, and no chip, push or Claim button ever appears. The visitor sees "Not remembered. You won't be able to claim a badge for this." and can use **Change my mind**. The experience itself is unaffected.
+
+### 8.1 Increment 1 walkthrough (one experience, one badge, host-only cookie)
+
+Sam reaches the experience on `/learn` (the host that also serves the claim), day 0.
+
+| Step | Stored | Shown | Verified |
+|---|---|---|---|
+| **0. Arrives** | Nothing | Normal page, no banner or prompt | Nothing |
+| **1. Finishes the walkthrough** | Nothing yet | Inline card with the §7.1 notice: remember this browser so you can claim? | Nothing |
+| **2a. "Remember it so I can claim"** | `hhl_ent` (host-only) `{e:[["<module_slug>.<milestone_id>",D0]]}`, `Max-Age` 30 d | "You've unlocked the **X** badge. It's yours to claim if you register: it isn't on an account yet. This browser will remember it for up to 30 days." **[Claim by registering]** **[Not now]**. Chip: "1 badge available to claim · until D30 at the latest" | Nothing, no request |
+| **2b. "No thanks"** | Nothing | "Not remembered. You won't be able to claim a badge for this." No chip. End of the funnel for this visit | Nothing |
+| **3. "Not now"** | `d` set (dismissed D0) | Card closes. Chip stays. **No further push ever** (Increment 1 has one badge, so there is no re-offer; this is stricter than §4, not a departure) | Nothing |
+| **4. Leaves, returns day 9** | Cookie unchanged | Chip only, no push | Nothing |
+| **5. Presses Claim** (chip or card) | Cookie unchanged | Redirect to Cognito signup, return URL has `hhl_claim=1` | Cognito creates the account |
+| **6. Returns, signed in** | Entitlement cookie still present | "Adding your badge…" | Session via `/auth/me` |
+| **7. `POST /entitlements/redeem`** | `BADGE#<module_slug>.<milestone_id>` with `source`, `unlocked_day`, `minted_at`, frozen `module_version`. Cookie entry removed | "1 badge added to your account." | Identity yes; id in catalog and `claimable: "entitlement"` yes; day within TTL+3d and not >1 day future yes; that Sam did it: **trusted** |
+| **8. Different device** | Nothing on the phone | No chip. After sign-in, the account shows the badge | Account record |
+| **9. Existing user signs in normally (no `hhl_claim`)** | Cookie present | Confirm card: "This browser has 1 unlocked badge you can add to <email>." **Add it** / **Not now** / **Discard**. Nothing is minted without a click | As step 7, after the click |
+| **10. Cookie cleared before step 5, or 31 days pass** | Nothing / expired entry dropped | Nothing. No "you lost" message | n/a |
 
 ---
 
@@ -256,11 +297,22 @@ The visitor Sam arrives from a product page on day 0.
 
 Each increment ships value on its own.
 
-**Increment 1 (smallest useful).** Entitlement cookie and notice; one product-page experience with an unlock event; the chip; one-per-session push with dismissal remembered; `POST /entitlements/redeem` writing `BADGE#` items; the minimal "added to your account" message. This delivers the full loop: unlock → claim → real badge. **Gate:** legal answers L1–L2 and the #520 items in §6.
+Rule for the cut: **anything the Increment 1 copy or §4 policy promises ships in Increment 1.** A feature is deferred only if Increment 1 makes no promise that depends on it.
 
-**Increment 2.** Existing-user confirm card (§3.4); 30-day TTL display and server check; the 7-day / +2 re-offer rules; "Forget" control; badge list on the claim page with criteria; more experiences on more product pages; consent-banner integration (L3).
+**Increment 1: one experience, one badge, unlock to mint.** Honestly shippable alone, because it contains every piece its own copy relies on:
+- One Observed-tier experience with a single-page-view milestone (§2.1a Option A), on the same host as the claim; **host-only** cookie.
+- The §7.1 notice with a real choice; decline stores nothing and shows no claim UI (§7.2); GPC treated as decline.
+- Cookie `hhl_ent` with the 30-day TTL **enforced** (dropped on read, checked at redeem), because the copy says "up to 30 days". Date shown once as plain text.
+- One push at unlock, dismissal remembered, then chip only. That is a strict subset of §4, so it cannot violate it. The re-offer rules (7 days / +2, two-dismissal stop) are not needed with one badge and are not built.
+- The chip, **Forget** control (it is how "Clearing cookies removes them" stays easy to do), and the §3.4 confirm card for signed-in visitors, which is also the fallback when `hhl_claim` is lost.
+- `POST /entitlements/redeem` with #520 provenance (`source`, `unlocked_day`, `minted_at`, frozen `module_version`), write-once. Acceptance tests: idempotent double-redeem; unknown or non-claimable id rejected; future-dated and expired day rejected; oversized payload (more than 16 entries or a body cap) rejected; unauthenticated call rejected; `Content-Type: application/json` plus Origin check so a third-party page cannot post for a signed-in user; per-account rate limit; no unlock beacon exists (§2.5).
+- **Gate:** legal L1, L2, L3, L5 (§7.3); #520 items in §6 (immutable ids, catalog, `claimable` flag and validator rule, Observed unlock event, provenance and `module_version` on `BADGE#`, Option A).
 
-**Increment 3.** After claim, surface the gamified learning paths and next-step suggestions on the account (the customer's "once claimed, encourage ongoing participation"), bounded by #489.
+**Increment 2: more badges.** Several single-page-view badges on several `/learn` experiences. Adds the push re-offer rules (7 days or +2, two dismissals then chip only), the "N badges available" escalating chip, and the criteria list on the claim page. Consent handling is already settled for Increment 1 (L3 is a gate there), so nothing consent-related is deferred to here.
+
+**Increment 3: product pages and beyond.** `Domain=` cookie shared with product-page hosts (needs L6, `Domain` limited to hosts we control, cookie-tossing note from §2.2), and post-claim surfacing of gamified learning paths and next steps (the customer's "once claimed, encourage ongoing participation"), bounded by #489.
+
+**Waits on #520 (not scheduled):** multi-experience milestones. They need Option B's temporary task-evidence shape (§2.1a) or an explicit decision to keep v1 at single-page-view.
 
 **Explicitly waits / not built:** Open Badges 3.0 export (#520 §4.5, customer demand); cross-device continuity (out of scope by design); server-side anonymous records; reminders or emails to unregistered visitors; any gating of content; counting unlocks as certificate or `module-complete` progress.
 
@@ -272,4 +324,6 @@ Each increment ships value on its own.
 2. TTL: fixed 30 days, shown as a plain date (recommended), or cookie lifetime only (§2.3).
 3. Confirm product pages and `/learn` hosts, and that Cognito signup completes in a single tab **[unverified]** (§2.2, §3.1).
 4. Accept that one cookie value can be redeemed by two accounts (§3.2).
-5. Obtain legal answers L1–L6 before Increment 1 ships.
+5. Obtain legal answers L1, L2, L3 and L5 before Increment 1 ships; L6 before Increment 3 (§7.3). L4 has a safe default.
+6. #520: Option A (single-page-view milestones) or Option B (temporary task-evidence shape)? Increment 1 needs only A (§2.1a).
+7. Claiming requires accepting functional storage; there is no declined-storage claim path (§7.2). Confirm that is acceptable.
