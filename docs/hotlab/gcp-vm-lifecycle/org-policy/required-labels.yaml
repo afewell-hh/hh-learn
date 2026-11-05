@@ -1,0 +1,18 @@
+# DRAFT (#508). NOT applied. See machine-type.yaml for the shared caveats (selfLink scope U).
+# resource.labels is a supported field. This checks PRESENCE of the six ownership labels
+# only; it cannot check that expires-at is a sane number, so the reaper still validates
+# values. How an instance with no labels map evaluates (false vs. error) is U until dry-run.
+# `in` on a map is used because the docs show `in`; has() is not confirmed.
+name: organizations/1057998954523/customConstraints/custom.hotlabRequiredLabels
+resourceTypes:
+- compute.googleapis.com/Instance
+methodTypes:
+- CREATE
+condition: >-
+  resource.selfLink.contains('/instances/hotlab-') &&
+  !('managed-by' in resource.labels && 'owner' in resource.labels &&
+    'ticket' in resource.labels && 'run-id' in resource.labels &&
+    'created-at' in resource.labels && 'expires-at' in resource.labels)
+actionType: DENY
+displayName: Hot Lab required labels
+description: hotlab-* instances must carry managed-by, owner, ticket, run-id, created-at and expires-at labels.

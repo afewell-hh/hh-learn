@@ -1,0 +1,14 @@
+# DRAFT (#508). NOT applied. See machine-type.yaml for the shared caveats (selfLink scope U).
+# resource.zone is a supported field. contains() is used so either a short zone name or a
+# zone URL matches (the exact create-time value shape is unconfirmed, U).
+name: organizations/1057998954523/customConstraints/custom.hotlabZoneAllowlist
+resourceTypes:
+- compute.googleapis.com/Instance
+methodTypes:
+- CREATE
+condition: >-
+  resource.selfLink.contains('/instances/hotlab-') &&
+  !resource.zone.contains('us-west4-')
+actionType: DENY
+displayName: Hot Lab zone allowlist
+description: hotlab-* instances must be created in a us-west4 zone.
