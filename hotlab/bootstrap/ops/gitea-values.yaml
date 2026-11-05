@@ -1,0 +1,32 @@
+# gitea chart values (version supplied via HOTLAB_GITEA_CHART_VERSION).
+# Lean profile for the prototype: SQLite + in-memory cache/session/queue, no bundled
+# HA postgres or redis/valkey clusters. U: key names vary across chart majors; confirm
+# against the chosen version at first operator run. Admin password is injected by
+# bootstrap.sh from a generated secret (never committed).
+service:
+  http:
+    type: NodePort
+    nodePort: 30301
+gitea:
+  admin:
+    username: hotlab-admin
+    email: hotlab-admin@localhost
+  config:
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+redis-cluster:
+  enabled: false
+valkey-cluster:
+  enabled: false
+persistence:
+  enabled: true

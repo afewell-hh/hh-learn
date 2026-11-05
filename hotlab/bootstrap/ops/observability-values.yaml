@@ -1,0 +1,19 @@
+# kube-prometheus-stack 65.2.0 values.
+# Base is labapp build/provision/observability-values.yaml (S): remote-write receiver,
+# 7d retention, Grafana on. Additions (deviations, unverified against the chart: U):
+#  - fixed NodePorts matching ops/management-cluster.yaml (Prometheus 30090, Grafana 30300)
+#  - alertmanager off to save memory on the small prototype host
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 30090
+  prometheusSpec:
+    enableRemoteWriteReceiver: true
+    retention: 7d
+grafana:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 30300
+alertmanager:
+  enabled: false
