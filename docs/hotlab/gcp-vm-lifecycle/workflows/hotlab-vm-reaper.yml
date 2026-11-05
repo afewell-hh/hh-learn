@@ -1,0 +1,170 @@
+# STAGING COPY. Install as .github/workflows/hotlab-vm-reaper.yml (see RUNBOOK.md).
+# It is staged under docs/ because the automation that authored it cannot write to
+# .github/workflows. The installed path is part of the WIF trust boundary.
+name: Hot Lab VM (reaper)
+
+# Independent expiry sweeper (#508). Own schedule, own WIF pool
+# (`hotlab-reaper`), own SA (`hotlab-vm-reaper`). It does NOT depend on the
+# creator workflow and its SA holds NO create permission.
+#
+# The creator identity is not itself constrained on scheduling.terminationTime (IAM
+# conditions cannot see it), so for any VM not created by the creator workflow this
+# sweep is what bounds its lifetime (DESIGN section 6a). Its own code path is hardened:
+#   - The sweep logic is NOT inline here. It lives in scripts/hotlab/vm-reaper-sweep.sh
+#     and is fetched from the GitHub Contents API at the commit SHA held in repo variable
+#     HOTLAB_REAPER_SCRIPT_SHA (adopted from labapp-lifecycle-cleanup.yml). The step
+#     checks: 40-hex SHA; the SHA is an ancestor of main; response is a base64 `file` at
+#     the exact path; size bounds; decoded length equals the reported size; bash -n.
+#     The script runs from RUNNER_TEMP, never from the workspace. Effect: merging a change
+#     to the script to main does not alter what this identity executes until a repo admin
+#     bumps the variable after review. The caps live in the script, so they are pinned too.
+#   - LIMIT: this workflow file itself (including this fetch step) is still changed by a
+#     merge to main; the WIF condition pins workflow_ref (path@ref), not file content.
+#     Protect this path with CODEOWNERS + required review. An optional further pin on the
+#     OIDC `job_workflow_sha` claim is described in RUNBOOK 2.4 (U: not verified).
+#
+# Provider attribute condition pins:
+#   repository_id       == 1046667618
+#   repository_owner_id == 193945001
+#   ref                 == refs/heads/main
+#   workflow_ref        == afewell-hh/hh-learn/.github/workflows/hotlab-vm-reaper.yml@refs/heads/main
+#   event_name          in ['schedule', 'workflow_dispatch', 'workflow_run']
+#
+# SCOPE: only instances whose NAME starts with `hotlab-` are ever considered, and
+# the SA's delete permission is additionally IAM-conditioned to that prefix. The
+# project is shared with unrelated workloads (e.g. Labapp), so "delete everything
+# unlabelled" would be destructive; "unlabelled hotlab-*" is the orphan definition.
+#
+# An instance is deleted when ANY holds (implemented in the pinned script):
+#   - a required label is missing / managed-by != hotlab
+#   - created-at / expires-at are not integers
+#   - now >= expires-at
+#   - expires-at - created-at exceeds the lifetime cap (tampered / overlong)
+#   - zone or machine type is outside the allowlist
+#   - scheduling.terminationTime missing / not DELETE / not the same instant as
+#     expires-at, or scheduling.maxRunDuration is PRESENT (resets on restart)
+#   - the deadline (terminationTime, or expires-at) is further than MAX_LIFETIME_S
+#     from server-side creationTimestamp or from now (distant deadlines do not survive)
+#   - scheduling.automaticRestart != false, onHostMaintenance != TERMINATE,
+#     provisioningModel != STANDARD
+#   - metadata enable-oslogin / block-project-ssh-keys != TRUE
+#   - not exactly 1 NIC, an external IP, an attached service account, or
+#     deletionProtection is set (deletionProtection would also block this reaper from
+#     deleting: it is reported and the run goes red so a human intervenes)
+#   - disk list is not exactly one auto-delete boot disk, or (via `disks list`) that
+#     disk is not pd-standard or is outside MIN_DISK_GB..MAX_DISK_GB
+#   - it is beyond MAX_CONCURRENT (newest are deleted first)
+#
+# NOT checked (so this is NOT "complete validation"): image, network/subnet identity,
+# nested-virt flag, CPU platform, labels beyond presence/format of the required ones,
+# extra metadata keys, and anything GCP adds to the API that is not listed above.
+# Checks run against whatever the API returns at sweep time; a VM that violates and is
+# fixed/deleted between sweeps is not seen.
+#
+# The job FAILS (red, emails watchers) if any violating instance still exists after
+# the sweep, if the pinned script cannot be fetched/validated, or if a list/delete call
+# errors. A green run therefore means "listed successfully and nothing violating
+# remains", not "nothing went wrong".
+#
+# KNOWN LIMITS: GitHub `schedule` is best-effort (delays/drops under load) and
+# GitHub disables scheduled workflows after 60 days without repo activity. A VM created
+# through the creator workflow is additionally bounded by its own terminationTime; a VM
+# created any other way by the creator identity is NOT, so this reaper being down means
+# nothing GCP-side stops it.
+
+# TRIGGERS: cron every 10 min (labapp's cadence) AND workflow_run on completion of
+# the creator, so leftovers from a failed/cancelled creator are swept immediately
+# rather than at the next cron tick. workflow_run only fires for workflow files on the
+# default branch, and the OIDC `ref` for it is the default branch, so the pinned
+# attribute condition (event_name in schedule/workflow_dispatch/workflow_run) still
+# holds. This job checks out nothing and uses nothing from the triggering run.
+on:
+  schedule:
+    - cron: "7,17,27,37,47,57 * * * *"
+  workflow_run:
+    workflows: ["Hot Lab VM (creator)"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only; delete nothing"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: hotlab-vm-reaper
+  cancel-in-progress: false
+
+env:
+  PROJECT: ${{ vars.HOTLAB_GCP_PROJECT }}
+
+jobs:
+  reap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Fetch and validate BEFORE authenticating to GCP: a bad pin never gets a token.
+      - name: Fetch pinned sweep script (trusted main, by SHA)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIN: ${{ vars.HOTLAB_REAPER_SCRIPT_SHA }}
+          SCRIPT_PATH: scripts/hotlab/vm-reaper-sweep.sh
+        run: |
+          set -euo pipefail
+          if ! [[ "$PIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::HOTLAB_REAPER_SCRIPT_SHA must be a 40-hex commit SHA (got '${PIN}')"; exit 1
+          fi
+          # PIN must be an ancestor of (or equal to) main: compare PIN...main reports
+          # main as "ahead" of, or "identical" to, PIN. Anything else (diverged/behind,
+          # or an API error under set -e) fails closed.
+          st="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${PIN}...main" --jq .status)"
+          case "$st" in
+            ahead|identical) ;;
+            *) echo "::error::pinned SHA is not an ancestor of main (compare status: ${st})"; exit 1 ;;
+          esac
+          d="${RUNNER_TEMP}/hotlab"; mkdir -p "$d/work"
+          gh api "repos/${GITHUB_REPOSITORY}/contents/${SCRIPT_PATH}?ref=${PIN}" > "$d/resp.json"
+          jq -e --arg p "$SCRIPT_PATH" '
+              .type == "file" and .path == $p and .encoding == "base64"
+              and (.size|type) == "number" and .size > 0 and .size <= 65536
+              and (.content|type) == "string"' "$d/resp.json" >/dev/null \
+            || { echo "::error::unexpected Contents API response shape"; exit 1; }
+          jq -r .content "$d/resp.json" | base64 -d > "$d/sweep.sh"     # invalid base64 => error
+          want="$(jq -r .size "$d/resp.json")"; got="$(wc -c < "$d/sweep.sh")"
+          [ "$want" = "$got" ] || { echo "::error::decoded size ${got} != reported ${want}"; exit 1; }
+          head -n1 "$d/sweep.sh" | grep -qx '#!/usr/bin/env bash' \
+            || { echo "::error::script missing expected shebang"; exit 1; }
+          bash -n "$d/sweep.sh"
+          h="$(sha256sum "$d/sweep.sh" | cut -d' ' -f1)"
+          { echo "### Pinned sweep script"; echo "commit \`${PIN}\`, sha256 \`${h}\`"; } >> "$GITHUB_STEP_SUMMARY"
+          chmod 0500 "$d/sweep.sh"
+
+      - name: Authenticate to Google Cloud via WIF (reaper pool)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.HOTLAB_REAPER_WIF_PROVIDER }}
+          service_account: ${{ vars.HOTLAB_REAPER_SA_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          project_id: ${{ vars.HOTLAB_GCP_PROJECT }}
+
+      - name: Confirm federated identity
+        run: |
+          set -euo pipefail
+          echo "### Federated identity" >> "$GITHUB_STEP_SUMMARY"
+          gcloud auth list --format="value(account)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Sweep (pinned script)
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}   # scheduled runs have no inputs => live
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/hotlab/work"
+          exec "${RUNNER_TEMP}/hotlab/sweep.sh"
