@@ -4,8 +4,13 @@ name: Auto Code Review (Copilot)
 #
 # Requires Copilot code review to be enabled for this repository
 # (Settings -> Copilot, or github.com/settings/copilot for a personal repo).
-# Copilot code review does NOT expose model selection; thoroughness is controlled
-# by review effort level (Lite / Balanced / Max), configured in those settings.
+#
+# NOTE: this is the BUILT-IN Copilot PR reviewer, which does not expose model
+# selection -- thoroughness is set by review effort level (Lite / Balanced / Max)
+# in those settings. For a model-selected independent review (e.g.
+# gpt-6.1-sol), use the Copilot CLOUD AGENT instead via `gh agent-task` /
+# POST agents/repos/{owner}/{repo}/tasks with a "model" field. The two are
+# separate mechanisms; see docs/copilot-agent-review.md.
 #
 # If Copilot is not enabled or not licensed, this job fails soft and logs a notice
 # rather than blocking the PR.
