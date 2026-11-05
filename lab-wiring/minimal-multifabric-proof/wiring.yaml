@@ -1,0 +1,199 @@
+# Minimal reproducer for #501: can ONE Server hold Connections into TWO Fabrics?
+#
+# Two single-spine/single-leaf Fabrics, and one server attached to a leaf in each.
+# Everything else is the smallest thing that validates. Schema copied from a
+# `hhfab vlab gen` default on hhfab v0.51.3 (fabric api v0.144.1).
+#
+# THE TEST is the final two Connections: gpu-01 appears in both `default` and
+# `backend` via per-Connection spec.topology.fabric.
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Fabric
+metadata:
+  name: default
+spec:
+  domains:
+    default:
+      gatewayASN: 4200006133
+      spineASN: 4200005633
+  leafASNEnd: 4200015631
+  leafASNStart: 4200006632
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Fabric
+metadata:
+  name: backend
+spec:
+  domains:
+    default:
+      gatewayASN: 4200106133
+      spineASN: 4200105633
+  leafASNEnd: 4200115631
+  leafASNStart: 4200106632
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: VLANNamespace
+metadata:
+  name: default
+spec:
+  ranges:
+  - from: 1000
+    to: 1999
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: VLANNamespace
+metadata:
+  name: backend
+spec:
+  ranges:
+  - from: 2000
+    to: 2999
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: IPv4Namespace
+metadata:
+  name: default
+spec:
+  subnets:
+  - 10.0.0.0/16
+  topology:
+    fabric: default
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: IPv4Namespace
+metadata:
+  name: backend
+spec:
+  subnets:
+  - 10.1.0.0/16
+  topology:
+    fabric: backend
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata:
+  name: fe-spine-01
+spec:
+  boot:
+    mac: 0c:20:12:ff:10:00
+  description: frontend spine
+  ecmp: {}
+  profile: vs
+  role: spine
+  topology:
+    fabric: default
+    domains:
+    - default
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata:
+  name: fe-leaf-01
+spec:
+  boot:
+    mac: 0c:20:12:ff:11:00
+  description: frontend leaf
+  ecmp: {}
+  profile: vs
+  role: server-leaf
+  topology:
+    fabric: default
+    domains:
+    - default
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata:
+  name: be-spine-01
+spec:
+  boot:
+    mac: 0c:20:12:ff:20:00
+  description: backend spine
+  ecmp: {}
+  profile: vs
+  role: spine
+  topology:
+    fabric: backend
+    domains:
+    - default
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata:
+  name: be-leaf-01
+spec:
+  boot:
+    mac: 0c:20:12:ff:21:00
+  description: backend leaf
+  ecmp: {}
+  profile: vs
+  role: server-leaf
+  topology:
+    fabric: backend
+    domains:
+    - default
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata:
+  name: gpu-01
+spec:
+  description: server attached to BOTH fabrics -- this is the test
+  inspect: {}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata:
+  name: fe-spine-01--fabric--fe-leaf-01
+spec:
+  fabric:
+    links:
+    - leaf:
+        port: fe-leaf-01/E1/4
+      spine:
+        port: fe-spine-01/E1/1
+  topology:
+    fabric: default
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata:
+  name: be-spine-01--fabric--be-leaf-01
+spec:
+  fabric:
+    links:
+    - leaf:
+        port: be-leaf-01/E1/4
+      spine:
+        port: be-spine-01/E1/1
+  topology:
+    fabric: backend
+---
+# ===== THE TEST: one Server, two Fabrics =====
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata:
+  name: gpu-01--unbundled--fe-leaf-01
+spec:
+  unbundled:
+    link:
+      server:
+        port: gpu-01/enp2s1
+      switch:
+        port: fe-leaf-01/E1/1
+  topology:
+    fabric: default
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata:
+  name: gpu-01--unbundled--be-leaf-01
+spec:
+  unbundled:
+    link:
+      server:
+        port: gpu-01/enp2s2
+      switch:
+        port: be-leaf-01/E1/1
+  topology:
+    fabric: backend
