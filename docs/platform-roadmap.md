@@ -22,7 +22,7 @@ Research, synthesis and writing only. This document authorises nothing: no HubSp
 | Track | What ships first | Needs HubSpot? | Earliest gate |
 |---|---|---|---|
 | **A. Walkthrough + CTA** (#498) | The download button leads to a short discovery junction that routes visitors to the evidence that fits them; the guided replay (PR #488) is one destination | Yes | #489 cp1 (disposition), then cp3 |
-| **B. Hot Lab** (#497) | A private shared lab running read-only experiences (C0–C2) | No | Authorised 2026-11-04 for design/sizing/prototype |
+| **B. Hedgehog Virtual AI Factory (vAIF)** (#497) | A private shared lab running read-only experiences (C0–C2) | No | Authorised 2026-11-04 for design/sizing/prototype |
 | **C. Learner record** (#385/#397 evolution) | Typed credit derived from records that already exist | Yes (templates), AWS | Needs a deployment baseline first (R3) |
 
 **The first three increments:** R1 (a discovery junction behind the download CTA: profiling entry, routing, destinations), R2 (the lab proof, then a private first unit), R3 (a read-only deployment baseline, not a cleanup). Section 4 has detail.
@@ -42,6 +42,16 @@ Carried from #492 (including its final amendment), #490 and #493:
 3. No CPU or VLAB demonstration proves GPU, RDMA/RoCE or line-rate behaviour. Simulated GPU inventory and CPU-executed workloads are disclosed in the experience itself.
 4. Hedgehog is the network. Scheduling, GPU, storage, inference and retrieval belong to their real providers and are labelled as such.
 
+### Naming and the fidelity standard (customer, 2026-11-05; record on #497)
+
+The live environment is the **Hedgehog Virtual AI Factory (vAIF)**; short form **Virtual AI Factory**; code identifier `vaif`. It follows the existing vAIDC convention. It was previously called the "Hot Lab" in #497 and its children; older issue text keeps that name. Directory and file names are **not** renamed mechanically: a path rename rides along with the next substantive change to that area, per the customer's standing instruction not to tidy for its own sake.
+
+The customer attached a fidelity bar to the name: *"like the Hollywood Stock Exchange — so good you wouldn't know it's not real if you didn't know, in terms of how thoroughly it emulates a real exchange."*
+
+**Resolution with the boundaries above.** HSX's excellence is *thoroughness of emulation*, not concealment; everyone playing it knows it is not real money. vAIF's standard is therefore **maximum fidelity of emulation plus unambiguous labelling**: simulated GPU inventory disclosed, CPU-executed workloads disclosed, replay marked as replay, control-plane evidence never presented as data-plane proof. Fidelity makes it worth using; honesty makes it legitimate. The two are not in tension, and boundaries 1–4 are the labelling half of the standard, not a limit on the fidelity half.
+
+**Direction of travel.** High fidelity is the target. The smallest first unit (R2, section 7.2) is a **starting point, not the target**.
+
 ---
 
 ## 1. Target architecture
@@ -56,7 +66,7 @@ Seven layers. Each has a purpose and a current state. The state is the honest pa
  [Content & authoring]   [Interactive experiences]   [Learner record & attainment]
    content/ -> HubDB        replay | shared lab | VLAB     completion, certificates, credit
         |                        |                              |
-        |                [Lab substrate: Hot Lab]          [Identity]
+        |                [Lab substrate: vAIF]          [Identity]
         |                 fabric units, broker, ops          HubSpot membership / Cognito
         |
  [Analytics] HubSpot-native events across all of the above
@@ -109,7 +119,7 @@ Seven layers. Each has a purpose and a current state. The state is the honest pa
 
 The lease broker (#503) must accept whatever identity provider is authoritative, so the identity question does not block the lab.
 
-### 1.6 Lab substrate (the Hot Lab): **D** end to end, **P** in pieces
+### 1.6 Lab substrate (the Virtual AI Factory, vAIF): **D** end to end, **P** in pieces
 
 Decisions already made and not reopened here: lease servers, not switches; a fabric unit is a horizontal scaling stamp; the shared environment is the default for early learning and dedicated VLAB is reserved for work that needs it.
 
@@ -264,7 +274,7 @@ I flag this one against the customer's strategic steer, and say plainly where I 
 
 ### P8. About 17 stale-open issues (#434, #435, #446–#457, #459, #460, #461)
 
-- **Breaks today.** The board says work remains where the customer says it merged. It misleads any agent that reads the tracker, as the Hot Lab tickets showed when agents could not read sibling issues.
+- **Breaks today.** The board says work remains where the customer says it merged. It misleads any agent that reads the tracker, as the vAIF tickets (then called Hot Lab) showed when agents could not read sibling issues.
 - **What I verified.** Only #461's code is visibly on main. The set is not uniform: #460's own comments say *not remediated*, so closing it as done would hide P4b. I did not verify merge status for the others.
 - **Absorbed by:** a single reconciliation pass at the R6/R7 trigger (section 5), in which each issue is closed with a link to its merged PR, or kept open with a reason. Not before.
 - **If never fixed.** Coordinators and agents keep rediscovering the same history. Mild cost; no production effect.
@@ -448,7 +458,7 @@ Only genuine forks. Things with an obvious default are in section 6.2 as recomme
 
 **D3. Hardware sizing option (engineering decision, already pending).** Redundant (three lab servers plus backup, 16 concurrent single leases, third server has headroom for a third unit) or non-redundant (one server plus backup, 8 concurrent single leases, full outage on server loss). Blocks G-hw, #504 and the ops stack design. Not blocking R1 or R3. Not a decision for this document; listed because it gates R2's second half.
 
-**D4. Hosting the Broadcom SONiC image: licensing, not access (external answer).** Access is confirmed: the private `ghcr.io/githedgehog/sonic-bcm-private/sonic-bcm-base` image **is** pullable with a `read:packages` credential for a `githedgehog` org member (the proof's boot failed on exactly this until authenticated, then succeeded). That is access, **not permission**. The production Hot Lab host will need the same registry credential. The open content is unchanged and external: written answers from Hedgehog and Broadcom on copying among customer hosts, operating a service with anonymous viewers, giving visitors shell access, and redistribution (#490 F6). Private evaluation does not need them. Public lab exposure (G-pub) does. If the answer to anonymous-viewer hosting is no, R4 ships only as cached/replayed content and the public live lab becomes a separate question.
+**D4. Hosting the Broadcom SONiC image: licensing, not access (external answer).** Access is confirmed: the private `ghcr.io/githedgehog/sonic-bcm-private/sonic-bcm-base` image **is** pullable with a `read:packages` credential for a `githedgehog` org member (the proof's boot failed on exactly this until authenticated, then succeeded). That is access, **not permission**. The production vAIF host will need the same registry credential. The open content is unchanged and external: written answers from Hedgehog and Broadcom on copying among customer hosts, operating a service with anonymous viewers, giving visitors shell access, and redistribution (#490 F6). Private evaluation does not need them. Public lab exposure (G-pub) does. If the answer to anonymous-viewer hosting is no, R4 ships only as cached/replayed content and the public live lab becomes a separate question.
 
 **D5. Approval of the read-only deployment baseline (R3).** Does the customer approve a read-only inspection of the AWS stages and of the live HubSpot objects, before any API change? Option: decline and accept that every API-touching increment (R6) stays blocked. This is a real fork because it appears to cut against "don't invest in production". I recommend approving it **[R]**; it writes nothing.
 
@@ -492,9 +502,9 @@ Labelled as requested. None of these reopens a made decision.
 
 **This supports the customer's steer rather than qualifying it.** Production is holding steady, and the evidence says so. The residual risk is that the defence may not survive a config change, not that it is broken today.
 
-**7.2. Fidelity versus first value for the Hot Lab.** The confirmed fidelity target (frontend fabric, dual-plane backend, storage fabric, gateway, shared services, leasable pool) is a roughly 19–21 VM unit by the #499 arithmetic. Everything in R4 (C0–C2) can run on far less, and some of it on a cached feed. I do not dispute the target. I disagree only if anyone treats the full unit as a precondition for the first visitor-facing experience. **Recommendation [R]:** the first private unit is the smallest that supports one C1/C2 story honestly; fidelity grows by adding to it. That is consistent with the confirmed prewired-fabric-first direction.
+**7.2. Fidelity versus first value for the vAIF.** The confirmed fidelity target (frontend fabric, dual-plane backend, storage fabric, gateway, shared services, leasable pool) is a roughly 19–21 VM unit by the #499 arithmetic. Everything in R4 (C0–C2) can run on far less, and some of it on a cached feed. I do not dispute the target. I disagree only if anyone treats the full unit as a precondition for the first visitor-facing experience. **Recommendation [R]:** the first private unit is the smallest that supports one C1/C2 story honestly; fidelity grows by adding to it. The customer's HSX bar (section 0) strengthens this: the *direction* is explicitly high fidelity, so the smallest first unit is a starting point, not the target. The point stands that the full-fidelity unit should not gate the first visitor experience. That is consistent with the confirmed prewired-fabric-first direction.
 
-**7.3. Sequence of the held Hot Lab children.** #504 (ops stack) and #505 (workspace tier) are held behind sizing and the broker. The sequence is sensible, but C0/C1 visitor value needs neither. I would let R4 proceed on a minimal static feed while those wait, so the lab shows something before the full ops stack exists. This is a sequencing point, not a challenge to the architecture.
+**7.3. Sequence of the held vAIF children.** #504 (ops stack) and #505 (workspace tier) are held behind sizing and the broker. The sequence is sensible, but C0/C1 visitor value needs neither. I would let R4 proceed on a minimal static feed while those wait, so the lab shows something before the full ops stack exists. This is a sequencing point, not a challenge to the architecture.
 
 **7.4. "Replay is not a substitute" cuts both ways.** #489 is right that replay was not customer-accepted as a substitute for the always-on lab. By the same logic the lab is not a prerequisite for the CTA fix (#498 says so). I read the record as supporting *both* tracks starting independently, and this document is built that way. It would be an error to hold R1 until R4 exists.
 
@@ -509,7 +519,7 @@ Labelled as requested. None of these reopens a made decision.
 | Leased write sessions; GitOps/LGTM/access | #493, #494 |
 | UX evidence, three amendments, editorial correction | #492 |
 | Authoring and visual-learning research | #495 |
-| Hot Lab epic and children | #497 and #499–#505, #508, #510, #501 |
+| vAIF epic (formerly "Hot Lab") and children | #497 and #499–#505, #508, #510, #501 |
 | CTA journey, walkthrough, attainment | #498 |
 | Exercise classes | #502 |
 | Session broker | #503 |
