@@ -27,7 +27,7 @@ Research, synthesis and writing only. This document authorises nothing: no HubSp
 
 **The first three increments:** R1 (CTA gets a real destination), R2 (the lab proof, then a private first unit), R3 (a read-only deployment baseline, not a cleanup). Section 4 has detail.
 
-**What is consciously left broken.** Production stays as it is. Repo and production cleanup are deferred and tied to explicit triggers (section 5). Today's problems get fixed because the new thing replaces the old thing, with one exception: two production-safety questions need a read-only look, not a patch (section 3, P3 and P4).
+**What is consciously left broken.** Production stays as it is. Repo and production cleanup are deferred and tied to explicit triggers (section 5). Today's problems get fixed because the new thing replaces the old thing, with one exception: production-safety knowledge gaps need a read-only look, not a patch (section 3, P3, P4 and P9). Two of the original uncertainties have since been resolved favourably by read-only probes (section 7.1).
 
 ### Tag legend
 
@@ -96,8 +96,9 @@ Seven layers. Each has a purpose and a current state. The state is the honest pa
 ### 1.5 Identity: **S**, but production state is **U**
 
 - **Repo evidence of two paths.** `docs/auth-and-progress.md` (2025-10-28) names HubSpot Membership as the production baseline. Issues #299/#308 and the `cognito-auth.ts` Lambda describe a Cognito + DynamoDB external SSO and progress store. #460 states the shadow API has the learner-progress routes and the root production mapping does not.
+- **Amendment (2026-11-05, probed).** The records below were contradictory when I wrote them; a read-only probe has since resolved the question in the running system. The learner-progress routes return 401 on `hvoog2lnha` and are served on the bare domain, so #460 was remediated by remapping the domain. What remains is a **split-brain topology** (P9). The paragraphs below are kept as originally written, except the symptom, which is corrected.
 - **Contradictory records about #460.** Its body says the root mapping points at `dev-hedgehog-learn` (`hvoog2lnha`). Its investigation comment says *not remediated*. #461's body says #460 "already resolved" the mapping. The #515 safety note in #497 says the bare mapping *has pointed* at the dev stage. I cannot resolve this from the repo, so **the current production identity and API topology is U**.
-- **A concrete symptom.** `clean-x-hedgehog-templates/config/constants.json` sets `TRACK_EVENTS_ENABLED: true` with `TRACK_EVENTS_URL` on API `hvoog2lnha`, which #460 identifies as the dev stack. If that is still true, production learning events have been going to a dev stage.
+- **A concrete symptom (corrected).** `clean-x-hedgehog-templates/config/constants.json` points four constants at API `hvoog2lnha`, the stack named *dev*: `AUTH_LOGIN_URL`, `AUTH_ME_URL`, `AUTH_LOGOUT_URL` and `TRACK_EVENTS_URL`. Probing shows these are live and working, so the *dev* stack serves production auth and event tracking (P9). My first draft named only `TRACK_EVENTS_URL` and suggested events were mis-aimed; that was too narrow and too pessimistic.
 - **Per-tier implication [R]:**
 
 | Class (#502) | Identity required | Why |
@@ -126,7 +127,7 @@ Decisions already made and not reopened here: lease servers, not switches; a fab
 
 ### 1.7 Analytics: **S** thin, **U** for what the platform needs
 
-- **S.** `/events/track` Lambda beacons (`learning_module_started`, `learning_module_completed`, `learning_pathway_enrolled`) plus HubSpot page analytics. See the `constants.json` concern in 1.5.
+- **S.** `/events/track` Lambda beacons (`learning_module_started`, `learning_module_completed`, `learning_pathway_enrolled`) plus HubSpot page analytics. The ingestion route is live and validating (P9); see the topology finding in 1.5.
 - **Decision on record (#480).** HubSpot-native analytics only for the experience routes.
 - **U, what the platform needs.** A short list, deliberately not a dashboard programme:
   1. **CTA distribution and journey progression** from the download button (#498): which destination each visitor chose, and whether they reached a next step. Not dwell time.
@@ -187,6 +188,7 @@ Increment names (R1–R7) are defined in section 4.
 ### P3. Lambda auto-deploy broken ~7 months; deployment provenance unclear
 
 - **Breaks today.** Per #497, `deploy-aws.yml` ran on every push to main with an empty `APP_STAGE` (which `serverless.yml:26` defaults to `dev`) and failed from 2026-04-09. PR #515 made it dispatch-only with a required stage. About seven months of Lambda changes sit on main with no record of what is deployed where.
+- **`dev` is partially production (amendment).** Given P9, `dev` is not a sandbox: the stack of that name serves live auth and event tracking. An empty `APP_STAGE` silently resolving to `dev` therefore meant an accidental deploy could change live production behaviour. PR #515's required-explicit-stage guard is a **safety control, not hygiene**. Anyone reading "dev" as safe to experiment on would be wrong.
 - **Not a patch, but not nothing.** #515 removed the hazard (an accidental deploy at the wrong stage). It did not establish provenance.
 - **Absorbed by R3.** Before *any* increment that changes the API (typed credit in R6, broker integration in R5 where it touches the learner record), do a read-only provenance check: for each stage, which code version is running, which API id maps to which domain, which environment values are set. Then the first real deploy is a deliberate, diffed event with an explicit stage.
 - **If never fixed.** The first API change will deploy seven months of unreviewed drift at once, on top of an unknown mapping. This is the one place where deferral becomes risky, so the ordering matters more than the effort.
@@ -196,6 +198,7 @@ Increment names (R1–R7) are defined in section 4.
 
 I flag this one against the customer's strategic steer, and say plainly where I think it needs care. See section 7 for the labelled disagreement.
 
+- **Status (amendment):** P4a and P4b are resolved favourably in the running system; see 7.1. The text below records the original reasoning.
 - **P4a: test-bypass hardening (#461).** The permanent guard (`isTestBypassEnabled()` requiring both `ENABLE_TEST_BYPASS` and `APP_STAGE=shadow`) is present in `cognito-auth.ts` on main. Because Lambda deploys failed from 2026-04-09, I cannot tell from the repo whether it is *deployed*. #461 says production was protected by an operational config reset, which is not the same thing.
 - **P4b: production API topology (#460).** Contradictory records (section 1.5).
 - **Absorbed by R3.** Both are answerable by a read-only look. Neither needs code.
@@ -231,7 +234,7 @@ I flag this one against the customer's strategic steer, and say plainly where I 
 
 | # | Problem | Evidence | Absorbed by | If never fixed |
 |---|---|---|---|---|
-| P9 | Production event tracking may point at the dev stack | `constants.json` `TRACK_EVENTS_URL` host `hvoog2lnha` vs #460 | R3 (check) | Analytics for the learner funnel are untrustworthy |
+| P9 | **Split-brain API topology.** `constants.json` hardcodes `hvoog2lnha` (the stack named *dev*) for four constants: `AUTH_LOGIN_URL`, `AUTH_ME_URL`, `AUTH_LOGOUT_URL`, `TRACK_EVENTS_URL`. Probed: auth and events are served by that stack; learner-progress and certificates exist **only** on the bare domain (404 on `hvoog2lnha`). `POST /events/track` returns `400 SCHEMA_VALIDATION_FAILED` on both hosts (route live, validation working); the earlier GET 404 was an API Gateway method mismatch. #460 was remediated by remapping the domain, but `constants.json` still carries the old id for auth and events | Read-only probes (2026-11-05); `constants.json`; #460 | R3 (full baseline); any later change is deliberate, not a hotfix | **Analytics are not untrustworthy.** The risk is structural: two stacks are jointly production, `dev` is not a sandbox (P3), and changing or tearing down `dev` would break login and tracking |
 | P10 | Shadow environment is half in the tree | Open PRs #377–#381, #390, #393 | R1/R6 preview isolation work (cp3 needs an isolation answer anyway) decides whether to reuse or discard | Two template sets (`learn/`, `learn-shadow/`) drift apart |
 | P11 | Other long-open PRs/docs: #225, #291, #292 | `gh pr list` | The R6/R7 reconciliation | Noise only |
 | P12 | vAIDC machine-type inconsistency: module docs say `n1-standard-32`; `labapp` deploys `n2-standard-32` and `lab-validation/RESUMPTION.md` records the Cascade Lake flag as incompatible with n1 | #499 coordinator note | The content pass that accompanies R2 (the lab proof will establish the truth) | Learners follow instructions that may fail |
@@ -245,12 +248,13 @@ I flag this one against the customer's strategic steer, and say plainly where I 
 | P1 CTA dead end | **R1** | cp1, then cp3–cp5 |
 | P2 stale content, drift | R3, then R6/R7 | read-only inspection approval, then surface replacement |
 | P3 Lambda deployment provenance | **R3** | read-only inspection approval |
-| P4 bypass guard, API topology | **R3** | same |
+| P4 bypass guard, API topology | **R3** (probe slice already run; mechanism still to confirm) | same |
 | P5 lint/build | scoped green check from R1; removal at R6/R7 | none |
 | P6 #487/#488 | **R1** | customer disposition |
 | P7 orphaned rows | R3 (measure), R6 (fix) | read-only inspection, then credit work |
 | P8 stale issues | R6/R7 reconciliation | none |
-| P9–P14 | as listed | as listed |
+| P9 split-brain topology | **R3** | same |
+| P10–P14 | as listed | as listed |
 
 ---
 
@@ -282,12 +286,31 @@ Order within a track is a dependency order; tracks run side by side.
 | ID | Delivers | Depends on | Gate | Verified by |
 |---|---|---|---|---|
 | **R1** CTA destination (Track A) | Customer disposition of #488/#487; a journey spec for the download CTA (role/intent routing, measurement plan); then the replay live as the first destination, with a consult secondary | Customer decision on #488; for the live step, HubSpot preview isolation | cp1 for the spec; **cp3 → cp4 → cp5** for anything in HubSpot | Spec: customer sign-off. Live: the existing zero-network and axe checks from #488, CTA distribution and progression in HubSpot analytics, and a formative comprehension check per #492 §3 |
-| **R2** Lab proof and first private unit (Track B) | Result of the bounded multi-fabric proof (#501 Part B); sizing selection; a first fabric unit running privately on lab hardware | #499 (done), #500/PR #509, #508/PR #514, #510/PR #512, #501 Part A/PR #516 | cp2 (granted for prototype); **G-hw** for hardware | Proof acceptance criteria from #490/#501: exact-image boot and convergence, port identity, discovery on explicit OOB links, restart behaviour. Control-plane only; no data-plane or performance claim |
+| **R2** Lab proof and first private unit (Track B) | **Prerequisite met:** the bounded multi-fabric proof ran (PR #519; see "R2 proof result"). Remaining: sizing selection (D3) and a first fabric unit running privately on lab hardware. Next proof question: per-Fabric VPC coherence across a shared server | #499 (done), #500/PR #509, #508/PR #514, #510/PR #512, #501 Part A/PR #516 | cp2 (granted for prototype); **G-hw** for hardware | Proof criteria from #490/#501. Met so far (control-plane only): see "R2 proof result". Still to verify: VPC coherence per Fabric, restart behaviour. No data-plane or performance claim |
 | **R3** Deployment baseline (shared prerequisite) | A read-only snapshot: which API stage serves which domain, which Lambda code and environment values run per stage, HubDB counts versus repo, templates deployed versus repo. It answers P3, P4, P7, P9 | Customer approval of read-only inspection (AWS and HubSpot read access) | Falls inside **cp3** for HubSpot; AWS read-only needs explicit approval. Writes: none | A written report with evidence; no production change |
 | **R4** Shared read-only experiences (Track B) | C0 cached feeds and C1/C2 read-only experiences served from the private unit; tenant story with disclosed real-vs-illustrative labels | R2 | cp2; **G-pub** before any public exposure; cp3–cp5 before any HubSpot placement | Convergence evidence labelled control-plane; concurrent-viewer test against the C1/C2 bounds (#502); staleness and expiry behaviour demonstrated; truth-label review against #492 rules |
 | **R5** Leased exercises (Track B) | The broker (#503) in its smallest form: C3 single leased server, then C4 pair. Registered users, one active lease, hard TTL, verified cleanup | R4, #503 reviewed, #505 workspace tier designed | **G-pub** (isolation design), licensing answers for any hosted/anonymous use | #493's first proof: two concurrent sessions, expiry mid-operation, broker crash/restart, cleanup and reassignment, stale job rejected after reassignment; unaffected-slot checks without throughput claims. Isolation/negative-connectivity needs a separately qualified data-plane environment |
 | **R6** Typed credit (Track C) | A `kind` + weight view over completion and lease records, milestones with multiple paths; delete/archive path for courses and pathways in the sync | R3 (so deployment is deliberate), R1 for the surface, R5 for lab-derived credit | cp3–cp5 for template changes; AWS deployment is a deliberate, explicit-stage event | Existing completion/certificate tests stay green; new credit rules have unit tests; a before/after record comparison |
 | **R7** Authoring evaluation (off critical path) | One demanding lesson authored three ways (OpenMAIC, one hosted tool, the current workflow), judged on correctness, provenance, visual interaction, accessibility, maintenance on a small source change | Customer approval of lesson, rubric and budget | None on the critical path; spend needs approval | #495's comparison rubric; the maintenance-update test is the deciding criterion |
+
+### R2 proof result (PR #519, control-plane only) **S**
+
+On hhfab v0.51.3 GA with fabric/agent v0.144.1:
+
+- The API accepts a Server with Connections into two Fabrics, **with a negative control** showing validation genuinely enforces fabric membership.
+- `hhfab vlab up` reported `VLAB is ready took=16m18s` with zero `ERR`.
+- Two Fabrics were instantiated and the switches were correctly partitioned.
+- **All four agents converged: `APPLIEDG == CURRENTG == 1`, heartbeating.**
+- `gpu-01` has `enp2s1`→`fe-leaf-01` (default) and `enp2s2`→`be-leaf-01` (backend), both UP with carrier.
+
+**Scope.** Control-plane evidence only. No VPCs were created, so **per-Fabric VPC coherence across a shared server is still unverified**; it is the next proof question. No data-plane, isolation or performance claim follows (#492 boundary). The architectural unknown for R2 is closed; what remains is D3 and the first private unit.
+
+### Two automation traps from the proof
+
+Both cost time and will recur:
+
+1. **A failed `hhfab init` leaves `include/` empty, and `hhfab validate` then passes** against the default config. A green validate means nothing unless `include/` is confirmed populated.
+2. **`VLAB is ready` fires about 6 minutes before agents apply config.** It means control plane up and VMs launched, not convergence. Automation must poll `APPLIEDG` (against `CURRENTG`).
 
 ### How R1 and R2 stay independent
 
@@ -297,7 +320,7 @@ Order within a track is a dependency order; tracks run side by side.
 
 ### What "usable quickly" means here
 
-R1's live step needs no new engineering beyond what #488 already contains; its delay is the approval gates, not the build. R2 is mostly built (provision, bootstrap, wiring diagram, runbook exist as PRs awaiting review) and waits on one operator-executed proof. R3 is a bounded read-only task. I give no calendar estimates because I have no throughput data for the review loop. If R1 and R2 are both blocked on approvals, the approvals are the critical path, not the engineering.
+R1's live step needs no new engineering beyond what #488 already contains; its delay is the approval gates, not the build. R2's proof has run; it is mostly built (provision, bootstrap, wiring diagram, runbook exist as PRs awaiting review) and now waits on the sizing choice (D3). R3 is a bounded read-only task. I give no calendar estimates because I have no throughput data for the review loop. If R1 and R2 are both blocked on approvals, the approvals are the critical path, not the engineering.
 
 ### Capacity note for R4/R5 (quantified in #499/#502, all unmeasured)
 
@@ -328,12 +351,12 @@ Written plainly so deferral is not mistaken for oversight:
 | The ~17 stale-open issues | Housekeeping without production effect | Misleading board | The R6/R7 reconciliation pass (P8) |
 | Orphaned HubDB rows | Unknown size; no visible harm reported | Possible hidden catalog noise | R3 measures; R6 adds a delete path for courses and pathways |
 | `learn-shadow/` templates and the open shadow PRs | Isolation approach is undecided (P10) | Two template sets | The cp3 isolation design for R1 decides reuse or retire |
-| The `constants.json` tracking URL | Not verifiable without read access | Possibly mis-aimed analytics | R3 confirms; correction is then a deliberate change, not a hotfix |
+| The `constants.json` auth and tracking URLs (four constants on the `dev`-named stack) | Working in production; the risk is structural, not a fault | Auth and events depend on a stack named *dev* | R3 documents it; any remap is a deliberate change, not a hotfix |
 | The vAIDC `n1` vs `n2` content wording | Truth depends on R2's results | Possible learner confusion | The content pass that follows R2 |
 
 ### The exception, stated honestly
 
-The deferral applies to *maintenance and cleanup*. It cannot honestly cover two *knowledge* gaps, P3 and P4: nobody can say which stage the live site's API calls hit, nor whether the bypass hardening is deployed. R3 is therefore a read-only measurement, scheduled before any API change, not a clean-up and not a patch. If the customer declines even that, R6 (and any other API change) should be treated as blocked, because the first deploy is unsafe without it.
+The deferral applies to *maintenance and cleanup*. It cannot honestly cover the *knowledge* gaps P3, P4 and P9. Probes have since closed two of them (7.1), but deployment provenance and the mechanism behind the 401s remain unknown. R3 is therefore a read-only measurement, scheduled before any API change, not a clean-up and not a patch. If the customer declines even that, R6 (and any other API change) should be treated as blocked, because the first deploy is unsafe without it.
 
 ### Occam checks
 
@@ -364,9 +387,11 @@ Only genuine forks. Things with an obvious default are in section 6.2 as recomme
 
 **D3. Hardware sizing option (engineering decision, already pending).** Redundant (three lab servers plus backup, 16 concurrent single leases, third server has headroom for a third unit) or non-redundant (one server plus backup, 8 concurrent single leases, full outage on server loss). Blocks G-hw, #504 and the ops stack design. Not blocking R1 or R3. Not a decision for this document; listed because it gates R2's second half.
 
-**D4. Hosting rights for the Broadcom SONiC image (external answer).** Written answers from Hedgehog and Broadcom on: copying among customer hosts, operating a service with anonymous viewers, giving visitors shell access, and redistribution (#490 F6). Private evaluation does not need them. Public lab exposure (G-pub) does. If the answer to anonymous-viewer hosting is no, R4 ships only as cached/replayed content and the public live lab becomes a separate question.
+**D4. Hosting the Broadcom SONiC image: licensing, not access (external answer).** Access is confirmed: the private `ghcr.io/githedgehog/sonic-bcm-private/sonic-bcm-base` image **is** pullable with a `read:packages` credential for a `githedgehog` org member (the proof's boot failed on exactly this until authenticated, then succeeded). That is access, **not permission**. The production Hot Lab host will need the same registry credential. The open content is unchanged and external: written answers from Hedgehog and Broadcom on copying among customer hosts, operating a service with anonymous viewers, giving visitors shell access, and redistribution (#490 F6). Private evaluation does not need them. Public lab exposure (G-pub) does. If the answer to anonymous-viewer hosting is no, R4 ships only as cached/replayed content and the public live lab becomes a separate question.
 
 **D5. Approval of the read-only deployment baseline (R3).** Does the customer approve a read-only inspection of the AWS stages and of the live HubSpot objects, before any API change? Option: decline and accept that every API-touching increment (R6) stays blocked. This is a real fork because it appears to cut against "don't invest in production". I recommend approving it **[R]**; it writes nothing.
+
+**Partly pre-answered at zero cost.** A slice of R3 has already been run: seven read-only HTTP GETs and one deliberately invalid POST. It wrote nothing, took minutes, and resolved 7.1 and P9. The cheap part has been shown harmless and valuable, which strengthens the case for approving the rest (AWS configuration, Lambda versions, HubDB counts, deployed templates).
 
 **D6. Credit types and external portability.** Which attainment primitives does the customer want (for example read/watch, lab, assessment), and should credit be portable as Open Badges 3.0? Not needed until R6, and not for R1–R5. List here so it is not forgotten.
 
@@ -391,7 +416,14 @@ These are not decisions I am inviting; they follow from decisions already made.
 
 Labelled as requested. None of these reopens a made decision.
 
-**7.1. The production-is-steady premise has two gaps (against the 2026-11-05 steer).** "Production is holding steady" is established by the absence of reported problems. It does not establish that the bypass hardening (#461) is deployed, nor which API stage the live site calls (#460). Seven months of failed deploys make both uncertain. I think R3 is the cheapest way to turn two unknowns into facts and I have kept it small (read-only, no writes). If the customer reads the steer as covering this too, section 5's exception explains the consequence.
+**7.1. The production-is-steady premise: two resolved favourably, one mechanism still unknown (amended).** I originally flagged two gaps: whether the #461 bypass hardening is deployed, and which API stage the live site calls (#460). Read-only probes have since given evidence on both:
+
+- **#461:** the bypass probe from #458, which once returned 200 with real data, now returns **401** on `/course/status`, `/pathway/status` and `/tasks/status`. Not exploitable.
+- **#460:** all four learner-progress routes return **401** (route present, auth enforced), not 404. Resolved in the running system, though the topology is split (P9).
+
+**Still unknown: the mechanism.** A 401 does not distinguish *code hardened* from *config disabled*. A config-only defence is one bad environment change from reopening, and deployment provenance (P3) is still unestablished. R3 remains the way to settle it, still read-only.
+
+**This supports the customer's steer rather than qualifying it.** Production is holding steady, and the evidence says so. The residual risk is that the defence may not survive a config change, not that it is broken today.
 
 **7.2. Fidelity versus first value for the Hot Lab.** The confirmed fidelity target (frontend fabric, dual-plane backend, storage fabric, gateway, shared services, leasable pool) is a roughly 19–21 VM unit by the #499 arithmetic. Everything in R4 (C0–C2) can run on far less, and some of it on a cached feed. I do not dispute the target. I disagree only if anyone treats the full unit as a precondition for the first visitor-facing experience. **Recommendation [R]:** the first private unit is the smallest that supports one C1/C2 story honestly; fidelity grows by adding to it. That is consistent with the confirmed prewired-fabric-first direction.
 
