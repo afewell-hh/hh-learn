@@ -248,6 +248,10 @@ export async function validateModule(dir, opts = {}) {
           err('CREDIT_VALUE', `${where}: credit must be a positive number`);
           credit = undefined;
         }
+        if (t.grading !== undefined) {
+          if (!['server', 'client'].includes(t.grading)) err('GRADING_VALUE', `${where}: grading must be "server" or "client"`);
+          else if (t.grading === 'client' && t.task_type !== 'interactive_check') err('GRADING_CLIENT_TYPE', `${where}: grading "client" (Observed tier) is only allowed on interactive_check`);
+        }
         if (t.task_type === 'interactive_check') {
           if (!t.interactive_ref) err('INTERACTIVE_REF_MISSING', `${where}: interactive_check requires interactive_ref`);
           if (t.required === true) warn('NEW_TASK_REQUIRED', `${where}: a required interactive_check changes who is "complete"; for modules already live keep it required:false`);
@@ -389,6 +393,23 @@ export async function validateModule(dir, opts = {}) {
         const noEvidence = Object.fromEntries([...tasks.entries()].map(([s, t]) => [s, { ...t, earned: !EVIDENCE_KINDS.includes(t.kind) }]));
         if (evalRule(m.rule, noEvidence)) {
           err('MILESTONE_EXPOSURE_ONLY', `${where}: reachable using only read/practice credit; every path must include lab, assessment or transfer credit`);
+        }
+        if (m.claimable !== undefined) {
+          // Claim-entitlement (#521): exploration-tier only; must not touch verified attainment.
+          if (m.claimable !== 'entitlement') err('CLAIMABLE_VALUE', `${where}: claimable must be "entitlement"`);
+          if (m.id === 'module-complete') err('CLAIMABLE_MODULE_COMPLETE', `${where}: module-complete can never be claimable by entitlement`);
+          if (m.certificate === true) err('CLAIMABLE_CERTIFICATE', `${where}: a certificate milestone cannot be claimable by entitlement`);
+          if (!Array.isArray(m.rule?.tasks) || Object.keys(m.rule).length !== 1) {
+            err('CLAIMABLE_RULE_FORM', `${where}: a claimable milestone must use the {"tasks": [...]} rule form so the browser can evaluate it`);
+          } else {
+            for (const ref of m.rule.tasks) {
+              const rt = tasks.get(ref);
+              if (!rt) continue;
+              if (rt.type !== 'interactive_check') err('CLAIMABLE_TASK_TYPE', `${where}: task "${ref}" is ${rt.type}; claimable milestones may reference only interactive_check tasks (Verified tasks need an account)`);
+              if (rt.required) err('CLAIMABLE_TASK_REQUIRED', `${where}: task "${ref}" is required; completion must not depend on an exploration badge`);
+              if (rt.raw.grading !== 'client') err('CLAIMABLE_TASK_GRADING', `${where}: task "${ref}" must set grading:"client" (Observed tier) to be evaluable before an account exists`);
+            }
+          }
         }
         if (m.certificate === true && completion.awards_certificate !== true) {
           warn('CERT_FLAG_MISMATCH', `${where}: certificate:true but awards_certificate is not true — no certificate will be issued`);

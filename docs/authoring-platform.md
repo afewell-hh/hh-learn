@@ -14,6 +14,8 @@
 3. **The zero-infrastructure path is the default.** Four primitives (`snapshot`, `replay`, `explorer`, `predict`) are C0/C1 and run from static files. The validator *rejects* C2–C4 primitives until the capability exists, so no author is blocked on #497 and none can ship something that cannot run.
 4. **Backward compatibility is structural, not procedural:** none of the shipped code reads the new keys, and the reserved milestone `module-complete` is defined to be exactly today's completion rule (§5).
 5. A validator ships with the schema (§7) and checks references, credit arithmetic and honesty labels.
+6. **Look and feel is specified per primitive (§3.6)**, including where the current CMS templates would hold it back.
+7. **#521 gets an explicit interface (§4.6):** one vocabulary (task, kind, credit, milestone, badge id), an Observed vs Verified evidence tier, and five conditions a milestone must meet to be claimable by entitlement.
 
 ---
 
@@ -91,6 +93,40 @@ An author following #502's decision rule stops at the first "yes": cached (C0), 
 
 A renderer for four types (a small JS component bundle plus a HubL include), a sync step carrying `interactives.json` to HubDB, and a grading path for `interactive_check`. See §9.
 
+### 3.6 Look and feel (a requirement, not a preference)
+
+The customer bar: a rich, modern, elegantly styled toolkit, *not* a clunky university LMS. Below, per primitive, is what it should look and feel like. These are **[design]** descriptions to hold the renderer to, not mockups.
+
+**Shared principles for every primitive**
+- **Content is the interface.** Primitives are full-width cards inside the reading column with generous whitespace, one accent colour, a restrained type scale, and no chrome (no borders-in-borders, no gradients-as-decoration, no stock iconography).
+- **Motion that explains.** Transitions of 120–200 ms that show cause and effect (a step advancing, a reveal). Respect `prefers-reduced-motion`; nothing animates on its own.
+- **The honesty label is a design element, not a footnote.** A small, consistent pill in the card's top-left ("Recorded 5 Nov 2026", "Simulated from a fixture", "Cached, as of …") in the same place on every primitive, readable at a glance, never hidden behind a tooltip. The label is also the one place the HSX principle shows: the more faithful the emulation, the more important it is that the pill is unmistakable.
+- **Keyboard first, accessible by default**: full keyboard operation, visible focus, WCAG AA contrast, screen-reader text for every state change. Light and dark themes from the same tokens.
+- **Fast.** No framework payload for a static card; a primitive that is not on the page costs nothing.
+
+| Primitive | Looks and feels like |
+|---|---|
+| `snapshot` | A crisp captured panel with a soft frame, the capture time in the label pill, and click-to-zoom. Reads as a screenshot someone cared about, not an attachment. |
+| `replay` | A terminal-style player: monospaced command/output on a dark surface with a slim step scrubber (previous / next, keys ←/→, step N of M). Output reveals line by line over a moment, with a "skip to end" control. Closer to a clean code-walkthrough than a video player. |
+| `explorer` | A two-pane object browser: a searchable list on the left, a detail view on the right with linked references you can follow, and a breadcrumb trail. It feels like the real fabric UI's read-only cousin, not a table dump. |
+| `predict` | A calm three-beat card: the question, a commit control ("Lock in my answer"), then a reveal that shows the fixture evidence with the relevant lines highlighted and a short explanation. The reveal is the reward; there is no confetti. |
+| `shell`, `lab-server`, `lab-pair` | A full terminal pane with a step rail beside it, a persistent per-step plane indicator (control-plane / data-plane), and a quiet lease-time readout. Unavailable until #497, so this is a target, not a promise. |
+
+**The fidelity bar for lab-backed primitives.** The customer's reference is the Hollywood Stock Exchange: *so good you wouldn't know it's not real if you didn't know.* HSX is excellent because of the **thoroughness of its emulation**, not because it conceals anything; every player knows it is not real money. We adopt the same split: **maximum fidelity, unambiguous labelling.** Fidelity work (realistic prompts, realistic latency of output, realistic object relationships) is encouraged. The label rules in §3.3 do not loosen with fidelity; they tighten, because a convincing emulation is exactly where a reader could mistake simulation for live. A vAIF-backed primitive therefore shows "Hedgehog Virtual AI Factory (vAIF): a virtual environment" and, per step, the plane the evidence comes from; no GPU, RDMA or line-rate claim is made (#492).
+
+**Where the existing CMS templates would hold this back [code].** Said plainly:
+1. **No shared design tokens.** `clean-x-hedgehog-templates` has no `:root` custom properties; each template carries its own inline `<style>` (`module-page.html` embeds its CSS inside a ~1,270-line file) and the four files in `assets/css/` are page-specific. There is no common colour, spacing or type scale for a primitive to inherit, so a primitive would either hard-code values or look foreign.
+2. **Module body is injected as `|safe` HTML into `.module-content`** (`module-page.html`, `dynamic_page_hubdb_row.full_content|safe`), styled by descendant rules there (for example `.module-content code` uses `Courier New`, `pre` has fixed styling). Primitives rendered inside it inherit those rules and must defend against them.
+3. **The reading column is a fixed layout** in that template, so a full-bleed explorer or a wide terminal pane needs a layout affordance the template does not have.
+4. **No component or build pipeline** for the templates: JS is loaded as individual `defer` files. A modern, stateful widget (explorer, replay) is workable as a dependency-free bundle, but anything needing a framework build is new tooling.
+
+**What this implies [design]:**
+- Ship the primitives behind **one new stylesheet** (`assets/css/interactive.css`) defining design tokens (colour, radius, spacing, type, light/dark) under a `.hh-ix` namespace, so primitives are styled independently of the legacy template CSS. The tokens are then available for the template refresh to adopt later; this PR does not touch templates.
+- Render each primitive into a **scoped container** (`.hh-ix`) with its own resets, ideally via a shadow root or equivalent isolation for the explorer and player, so `.module-content` rules cannot leak in.
+- Add a **wide-block layout option** to `module-page.html` for explorer/terminal primitives (a template change, listed in §9).
+- Be honest about the limit: primitives can feel modern *inside their card* with the above, but the page around them (header, left-nav, typography of the prose) will still read as the current template until it adopts the same tokens. That page-level refresh is a separate piece of work and the customer should know the primitives alone do not deliver the whole feel.
+- The bar is checked by review of a rendered build, not by the validator. **I have not built or screenshotted any primitive**; the descriptions above are the acceptance target.
+
 ---
 
 ## 4. Attainment model
@@ -165,6 +201,42 @@ Trade-off:
 | | Revocation and re-issuance on content changes need a policy |
 
 My understanding is that Open Badges 3.0 is a 1EdTech specification built on W3C Verifiable Credentials. **[unverified]**: I did not re-read the current spec this session, so confirm the version and signing requirements before any build **[design]**.
+
+### 4.6 The interface #521 needs (one vocabulary, two surfaces)
+
+#521 (`docs/claim-entitlement-funnel.md`, PR #523) was corrected by the customer after the addendum that asked this question: **a badge cannot exist without a user, and an anonymous visitor holds only a temporary, browser-bound *claim entitlement*; registering *mints* the badge.** That changes the hard question from "how do credits that arrived before an account get evaluated?" to "what must a milestone be so the *browser* can decide an entitlement exists, and the *server* can mint the badge later without trusting more than it should?" I answer both, and say where this departs from the literal wording of the addendum.
+
+**What a credit is.** A credit is a satisfied task: the pair `(module_slug, task_slug)` in the `satisfied` state. Its properties (`kind`, `credit`) come from the task *definition*, not from the stored record. Today the stored form is the entry in `task_statuses` **[code]**; no new record type is needed. One vocabulary serves both surfaces: a click-through explorer check and a graded lab are both tasks with a `kind` and a `credit`; they differ in those two fields and in an evidence tier (below), not in type.
+
+**What identifies it.** `(module_slug, task_slug)`. Milestones are identified by `(module_slug, milestone_id)`, and the **badge id #521 stores in the cookie is the string `<module_slug>.<milestone_id>`**, immutable once published (changing a milestone's meaning means a new id).
+
+**What makes two credits the same.** Same `(module_slug, task_slug)`. Satisfaction is monotonic and idempotent: earning it twice, on two devices, or once anonymously and once signed in, is one credit. A badge is likewise unique per `(user, badge_id)`, which is exactly the conditional write #521 §3.2 specifies. Re-weighting a task changes derived milestone status for future evaluation; **a minted badge is frozen** with the `module_version` it was minted under, so later edits never revoke or rewrite it.
+
+**Evidence tier: the one new idea.** Each credit-bearing task carries a grading tier:
+
+| Tier | `grading` | Who decides | Where it can exist |
+|---|---|---|---|
+| Verified | `server` (default; all shipped task types) | Server holds the key and records the status | Signed-in learners only |
+| Observed | `client` (new, `interactive_check` only) | The browser observes completion of a walkthrough, replay or explorer; no key is held and nothing is sent | Anyone, including anonymous visitors |
+
+Tier is a property of the task, so it is visible in the catalog and enforceable by the validator.
+
+**What a milestone needs so it can be evaluated before an account exists.** Five conditions; a milestone that meets them may be marked `"claimable": "entitlement"`:
+1. **A stable public definition**: `id`, `label`, `criteria` and rule, served without authentication (the chip and offer render from it, and the server validates against it). Answer keys are never part of it.
+2. **A rule over Observed tasks only**, and only the `{"tasks": [...]}` form. The browser then evaluates it with the same pure function the server uses (`evalRule`), shipped as a few lines of JS. A `points` rule is rejected for claimable milestones in v1 (see "Why the cookie carries the result" below).
+3. **No dependency of verified attainment on it**: not `module-complete`, not `certificate: true`, and no Verified task in the rule. A forged cookie can then mint, at worst, an exploration badge. This is the rule #521 §6 asks for.
+4. **Re-readable at claim time**: the server re-reads the catalog entry at redemption, so a milestone that was retired or is no longer claimable is rejected, not minted.
+5. **A defined unlock event**: the finish of the Observed task. For a stateless variant, a check endpoint may return pass/fail and store nothing (the option #521 §6 leaves open); I recommend the browser-only form first because it adds no server surface.
+
+**Why the cookie carries the result, not the credits.** The customer's correction removes anonymous credit storage. The cookie holds `[badge_id, unlocked_day]` pairs (#521 §2.1), the *outcome* of a browser-side evaluation, not the task credits underneath it. So no anonymous credit is "transferred" into the learner record, because none ever existed server-side. The mint creates a `BADGE#` item with provenance `source: "claim-entitlement"`, `unlocked_day`, `minted_at`, and `module_version`.
+
+**Where this departs from the addendum's literal wording, plainly.** The addendum asked that an anonymous click-through credit and a graded-lab credit be "the same kind of object" so that "claim what you earned" resolves into the learner record. With the corrected #521 model they are the same *vocabulary* (task, kind, credit, milestone, evaluator, badge id) but **they do not become the same *record***: the anonymous side ends at an entitlement for a badge, and the account side starts from a minted badge with weaker provenance than a verified one. I think that is correct, because it keeps Observed evidence from ever counting toward a certificate or a `points` milestone. If the customer wants more than that, there is a larger option:
+
+- **Option B (not recommended for v1): carry the credits.** The cookie stores satisfied `(module_slug, task_slug)` pairs (Observed tier). Redemption seeds them as `observed` credits on the account and the server re-evaluates the milestone, which would allow `points` rules and survive a milestone being edited between unlock and claim. Costs: a larger cookie, a server evaluation path for unverified credits, a rule that Observed credits may never satisfy a Verified milestone, and it reintroduces what the customer's correction removed (a trusted-by-assertion anonymous credit record). **Decision for review (§11 question 8).**
+
+**What the validator now enforces for this** (`scripts/validate-authoring.mjs`, written but not run, see §2): a milestone with `claimable` must not be `module-complete`, must not set `certificate: true`, must use the `{"tasks": [...]}` form, and may reference only `interactive_check` tasks that are not required. `grading: "client"` is accepted only on `interactive_check`. Not yet checked: that the referenced interactive actually has a client-observable finish event, which needs the renderer's event contract.
+
+**Not designed here:** the cookie format, prompting rules, TTL, consent and the redeem endpoint. They are #521's.
 
 ---
 
@@ -255,7 +327,7 @@ node scripts/validate-authoring.mjs --modules-dir docs/examples/authoring-platfo
 
 (Not executed in this session; see §2.)
 
-**Starting point (live today):** a quiz (`quiz-1`, 12 questions, pass at 75) and a lab attestation (`lab-main`), both required, certificate awarded. It is the lab that needs a learner-provisioned vAIDC.
+**Starting point (live today):** a quiz (`quiz-1`, 12 questions, pass at 75) and a lab attestation (`lab-main`), both required, certificate awarded. It is the lab that needs a learner-provisioned Hedgehog Virtual AI Factory (vAIF).
 
 **What the author changes**
 
@@ -268,7 +340,7 @@ node scripts/validate-authoring.mjs --modules-dir docs/examples/authoring-platfo
 
 | Learner | Does | Gets |
 |---|---|---|
-| Has a vAIDC | Quiz + lab (exactly as today) | `module-complete` → **certificate unchanged**; also `diagnosis-practiced` |
+| Has a vAIF | Quiz + lab (exactly as today) | `module-complete` → **certificate unchanged**; also `diagnosis-practiced` |
 | No lab available | Replay check + transfer problem | `diagnosis-practiced` (**no certificate**); progress shows "lab or quiz still needed for the certificate" |
 | Anyone | Only watches the replay | Nothing; viewing is not credited |
 
@@ -289,6 +361,8 @@ node scripts/validate-authoring.mjs --modules-dir docs/examples/authoring-platfo
 | Interactive renderer (`snapshot`, `replay`, `explorer`, `predict`) | **Genuinely new build** | JS component + HubL include; must honour the label fields |
 | `interactives.json` sync | New | Strip answer keys from the client payload |
 | Progress UI (progress to milestone, credit visibility) | New | Reads derived milestone state |
+| `interactive.css` tokens, `.hh-ix` scoped containers, wide-block layout option in `module-page.html` | New | §3.6; the page-level template refresh is separate |
+| Public badge catalog (`id`, `label`, `criteria`, `claimable`) and `grading: client` | New, small | The interface #521 consumes (§4.6); redeem endpoint is #521's |
 | Milestone badges | New | `BADGE#` items in the existing certificates table |
 | Open Badges issuance | New, deferred | §4.5 |
 | Variant pools for transfer checks | New, deferred | §4.3 |
@@ -316,3 +390,6 @@ What I cut to stay small: partial credit, expressions in rules, hard gating, per
 5. **Transfer integrity:** are transfer checks without variant pools acceptable for a first release?
 6. **Open Badges:** is portability wanted now, or is the stable-id groundwork enough?
 7. **`interactive_check` answer storage:** new HubDB column versus folding into `quiz_schema_json`.
+8. **#521 interface (§4.6):** the recommended v1 is that the cookie carries the *evaluated outcome* (badge id) and Observed credits never become learner-record credits. Does the customer need the larger Option B (carry and seed credits)?
+9. **Observed tier:** is a browser-observed finish an acceptable unlock event for exploration badges, given that it is self-reported?
+10. **Look and feel (§3.6):** is a scoped stylesheet plus a wide-block layout option acceptable now, with the page-level template refresh as separate work?
