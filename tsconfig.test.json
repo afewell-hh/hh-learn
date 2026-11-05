@@ -7,6 +7,7 @@
   "include": [
     "src/api/**/*.ts",
     "src/shared/**/*.ts",
+    "src/experiences/**/*.ts",
     "tests/unit/**/*.ts"
   ]
 }

@@ -307,7 +307,7 @@ async function createOrUpdatePage(
 ): Promise<PageResult | null> {
   // Guardrails: allow only expected templates/slugs unless override is enabled
   const override = allowlistOverrideEnabled();
-  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning','learn/module-progress','learn/register']);
+  const ALLOWED_SLUGS = new Set(['learn','learn/modules','learn/courses','learn/pathways','learn/my-learning','learn/module-progress','learn/register','learn/experience/fabric-operator']);
   const ALLOWED_TEMPLATE_PREFIX = 'CLEAN x HEDGEHOG/templates/learn/';
 
   if (!override) {
@@ -510,6 +510,14 @@ async function provisionPages(dryRun: boolean = false, publish: boolean = false)
       name: 'Register',
       slug: 'learn/register',
       templatePath: 'CLEAN x HEDGEHOG/templates/learn/register.html',
+      tableEnvVar: 'STATIC'
+    },
+    {
+      // Epic #478, Slice 1 — Fabric Operator guided replay.
+      // Static page (no HubDB binding). Gated by EXPERIENCE_LAB_ENABLED; launch unlinked.
+      name: 'Fabric Operator Experience',
+      slug: 'learn/experience/fabric-operator',
+      templatePath: 'CLEAN x HEDGEHOG/templates/learn/experience/fabric-operator.html',
       tableEnvVar: 'STATIC'
     }
   ];

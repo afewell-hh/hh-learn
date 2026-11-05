@@ -1,0 +1,58 @@
+name: Experience Lab (Fabric Operator replay)
+
+# Slice 1 Fabric Operator guided replay (Epic #478). Enforces the GREEN gates:
+# unit tests, real-source scenario anti-drift validation, reproducible asset
+# generation, and the deterministic (no-network) player e2e.
+
+on:
+  pull_request:
+    paths:
+      - 'src/experiences/**'
+      - 'scripts/experiences/**'
+      - 'content/experiences/**'
+      # Cited source modules — a change here can alter an anchored command/output block,
+      # so anti-drift (validate:scenario) must re-run (finding #2).
+      - 'content/modules/**'
+      - 'clean-x-hedgehog-templates/assets/js/experience-player.js'
+      - 'clean-x-hedgehog-templates/assets/css/experience-player.css'
+      - 'clean-x-hedgehog-templates/learn/experience/**'
+      - 'tests/unit/experience-*.test.ts'
+      - 'tests/e2e/experience-*.spec.ts'
+      # Dependency / config inputs that affect the build & test tooling.
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - 'jest.config.js'
+      - 'playwright.config.ts'
+      - '.github/workflows/experience-lab.yml'
+  workflow_dispatch:
+
+jobs:
+  experience-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests (serializer, validator, player-core, real scenario)
+        run: npx jest tests/unit/experience-serialize-island.test.ts tests/unit/experience-validate-scenario.test.ts tests/unit/experience-player-core.test.ts tests/unit/experience-scenario-real.test.ts
+
+      - name: Real-source scenario anti-drift validation
+        run: npm run validate:scenario
+
+      - name: Player asset is reproducible from source
+        run: npm run check:player
+
+      - name: CMS page scenario island is reproducible from source
+        run: npm run check:page
+
+      - name: Install Playwright browser (chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Deterministic player e2e (no network, a11y, JSON-island safety)
+        run: npx playwright test --project=experience-deterministic --reporter=list

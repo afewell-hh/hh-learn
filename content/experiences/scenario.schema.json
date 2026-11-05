@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedgehog.cloud/schemas/experience-scenario/v1.json",
+  "title": "Fabric Operator replay scenario (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scenarioId",
+    "version",
+    "title",
+    "summary",
+    "honestyLabel",
+    "continuity",
+    "leadBridge",
+    "entities",
+    "acts"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "enum": ["1.0"] },
+    "scenarioId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "version": { "type": "string", "pattern": "^[0-9]+$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "honestyLabel": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "continuity": { "type": "string", "enum": ["continuous", "composite"] },
+    "leadBridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/cta" },
+        "secondary": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/cta" } }
+      }
+    },
+    "entities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "switches": { "type": "array", "items": { "$ref": "#/$defs/switchEntity" } },
+        "servers": { "type": "array", "items": { "$ref": "#/$defs/serverEntity" } },
+        "vpcs": { "type": "array", "items": { "$ref": "#/$defs/vpcEntity" } }
+      }
+    },
+    "acts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/act" }
+    }
+  },
+  "$defs": {
+    "cta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "href"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "href": { "type": "string", "minLength": 1 }
+      }
+    },
+    "switchEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string" },
+        "ports": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "serverEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": { "id": { "type": "string" } }
+    },
+    "vpcEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "vlans": { "type": "array", "items": { "type": "integer" } }
+      }
+    },
+    "act": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "steps"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "title": { "type": "string" },
+        "primaryEntities": { "type": "array", "items": { "type": "string" } },
+        "steps": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "$ref": "#/$defs/step" } }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "kind": { "type": "string", "enum": ["command", "observe", "narrative"] },
+        "narrative": { "type": "string", "maxLength": 600 },
+        "command": { "type": "string" },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "type": "string", "enum": ["static"] },
+            "text": { "type": "string" },
+            "format": { "type": "string", "enum": ["text", "yaml", "table"] }
+          }
+        },
+        "annotations": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^(highlight|pulse|link):.+$" }
+        },
+        "timingMs": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["module", "validated_on"],
+          "properties": {
+            "module": { "type": "string" },
+            "validated_on": { "type": "string" },
+            "command": { "$ref": "#/$defs/sourceSelector" },
+            "output": { "$ref": "#/$defs/sourceSelector" }
+          }
+        }
+      }
+    },
+    "sourceSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor", "blockLang", "blockIndex", "match"],
+      "properties": {
+        "anchor": { "type": "string", "minLength": 1 },
+        "blockLang": { "type": "string", "enum": ["bash", "text", "yaml"] },
+        "blockIndex": { "type": "integer", "minimum": 0 },
+        "match": { "type": "string", "enum": ["exact-line", "exact-block"] }
+      }
+    }
+  }
+}
