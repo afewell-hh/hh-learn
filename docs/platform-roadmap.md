@@ -154,11 +154,20 @@ This is the first real audience data the project has had. It is the customer's o
 5. **SONiC is daunting to run directly,** particularly in a GPU cluster.
 6. **Assurance comes from evidence.** Published performance results and OCP reference architectures are what convince them that Hedgehog makes SONiC dramatically easier to adopt.
 
+**Refinement of motivation 2 (customer, #498 "Audience intelligence, refinement 2", 2026-11-05).** "Secure multi-tenancy" is the right term for environments that already know they need it, and it stays. But it **under-sells the capability and mis-targets the larger audience.** The same feature set matters just as much to single-owner environments, which do not identify with the term and so do not see the value. Segmentation tooling has long been primitive, so networks end up *"hard on the outside and soft in the middle"*, a well-known breach vector. Cloud VPC networking inverted this: a delivery model users preferred also made segmentation the default instead of an expensive exception. On-premises it is still a project each time, because tooling cannot keep segmentation in sync with application and facility change. In enterprise, the non-multi-tenant group is the **larger** one. Multi-tenancy is **one application** of the capability, not the capability.
+
+| Audience | Self-identifies as | Values it because | Framing |
+|---|---|---|---|
+| Service providers, neocloud, platform teams | Multi-tenant | Tenants must not reach each other | **Multi-tenancy**: keep the term |
+| Single-owner enterprise (the larger group) | *Not* multi-tenant | Blast radius, lateral movement, audit | **Segmentation that keeps up**: needs outcome language |
+
+Candidate framings for the single-owner audience are for customer selection. **[R]** Lead with "keep segmentation in sync with your applications" or "shrink the blast radius", and use "hard on the outside and soft in the middle" (the customer's phrasing) as supporting copy. "VPC-style networking for infrastructure you own" risks collapsing into motivation 3's path.
+
 **Five profile dimensions these imply** (what a progressive profile would capture)
 
 | Dimension | Values | Steers |
 |---|---|---|
-| Primary pain | complexity, multi-tenancy, procurement/supply chain, cost | Which story leads |
+| Primary pain | complexity, segmentation (multi-tenancy is one application), procurement/supply chain, cost | Which story leads |
 | Hardware posture | SONiC committed, evaluating SONiC, locked to name-brand | Procurement relief or capability |
 | Environment | GPU cluster, general data centre | Whether AI-factory framing applies |
 | Role | evaluator, operator, architect, buyer | Depth and register |
@@ -334,12 +343,19 @@ Reshaped after a review (session `ee76d19c`, verdict "adopt with specific change
 **What R1 is**
 
 1. **An entry named to match what it delivers,** with **the actual download route preserved** for visitors it fits. Replacing it would have broken the path for the minority it genuinely serves.
-2. **Paths that cover the stated motivations** (2.1), with **secure multi-tenancy and VPC-centric networking explicit**. It was a named primary motivation and mapped to none of the earlier four paths. Evidence the company already owns (published results, OCP reference architectures) is a path in its own right.
+2. **Paths that cover the stated motivations** (2.1), with **segmentation and VPC-centric networking explicit**. Segmentation was a named primary motivation and mapped to none of the earlier four paths. The path **leads with an outcome framing for the single-owner audience** (*"keep segmentation in sync with your applications"* or *"shrink the blast radius"*, with the customer's *"hard on the outside and soft in the middle"* as supporting copy) and **retains multi-tenancy language for visitors who self-identify**. A single "secure multi-tenancy" label would have been invisible to the larger group (2.1 refinement). Whether this is one path or two is open (D8). Evidence the company already owns (published results, OCP reference architectures) is a path in its own right.
 3. **Contact is secondary,** not a peer option.
 4. **#488 is one destination,** not the destination.
 5. **An approved measurement definition before release:** entry-page visits, attributable transitions per destination, no-onward-transition, plus coverage limits and the denominator. There are two candidate mechanisms and **neither is yet demonstrated:** native page-transition attribution, or native CTA click reporting, whose availability in this account must be confirmed. **If neither works, R1 is described honestly as a routing improvement evaluated by a small formative study (#492 §3), not as behavioural profiling. No custom event system.**
 6. **A popular link is not success.** A menu can move the dead end one page downstream. "No onward transition" and each destination's own next step are part of the acceptance test.
 7. **Scope boundary.** Benchmarks, architecture docs, forms, shared navigation and marketing automation each need their own owner. No asset migration is justified merely to make links convenient.
+
+**Copy rule for the segmentation path (a constraint, not a suggestion).** This framing makes a security-posture argument, which raises the evidentiary bar. Per #492 and the R1 review, architecture intent and replayed control-plane operations do **not** demonstrate isolation. The copy must therefore:
+- sell **"segmentation you can actually maintain"**: a tooling and operational claim that can be shown (configuration converging, allowed and blocked *intent*);
+- **not** claim **"provably isolated"**, "guaranteed isolation" or equivalents, which need separately qualified data-plane evidence that does not exist;
+- label anything illustrative as illustrative.
+
+Copy that breaks this rule fails R1's acceptance test regardless of how well it performs.
 
 **Cheapest first slice [R].** Some profiles are best served by evidence the company already owns, which needs no lab and no new build. The lowest-cost version of R1 routes to the published performance results and OCP reference architectures: it needs only the entry, the routing and the measurement definition. #488 joins as a destination at the same gates. Profiling steers and never gates, and every step is bypassable.
 
@@ -441,6 +457,11 @@ Only genuine forks. Things with an obvious default are in section 6.2 as recomme
 - *Option 2: approve a bounded native extension,* limited to HubSpot-native capability and scoped and reviewed at cp3. Cost: added scope and an approval, in tension with #480's page-analytics-only position and the removal of the custom beacon.
 - **No custom event system is on offer in either option.**
 - *[R] Option 1 first.* Bring Option 2 back only with evidence that the native check failed and the formative study cannot answer the question. Blocks: R1's release, not its design.
+
+**D8. Segmentation in the junction: one path or two? (new; the customer's open question from #498 refinement 2.)** Not picked here.
+- *One path, dual framing:* a single segmentation path that leads with the outcome framing and names multi-tenancy for those who self-identify. Trade-off: keeps the entry light, as the R1 review advised, but the click does not capture whether the visitor self-identifies as multi-tenant.
+- *Two paths* (multi-tenancy; segmentation / blast radius) converging on shared material. Trade-off: captures more self-identification signal, which is the junction's purpose, but adds a path to an entry the review already warned against overloading, and adds a transition to attribute under D7's measurement definition.
+- Blocks: R1's final path list, not its design or the copy rule.
 
 **D6. Credit types and external portability.** Which attainment primitives does the customer want (for example read/watch, lab, assessment), and should credit be portable as Open Badges 3.0? Not needed until R6, and not for R1–R5. List here so it is not forgotten.
 
