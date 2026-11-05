@@ -1,0 +1,54 @@
+# Fabric "storage": 2 server-leaves + 1 spine, domain "default". Boot MACs 0c:20:12:ff:0a..0c:00.
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata: {name: st-spine-01, namespace: default}
+spec:
+  role: spine
+  description: "storage spine"
+  profile: vs
+  topology: {fabric: storage, domains: [default]}
+  vlanNamespaces: [storage]
+  boot: {mac: "0c:20:12:ff:0a:00"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata: {name: st-leaf-01, namespace: default}
+spec:
+  role: server-leaf
+  description: "storage leaf 1"
+  profile: vs
+  topology: {fabric: storage, domains: [default]}
+  vlanNamespaces: [storage]
+  boot: {mac: "0c:20:12:ff:0b:00"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata: {name: st-leaf-02, namespace: default}
+spec:
+  role: server-leaf
+  description: "storage leaf 2"
+  profile: vs
+  topology: {fabric: storage, domains: [default]}
+  vlanNamespaces: [storage]
+  boot: {mac: "0c:20:12:ff:0c:00"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: st-spine-01--fabric--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  fabric:
+    links:
+      - {spine: {port: st-spine-01/E1/1}, leaf: {port: st-leaf-01/E1/10}}
+      - {spine: {port: st-spine-01/E1/2}, leaf: {port: st-leaf-01/E1/11}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: st-spine-01--fabric--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  fabric:
+    links:
+      - {spine: {port: st-spine-01/E1/3}, leaf: {port: st-leaf-02/E1/10}}
+      - {spine: {port: st-spine-01/E1/4}, leaf: {port: st-leaf-02/E1/11}}

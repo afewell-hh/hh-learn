@@ -1,0 +1,46 @@
+# Hot Lab AI-factory wiring for Hedgehog 26.05 -- Fabrics (issue #500)
+# Evidence tags: see ../README.md. ASN blocks continue the generator convention (asdot block per Fabric,
+# spines from .1, gateways from .501, leaves .1000-.9999); 64087.* is the default Fabric, 64088.* is fabric-b.
+# Offsets: 64089.0 = 4200136704, 64090.0 = 4200202240, 64091.0 = 4200267776.
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Fabric
+metadata:
+  name: frontend
+  namespace: default
+spec:
+  leafASNStart: 4200137704 # 64089.1000
+  leafASNEnd: 4200146703 # 64089.9999
+  domains:
+    default:
+      spineASN: 4200136705 # 64089.1
+      gatewayASN: 4200137205 # 64089.501
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Fabric
+metadata:
+  name: backend
+  namespace: default
+spec:
+  leafASNStart: 4200203240 # 64090.1000
+  leafASNEnd: 4200212239 # 64090.9999
+  domains:
+    plane-a:
+      spineASN: 4200202241 # 64090.1
+      gatewayASN: 4200202741 # 64090.501
+    plane-b:
+      spineASN: 4200202242 # 64090.2
+      gatewayASN: 4200202742 # 64090.502
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Fabric
+metadata:
+  name: storage
+  namespace: default
+spec:
+  leafASNStart: 4200268776 # 64091.1000
+  leafASNEnd: 4200277775 # 64091.9999
+  domains:
+    default:
+      spineASN: 4200267777 # 64091.1
+      gatewayASN: 4200268277 # 64091.501
