@@ -132,7 +132,10 @@ preflight_contract() {
       # These land in a systemd Environment= line and are word-split by vlab-run.sh.
       [[ "${!a}" =~ ^[A-Za-z0-9_=,.:/@+\ -]*$ ]] || die "${a} contains characters outside [A-Za-z0-9_=,.:/@+ -]"
     done
-    if [[ " ${HOTLAB_HHFAB_INIT_ARGS} " == *" --dev "* && "${HOTLAB_ALLOW_DEV_CREDENTIALS}" != "1" ]]; then
+    # Match --dev in every form: bare, --dev=true, --dev=1, and the = variants.
+    # A guard matching only the exact token " --dev " was bypassed by "--dev=true".
+    if [[ " ${HOTLAB_HHFAB_INIT_ARGS} " == *" --dev "* || " ${HOTLAB_HHFAB_INIT_ARGS} " == *" --dev="* ]] \
+       && [[ "${HOTLAB_ALLOW_DEV_CREDENTIALS}" != "1" ]]; then
       die "--dev embeds public upstream credentials; refusing on a shared host. Supply real credentials in HOTLAB_HHFAB_INIT_ARGS, or set HOTLAB_ALLOW_DEV_CREDENTIALS=1 for a throwaway prototype"
     fi
     reject_destructive_flags "${HOTLAB_VLAB_UP_ARGS}" "${HOTLAB_HHFAB_INIT_ARGS}"
