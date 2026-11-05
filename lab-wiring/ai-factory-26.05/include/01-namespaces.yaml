@@ -1,0 +1,67 @@
+# Per-Fabric namespaces.
+# IPv4Namespace has spec.topology.fabric (ipv4namespace_types.go:41,47) so it is genuinely Fabric-scoped.
+# VLANNamespace has NO fabric field in this branch (vlannamespace_types.go:30-50): it is cluster-global.
+# Per-Fabric VLAN separation here is therefore by naming + disjoint ranges + switch.spec.vlanNamespaces only.
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: VLANNamespace
+metadata:
+  name: frontend
+  namespace: default
+spec:
+  ranges:
+    - from: 1000
+      to: 1999
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: VLANNamespace
+metadata:
+  name: backend
+  namespace: default
+spec:
+  ranges:
+    - from: 2000
+      to: 2999
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: VLANNamespace
+metadata:
+  name: storage
+  namespace: default
+spec:
+  ranges:
+    - from: 3000
+      to: 3999
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: IPv4Namespace
+metadata:
+  name: frontend
+  namespace: default
+spec:
+  topology:
+    fabric: frontend
+  subnets:
+    - 10.10.0.0/16
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: IPv4Namespace
+metadata:
+  name: backend
+  namespace: default
+spec:
+  topology:
+    fabric: backend
+  subnets:
+    - 10.20.0.0/16
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: IPv4Namespace
+metadata:
+  name: storage
+  namespace: default
+spec:
+  topology:
+    fabric: storage
+  subnets:
+    - 10.30.0.0/16

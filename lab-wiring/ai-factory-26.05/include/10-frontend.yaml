@@ -1,0 +1,56 @@
+# Fabric "frontend": 2 server-leaves + 1 spine, domain "default". Boot MACs 0c:20:12:ff:01..03:00.
+# ASN / protocolIP / vtepIP / ip are intentionally unset: hydration assigns them from the Fabric
+# (hydrate.go:416-451 validates them if set).
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata: {name: fe-spine-01, namespace: default}
+spec:
+  role: spine
+  description: "frontend spine"
+  profile: vs
+  topology: {fabric: frontend, domains: [default]}
+  vlanNamespaces: [frontend]
+  boot: {mac: "0c:20:12:ff:01:00"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata: {name: fe-leaf-01, namespace: default}
+spec:
+  role: server-leaf
+  description: "frontend leaf 1"
+  profile: vs
+  topology: {fabric: frontend, domains: [default]}
+  vlanNamespaces: [frontend]
+  boot: {mac: "0c:20:12:ff:02:00"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Switch
+metadata: {name: fe-leaf-02, namespace: default}
+spec:
+  role: server-leaf
+  description: "frontend leaf 2"
+  profile: vs
+  topology: {fabric: frontend, domains: [default]}
+  vlanNamespaces: [frontend]
+  boot: {mac: "0c:20:12:ff:03:00"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: fe-spine-01--fabric--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  fabric:
+    links:
+      - {spine: {port: fe-spine-01/E1/1}, leaf: {port: fe-leaf-01/E1/11}}
+      - {spine: {port: fe-spine-01/E1/2}, leaf: {port: fe-leaf-01/E1/12}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: fe-spine-01--fabric--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  fabric:
+    links:
+      - {spine: {port: fe-spine-01/E1/3}, leaf: {port: fe-leaf-02/E1/11}}
+      - {spine: {port: fe-spine-01/E1/4}, leaf: {port: fe-leaf-02/E1/12}}

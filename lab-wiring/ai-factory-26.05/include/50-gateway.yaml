@@ -1,0 +1,31 @@
+# One gateway, cabled into Fabric "frontend" domain "default" (north-south). Gateway topology takes one
+# fabric + one domain (gateway_types.go:31-35). The Gateway name MUST equal the gateway node name in fab.yaml;
+# "gateway-1" is an ASSUMPTION (U) -- confirm against the generated fab.yaml. Interfaces mirror the generator
+# (vlabbuilder.go:457-462): port1 = GatewayPCI(1)/GatewayKernel(1) = 0000:05:00.0 / enp5s0, port2 = 0000:06:00.0 / enp6s0.
+---
+apiVersion: gateway.githedgehog.com/v1alpha1
+kind: GatewayGroup
+metadata: {name: default, namespace: default}
+---
+apiVersion: gateway.githedgehog.com/v1alpha1
+kind: Gateway
+metadata: {name: gateway-1, namespace: default}
+spec:
+  topology: {fabric: frontend, domain: default}
+  driver: kernel
+  workers: 4
+  groups:
+    - name: default
+  interfaces:
+    port1: {pci: "0000:05:00.0", kernel: enp5s0}
+    port2: {pci: "0000:06:00.0", kernel: enp6s0}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: fe-spine-01--gateway--gateway-1, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  gateway:
+    links:
+      - {switch: {port: fe-spine-01/E1/5}, gateway: {port: gateway-1/port1}}
+      - {switch: {port: fe-spine-01/E1/6}, gateway: {port: gateway-1/port2}}

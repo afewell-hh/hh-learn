@@ -1,0 +1,786 @@
+# Servers and server-facing Connections. Each connection is an Unbundled single link and carries topology.fabric
+# of the SWITCH it lands on (connection_types.go:896 requires connection fabric == switch fabric).
+# A Server object has no fabric field; the SAME server name appears in Connections of three different Fabrics.
+# Whether that is accepted/behaves coherently is UNPROVEN (README assumption U1) -- connection_types.go:957 only
+# checks that the server exists.
+#
+# GPU server NIC map (VLAB names; data NICs start at enp2s1, enp2s0 is management):
+#   enp2s1,enp2s2   frontend  -> fe-leaf-01, fe-leaf-02
+#   enp2s3..enp2s6  backend plane-a rails 0..3 -> be-a-leaf-01, be-a-leaf-02, be-a-leaf-01, be-a-leaf-02
+#   enp2s7..enp2s10 backend plane-b rails 4..7 -> be-b-leaf-01, be-b-leaf-02, be-b-leaf-01, be-b-leaf-02
+#   enp2s11,enp2s12 storage   -> st-leaf-01, st-leaf-02
+# Switch ports for gpu-0N: fe-leaf E1/N ; be leaf E1/(2N-1) and E1/(2N) ; st-leaf E1/N.
+# svc-01: fe E1/9 (enp2s1,s2), st E1/9 (enp2s3,s4).  svc-02: fe E1/10 (enp2s1,s2).
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-01, namespace: default}
+spec: {description: "GPU server 1 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-02, namespace: default}
+spec: {description: "GPU server 2 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-03, namespace: default}
+spec: {description: "GPU server 3 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-04, namespace: default}
+spec: {description: "GPU server 4 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-05, namespace: default}
+spec: {description: "GPU server 5 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-06, namespace: default}
+spec: {description: "GPU server 6 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-07, namespace: default}
+spec: {description: "GPU server 7 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: gpu-08, namespace: default}
+spec: {description: "GPU server 8 (B200-class model, 12 data NICs)"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: svc-01, namespace: default}
+spec: {description: "shared service 1: frontend x2 + storage x2"}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Server
+metadata: {name: svc-02, namespace: default}
+spec: {description: "shared service 2: frontend x2"}
+# ===================== gpu-01 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-01/enp2s1}, switch: {port: fe-leaf-01/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-01/enp2s2}, switch: {port: fe-leaf-02/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s3}, switch: {port: be-a-leaf-01/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s4}, switch: {port: be-a-leaf-02/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s5}, switch: {port: be-a-leaf-01/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s6}, switch: {port: be-a-leaf-02/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s7}, switch: {port: be-b-leaf-01/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s8}, switch: {port: be-b-leaf-02/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s9}, switch: {port: be-b-leaf-01/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-01/enp2s10}, switch: {port: be-b-leaf-02/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-01/enp2s11}, switch: {port: st-leaf-01/E1/1}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-01--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-01/enp2s12}, switch: {port: st-leaf-02/E1/1}}}
+# ===================== gpu-02 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-02/enp2s1}, switch: {port: fe-leaf-01/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-02/enp2s2}, switch: {port: fe-leaf-02/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s3}, switch: {port: be-a-leaf-01/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s4}, switch: {port: be-a-leaf-02/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s5}, switch: {port: be-a-leaf-01/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s6}, switch: {port: be-a-leaf-02/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s7}, switch: {port: be-b-leaf-01/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s8}, switch: {port: be-b-leaf-02/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s9}, switch: {port: be-b-leaf-01/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-02/enp2s10}, switch: {port: be-b-leaf-02/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-02/enp2s11}, switch: {port: st-leaf-01/E1/2}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-02--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-02/enp2s12}, switch: {port: st-leaf-02/E1/2}}}
+# ===================== gpu-03 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-03/enp2s1}, switch: {port: fe-leaf-01/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-03/enp2s2}, switch: {port: fe-leaf-02/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s3}, switch: {port: be-a-leaf-01/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s4}, switch: {port: be-a-leaf-02/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s5}, switch: {port: be-a-leaf-01/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s6}, switch: {port: be-a-leaf-02/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s7}, switch: {port: be-b-leaf-01/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s8}, switch: {port: be-b-leaf-02/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s9}, switch: {port: be-b-leaf-01/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-03/enp2s10}, switch: {port: be-b-leaf-02/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-03/enp2s11}, switch: {port: st-leaf-01/E1/3}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-03--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-03/enp2s12}, switch: {port: st-leaf-02/E1/3}}}
+# ===================== gpu-04 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-04/enp2s1}, switch: {port: fe-leaf-01/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-04/enp2s2}, switch: {port: fe-leaf-02/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s3}, switch: {port: be-a-leaf-01/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s4}, switch: {port: be-a-leaf-02/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s5}, switch: {port: be-a-leaf-01/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s6}, switch: {port: be-a-leaf-02/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s7}, switch: {port: be-b-leaf-01/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s8}, switch: {port: be-b-leaf-02/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s9}, switch: {port: be-b-leaf-01/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-04/enp2s10}, switch: {port: be-b-leaf-02/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-04/enp2s11}, switch: {port: st-leaf-01/E1/4}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-04--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-04/enp2s12}, switch: {port: st-leaf-02/E1/4}}}
+# ===================== gpu-05 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-05/enp2s1}, switch: {port: fe-leaf-01/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-05/enp2s2}, switch: {port: fe-leaf-02/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s3}, switch: {port: be-a-leaf-01/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s4}, switch: {port: be-a-leaf-02/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s5}, switch: {port: be-a-leaf-01/E1/10}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s6}, switch: {port: be-a-leaf-02/E1/10}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s7}, switch: {port: be-b-leaf-01/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s8}, switch: {port: be-b-leaf-02/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s9}, switch: {port: be-b-leaf-01/E1/10}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-05/enp2s10}, switch: {port: be-b-leaf-02/E1/10}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-05/enp2s11}, switch: {port: st-leaf-01/E1/5}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-05--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-05/enp2s12}, switch: {port: st-leaf-02/E1/5}}}
+# ===================== gpu-06 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-06/enp2s1}, switch: {port: fe-leaf-01/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-06/enp2s2}, switch: {port: fe-leaf-02/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s3}, switch: {port: be-a-leaf-01/E1/11}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s4}, switch: {port: be-a-leaf-02/E1/11}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s5}, switch: {port: be-a-leaf-01/E1/12}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s6}, switch: {port: be-a-leaf-02/E1/12}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s7}, switch: {port: be-b-leaf-01/E1/11}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s8}, switch: {port: be-b-leaf-02/E1/11}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s9}, switch: {port: be-b-leaf-01/E1/12}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-06/enp2s10}, switch: {port: be-b-leaf-02/E1/12}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-06/enp2s11}, switch: {port: st-leaf-01/E1/6}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-06--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-06/enp2s12}, switch: {port: st-leaf-02/E1/6}}}
+# ===================== gpu-07 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-07/enp2s1}, switch: {port: fe-leaf-01/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-07/enp2s2}, switch: {port: fe-leaf-02/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s3}, switch: {port: be-a-leaf-01/E1/13}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s4}, switch: {port: be-a-leaf-02/E1/13}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s5}, switch: {port: be-a-leaf-01/E1/14}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s6}, switch: {port: be-a-leaf-02/E1/14}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s7}, switch: {port: be-b-leaf-01/E1/13}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s8}, switch: {port: be-b-leaf-02/E1/13}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s9}, switch: {port: be-b-leaf-01/E1/14}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-07/enp2s10}, switch: {port: be-b-leaf-02/E1/14}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-07/enp2s11}, switch: {port: st-leaf-01/E1/7}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-07--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-07/enp2s12}, switch: {port: st-leaf-02/E1/7}}}
+# ===================== gpu-08 =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-08/enp2s1}, switch: {port: fe-leaf-01/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: gpu-08/enp2s2}, switch: {port: fe-leaf-02/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s3--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s3}, switch: {port: be-a-leaf-01/E1/15}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s4--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s4}, switch: {port: be-a-leaf-02/E1/15}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s5--be-a-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s5}, switch: {port: be-a-leaf-01/E1/16}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s6--be-a-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s6}, switch: {port: be-a-leaf-02/E1/16}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s7--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s7}, switch: {port: be-b-leaf-01/E1/15}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s8--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s8}, switch: {port: be-b-leaf-02/E1/15}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s9--be-b-leaf-01, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s9}, switch: {port: be-b-leaf-01/E1/16}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s10--be-b-leaf-02, namespace: default}
+spec:
+  topology: {fabric: backend}
+  unbundled: {link: {server: {port: gpu-08/enp2s10}, switch: {port: be-b-leaf-02/E1/16}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s11--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-08/enp2s11}, switch: {port: st-leaf-01/E1/8}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: gpu-08--enp2s12--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: gpu-08/enp2s12}, switch: {port: st-leaf-02/E1/8}}}
+# ===================== shared services =====================
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: svc-01--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: svc-01/enp2s1}, switch: {port: fe-leaf-01/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: svc-01--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: svc-01/enp2s2}, switch: {port: fe-leaf-02/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: svc-01--enp2s3--st-leaf-01, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: svc-01/enp2s3}, switch: {port: st-leaf-01/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: svc-01--enp2s4--st-leaf-02, namespace: default}
+spec:
+  topology: {fabric: storage}
+  unbundled: {link: {server: {port: svc-01/enp2s4}, switch: {port: st-leaf-02/E1/9}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: svc-02--enp2s1--fe-leaf-01, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: svc-02/enp2s1}, switch: {port: fe-leaf-01/E1/10}}}
+---
+apiVersion: wiring.githedgehog.com/v1beta1
+kind: Connection
+metadata: {name: svc-02--enp2s2--fe-leaf-02, namespace: default}
+spec:
+  topology: {fabric: frontend}
+  unbundled: {link: {server: {port: svc-02/enp2s2}, switch: {port: fe-leaf-02/E1/10}}}
