@@ -1,0 +1,47 @@
+# k3d Simple config for the Hot Lab ops cluster.
+# Adapted from labapp build/provision/management-cluster.yaml (S): same apiVersion,
+# digest-pinned image, persistent storage volume, traefik disabled, localhost API.
+# Rendered with envsubst from HOTLAB_* values; see bootstrap.sh stage_ops.
+# Deviations: ports extended to ArgoCD (8080) and Gitea (3001) for the vAIDC port
+# set (labapp deploy-lab.sh firewall: 3000/3001/8080/9090); cluster name configurable.
+# `network`/`subnet` omitted on purpose (k3d 5.7.4 treats a named network as external).
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: ${HOTLAB_K3D_CLUSTER}
+servers: 1
+agents: 0
+image: ${HOTLAB_MGMT_IMAGE}
+kubeAPI:
+  host: "127.0.0.1"
+  hostIP: "127.0.0.1"
+  hostPort: "6550"
+volumes:
+  - volume: ${HOTLAB_STATE_DIR}/management-storage:/var/lib/rancher/k3s/storage
+    nodeFilters:
+      - server:0
+ports:
+  - port: ${HOTLAB_BIND_ADDRESS}:9090:30090
+    nodeFilters:
+      - loadbalancer
+  - port: ${HOTLAB_BIND_ADDRESS}:3000:30300
+    nodeFilters:
+      - loadbalancer
+  - port: ${HOTLAB_BIND_ADDRESS}:8080:30080
+    nodeFilters:
+      - loadbalancer
+  - port: ${HOTLAB_BIND_ADDRESS}:3001:30301
+    nodeFilters:
+      - loadbalancer
+options:
+  k3d:
+    wait: true
+    timeout: "300s"
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik
+        nodeFilters:
+          - server:*
+  kubeconfig:
+    updateDefaultKubeconfig: false
+    switchCurrentContext: false

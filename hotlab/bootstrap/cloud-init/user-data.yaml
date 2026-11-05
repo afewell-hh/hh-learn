@@ -1,0 +1,45 @@
+#cloud-config
+# Lean HEADLESS cloud-init for Hot Lab. Provider-neutral: works with any NoCloud /
+# datasource that honours standard cloud-config (libvirt, Proxmox cloud-init drive,
+# GCE's cloud-init-enabled images, bare metal seed ISO).
+#
+# Derived from labapp cloud-config.yaml (S). REMOVED on purpose: xrdp, xfce4,
+# xfce4-goodies, firefox, VS Code (+ Microsoft apt key/repo), Node 20 (nodesource),
+# the .desktop/mimeapps files, `chpasswd ubuntu:HHLab.Admin!`, DISPLAY/XAUTHORITY
+# exports, xfconf tweaks. KEPT (moved into bootstrap.sh with pins): qemu-kvm, kubectl,
+# helm, docker, k3d, hhfab. Learners reach the lab through the browser-terminal
+# workspace tier (#505), never RDP or a shared password.
+#
+# The provision layer MUST also deliver /etc/hotlab/bootstrap.env (0600) via
+# write_files (cloud-init user-data merge), a seed ISO, or scp before this runs.
+# This file never contains secrets or provider calls.
+
+package_update: true
+packages:
+  - git
+  - ca-certificates
+  - curl
+
+ssh_pwauth: false
+disable_root: true
+
+write_files:
+  - path: /usr/local/sbin/hotlab-first-boot
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      # HOTLAB_BOOTSTRAP_REPO / HOTLAB_BOOTSTRAP_REF come from the env file; REF must be a full commit SHA.
+      set -a; . /etc/hotlab/bootstrap.env; set +a
+      : "${HOTLAB_BOOTSTRAP_REPO:?}" "${HOTLAB_BOOTSTRAP_REF:?}"
+      [[ "${HOTLAB_BOOTSTRAP_REF}" =~ ^[0-9a-f]{40}$ ]] || { echo "REF must be a 40-hex commit"; exit 1; }
+      dir=/opt/hotlab-bootstrap-src
+      [[ -d "${dir}/.git" ]] || git clone "${HOTLAB_BOOTSTRAP_REPO}" "${dir}"
+      git -C "${dir}" fetch --quiet origin
+      git -C "${dir}" checkout --quiet "${HOTLAB_BOOTSTRAP_REF}"
+      exec bash "${dir}/hotlab/bootstrap/bootstrap.sh"
+
+runcmd:
+  - [ bash, -c, 'test -r /etc/hotlab/bootstrap.env || { echo "missing /etc/hotlab/bootstrap.env (provision-layer input)"; exit 1; }' ]
+  - [ /usr/local/sbin/hotlab-first-boot ]

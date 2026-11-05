@@ -1,0 +1,33 @@
+[Unit]
+Description=Hot Lab VLAB (hhfab vlab up; resumes preserved state on boot)
+Documentation=https://docs.hedgehog.cloud/latest/vlab/overview/
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+ConditionPathExists=/dev/kvm
+
+# Adapted from labapp build/provision/hhfab-vlab-resume.service (S). Differences:
+#  - one unit for first start AND resume (vlab-run.sh decides), so enable == resume-on-boot
+#  - User/WorkingDirectory/args come from a drop-in written by bootstrap.sh
+#  - no labapp vlab_core.py gate/ready hooks (labapp-specific state machine, not ported)
+#  - NoNewPrivileges NOT set: hhfab uses sudo for TAP devices (labapp archive2 hhfab-vlab.service note)
+# User/WorkingDirectory/Environment are supplied by 10-contract.conf (see bootstrap.sh).
+
+[Service]
+Type=exec
+ExecStart=/usr/local/lib/hotlab/vlab-run.sh
+StandardInput=null
+LogNamespace=hotlab-vlab
+StandardOutput=journal
+StandardError=journal
+UMask=0077
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=900
+TimeoutStopSec=60
+KillMode=control-group
+KillSignal=SIGTERM
+SendSIGKILL=yes
+
+[Install]
+WantedBy=multi-user.target
