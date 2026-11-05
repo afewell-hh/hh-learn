@@ -21,11 +21,11 @@ Research, synthesis and writing only. This document authorises nothing: no HubSp
 
 | Track | What ships first | Needs HubSpot? | Earliest gate |
 |---|---|---|---|
-| **A. Walkthrough + CTA** (#498) | The download button leads somewhere useful: a guided replay, built on PR #488 | Yes | #489 cp1 (disposition), then cp3 |
+| **A. Walkthrough + CTA** (#498) | The download button leads to a short discovery junction that routes visitors to the evidence that fits them; the guided replay (PR #488) is one destination | Yes | #489 cp1 (disposition), then cp3 |
 | **B. Hot Lab** (#497) | A private shared lab running read-only experiences (C0–C2) | No | Authorised 2026-11-04 for design/sizing/prototype |
 | **C. Learner record** (#385/#397 evolution) | Typed credit derived from records that already exist | Yes (templates), AWS | Needs a deployment baseline first (R3) |
 
-**The first three increments:** R1 (CTA gets a real destination), R2 (the lab proof, then a private first unit), R3 (a read-only deployment baseline, not a cleanup). Section 4 has detail.
+**The first three increments:** R1 (a discovery junction behind the download CTA: profiling entry, routing, destinations), R2 (the lab proof, then a private first unit), R3 (a read-only deployment baseline, not a cleanup). Section 4 has detail.
 
 **What is consciously left broken.** Production stays as it is. Repo and production cleanup are deferred and tied to explicit triggers (section 5). Today's problems get fixed because the new thing replaces the old thing, with one exception: production-safety knowledge gaps need a read-only look, not a patch (section 3, P3, P4 and P9). Two of the original uncertainties have since been resolved favourably by read-only probes (section 7.1).
 
@@ -141,7 +141,36 @@ Decisions already made and not reopened here: lease servers, not switches; a fab
 
 **Confirmed by the customer (#489):** AI infrastructure is the primary domain. The design principle is *"I can immediately see what this infrastructure makes possible."* Technical marketing is primary, formal courses secondary. Show the AI service outcome first; configuration and CLI are optional evidence.
 
-**Profiles.** The customer has not signed off a persona list. The six below are **working profiles [R]** assembled from #492's personas and #498's description of the download audience. Treat them as a draft to confirm, not as findings.
+### 2.1 Why prospects arrive, per the customer (#498, 2026-11-05) **S** (as testimony)
+
+This is the first real audience data the project has had. It is the customer's own account, recorded close to verbatim on #498. It is testimony, not measured behaviour. Earlier drafts of this section reasoned from invented personas; the evidence below takes precedence over them.
+
+**Six stated motivations**
+
+1. **Complexity.** "A lot tentatively believe AI networking is complex and want a solution to help simplify it." The broadest motivation, and not a specific capability.
+2. **Secure multi-tenancy.** "Many primarily want to be able to handle secure multi-tenancy."
+3. **Hyperscaler-like, VPC-centric networking.** "Many are attracted to the idea it can help them have hyperscaler-like VPC-centric networking solutions."
+4. **Procurement and cost.** SONiC interest is often procurement-driven: supply chain delays acquiring NVIDIA or other name-brand gear, and in some cases cost savings.
+5. **SONiC is daunting to run directly,** particularly in a GPU cluster.
+6. **Assurance comes from evidence.** Published performance results and OCP reference architectures are what convince them that Hedgehog makes SONiC dramatically easier to adopt.
+
+**Five profile dimensions these imply** (what a progressive profile would capture)
+
+| Dimension | Values | Steers |
+|---|---|---|
+| Primary pain | complexity, multi-tenancy, procurement/supply chain, cost | Which story leads |
+| Hardware posture | SONiC committed, evaluating SONiC, locked to name-brand | Procurement relief or capability |
+| Environment | GPU cluster, general data centre | Whether AI-factory framing applies |
+| Role | evaluator, operator, architect, buyer | Depth and register |
+| Assurance needed | performance data, reference architecture, hands-on proof | Which evidence to surface, and whether a lab is wanted at all |
+
+**Implication.** For a meaningful share of visitors **the decision is already partly made**: they want or need SONiC, and the open question is whether Hedgehog makes it *manageable*. That is a different conversation from "why software-defined networking", and the site serves neither today. Some of these visitors are best served by evidence the company already owns (published results, OCP reference architectures), which needs no lab and no new build.
+
+**Customer constraints.** A few questions, answerable in seconds, no registration. Bypassable (#492). The profile **steers; it never gates**. Anything illustrative is labelled, and no performance claim is made that the cited published results do not back.
+
+### 2.2 Working profiles **[R]**
+
+The customer has not signed off a persona list. The six below are working profiles assembled from #492's personas and #498. **They predate 2.1.** Treat them as a draft to re-cut against the five dimensions above, not as findings.
 
 | Profile | Wants | Natural entry | Journey I would route them on |
 |---|---|---|---|
@@ -163,6 +192,8 @@ Decisions already made and not reopened here: lease servers, not switches; a fab
 | Everyone registered | Completion is recorded, but attainment is flat: no typed credit, no multiple paths to a milestone | R6 |
 | Course authors | Interactive and visual content is hand-built per lesson; no maintenance map from source change to affected content | R7 (evaluation only) |
 
+**Gap against 2.1.** The table has no row for the SONiC-committed buyer whose open question is manageability, or the procurement-driven evaluator who needs published performance data. Both are in the stated audience, and neither is served by a lab or a replay.
+
 **Evidence limits to remember [R].** #492's nine findings come largely from student and consumer studies. They support design hypotheses (adaptive and bypassable guidance, a quick visible win, verifiable over asserted claims), not conversion forecasts. There is no peer-reviewed causal evidence that an interactive demo improves enterprise evaluation. The roadmap therefore measures *comprehension and journey progression*, and sets no conversion targets.
 
 ---
@@ -176,7 +207,7 @@ Increment names (R1–R7) are defined in section 4.
 ### P1. Download-CTA dead end (#498)
 
 - **Breaks today.** The highest-intent signal on the site routes most of the audience nowhere useful (customer's words: a dead end that "won't go anywhere").
-- **Absorbed by R1.** The CTA gets a destination chosen by role/intent, with the guided replay (#488) as the first one. It is *the* first increment.
+- **Absorbed by R1.** The CTA becomes a discovery junction (section 4). The guided replay (#488) is one destination among several, and the real download route is kept for visitors it fits.
 - **If never fixed.** Demand for self-service discovery keeps being observed and wasted. This is the only item in the inventory with direct commercial cost, which is why it comes first.
 
 ### P2. Stale repo content and unknown drift between repo and production
@@ -213,7 +244,7 @@ I flag this one against the customer's strategic steer, and say plainly where I 
 ### P6. Unmerged work with real value: PR #487 and PR #488
 
 - **Breaks today.** PR #488 is a complete, heavily tested guided replay sitting as a draft; PR #487 is a small content correction (#481) that #488 declares as a dependency. Both are frozen by the customer hold. The VPC module still carries the stale reconciliation-events claim.
-- **Absorbed by R1.** Customer disposition comes first (use #488 as the first increment, keep it as a reference implementation, or discard). I recommend using it **[R]**: it already embodies the validation discipline the platform needs. #487 merges with it.
+- **Absorbed by R1.** **Decided (D2, coordinator):** use #488 as a destination and merge #487 with it. This decides *reuse of the asset*. It is not permission to merge or publish past #489's gates; the route and CTA wording remain customer-reviewable at cp3.
 - **If never fixed.** The most complete asset in the tree rots as the content it validates against changes, and the stale content claim stays in front of learners.
 
 ### P7. Orphaned and stale HubDB rows; archived content that sync does not delete
@@ -250,7 +281,7 @@ I flag this one against the customer's strategic steer, and say plainly where I 
 | P3 Lambda deployment provenance | **R3** | read-only inspection approval |
 | P4 bypass guard, API topology | **R3** (probe slice already run; mechanism still to confirm) | same |
 | P5 lint/build | scoped green check from R1; removal at R6/R7 | none |
-| P6 #487/#488 | **R1** | customer disposition |
+| P6 #487/#488 | **R1** | D2 decided; cp3–cp5 for publication |
 | P7 orphaned rows | R3 (measure), R6 (fix) | read-only inspection, then credit work |
 | P8 stale issues | R6/R7 reconciliation | none |
 | P9 split-brain topology | **R3** | same |
@@ -285,13 +316,32 @@ Order within a track is a dependency order; tracks run side by side.
 
 | ID | Delivers | Depends on | Gate | Verified by |
 |---|---|---|---|---|
-| **R1** CTA destination (Track A) | Customer disposition of #488/#487; a journey spec for the download CTA (role/intent routing, measurement plan); then the replay live as the first destination, with a consult secondary | Customer decision on #488; for the live step, HubSpot preview isolation | cp1 for the spec; **cp3 → cp4 → cp5** for anything in HubSpot | Spec: customer sign-off. Live: the existing zero-network and axe checks from #488, CTA distribution and progression in HubSpot analytics, and a formative comprehension check per #492 §3 |
+| **R1** Discovery junction behind the CTA (Track A) | Reshaped 2026-11-05 (see "R1 as a discovery junction"): a renamed entry, a few-question profiling step, routing to destinations that include #488 and the real download route, and an approved measurement definition before release | D2 decided (use #488, merge #487); an approved measurement definition (D7); for the live step, HubSpot preview isolation | cp1 for the spec; **cp3 → cp4 → cp5** for anything in HubSpot | Spec and measurement definition: customer sign-off. Live: #488's zero-network and axe checks, the agreed measures, and a small formative study per #492 §3 |
 | **R2** Lab proof and first private unit (Track B) | **Prerequisite met:** the bounded multi-fabric proof ran (PR #519; see "R2 proof result"). Remaining: sizing selection (D3) and a first fabric unit running privately on lab hardware. Next proof question: per-Fabric VPC coherence across a shared server | #499 (done), #500/PR #509, #508/PR #514, #510/PR #512, #501 Part A/PR #516 | cp2 (granted for prototype); **G-hw** for hardware | Proof criteria from #490/#501. Met so far (control-plane only): see "R2 proof result". Still to verify: VPC coherence per Fabric, restart behaviour. No data-plane or performance claim |
 | **R3** Deployment baseline (shared prerequisite) | A read-only snapshot: which API stage serves which domain, which Lambda code and environment values run per stage, HubDB counts versus repo, templates deployed versus repo. It answers P3, P4, P7, P9 | Customer approval of read-only inspection (AWS and HubSpot read access) | Falls inside **cp3** for HubSpot; AWS read-only needs explicit approval. Writes: none | A written report with evidence; no production change |
 | **R4** Shared read-only experiences (Track B) | C0 cached feeds and C1/C2 read-only experiences served from the private unit; tenant story with disclosed real-vs-illustrative labels | R2 | cp2; **G-pub** before any public exposure; cp3–cp5 before any HubSpot placement | Convergence evidence labelled control-plane; concurrent-viewer test against the C1/C2 bounds (#502); staleness and expiry behaviour demonstrated; truth-label review against #492 rules |
 | **R5** Leased exercises (Track B) | The broker (#503) in its smallest form: C3 single leased server, then C4 pair. Registered users, one active lease, hard TTL, verified cleanup | R4, #503 reviewed, #505 workspace tier designed | **G-pub** (isolation design), licensing answers for any hosted/anonymous use | #493's first proof: two concurrent sessions, expiry mid-operation, broker crash/restart, cleanup and reassignment, stale job rejected after reassignment; unaffected-slot checks without throughput claims. Isolation/negative-connectivity needs a separately qualified data-plane environment |
 | **R6** Typed credit (Track C) | A `kind` + weight view over completion and lease records, milestones with multiple paths; delete/archive path for courses and pathways in the sync | R3 (so deployment is deliberate), R1 for the surface, R5 for lab-derived credit | cp3–cp5 for template changes; AWS deployment is a deliberate, explicit-stage event | Existing completion/certificate tests stay green; new credit rules have unit tests; a before/after record comparison |
 | **R7** Authoring evaluation (off critical path) | One demanding lesson authored three ways (OpenMAIC, one hosted tool, the current workflow), judged on correctness, provenance, visual interaction, accessibility, maintenance on a small source change | Customer approval of lesson, rubric and budget | None on the critical path; spend needs approval | #495's comparison rubric; the maintenance-update test is the deciding criterion |
+
+### R1 as a discovery junction **P** (design reshaped; assets built)
+
+Reshaped after a review (session `ee76d19c`, verdict "adopt with specific changes", accepted in full). The review rejected two claims in the earlier R1, and both rejections were correct:
+
+- **"A click equals a profile" is false.** A click reveals interest, not role, seniority or buying stage. R1 does not claim behavioural profiling from clicks.
+- **"Plain links make the measurement free" is false.** Four ordinary links do not produce a four-way click report in HubSpot page analytics. #480 restricts the platform to page analytics and removed the custom beacon, and raw destination page-views are useless because those pages receive traffic from elsewhere. As first written, the experiment failed its own evidentiary test.
+
+**What R1 is**
+
+1. **An entry named to match what it delivers,** with **the actual download route preserved** for visitors it fits. Replacing it would have broken the path for the minority it genuinely serves.
+2. **Paths that cover the stated motivations** (2.1), with **secure multi-tenancy and VPC-centric networking explicit**. It was a named primary motivation and mapped to none of the earlier four paths. Evidence the company already owns (published results, OCP reference architectures) is a path in its own right.
+3. **Contact is secondary,** not a peer option.
+4. **#488 is one destination,** not the destination.
+5. **An approved measurement definition before release:** entry-page visits, attributable transitions per destination, no-onward-transition, plus coverage limits and the denominator. There are two candidate mechanisms and **neither is yet demonstrated:** native page-transition attribution, or native CTA click reporting, whose availability in this account must be confirmed. **If neither works, R1 is described honestly as a routing improvement evaluated by a small formative study (#492 §3), not as behavioural profiling. No custom event system.**
+6. **A popular link is not success.** A menu can move the dead end one page downstream. "No onward transition" and each destination's own next step are part of the acceptance test.
+7. **Scope boundary.** Benchmarks, architecture docs, forms, shared navigation and marketing automation each need their own owner. No asset migration is justified merely to make links convenient.
+
+**Cheapest first slice [R].** Some profiles are best served by evidence the company already owns, which needs no lab and no new build. The lowest-cost version of R1 routes to the published performance results and OCP reference architectures: it needs only the entry, the routing and the measurement definition. #488 joins as a destination at the same gates. Profiling steers and never gates, and every step is bypassable.
 
 ### R2 proof result (PR #519, control-plane only) **S**
 
@@ -320,7 +370,7 @@ Both cost time and will recur:
 
 ### What "usable quickly" means here
 
-R1's live step needs no new engineering beyond what #488 already contains; its delay is the approval gates, not the build. R2's proof has run; it is mostly built (provision, bootstrap, wiring diagram, runbook exist as PRs awaiting review) and now waits on the sizing choice (D3). R3 is a bounded read-only task. I give no calendar estimates because I have no throughput data for the review loop. If R1 and R2 are both blocked on approvals, the approvals are the critical path, not the engineering.
+R1's destinations already exist (#488, plus published results and reference architectures). The new work is the entry, the routing and the measurement definition. Its delay is the approval gates and the measurement question, not a large build. R2's proof has run; it is mostly built (provision, bootstrap, wiring diagram, runbook exist as PRs awaiting review) and now waits on the sizing choice (D3). R3 is a bounded read-only task. I give no calendar estimates because I have no throughput data for the review loop. If R1 and R2 are both blocked on approvals, the approvals are the critical path, not the engineering.
 
 ### Capacity note for R4/R5 (quantified in #499/#502, all unmeasured)
 
@@ -374,16 +424,9 @@ Only genuine forks. Things with an obvious default are in section 6.2 as recomme
 
 ### 6.1 Forks that need an answer
 
-**D1. Lead discovery: unanswered since #489.** Is the more compelling discovery *"I can offer more kinds of AI services from the hardware I own"* or *"I can give more teams and customers independent access to that infrastructure"*?
-- *Option 1: more services from owned hardware.* Opens with an AI service the visitor could run. Risk: most of what makes that story true is compute, scheduling and application software that Hedgehog does not provide, so the story leans on illustrative content.
-- *Option 2: independent access for more teams.* Opens with onboarding a second tenant. Risk: the strongest claim (isolation) is a data-plane claim VLAB cannot prove (section 0, boundary 2), so it can only be shown as intent plus convergence unless a qualified environment exists.
-- *[R] Lean to Option 2.* It is the one most directly attributable to the network, and the lease model of the Hot Lab gives it a natural live form later. This is a recommendation, not the answer. Blocks: the story R1 and R4 lead with.
+**D1. Lead discovery: ANSWERED (customer, 2026-11-05; record on #498).** The customer rejected the fork posed in #489 (*"more AI services from the hardware I own"* versus *"independent access for more teams and customers"*). **Progressive profiling is the entry; the lead story is what the profile routes to.** Start with generally applicable questions and build a profile that steers later ones. Neither former option is the opener; both remain candidate *destinations*. Audience evidence is in 2.1 and the reshaped R1 is in section 4. My earlier lean to Option 2 is withdrawn as moot.
 
-**D2. Disposition of PR #488 and PR #487.**
-- *Use as the first increment of Track A.* Fastest route to a real CTA destination. Consequence: the provisional route and CTAs in the PR get customer review at cp3.
-- *Keep as a reference implementation, build anew.* Costs time and discards tested work.
-- *Discard.* Not recommended.
-- *[R] Use.* Blocks: R1.
+**D2. Disposition of PR #488 and PR #487: DECIDED (coordinator, not a customer question).** Use #488 as a destination and merge #487 with it. **Boundary:** deciding to reuse the asset is not permission to merge or publish past #489's gates. The route and CTA wording remain customer-reviewable at cp3.
 
 **D3. Hardware sizing option (engineering decision, already pending).** Redundant (three lab servers plus backup, 16 concurrent single leases, third server has headroom for a third unit) or non-redundant (one server plus backup, 8 concurrent single leases, full outage on server loss). Blocks G-hw, #504 and the ops stack design. Not blocking R1 or R3. Not a decision for this document; listed because it gates R2's second half.
 
@@ -392,6 +435,12 @@ Only genuine forks. Things with an obvious default are in section 6.2 as recomme
 **D5. Approval of the read-only deployment baseline (R3).** Does the customer approve a read-only inspection of the AWS stages and of the live HubSpot objects, before any API change? Option: decline and accept that every API-touching increment (R6) stays blocked. This is a real fork because it appears to cut against "don't invest in production". I recommend approving it **[R]**; it writes nothing.
 
 **Partly pre-answered at zero cost.** A slice of R3 has already been run: seven read-only HTTP GETs and one deliberately invalid POST. It wrote nothing, took minutes, and resolved 7.1 and P9. The cheap part has been shown harmless and valuable, which strengthens the case for approving the rest (AWS configuration, Lambda versions, HubDB counts, deployed templates).
+
+**D7. Approve a bounded native measurement extension? (new; R1's evaluability depends on it.)** R1 cannot be judged unless its approved measurement definition (section 4) is actually measurable. Two native mechanisms are candidates and neither is yet demonstrated. This fork matters only if the first check shows neither works.
+- *Option 1: confirm native mechanisms first and approve nothing more.* If neither works, R1 ships as a routing improvement evaluated by a small formative study (#492 §3). Cost: no behavioural data, and no claim of profiling.
+- *Option 2: approve a bounded native extension,* limited to HubSpot-native capability and scoped and reviewed at cp3. Cost: added scope and an approval, in tension with #480's page-analytics-only position and the removal of the custom beacon.
+- **No custom event system is on offer in either option.**
+- *[R] Option 1 first.* Bring Option 2 back only with evidence that the native check failed and the formative study cannot answer the question. Blocks: R1's release, not its design.
 
 **D6. Credit types and external portability.** Which attainment primitives does the customer want (for example read/watch, lab, assessment), and should credit be portable as Open Badges 3.0? Not needed until R6, and not for R1–R5. List here so it is not forgotten.
 
