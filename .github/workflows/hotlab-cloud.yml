@@ -22,6 +22,15 @@ name: Hot Lab Cloud (trusted)
 #
 # This workflow never checks out or executes PR-authored content, and runs only
 # fixed, reviewed read-only commands.
+#
+# KNOWN TRUST LIMITS (surfaced by gpt-6.1-sol review of 9ffb94fa):
+#  - workflow_ref pins a PATH and REF, not immutable contents. Re-running a
+#    historical main-branch run can still obtain a fresh token. If that must be
+#    excluded, additionally constrain workflow_sha to approved revisions.
+#  - Anything merged to main becomes trusted. Protect main and this file with
+#    review controls.
+#  - roles/compute.viewer still permits disclosure of cloud inventory data, so
+#    workflow log/summary visibility should match the intended audience.
 
 on:
   workflow_dispatch:
@@ -56,6 +65,7 @@ jobs:
 
       - name: Confirm federated identity
         run: |
+          set -euo pipefail
           echo "### Federated identity" >> "$GITHUB_STEP_SUMMARY"
           gcloud auth list --format="value(account)" | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -72,8 +82,10 @@ jobs:
                 --format="table(name,zone,machineType,status,labels)" \
                 | tee -a "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "Instance count: $(gcloud compute instances list --project="$PROJECT" --format='value(name)' | wc -l)" \
-                >> "$GITHUB_STEP_SUMMARY"
+              # Standalone checked assignment: a failure inside $(...) would not
+              # fail an enclosing echo, which would report a misleading count.
+              count="$(gcloud compute instances list --project="$PROJECT" --format='value(name)' | wc -l)"
+              echo "Instance count: ${count}" >> "$GITHUB_STEP_SUMMARY"
               ;;
             quota)
               echo "### Compute quota (us-west4)" >> "$GITHUB_STEP_SUMMARY"
@@ -87,15 +99,13 @@ jobs:
               ;;
           esac
 
-      - name: Assert no mutation capability
-        run: |
-          # Proves the identity is genuinely read-only: this MUST fail.
-          if gcloud compute networks create hotlab-should-not-exist \
-               --project="${{ vars.HOTLAB_GCP_PROJECT }}" --subnet-mode=custom 2>/dev/null; then
-            echo "::error::Identity was able to CREATE a resource. Permissions are too broad."
-            gcloud compute networks delete hotlab-should-not-exist \
-              --project="${{ vars.HOTLAB_GCP_PROJECT }}" --quiet || true
-            exit 1
-          fi
-          echo "::notice::Confirmed: identity cannot create resources (expected denial)."
-          echo "Mutation attempt correctly denied -- identity is read-only." >> "$GITHUB_STEP_SUMMARY"
+      # NOTE: an earlier revision attempted `gcloud compute networks create` here
+      # and treated any failure as proof of read-only access. That was removed:
+      # a disabled API, connectivity error, invalid argument or pre-existing
+      # network produced the same "confirmed" result, so it gave false assurance,
+      # and it performed a real mutation if privileges ever broadened.
+      #
+      # The identity's scope is instead verified out-of-band by the coordinator
+      # using owner credentials (the bound SA cannot read its own IAM policy,
+      # since roles/compute.viewer excludes resourcemanager.projects.getIamPolicy).
+      # See the verification record on PR #507.
