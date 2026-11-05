@@ -46,18 +46,27 @@ What this answer does and does **not** cover, stated plainly:
    to set it: nothing in IAM stops `hotlab-vm-creator` from calling `instances.insert`
    without `terminationTime` (or with one years away) — e.g. from an altered workflow
    merged to `main`, or any other code path that obtains a token for that identity.
-   *Can IAM Conditions express "only with an acceptable `scheduling.terminationTime`"?*
-   I believe **no**: Compute IAM conditions are evaluated on resource attributes
-   (`resource.type`, `resource.name`, `resource.service`) and request time, not on
-   request-body/field values such as `scheduling.*` or machine type. `U` — this is from
-   my knowledge of the IAM Conditions attribute reference; I could not fetch the docs or
-   run a policy simulation in this run, so RUNBOOK §4.2 / §2.8 check it with owner
-   credentials. The only server-side route to enforce a field is an **Organization Policy
-   custom constraint** on `compute.googleapis.com/Instance`; whether it can see
-   `scheduling.terminationTime`, and whether `teched-473722` is in an Organization at
-   all, is `U`. **Therefore this design takes the honest position: the creator-side
-   read-back and `always()` teardown are checks inside one workflow, and the reaper is
-   load-bearing, not merely a second line of defence.** Against an identity that creates
+   **This is permanent, not pending verification. No server-side mechanism can enforce a
+   deadline.** `D`:
+   * *IAM Conditions cannot.* The
+     [IAM conditions attribute reference](https://docs.cloud.google.com/iam/docs/conditions-attribute-reference)
+     limits conditions to predefined attributes (resource type/service/name/tags,
+     principal type/subject, and request attributes such as access levels, date/time,
+     destination IP/port, URL path/host). There is no way to condition on a request-body
+     field like `scheduling.terminationTime`. (Coordinator-verified 2026-11-05.)
+   * *Org Policy custom constraints cannot.* The
+     [Compute Engine custom constraints](https://docs.cloud.google.com/compute/docs/access/custom-constraints)
+     supported-fields table for `compute.googleapis.com/Instance` lists exactly one
+     `scheduling` subtree, `scheduling.nodeAffinities.*`. `scheduling.terminationTime`,
+     `scheduling.instanceTerminationAction` and `scheduling.maxRunDuration` are not
+     supported fields and cannot appear in a constraint condition. (Table re-read by me
+     on 2026-11-05; coordinator confirmed `teched-473722` sits in organization
+     `1057998954523`, so the existence of an Organization is not the obstacle.)
+   Nothing in this design is waiting on, or should be read as promising, a later
+   server-side deadline control. **Therefore: the creator-side read-back and `always()`
+   teardown are checks inside one workflow, and the reaper is permanently load-bearing,
+   not merely a second line of defence.** Its own code path is hardened accordingly
+   (fetched at a pinned, admin-bumped SHA: §11 item 3). Against an identity that creates
    an unbounded instance, the actual controls are: the reaper (which deletes any
    `hotlab-*` VM lacking a valid `terminationTime`, with `maxRunDuration`, or with a
    deadline beyond the policy maximum — measured from server-set `creationTimestamp`,
@@ -167,7 +176,7 @@ instance resource to condition on.
 | 2 | Ownership labels | `managed-by, owner, ticket, run-id, created-at, expires-at` (epoch seconds) | create step; read-back; reaper treats missing/malformed as orphan | creator + reaper |
 | 2b | Reviewed shape (labapp-derived) | no `accessConfigs`/IPv6, exactly 1 NIC, no SA, `deletionProtection=false`, `automaticRestart=false`, `onHostMaintenance=TERMINATE`, `provisioningModel=STANDARD`, `block-project-ssh-keys`+`enable-oslogin`=TRUE, one auto-delete boot disk, `pd-standard` 50–500 GB (reaper via `disks list`), machine type/zone in allowlist | read-back; the reaper re-checks every item listed here | creator + reaper (GitHub-side; not identity-enforced) |
 | 3 | Failure/cancel cleanup | `Teardown (always)`: `always()` plus `job.status != 'success'`, so failure/timeout/cancel delete even with `teardown=at-expiry`; only `at-expiry` + all-green keeps the VM. Deletes by deterministic name, then re-lists | creator | GitHub Actions; best-effort (force-cancel / lost runner can skip it) |
-| 4 | Independent reaper | `hotlab-vm-reaper.yml`: cron `7,17,27,37,47,57` **and** `workflow_run` on creator completion; own pool+SA, no create permission; fails red if a violator survives. **Load-bearing** for anything not created through the creator workflow | reaper | GitHub Actions + IAM |
+| 4 | Independent reaper | `hotlab-vm-reaper.yml`: cron `7,17,27,37,47,57` **and** `workflow_run` on creator completion; own pool+SA, no create permission; fails red if a violator survives. Sweep logic fetched at an admin-pinned SHA (§11 item 3). **Permanently load-bearing** for anything not created through the creator workflow (§1, §6a) | reaper | GitHub Actions + IAM |
 | 5 | Hard caps | concurrency ≤ 2, N2 machine allowlist, zone allowlist, TTL ≤ 480 min, disk ≤ 500 GB | see §6 | mixed — honest table below |
 | 6 | Budget alert | Billing budget on the project, thresholds in RUNBOOK §3 | GCP Billing | GCP (alert only) |
 | 7 | Visible inventory | existing `hotlab-cloud.yml` `inventory` (shows `labels`) | read-only identity | viewer role |
@@ -215,40 +224,82 @@ with a red-on-failure contract.
 |---|---|---|
 | Zone allowlist | `us-west4-{a,b,c}` | **Yes** — IAM condition on `resource.name` for create (`U`: confirm condition support); also reaper |
 | Name scope | `hotlab-*` | **Yes** — IAM condition on create/delete |
-| Machine type | N2: `n2-standard-8`, `n2-highmem-4`, `n2-standard-16` | **Partly.** Not expressible in IAM conditions. Optional custom org-policy constraint on `compute.googleapis.com/Instance` (`resource.machineType`) **if the project sits in an Organization** (`U`). Otherwise: creator allowlist + independent reaper allowlist (deletes violators within one ≤10 min cron tick or on creator completion, if the reaper is running; not server-side) |
+| Machine type | N2: `n2-standard-8`, `n2-highmem-4`, `n2-standard-16` | **Enforceable, not yet applied.** Not expressible in IAM conditions; expressible as an Org Policy custom constraint on `resource.machineType` (`D`; project is in organization `1057998954523`). Draft: §6b. Until an org admin applies it: creator allowlist + independent reaper allowlist (deletes violators within one ≤10 min cron tick or on creator completion, if the reaper is running; not server-side) |
 | Max concurrent | 2 | **No dedicated server-side cap.** Project quota `INSTANCES=24` is shared with Labapp and cannot be lowered without hurting it. Enforced by creator (serialised via `concurrency:`) and by the reaper (deletes newest beyond 2) |
 | Lifetime | ≤ 480 min | Instance-level (`terminationTime`) + reaper `lifetime-exceeds-cap` |
 | Total capacity | `CPUS` 200, `N2_CPUS` 200, `INSTANCES` 24, `DISKS_TOTAL_GB` 4096, `SSD_TOTAL_GB` 500 (quota; identical in us-west4/us-central1/us-east4; JSON-parsed by key per coordinator's correction) | Yes (project quota, shared) |
 
 Honest summary: *name scope and zone* are server-enforced by IAM conditions (`U`, until
 checked); *instance lifetime* is server-enforced **only for instances created with the
-field** (not identity-enforced, §1); *machine type, concurrency, disk and deadline caps*
-are enforced by two GitHub-side workflows (creator, reaper) and bounded in blast radius
-only by shared quota. Hardening to server-side requires an Organization policy; whether
-`teched-473722` is in an Organization is unknown to me (`U`).
+field** (not identity-enforced, **permanently**: §1, §6a); *concurrency, disk and
+deadline caps* are enforced by two GitHub-side workflows (creator, reaper) and bounded in
+blast radius only by shared quota. *Machine type, zone, external IPv4, deletion
+protection and required labels* **can** be made server-side by Org Policy (project is in
+an Organization, `D`) but **are not yet**: drafts in §6b, application is an external
+request to a Hedgehog GCP org admin (RUNBOOK §6).
 
-### 6a. Residual exposure of the creator identity, precisely
+### 6a. Permanently unenforceable server-side (the reaper owns these, forever)
 
-Assume the creator identity is used outside the workflow (altered workflow merged, or
-token obtained some other way). It can, until the reaper next runs (≤10 min cron lag, or
-sooner via `workflow_run`; unbounded if the reaper is down):
-* create `hotlab-*` instances in `us-west4-*` of **any machine type**; IAM cannot
-  restrict machine type. Ceiling = remaining shared quota: `N2_CPUS` 200 / `CPUS` 200
-  (e.g. two `n2-standard-80`s, or ~6 `n2-standard-32`s), `INSTANCES` 24 minus Labapp's.
-  A burst like that costs on the order of several $/hour per VM-hour (`U`, no dated
-  prices); it is not capped by anything GCP-side except quota and is only detected by the
-  budget alert.
-* create more than 2 concurrently (concurrency is a workflow list-then-create check, and
-  the `concurrency:` group serialises only this workflow); the reaper deletes the newest
-  beyond 2 on its next sweep.
-* omit or set a far-future `terminationTime`; the reaper deletes these on its next sweep.
-It cannot: touch non-`hotlab-*` instances, create outside `us-west4` (IAM, `U`),
-`setScheduling` / change machine type / attach an SA (permissions absent), or attach a
-public IP unless the instance JSON allows it — that is **not** blocked by IAM; the reaper
-deletes such VMs (`external-ip`) but cannot prevent their brief existence.
-Closing this gap needs an Org Policy (machine-type allowlist, `terminationTime` required,
-external IP denied via the existing `constraints/compute.vmExternalIpAccess`), which
-depends on the project being in an Organization (`U`).
+`D` for the deadline fields (citations in §1 caveat 1): neither IAM Conditions nor Org
+Policy custom constraints can see them.
+
+| Cap | Why no server-side control exists | Who bounds it |
+|---|---|---|
+| Deadline: `scheduling.terminationTime` present and ≤ policy max | Not a supported custom-constraint field; not an IAM condition attribute | Instance field for VMs made via the workflow; **reaper** (`terminationTime-missing`, `deadline-exceeds-policy-max`, `deadline-too-far-in-future`) for everything else |
+| `instanceTerminationAction=DELETE`, `maxRunDuration` absent | Same: `scheduling.*` is supported only for `nodeAffinities.*` | **Reaper** |
+| `automaticRestart`, `onHostMaintenance`, `provisioningModel` | Same | **Reaper** |
+| Concurrent instance count ≤ 2 | A constraint evaluates one resource at a time and cannot count peers (reasoning, `S`; the supported-fields list has no counter). Project quota `INSTANCES=24` is shared with Labapp | Creator list-then-create (this workflow only) and **reaper** (deletes newest beyond 2) |
+| IPv6 external addressing | `ipv6AccessConfigs` is not a supported field (only `accessConfigs.name/natIP`) | **Reaper** |
+| Boot disk type/size, single-disk shape | Disk fields are not in the supported list | **Reaper** (via `disks list`) |
+
+Consequence for an out-of-policy VM made by the creator identity outside the workflow,
+before the reaper next runs (≤10 min cron lag, or sooner via `workflow_run`; unbounded if
+the reaper is down): no deadline, any lifetime, more than 2 concurrently, up to remaining
+shared quota (`N2_CPUS` 200 / `CPUS` 200, `INSTANCES` 24 minus Labapp's). Cost of such a
+burst is `U` (no dated prices) and is detected only by the budget alert. Items in §6b
+shrink *which* VMs can exist, but none of them bounds duration.
+
+### 6b. Enforceable via Org Policy, drafted but NOT applied
+
+`D`: the supported-fields table for `compute.googleapis.com/Instance` includes
+`machineType`, `zone`, `labels`, `deletionProtection`, `networkInterfaces.accessConfigs.*`
+(read 2026-11-05). Drafts are in `org-policy/`; none is applied; application requires a
+**Hedgehog GCP organization administrator** (coordinator has no org-level permissions:
+`getIamPolicy` on `organizations/1057998954523` is denied, and `orgpolicy.googleapis.com`
+is not enabled on the project, deliberately not enabled; RUNBOOK §6).
+
+| Cap | Draft | Fields used | Remaining gap |
+|---|---|---|---|
+| Machine type allowlist | `org-policy/machine-type.yaml` | `machineType` | none beyond scope (below) |
+| Zone allowlist | `org-policy/zone.yaml` | `zone` | create-time value shape (short name vs URL) `U`; `contains` tolerates both |
+| No external IPv4 | `org-policy/no-external-ip.yaml` | `networkInterfaces.accessConfigs.*` | IPv6 not covered; reaper still checks |
+| No deletion protection | `org-policy/no-deletion-protection.yaml` | `deletionProtection` | none; protects the reaper's ability to delete |
+| Required ownership labels | `org-policy/required-labels.yaml` | `labels` | presence only, not value sanity (`expires-at` format stays reaper-checked) |
+
+Candidate not drafted: `resourceStatus.effectiveInstanceMetadata.enableOsloginMetadataValue`
+and `blockProjectSshKeysMetadataValue` are supported fields, which would make OS Login
+and block-project-ssh-keys server-enforceable. They live under `resourceStatus` (output
+status), so I do not know whether they are populated at CREATE evaluation (`U`); test
+under `dryRunSpec` before drafting. Likewise `advancedMachineFeatures.enableNestedVirtualization`
+and `minCpuPlatform` are supported.
+
+**The scoping problem (important, new finding).** `resource.name` is *not* a supported
+Instance field (only InstanceGroup has `name`), and the project is shared with Labapp.
+Constraints apply to every instance in the project they are attached to, so an
+unscoped machine-type allowlist would block Labapp's own VMs. The drafts therefore scope
+with `resource.selfLink.contains('/instances/hotlab-')` (`selfLink` is a supported field).
+`U`: whether `selfLink` is populated when a CREATE is evaluated. If it is not, the scope
+clause is never true and **every constraint is silently inert**, which is false assurance.
+RUNBOOK §6.3 therefore requires a deliberate violating create under `dryRunSpec`, and
+only trusts a constraint after seeing it fire on that and stay quiet on a conforming VM.
+Two other options if scoping fails: (a) scope by label (`labels['managed-by']=='hotlab'`),
+which misses unlabelled VMs, so it cannot replace the labels constraint; or (b) **move
+Hot Lab to a dedicated project** (recommended if `selfLink` scoping fails, and arguably
+better regardless): constraints then apply unconditionally, quotas stop being shared with
+Labapp, and the budget is isolated. That is a coordinator decision; it is not in this PR.
+
+Even fully applied, §6b does not make the VM self-destruct, bound concurrency, or bound
+duration; §6a stays on the reaper.
 
 ## 7. `gcloud` invocation for the #501 proof
 
@@ -348,7 +399,11 @@ bounded by the instance-level deadline even across any number of stop/start cycl
 2. **Workflow files are staged under `docs/hotlab/gcp-vm-lifecycle/workflows/`**, not
    `.github/workflows/`, because the authoring automation cannot write there. Copy them
    verbatim (RUNBOOK §2.1). The paths are part of the trust boundary.
-3. **Machine-type and concurrency caps are not fully server-side** (§6).
+3. **Machine-type and concurrency caps are not server-side today** (§6). Deadline and
+   concurrency are permanently not enforceable server-side (§6a); machine type and
+   others are enforceable once an org admin applies §6b.
+6. **Reaper script is fetched at an admin-pinned SHA** (§11 item 3), adding a repo
+   variable `HOTLAB_REAPER_SCRIPT_SHA` and a second approval step to change reaper logic.
 4. **Nothing executed.** All YAML/jq is unlinted and unrun; treat first run as a dry run.
 5. **`maxRunDuration` replaced by `terminationTime`** (see §1), per the labapp reuse
    inventory posted after the first revision.
@@ -396,12 +451,26 @@ strengthening the list-count.
    conclusion), and `workflow_run` only fires for workflow files on the default branch, so
    a fork/PR cannot cause it to run attacker content. The WIF condition allows
    `event_name == workflow_run` for this one pinned `workflow_ref`. I did *not* copy
-   labapp's fetch-by-pinned-SHA step (see item 3). It is a reasonable further
-   hardening; the reaper script here is inline in the workflow file itself.
-3. *Fetching code from `main` by SHA at runtime* is a strong anti-checkout-of-PR pattern
-   and I'd adopt it **if** the reaper ever executes repo code. Today it executes only
-   inline `gcloud`/`jq` from the workflow file, which is itself pinned by `workflow_ref`,
-   so there is nothing to fetch.
+   labapp's fetch-by-pinned-SHA step originally; that was reversed, see item 3.
+3. *Fetching code from `main` by SHA at runtime.* **Reversed and adopted** (previously
+   "not adopted"). The earlier reasoning ("it's inline, so nothing to fetch") ignored
+   that inline code in a workflow file changes with any merge to `main`, which is
+   exactly the altered-code threat the reaper must survive now that it is permanently
+   load-bearing (§1). The sweep is now `scripts/hotlab/vm-reaper-sweep.sh`, fetched via
+   the Contents API at the SHA in repo variable `HOTLAB_REAPER_SCRIPT_SHA`, validated
+   (40-hex; SHA is an ancestor of `main` via the compare API; `type=file`, exact path,
+   base64, size ≤ 64 KiB, decoded length equals reported size, shebang, `bash -n`), and
+   run from `RUNNER_TEMP`. It happens *before* GCP authentication, so an invalid pin
+   never obtains a token. Caps are in the script, so they are pinned too.
+   **What this buys:** merging a change to the sweep logic does not change what the
+   reaper identity executes until a repo admin bumps the variable after review (a
+   second, separate approval).
+   **What it does not buy:** the workflow file, including the fetch step, is still
+   changed by a merge to `main`, and WIF pins `workflow_ref` (a path), not file content.
+   An optional extra is to pin the OIDC `job_workflow_sha` claim in the reaper provider's
+   attribute condition, so each workflow edit also needs an owner-side provider update
+   (`U`: claim presence and format not verified; RUNBOOK §2.4). Not applied by default
+   because it makes every workflow edit an owner action.
 4. *`READ_ONLY` second disk with `autoDelete=false`* leaves a disk requiring explicit
    reconciliation; I forbid it (single auto-delete boot disk) because Hot Lab has no
    image-copy need.

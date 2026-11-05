@@ -10,6 +10,8 @@ automation executed none of them. Review `DESIGN.md` first.** Substitute
 |---|---|
 | `workflows/hotlab-vm-create.yml` | `.github/workflows/hotlab-vm-create.yml` |
 | `workflows/hotlab-vm-reaper.yml` | `.github/workflows/hotlab-vm-reaper.yml` |
+| (already in place) `scripts/hotlab/vm-reaper-sweep.sh` | same path; fetched by SHA, see §2.9 |
+| `org-policy/*.yaml` | not installed; sent to a GCP org admin, §6 |
 
 Install paths must match exactly: they are in the provider attribute conditions.
 Protect `main` and these two files (CODEOWNERS, required review).
@@ -82,7 +84,8 @@ Cloud NAT + router on the chosen network/region for egress, and an IAP firewall 
 
 ### 2.6 Repo variables (Settings → Variables)
 `HOTLAB_GCP_PROJECT` (exists), `HOTLAB_CREATOR_WIF_PROVIDER`, `HOTLAB_CREATOR_SA_EMAIL`,
-`HOTLAB_REAPER_WIF_PROVIDER`, `HOTLAB_REAPER_SA_EMAIL`, optional `HOTLAB_MIN_CPU_PLATFORM`.
+`HOTLAB_REAPER_WIF_PROVIDER`, `HOTLAB_REAPER_SA_EMAIL`, `HOTLAB_REAPER_SCRIPT_SHA` (§2.9),
+optional `HOTLAB_MIN_CPU_PLATFORM`.
 Provider value form: `projects/$PN/locations/global/workloadIdentityPools/hotlab-<role>/providers/github`.
 
 ### 2.7 Budget alert and dated price
@@ -101,13 +104,26 @@ existing spend does not already exceed $50; if shared with Labapp, filter by lab
 Dated price: query the Cloud Billing Catalog (service "Compute Engine", SKU "N2 Instance Core/Ram running in Americas/us-west4", plus the pd-standard SKU) and record the figure and date in
 DESIGN §8.
 
-### 2.8 Optional server-side machine-type cap
-If `teched-473722` is in an Organization: custom org-policy constraint on
-`compute.googleapis.com/Instance` denying creation when `resource.machineType` is not in
-the allowlist, scoped to this project. Skip if standalone.
-Same mechanism could, if the constraint language supports it (`U`, not verified), require
-`resource.scheduling.terminationTime` to be set and `maxRunDuration` unset on `hotlab-*`
-instances; see DESIGN §1 item 1 and §6a. Until that exists, the reaper is load-bearing.
+### 2.8 Server-side caps via Org Policy
+The project is in organization `1057998954523`. Machine type, zone, external IPv4,
+deletion protection and required labels can be enforced by Org Policy custom constraints;
+drafts are in `org-policy/`. **Applying them is an external request to a Hedgehog GCP
+organization administrator: see §6.** The deadline (`terminationTime`) can NOT be
+enforced by Org Policy or IAM conditions, permanently (DESIGN §1, §6a); do not wait for
+that. The reaper is the control for it.
+
+### 2.9 Pin the reaper script (required before the reaper is enabled)
+The reaper fetches `scripts/hotlab/vm-reaper-sweep.sh` at a commit SHA, not from the
+workspace. After the PR merges and you have reviewed the script on `main`:
+```
+SHA=$(git rev-parse origin/main)    # a commit on main that contains the reviewed script
+gh variable set HOTLAB_REAPER_SCRIPT_SHA --body "$SHA" --repo afewell-hh/hh-learn
+```
+Changing the sweep logic later = merge, review, then bump this variable (a separate
+admin action). The first run fails closed with a clear error if it is unset, not a
+40-hex SHA, or not an ancestor of `main`. Optional extra pin (`U`, claim not verified):
+add `&& assertion.job_workflow_sha == '<sha>'` to the reaper provider condition so
+workflow edits also need an owner-side provider update.
 
 ## 3. Day-to-day
 * Create: Actions → *Hot Lab VM (creator)* → `create`, ticket, machine, zone, ttl, hold.
@@ -159,6 +175,69 @@ two SAs and that no other principal can impersonate them
 2. Creator `create`, `hold_minutes=5`, `n2-standard-8` → read-back all PASS, teardown confirmed.
 3. Creator `create` then cancel mid-hold → teardown still runs.
 4. Reaper live after manually creating (owner) an unlabelled `hotlab-orphan` → deleted.
+
+## 6. Org Policy constraints (EXTERNAL REQUEST: needs a Hedgehog GCP org administrator)
+
+**The coordinator cannot perform this section.** `art@githedgehog.com` has no
+organization-level permissions (`getIamPolicy` on `organizations/1057998954523` returned
+"caller does not have permission"), and `orgpolicy.googleapis.com` is not enabled on
+`teched-473722` (deliberately not enabled: shared company project). Send the org admin
+this section plus the `org-policy/` directory. Required roles for them:
+`roles/orgpolicy.policyAdmin` (create constraints and policies) on the organization, and
+`serviceusage.services.enable` on the project to enable the API.
+
+### 6.1 Review before applying (admin)
+* The scoping caveat in DESIGN §6b: the constraints scope to `hotlab-*` via
+  `resource.selfLink` because `resource.name` is not a supported Instance field, and the
+  project is shared with Labapp. Confirm Labapp VM names do not start with `hotlab-`.
+* Do **not** attach any of these at the organization or folder level. Project level only.
+
+### 6.2 Commands (admin; none have been run)
+```
+gcloud services enable orgpolicy.googleapis.com --project=teched-473722
+ORG=1057998954523
+for C in machine-type zone no-external-ip no-deletion-protection required-labels; do
+  gcloud org-policies set-custom-constraint org-policy/$C.yaml        # defines it at the org
+done
+gcloud org-policies list-custom-constraints --organization=$ORG       # confirm all five exist
+
+# Dry-run policy per constraint (violations are logged, nothing is denied):
+for N in hotlabMachineTypeAllowlist hotlabZoneAllowlist hotlabNoExternalIp \
+         hotlabNoDeletionProtection hotlabRequiredLabels; do
+  sed "s/CONSTRAINT/$N/" org-policy/policy-template.yaml > /tmp/$N.yaml
+  gcloud org-policies set-policy /tmp/$N.yaml
+done
+```
+Creating a constraint changes nothing until a policy references it. Review the
+`set-custom-constraint` output for CEL parse errors: any field/function the service
+rejects here is a draft defect to report back, not something to work around.
+
+### 6.3 Prove each constraint fires, THEN enforce (avoids false assurance)
+A constraint that never matches looks identical to one that works. For each constraint,
+with owner credentials, under `dryRunSpec`:
+1. Create a **conforming** `hotlab-ocheck-<n>` VM shape (small, short-lived, deleted
+   straight after) and confirm **no** dry-run violation is logged for it.
+2. Create a deliberately **violating** `hotlab-ocheck-<n>` (e.g. `n2-standard-2`; zone
+   `us-central1-a`; with an external IP; `--deletion-protection`; no labels) and confirm
+   a violation for **that specific** constraint appears in Cloud Audit Logs (policy
+   dry-run violations are logged under `cloudaudit.googleapis.com/policy`). A violation
+   for a different constraint, an API error, or no entry all mean "not proven".
+3. If step 2 shows nothing, `selfLink` is probably unpopulated at CREATE: stop, do not
+   enforce, and use a dedicated project (DESIGN §6b) or rewrite the scope clause.
+4. Only after 1 and 2 pass: replace `dryRunSpec` with `spec` in the policy and re-run
+   `set-policy`, then repeat the violating create and confirm the **create is rejected
+   with that constraint's name** (not a different error), and a conforming create still
+   works.
+Delete all `hotlab-ocheck-*` VMs afterwards (the reaper will also remove them if they are
+unlabelled).
+
+### 6.4 Rollback
+`gcloud org-policies delete custom.<name> --project=teched-473722`, then
+`gcloud org-policies delete-custom-constraint custom.<name> --organization=$ORG`.
+
+### 6.5 What this does NOT do
+No constraint bounds the deadline, concurrency, IPv6 external addressing or disk shape
+(DESIGN §6a). Applying §6 does not reduce the reaper's role for those.
 
 ## 5. Incident / kill switch
 1. Disable the creator workflow (Actions UI) — stops new VMs.

@@ -1,0 +1,23 @@
+# DRAFT (#508). NOT applied. Needs a Hedgehog GCP org administrator (RUNBOOK section 6).
+# Fields are from the supported-fields table for compute.googleapis.com/Instance
+# (https://docs.cloud.google.com/compute/docs/access/custom-constraints, read 2026-11-05).
+# Only contains/endsWith/exists/in/== are used: that page does not confirm matches/startsWith/has.
+# SCOPE (U): resource.name is NOT a supported Instance field, so the hotlab- scope uses
+# resource.selfLink. Whether selfLink is populated at CREATE is unconfirmed. If it is not,
+# the first clause is never true and the constraint is silently inert; RUNBOOK 6.3 proves
+# it fires (deliberate violating create under dryRunSpec) before it is trusted.
+# If this project cannot be scoped safely, do not apply it project-wide: Labapp shares
+# the project. Use a dedicated Hot Lab project instead (DESIGN 6b).
+name: organizations/1057998954523/customConstraints/custom.hotlabMachineTypeAllowlist
+resourceTypes:
+- compute.googleapis.com/Instance
+methodTypes:
+- CREATE
+condition: >-
+  resource.selfLink.contains('/instances/hotlab-') &&
+  !(resource.machineType.endsWith('/machineTypes/n2-standard-8') ||
+    resource.machineType.endsWith('/machineTypes/n2-highmem-4') ||
+    resource.machineType.endsWith('/machineTypes/n2-standard-16'))
+actionType: DENY
+displayName: Hot Lab machine type allowlist
+description: hotlab-* instances must be n2-standard-8, n2-highmem-4 or n2-standard-16.

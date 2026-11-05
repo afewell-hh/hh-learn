@@ -1,0 +1,14 @@
+# DRAFT (#508). NOT applied. One policy per constraint, applied to the project.
+# Step 1 (RUNBOOK 6.3): apply with dryRunSpec only. Violations are logged, not denied.
+# Step 2: after the dry-run proves the constraint fires on a deliberate violation AND stays
+# quiet for a conforming create, replace dryRunSpec with spec.
+# Replace CONSTRAINT with each of: hotlabMachineTypeAllowlist, hotlabZoneAllowlist,
+# hotlabNoExternalIp, hotlabNoDeletionProtection, hotlabRequiredLabels.
+name: projects/teched-473722/policies/custom.CONSTRAINT
+dryRunSpec:
+  rules:
+  - enforce: true
+# After the dry-run, use this instead of dryRunSpec:
+# spec:
+#   rules:
+#   - enforce: true

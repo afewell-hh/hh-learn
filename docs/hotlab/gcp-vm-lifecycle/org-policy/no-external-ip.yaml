@@ -1,0 +1,18 @@
+# DRAFT (#508). NOT applied. See machine-type.yaml for the shared caveats (selfLink scope U).
+# Supported fields: resource.networkInterfaces.accessConfigs.name / .natIP. ipv6AccessConfigs
+# is NOT a supported field, so IPv6 external addressing is not covered here; the reaper
+# still checks it. The nested exists() shape over networkInterfaces is U until dry-run.
+# (Alternative: built-in constraints/compute.vmExternalIpAccess, but it is a list constraint
+# that applies to the whole project and would also affect Labapp.)
+name: organizations/1057998954523/customConstraints/custom.hotlabNoExternalIp
+resourceTypes:
+- compute.googleapis.com/Instance
+methodTypes:
+- CREATE
+- UPDATE
+condition: >-
+  resource.selfLink.contains('/instances/hotlab-') &&
+  resource.networkInterfaces.exists(n, n.accessConfigs.exists(a, true))
+actionType: DENY
+displayName: Hot Lab no external IPv4
+description: hotlab-* instances must not have an external IPv4 access config.

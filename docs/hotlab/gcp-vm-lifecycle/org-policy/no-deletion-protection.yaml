@@ -1,0 +1,15 @@
+# DRAFT (#508). NOT applied. See machine-type.yaml for the shared caveats (selfLink scope U).
+# resource.deletionProtection is a supported field. deletionProtection blocks the reaper
+# from deleting a VM, so preventing it is a server-side protection of the reaper itself.
+name: organizations/1057998954523/customConstraints/custom.hotlabNoDeletionProtection
+resourceTypes:
+- compute.googleapis.com/Instance
+methodTypes:
+- CREATE
+- UPDATE
+condition: >-
+  resource.selfLink.contains('/instances/hotlab-') &&
+  resource.deletionProtection == true
+actionType: DENY
+displayName: Hot Lab no deletion protection
+description: hotlab-* instances must not set deletionProtection.
