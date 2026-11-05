@@ -5,6 +5,10 @@ After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service
 ConditionPathExists=/dev/kvm
+# Bounded restart loop: after 5 failures in an hour the unit stays failed and verify.sh
+# reports it, instead of retrying forever.
+StartLimitIntervalSec=3600
+StartLimitBurst=5
 
 # Adapted from labapp build/provision/hhfab-vlab-resume.service (S). Differences:
 #  - one unit for first start AND resume (vlab-run.sh decides), so enable == resume-on-boot
@@ -21,7 +25,11 @@ LogNamespace=hotlab-vlab
 StandardOutput=journal
 StandardError=journal
 UMask=0077
+# NOTE: Type=exec means "active" only says the script was exec'd. It does NOT mean init,
+# gen, or switch boot finished. Readiness is asserted by verify.sh, never by this state.
 Restart=on-failure
+# vlab-run.sh exits 64 for state only an operator can fix (e.g. refusing to regenerate over disks).
+RestartPreventExitStatus=64
 RestartSec=30
 TimeoutStartSec=900
 TimeoutStopSec=60

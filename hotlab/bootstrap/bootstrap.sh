@@ -17,10 +17,9 @@ require_root
 load_config
 export DEBIAN_FRONTEND=noninteractive
 
-[[ "$(uname -m)" == "x86_64" ]] || die "amd64 only"
-# shellcheck disable=SC1091
-. /etc/os-release
-[[ "${ID}" == "ubuntu" ]] || die "Ubuntu only (got ${ID})"
+# ALL contract validation happens here, before any package install, download, account
+# creation, sudoers change, or state directory. Side-effect free (see lib/common.sh).
+preflight_contract "${HERE}"
 
 # Serialise concurrent runs (cloud-init + operator).
 mkdir -p "${HOTLAB_STATE_DIR}"
@@ -35,11 +34,6 @@ stage_packages() {
   apt-get install -y -qq --no-install-recommends \
     ca-certificates curl git jq tar gzip unzip gettext-base util-linux \
     qemu-kvm socat tmux htop iotop rsync openssh-server sudo
-}
-
-stage_kvm() {
-  log "stage: kvm check"
-  [[ -c /dev/kvm ]] || die "/dev/kvm missing: nested virtualization is not exposed to this guest (provision-layer input)"
 }
 
 stage_docker() {
@@ -72,7 +66,7 @@ stage_tools() {
     [[ "$(file_sha256 "${work}/helm")" == "${HELM_MEMBER_SHA256}" ]] || die "helm member checksum mismatch"
     install_if_changed "${work}/helm" /usr/local/bin/helm
   fi
-  case "${HOTLAB_HHFAB_VERSION}" in
+  case "${HOTLAB_HHFAB_VERSION}" in   # version already validated by preflight
     0.43.1)
       if ! have_binary_sha /usr/local/bin/hhfab "${HHFAB_0_43_1_MEMBER_SHA256}"; then
         fetch_verified "${HHFAB_0_43_1_URL}" "${HHFAB_0_43_1_ARCHIVE_SHA256}" "${work}/hhfab.tgz"
@@ -110,11 +104,19 @@ secret() {
   cat "${f}"
 }
 
+# Write a 0600 helm values file holding one secret. Secrets never go on a command line
+# (visible in /proc/*/cmdline and `ps`). The secret is read into a variable first and
+# validated, because a failed `$(secret ...)` inside an argument is NOT caught by set -e and
+# would silently pass an EMPTY admin password to helm (this was bootstrap.sh:153 before).
+secret_values_file() { # secret_values_file SECRET_NAME OUTFILE YAML_TEMPLATE_WITH_%s
+  local pw; pw="$(secret "$1")" || die "could not generate secret $1"
+  [[ "${pw}" =~ ^[A-Za-z0-9]{20,}$ ]] || die "secret $1 is empty or malformed"
+  (umask 077; printf "$3" "${pw}" > "$2")
+}
+
 stage_ops() {
   [[ "${HOTLAB_ENABLE_OPS}" == "1" ]] || { log "stage: ops (disabled)"; return 0; }
   log "stage: ops cluster + stack"
-  require_input HOTLAB_MGMT_IMAGE HOTLAB_ARGOCD_CHART_VERSION HOTLAB_GITEA_CHART_VERSION
-  [[ "${HOTLAB_MGMT_IMAGE}" =~ @sha256:[0-9a-f]{64}$ ]] || die "HOTLAB_MGMT_IMAGE must be digest-pinned (image@sha256:...)"
 
   install -d -m 0755 "${HOTLAB_STATE_DIR}/management-storage"
   export HOTLAB_MGMT_IMAGE HOTLAB_BIND_ADDRESS HOTLAB_STATE_DIR HOTLAB_K3D_CLUSTER
@@ -138,10 +140,13 @@ stage_ops() {
   helm repo add gitea-charts "${GITEA_REPO}" --force-update >/dev/null
   helm repo update >/dev/null
 
+  local sv="${HOTLAB_STATE_DIR}/secrets"
+  secret_values_file grafana-admin "${sv}/grafana.values.yaml" 'grafana:\n  adminPassword: "%s"\n'
+  secret_values_file gitea-admin "${sv}/gitea.values.yaml" 'gitea:\n  admin:\n    password: "%s"\n'
+
   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
     --version "${KPS_CHART_VERSION}" --namespace monitoring --create-namespace \
-    -f "${HERE}/ops/observability-values.yaml" \
-    --set-string "grafana.adminPassword=$(secret grafana-admin)" --wait --timeout 10m
+    -f "${HERE}/ops/observability-values.yaml" -f "${sv}/grafana.values.yaml" --wait --timeout 10m
 
   helm upgrade --install argocd argo/argo-cd \
     --version "${HOTLAB_ARGOCD_CHART_VERSION}" --namespace argocd --create-namespace \
@@ -149,8 +154,7 @@ stage_ops() {
 
   helm upgrade --install gitea gitea-charts/gitea \
     --version "${HOTLAB_GITEA_CHART_VERSION}" --namespace gitea --create-namespace \
-    -f "${HERE}/ops/gitea-values.yaml" \
-    --set-string "gitea.admin.password=$(secret gitea-admin)" --wait --timeout 10m
+    -f "${HERE}/ops/gitea-values.yaml" -f "${sv}/gitea.values.yaml" --wait --timeout 10m
 }
 
 stage_vlab() {
@@ -176,11 +180,13 @@ EOF
   systemctl restart systemd-journald@hotlab-vlab.service 2>/dev/null || true
   # enable = resume on every boot. start is a no-op if already running (idempotent).
   systemctl enable hotlab-vlab.service
+  # Async start is fine ONLY because verify.sh (run below) does bounded readiness waiting.
+  # If the unit is already running, changed drop-in values apply at the next restart; we
+  # deliberately do not restart a running lab (that would interrupt VMs).
   systemctl start --no-block hotlab-vlab.service
 }
 
 stage_packages
-stage_kvm
 stage_docker
 stage_tools
 stage_user
