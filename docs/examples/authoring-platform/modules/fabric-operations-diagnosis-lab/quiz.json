@@ -1,0 +1,59 @@
+{
+  "quiz_id": "quiz-1",
+  "module_slug": "fabric-operations-diagnosis-lab",
+  "passing_score": 75,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "multiple_choice",
+      "stem": "Server-03 in VPC prod-vpc cannot reach server-04 in the same VPC. Both VPCAttachments exist and all agents are converged (APPLIEDG == CURRENTG). What is your NEXT diagnostic step using systematic methodology?",
+      "options": [
+        {"id": "a", "text": "Restart the fabric controller"},
+        {"id": "b", "text": "Check Agent CRD to verify VLANs configured on both switch interfaces"},
+        {"id": "c", "text": "Escalate to support immediately"},
+        {"id": "d", "text": "Delete and recreate both VPCAttachments"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "stem": "VPCPeering between vpc-a and vpc-b exists. kubectl describe shows no errors. Server in vpc-a can ping its own gateway but CANNOT ping server in vpc-b. Which failure mode is most likely?",
+      "options": [
+        {"id": "a", "text": "BGP peering problem (sessions down)"},
+        {"id": "b", "text": "VPC isolation settings or permit list misconfiguration"},
+        {"id": "c", "text": "Interface errors (physical layer issue)"},
+        {"id": "d", "text": "Configuration drift (GitOps reconciliation failure)"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    },
+    {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "Using Decision Tree 3, you have verified: VPCAttachment references correct connection, subnet exists in VPC, and Agent CRD shows VLAN configured on interface. According to the decision tree, what should you check NEXT?",
+      "options": [
+        {"id": "a", "text": "Controller logs for reconciliation errors"},
+        {"id": "b", "text": "Grafana Interface Dashboard for errors"},
+        {"id": "c", "text": "nativeVLAN setting matches server expectation"},
+        {"id": "d", "text": "Escalate immediately (all checks passed)"}
+      ],
+      "correct_answer": "c",
+      "points": 1
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "stem": "Resources exist, agents are converged, and Agent CRD shows all interfaces up with VLANs configured correctly, but the server still cannot communicate. Why should you check Grafana BEFORE checking controller logs?",
+      "options": [
+        {"id": "a", "text": "Grafana is faster to load than kubectl logs"},
+        {"id": "b", "text": "Grafana provides visual trends and historical context (e.g., intermittent errors over time)"},
+        {"id": "c", "text": "Controller logs are unreliable"},
+        {"id": "d", "text": "Grafana is always the first troubleshooting step"}
+      ],
+      "correct_answer": "b",
+      "points": 1
+    }
+  ]
+}

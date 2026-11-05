@@ -1,0 +1,60 @@
+{
+  "interactives": [
+    {
+      "id": "replay-vlan-conflict",
+      "type": "replay",
+      "title": "Replay: the VPCAttachment that looks fine",
+      "caption": "A recorded kubectl session on a Hedgehog fabric. Step through it, then name the root cause.",
+      "src": "replays/vlan-conflict.json",
+      "recorded_at": "2026-11-05",
+      "source_label": "recorded",
+      "evidence_plane": "control-plane",
+      "check": {
+        "passing_score": 100,
+        "questions": [
+          {
+            "id": "rc",
+            "type": "multiple_choice",
+            "stem": "In the recording, which observation explains why the server has no connectivity although agents are converged?",
+            "options": [
+              { "id": "a", "text": "The controller never reconciled the VPCAttachment" },
+              { "id": "b", "text": "The switch has VLAN 1020 configured but the subnet spec says VLAN 1025" },
+              { "id": "c", "text": "The Connection object does not exist" },
+              { "id": "d", "text": "Grafana shows interface errors on leaf-04" }
+            ],
+            "correct_answer": "b",
+            "points": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "predict-missing-connection",
+      "type": "predict",
+      "title": "Predict: a different fault, same method",
+      "prompt": "A new VPCAttachment for server-12 has the same symptom. Using the layered workflow, decide which layer first shows the fault, before you reveal the evidence.",
+      "fixture": "fixtures/missing-connection.json",
+      "fixture_captured_at": "2026-11-05",
+      "source_label": "simulated",
+      "evidence_plane": "control-plane",
+      "check": {
+        "passing_score": 100,
+        "questions": [
+          {
+            "id": "layer",
+            "type": "multiple_choice",
+            "stem": "After you reveal the fixture: which object is the actual fault?",
+            "options": [
+              { "id": "a", "text": "The VLAN in the subnet spec" },
+              { "id": "b", "text": "The VPCAttachment references a Connection that does not exist" },
+              { "id": "c", "text": "An agent has not converged" },
+              { "id": "d", "text": "The server NIC is down" }
+            ],
+            "correct_answer": "b",
+            "points": 1
+          }
+        ]
+      }
+    }
+  ]
+}

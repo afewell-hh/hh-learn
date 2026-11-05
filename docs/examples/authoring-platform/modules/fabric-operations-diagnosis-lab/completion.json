@@ -1,0 +1,70 @@
+{
+  "completion_tasks": [
+    {
+      "task_slug": "quiz-1",
+      "task_type": "quiz",
+      "graded": true,
+      "required": true,
+      "label": "Module Assessment",
+      "passing_score": 75,
+      "max_attempts": null,
+      "quiz_ref": "quiz-1",
+      "kind": "assessment",
+      "credit": 4
+    },
+    {
+      "task_slug": "lab-main",
+      "task_type": "lab_attestation",
+      "graded": false,
+      "required": true,
+      "label": "Hands-On Lab",
+      "kind": "lab",
+      "credit": 6
+    },
+    {
+      "task_slug": "diagnose-replay",
+      "task_type": "interactive_check",
+      "graded": true,
+      "required": false,
+      "label": "Diagnose from the recorded session",
+      "interactive_ref": "replay-vlan-conflict",
+      "kind": "assessment",
+      "credit": 3
+    },
+    {
+      "task_slug": "transfer-unfamiliar",
+      "task_type": "interactive_check",
+      "graded": true,
+      "required": false,
+      "label": "Diagnose an unfamiliar fault",
+      "interactive_ref": "predict-missing-connection",
+      "kind": "transfer",
+      "credit": 4
+    }
+  ],
+  "awards_certificate": true,
+  "milestones": [
+    {
+      "id": "module-complete",
+      "label": "Module complete",
+      "criteria": "Passed the module assessment and attested the hands-on lab.",
+      "certificate": true,
+      "rule": { "tasks": ["quiz-1", "lab-main"] }
+    },
+    {
+      "id": "diagnosis-practiced",
+      "label": "Diagnosis practiced",
+      "criteria": "Reached a correct root cause from a recorded session or the hands-on lab, and passed the assessment or a transfer problem.",
+      "rule": {
+        "any": [
+          { "tasks": ["quiz-1", "lab-main"] },
+          { "tasks": ["diagnose-replay", "transfer-unfamiliar"] },
+          { "points": 8, "min_by_kind": { "transfer": 4 } }
+        ]
+      }
+    }
+  ],
+  "prerequisites": [
+    { "module": "fabric-operations-troubleshooting-framework", "milestone": "module-complete", "enforce": "advise" }
+  ]
+}

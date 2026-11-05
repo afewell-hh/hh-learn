@@ -1,0 +1,9 @@
+{
+  "_note": "ILLUSTRATIVE. Derived from the lab text for this design example, not captured from a real session. A shipped replay must be captured from a real run and carry its real recorded_at.",
+  "steps": [
+    { "cmd": "kubectl get agents", "out": "all agents: APPLIEDG == CURRENTG", "caption": "Control plane reports converged." },
+    { "cmd": "kubectl describe vpcattachment customer-app-vpc-server-07", "out": "Events: <none>", "caption": "No events is normal for fabric CRDs." },
+    { "cmd": "kubectl get agent leaf-04 -o yaml | grep -B2 -A2 vlan", "out": "leaf-04/E1/8: vlan 1020", "caption": "The switch is configured with VLAN 1020." },
+    { "cmd": "kubectl get vpc customer-app-vpc -o yaml | grep -A10 frontend:", "out": "vlan: 1025", "caption": "The subnet spec says VLAN 1025." }
+  ]
+}
