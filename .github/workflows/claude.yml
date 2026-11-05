@@ -1,22 +1,32 @@
 name: Claude Code
 
+# TRIGGER SURFACE IS DELIBERATELY NARROW.
+#
+# A gpt-6.1-sol review (task 27d9757c) raised a HIGH finding: a fork PR can carry
+# a malicious test script or package lifecycle hook, and a repository writer
+# commenting "@claude run the tests" would authorize the CREDENTIALED agent, which
+# then checks out the contributor's PR head. PR conversation comments arrive as
+# issue_comment in the BASE repo context, so GitHub's fork pull_request
+# restrictions do NOT protect that path.
+#
+# Mitigation: this workflow responds only to real ISSUES, never to pull request
+# conversations or reviews. Our dispatch model (#497) is ticket-driven, so this
+# costs nothing. pull_request_review_comment and pull_request_review triggers
+# were removed, and issue_comment is gated on !github.event.issue.pull_request.
 on:
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
   issues:
     types: [opened, assigned]
-  pull_request_review:
-    types: [submitted]
 
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issue_comment'
+        && !github.event.issue.pull_request
+        && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues'
+        && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
       # contents/pull-requests elevated to write so dispatched agents can create
@@ -48,11 +58,28 @@ jobs:
           # Tool allowlist. Dispatched agents were previously unable to read
           # sibling issues (`gh issue view` denied), fetch upstream source, or
           # clone public Hedgehog repos -- so they worked blind from the ticket
-          # body alone. The list below is deliberately COMPREHENSIVE rather than
-          # additive-only, because it is not documented whether --allowed-tools
-          # extends or replaces the default set; listing the core tools makes the
-          # behaviour correct either way.
+          # body alone (observed on #499/#500/#502/#503).
+          #
+          # Bash is scoped to explicit patterns rather than granted bare. Per the
+          # HIGH finding above, the decisive risk was arbitrary code execution in a
+          # credentialed job, so NO interpreter or build tool is allowed here:
+          # no npm, node, python, make, sh/bash, curl, chmod or docker. Anything
+          # that needs to build or run repo/contributor code must do so in a
+          # separate workflow WITHOUT write credentials, or locally.
+          #
+          # The list is comprehensive rather than additive because the action docs
+          # do not state whether --allowed-tools extends or replaces the default
+          # set; enumerating core tools makes it correct either way.
           claude_args: >-
             --allowed-tools
-            Read,Write,Edit,Glob,Grep,NotebookEdit,TodoWrite,WebFetch,WebSearch,Bash
-
+            Read,Write,Edit,Glob,Grep,NotebookEdit,TodoWrite,WebFetch,WebSearch,
+            Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh issue comment:*),
+            Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr list:*),Bash(gh pr create:*),
+            Bash(gh api:*),Bash(gh run view:*),Bash(gh run list:*),
+            Bash(git clone:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*),
+            Bash(git diff:*),Bash(git ls-tree:*),Bash(git rev-parse:*),Bash(git status:*),
+            Bash(git branch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),
+            Bash(git push:*),Bash(git describe:*),
+            Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(find:*),
+            Bash(sort:*),Bash(uniq:*),Bash(jq:*),Bash(diff:*),Bash(stat:*),
+            Bash(basename:*),Bash(dirname:*),Bash(realpath:*),Bash(mkdir:*)
