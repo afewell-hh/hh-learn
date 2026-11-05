@@ -1,27 +1,39 @@
 name: Claude Code
 
+# TRIGGER SURFACE IS DELIBERATELY NARROW.
+#
+# A gpt-6.1-sol review (task 27d9757c) raised a HIGH finding: a fork PR can carry
+# a malicious test script or package lifecycle hook, and a repository writer
+# commenting "@claude run the tests" would authorize the CREDENTIALED agent, which
+# then checks out the contributor's PR head. PR conversation comments arrive as
+# issue_comment in the BASE repo context, so GitHub's fork pull_request
+# restrictions do NOT protect that path.
+#
+# Mitigation: this workflow responds only to real ISSUES, never to pull request
+# conversations or reviews. Our dispatch model (#497) is ticket-driven, so this
+# costs nothing. pull_request_review_comment and pull_request_review triggers
+# were removed, and issue_comment is gated on !github.event.issue.pull_request.
 on:
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
   issues:
     types: [opened, assigned]
-  pull_request_review:
-    types: [submitted]
 
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issue_comment'
+        && !github.event.issue.pull_request
+        && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues'
+        && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      # contents/pull-requests elevated to write so dispatched agents can create
+      # a branch and open a PR, which several Hot Lab tickets (#497) require.
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -32,7 +44,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1 (pinned: reviewed revision)
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -43,8 +55,45 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
-
+          # Tool permissions.
+          #
+          # VERIFIED against the upstream action at c0949c50 (the revision @v1
+          # resolved to during review):
+          #  - claude_args is shell-tokenized via shell-quote, so each complete
+          #    rule MUST be individually quoted. An earlier revision of this file
+          #    passed an unquoted comma-separated list, which shredded every
+          #    multi-word rule such as Bash(gh issue view:*) into fragments
+          #    ("Bash(gh", "issue", "view:*)"). MEDIUM defect, found by
+          #    gpt-6.1-sol review task 515401c5.
+          #  - User tools MERGE with upstream defaults; they do not replace them.
+          #    So an allowlist can only ADD capability, never remove it.
+          #  - Tag-mode defaults are narrow: Glob, Grep, LS, Read, the github MCP
+          #    comment/CI tools, and git add/commit/push/rm. Notably absent are
+          #    Write, Edit, WebFetch and any Bash. That is why the first four
+          #    dispatches (#499/#500/#502/#503) could not read sibling issues or
+          #    fetch upstream source.
+          #
+          # Because an allowlist cannot subtract, --disallowed-tools carries the
+          # actual restriction. No interpreter or build tool is reachable: npm,
+          # node, python, make, sh/bash, curl/wget, chmod, docker are denied, as
+          # are find and xargs (both can execute via -exec / argument passing).
+          # Anything that must build or run repo content does so in a separate
+          # workflow WITHOUT write credentials, or locally.
+          claude_args: >-
+            --allowed-tools
+            "Write" "Edit" "WebFetch" "WebSearch" "TodoWrite"
+            "Bash(gh issue view:*)" "Bash(gh issue list:*)" "Bash(gh issue comment:*)"
+            "Bash(gh pr view:*)" "Bash(gh pr diff:*)" "Bash(gh pr list:*)"
+            "Bash(gh pr create:*)" "Bash(gh api:*)"
+            "Bash(gh run view:*)" "Bash(gh run list:*)"
+            "Bash(git clone:*)" "Bash(git fetch:*)" "Bash(git log:*)"
+            "Bash(git show:*)" "Bash(git diff:*)" "Bash(git ls-tree:*)"
+            "Bash(git rev-parse:*)" "Bash(git status:*)" "Bash(git branch:*)"
+            "Bash(git checkout:*)" "Bash(git describe:*)"
+            "Bash(ls:*)" "Bash(cat:*)" "Bash(head:*)" "Bash(tail:*)" "Bash(wc:*)"
+            "Bash(sort:*)" "Bash(uniq:*)" "Bash(jq:*)" "Bash(stat:*)" "Bash(mkdir:*)"
+            --disallowed-tools
+            "Bash(npm:*)" "Bash(npx:*)" "Bash(node:*)" "Bash(python:*)"
+            "Bash(python3:*)" "Bash(make:*)" "Bash(sh:*)" "Bash(bash:*)"
+            "Bash(zsh:*)" "Bash(eval:*)" "Bash(curl:*)" "Bash(wget:*)"
+            "Bash(chmod:*)" "Bash(docker:*)" "Bash(find:*)" "Bash(xargs:*)"
