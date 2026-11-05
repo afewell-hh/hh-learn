@@ -29,6 +29,7 @@
       "label": "Diagnose from the recorded session",
       "interactive_ref": "replay-vlan-conflict",
       "kind": "assessment",
+      "evidence": "checked",
       "credit": 3
     },
     {
@@ -39,7 +40,19 @@
       "label": "Diagnose an unfamiliar fault",
       "interactive_ref": "predict-missing-connection",
       "kind": "transfer",
+      "evidence": "checked",
       "credit": 4
+    },
+    {
+      "task_slug": "explore-fabric-objects",
+      "task_type": "interactive_check",
+      "graded": false,
+      "required": false,
+      "label": "Explore the fabric objects",
+      "interactive_ref": "explorer-fabric-objects",
+      "kind": "explore",
+      "evidence": "observed",
+      "credit": 1
     }
   ],
   "awards_certificate": true,
@@ -59,9 +72,16 @@
         "any": [
           { "tasks": ["quiz-1", "lab-main"] },
           { "tasks": ["diagnose-replay", "transfer-unfamiliar"] },
-          { "points": 8, "min_by_kind": { "transfer": 4 } }
+          { "points": 8, "kinds": ["lab", "assessment", "transfer"], "min_by_kind": { "transfer": 4 } }
         ]
       }
+    },
+    {
+      "id": "fabric-explored",
+      "label": "Fabric objects explored",
+      "criteria": "Opened the VPC, VPCAttachment and Connection objects in the explorer. Recorded in your browser; no answers were checked.",
+      "claimable": "entitlement",
+      "rule": { "tasks": ["explore-fabric-objects"] }
     }
   ],
   "prerequisites": [

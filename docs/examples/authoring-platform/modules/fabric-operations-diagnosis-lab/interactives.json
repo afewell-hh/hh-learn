@@ -1,6 +1,18 @@
 {
   "interactives": [
     {
+      "id": "explorer-fabric-objects",
+      "type": "explorer",
+      "title": "Explore: the three objects behind a server attachment",
+      "caption": "A simulated view, built from a fixture, of a VPC, a VPCAttachment and the Connection it references. Follow the references.",
+      "fixture": "fixtures/fabric-objects.json",
+      "fixture_captured_at": "2026-11-05",
+      "source_label": "simulated",
+      "evidence_plane": "control-plane",
+      "completes_on": "objects_visited",
+      "required_objects": ["VPC/customer-app-vpc", "VPCAttachment/customer-app-vpc-server-07", "Connection/server-07--unbundled--leaf-04"]
+    },
+    {
       "id": "replay-vlan-conflict",
       "type": "replay",
       "title": "Replay: the VPCAttachment that looks fine",

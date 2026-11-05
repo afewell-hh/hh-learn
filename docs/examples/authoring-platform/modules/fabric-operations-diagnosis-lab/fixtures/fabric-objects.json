@@ -1,0 +1,8 @@
+{
+  "_note": "ILLUSTRATIVE fixture for the design example. A shipped explorer fixture must be captured from a real fabric and say where.",
+  "objects": [
+    { "kind": "VPC", "name": "customer-app-vpc", "spec": { "subnets": { "frontend": { "vlan": 1025 } } }, "refs": ["VPCAttachment/customer-app-vpc-server-07"] },
+    { "kind": "VPCAttachment", "name": "customer-app-vpc-server-07", "spec": { "connection": "server-07--unbundled--leaf-04", "subnet": "customer-app-vpc/frontend" }, "refs": ["Connection/server-07--unbundled--leaf-04"] },
+    { "kind": "Connection", "name": "server-07--unbundled--leaf-04", "spec": {}, "refs": [] }
+  ]
+}

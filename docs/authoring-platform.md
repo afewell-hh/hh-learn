@@ -15,7 +15,9 @@
 4. **Backward compatibility is structural, not procedural:** none of the shipped code reads the new keys, and the reserved milestone `module-complete` is defined to be exactly today's completion rule (§5).
 5. A validator ships with the schema (§7) and checks references, credit arithmetic and honesty labels.
 6. **Look and feel is specified per primitive (§3.6)**, including where the current CMS templates would hold it back.
-7. **#521 gets an explicit interface (§4.6):** one vocabulary (task, kind, credit, milestone, badge id), an Observed vs Verified evidence tier, and five conditions a milestone must meet to be claimable by entitlement.
+7. **Credit has two independent axes (§4.1):** *kind* (what the learner did: explore, practice, lab, assessment, transfer) and *evidence* (how strongly we know: observed, attested, checked). An exploration badge is honest about being browser-observed and never borrows assessment vocabulary to qualify.
+8. **#521 gets an explicit interface (§4.6–§4.8):** one vocabulary, the minted-badge record as **the** contract (§4.7), and a decision on pre-account evaluation: v1 milestones must be fully evaluable within one page view (§4.8).
+9. **A first-class `compare` primitive (§3.7)** for the recurring "old way vs Hedgehog way" pattern, with derived counts, a no-straw-man rule set and stated equivalence.
 
 ---
 
@@ -57,7 +59,9 @@ Two parts, deliberately small:
     "recorded_at": "2026-11-05",
     "source_label": "recorded",          // mandatory honesty label
     "evidence_plane": "control-plane",   // control-plane | data-plane | none
-    "check": { "questions": [ /* same shape as quiz.json */ ] }   // optional; makes it creditable
+    // optional, and at most one of these two makes it creditable:
+    "check": { "questions": [ /* same shape as quiz.json */ ] },   // key-checked  -> "checked" evidence
+    "completes_on": "all_steps"                                     // browser-seen  -> "observed" evidence
 } ] }
 ```
 
@@ -71,15 +75,18 @@ Why a sidecar plus a marker rather than a rich fenced block: the sidecar follows
 | `replay` | C0 | **yes** | none | `src` (recorded step list), `recorded_at`, `caption` | Step-through of a recorded command/output sequence | step reached (UI state only) | zero | **Recorded `<date>`. Not live.** |
 | `explorer` | C1 (fixture form) | **yes** | none | `fixture` (JSON of objects), `fixture_captured_at`, `caption` | Browsable objects from a captured fixture | nothing | zero | **Simulated from a fixture captured `<date>`** |
 | `predict` | C0 | **yes** | none | `fixture`, `fixture_captured_at`, `prompt`, a `check` | Commit a prediction, then reveal the fixture | graded answer via `interactive_check` | zero | **Simulated from a fixture** |
+| `compare` | C0 | **yes** | none | `left`, `right` (each a captured text with provenance), `equivalence`, `caption`; optional `steps` | Two synchronised panes with derived counts (§3.7) | step reached (UI state only); optional finish event | zero | **Captured `<system> <version>`, `<date>`**, or **Illustrative** if either side is |
 | `shell` | C2 | no | session slot | `image`, `ttl_minutes` | Sandboxed shell | — | shared host | Control-plane vs data-plane per step |
-| `lab-server` | C3 | no | 1 pool server | `servers`, `fabric_write`, `max_minutes` | Leased server | — | 1 pool server | Both planes, labelled per step |
+| `lab-server` | C3 | no | 1 pool server | `servers` (each `{ "role": … }`, open set), `fabric_write`, `max_minutes` | Leased server | — | 1 pool server | Both planes, labelled per step |
 | `lab-pair` | C4 | no | 2 pool servers | as above | Leased pair | — | 2 pool servers | As C3 |
 
 C5 is documented in #502 as deferred and has no primitive. C6 (dedicated VLAB) is what `lab_attestation` already is: the learner runs it themselves and attests.
 
 **`explorer` is the C1 form that works today.** True C1 is a live read-only view of the shared fabric, which needs the #502 broker. A fixture-backed explorer teaches the same skill (reading objects, following references) with no infrastructure. It is labelled *simulated* and never *live*. When a live read path exists, the same primitive gains `source: "live"`; authors change one field, not their content **[design]**.
 
-**What the learner never gets credit for: viewing.** A `snapshot`, `replay` or `explorer` on its own earns nothing (§6). It only earns credit through a `check` whose answer key the server holds.
+**Endpoint roles are an open set.** `servers` entries name a `role` (`gpu-host`, `compute-host`, and the customer's *compute server that supports server-side agentic delivery*, provisionally `compute-agentic-host`). The validator accepts any kebab-case role and only warns on one outside the known list, so a new server role in #497/#500 needs no schema change. Whether vAIF can lease that role is #497's decision, not this document's.
+
+**What the learner never gets credit for: viewing.** A `snapshot`, `replay`, `explorer` or `compare` on its own earns nothing (§6). Credit comes only from one of two declared events (§4.1): a `check` whose answer key the server holds (**checked** evidence), or a `completes_on` finish event that is more than looking (**observed** evidence). `view`, `scroll`, `click`, `dwell` and `time` are rejected by name as finish events.
 
 ### 3.3 Honesty is data, not prose
 
@@ -91,7 +98,7 @@ An author following #502's decision rule stops at the first "yes": cached (C0), 
 
 ### 3.5 What must be built for these to render (not in this PR)
 
-A renderer for four types (a small JS component bundle plus a HubL include), a sync step carrying `interactives.json` to HubDB, and a grading path for `interactive_check`. See §9.
+A renderer for five types (a small JS component bundle plus a HubL include), a sync step carrying `interactives.json` to HubDB, and a grading path for `interactive_check`. See §9.
 
 ### 3.6 Look and feel (a requirement, not a preference)
 
@@ -110,6 +117,7 @@ The customer bar: a rich, modern, elegantly styled toolkit, *not* a clunky unive
 | `replay` | A terminal-style player: monospaced command/output on a dark surface with a slim step scrubber (previous / next, keys ←/→, step N of M). Output reveals line by line over a moment, with a "skip to end" control. Closer to a clean code-walkthrough than a video player. |
 | `explorer` | A two-pane object browser: a searchable list on the left, a detail view on the right with linked references you can follow, and a breadcrumb trail. It feels like the real fabric UI's read-only cousin, not a table dump. |
 | `predict` | A calm three-beat card: the question, a commit control ("Lock in my answer"), then a reveal that shows the fixture evidence with the relevant lines highlighted and a short explanation. The reveal is the reward; there is no confetti. |
+| `compare` | Two panes of equal weight under a slim count strip, scrolling in step. Each pane carries its own provenance pill; the strip shows derived counts (lines, devices, objects) with an "excerpt" flag where applicable. Differences are shown by emphasis, not red/green shaming, and the equivalence statement sits between the panes and the strip, never in a footnote. Below ~900 px the panes stack. Needs the wide-block layout (below). |
 | `shell`, `lab-server`, `lab-pair` | A full terminal pane with a step rail beside it, a persistent per-step plane indicator (control-plane / data-plane), and a quiet lease-time readout. Unavailable until #497, so this is a target, not a promise. |
 
 **The fidelity bar for lab-backed primitives.** The customer's reference is the Hollywood Stock Exchange: *so good you wouldn't know it's not real if you didn't know.* HSX is excellent because of the **thoroughness of its emulation**, not because it conceals anything; every player knows it is not real money. We adopt the same split: **maximum fidelity, unambiguous labelling.** Fidelity work (realistic prompts, realistic latency of output, realistic object relationships) is encouraged. The label rules in §3.3 do not loosen with fidelity; they tighten, because a convincing emulation is exactly where a reader could mistake simulation for live. A vAIF-backed primitive therefore shows "Hedgehog Virtual AI Factory (vAIF): a virtual environment" and, per step, the plane the evidence comes from; no GPU, RDMA or line-rate claim is made (#492).
@@ -127,24 +135,111 @@ The customer bar: a rich, modern, elegantly styled toolkit, *not* a clunky unive
 - Be honest about the limit: primitives can feel modern *inside their card* with the above, but the page around them (header, left-nav, typography of the prose) will still read as the current template until it adopts the same tokens. That page-level refresh is a separate piece of work and the customer should know the primitives alone do not deliver the whole feel.
 - The bar is checked by review of a rendered build, not by the validator. **I have not built or screenshotted any primitive**; the descriptions above are the acceptance target.
 
+### 3.7 The `compare` primitive: old way vs Hedgehog way
+
+**Why a primitive.** Curriculum feedback on #524: "show how someone would configure something the old way vs the Hedgehog way". The customer's generalisation is that SONiC configuration is categorically representative of manual NOS configuration whatever the NOS, so the pattern recurs across nearly every capability (add a tenant, segment workloads, attach a server, validate the result). Every author rebuilding it would drift, and the first inflated "old way" would damage the whole programme. It is the vehicle for a "SONiC the hard way / SONiC the easy way" campaign modelled on *Kubernetes the Hard Way*, which only works if the hard way is genuinely hard and complete.
+
+**Class C0, runs today.** Two captured text files, no lease, no backend.
+
+```jsonc
+{ "id": "tenant-old-vs-new", "type": "compare",
+  "caption": "Add a tenant: per-switch SONiC configuration vs one VPC object.",
+  "source_label": "captured",            // weakest side wins: "illustrative" if either side is
+  "evidence_plane": "control-plane",     // configuration is control-plane evidence, never data-plane
+  "left": {
+    "role": "old_way", "label": "SONiC, configured by hand",
+    "provenance": "captured",
+    "captured_from": { "system": "SONiC", "version": "<release>", "date": "<YYYY-MM-DD>" },
+    "src": "captures/tenant-sonic.txt",  // "# @device leaf-01" lines mark per-device sections
+    "devices": ["leaf-01", "leaf-02", "spine-01"],
+    "baseline": "Manual per-device CLI; no automation or templating",
+    "completeness": "complete",          // complete | excerpt (excerpt requires "omitted")
+    "representative_basis": "Reproduces the steps in the vendor's own VLAN/VRF/BGP configuration guide for this topology."
+  },
+  "right": {
+    "role": "hedgehog_way", "label": "Hedgehog, one VPC",
+    "provenance": "captured",
+    "captured_from": { "system": "Hedgehog Fabric", "version": "<release>", "date": "<YYYY-MM-DD>" },
+    "src": "captures/tenant-vpc.yaml", "devices": []
+  },
+  "equivalence": {
+    "status": "same",                    // same | differs
+    "outcome": "Two workloads in separate tenants, each reachable only within its tenant.",
+    "difference": null                   // required when status is "differs"
+  },
+  "steps": [ { "id": "s1", "title": "Create the tenant", "left": [1, 40], "right": [1, 12] } ],
+  "hard_way": false                      // true = part of a hard-way campaign; see rules below
+}
+```
+
+(The values in angle brackets are placeholders; **no captured SONiC or Hedgehog file exists in this repo**, so there is no shipped instance of this primitive yet, and I have not invented one.)
+
+**What is tracked.** Nothing by default. An author may add a `completes_on: "all_steps"` (`observed` evidence: the learner stepped through every synchronised step) or a `check` (a key-checked question such as "how many devices did the old way touch?" asked before the counts are revealed). Opening the panes earns nothing.
+
+**The no-straw-man rules, made mechanical.**
+
+1. **Counts are derived, never authored.** The renderer and validator count non-blank, non-comment lines from the source files and devices from the `# @device` markers. An authored `counts` key is an error (`COMPARE_COUNTS_AUTHORED`), so a number cannot be inflated by editing metadata. A device count that does not match the markers is an error.
+2. **Provenance on each side.** `captured` needs system, version and date. `illustrative` needs an `illustrative_reason`, and the pane is labelled **Illustrative**. The primitive's own label is the weaker of the two.
+3. **The old-way side states its fairness.** `baseline` (for example "manual per-device CLI, no automation": a reader who would automate it can see what is being compared), `completeness`, and a `representative_basis` of at least a sentence saying why this is how the task is genuinely done. An excerpt must say what was omitted and its counts are shown as "excerpt". A reviewer, not the validator, decides whether the basis is true; the validator ensures it is stated.
+4. **Equivalence is stated or the gap is disclosed.** `equivalence.outcome` says what both sides achieve; `status: "differs"` requires `difference`. The panes must not be presented as equal when they are not.
+5. **`hard_way: true` is the strictest case.** It requires a captured, complete old-way side; an excerpted or illustrative hard way is refused (`COMPARE_HARD_WAY`), because a hard-way campaign that omits the hard part is exactly the straw man.
+6. **What the counts do not say.** Fewer lines authored is not a claim about performance, correctness or operating cost. Where the right-hand side relies on a controller generating switch configuration, the primitive shows "authored" and "generated" counts separately so the learner sees what was done for them. No GPU, RDMA or line-rate claim is made (#492).
+
+**Validator coverage (not run).** Roles, provenance, `captured_from`, baseline, completeness, omitted, representative basis, equivalence and difference, `hard_way`, authored counts, device markers, step ranges inside the files, and the label-equals-weakest-side rule. Not covered: whether the old way is *actually* representative, and whether the two sides really are equivalent. Those need a human reviewer and, ideally, a captured outcome for each side.
+
 ---
 
 ## 4. Attainment model
 
-### 4.1 Typed credit
+### 4.1 Typed credit: two independent axes
+
+An earlier revision of this document let one field, `kind`, carry both *what the learner did* and *how strongly we know they did it*. That forced an honest exploration task to be labelled `assessment` or `transfer` just to qualify for a milestone, so an exploration badge's criteria implied assessment. They are separate questions and are now separate fields.
 
 Optional additions to a task in `completion.json`:
 
-| Field | Meaning | Default when absent |
-|---|---|---|
-| `kind` | `read` · `practice` · `lab` · `assessment` · `transfer` | `quiz`→`assessment`, `lab_attestation`→`lab`, `knowledge_check`→`practice` |
-| `credit` | positive number: the weight this task contributes when satisfied | `1` |
+| Field | Axis | Values | Default when absent |
+|---|---|---|---|
+| `kind` | **Activity**: what the learner did | `explore` · `practice` · `lab` · `assessment` · `transfer` | `quiz`→`assessment`, `lab_attestation`→`lab`, `knowledge_check`→`practice`; `interactive_check`→`explore` if observed, `practice` if checked |
+| `evidence` | **Evidence strength**: how we know | `observed` · `attested` · `checked` | `quiz`→`checked`, `lab_attestation`→`attested`, `knowledge_check`→`checked`; `interactive_check` is derived from its interactive (below) |
+| `credit` | Weight when satisfied | positive number | `1` |
 
-A task earns its **full credit when it reaches its success status** (`passed`, `attested`, or `checked` for `interactive_check`). There is no partial credit in v1 **[design]**.
+The `read` kind of the first revision is removed: reading has no finish event that is more than viewing, and viewing earns nothing (§6).
+
+**Evidence tiers**, weakest to strongest, defined by *who could be wrong or lying*:
+
+| Tier | Meaning | Who holds the truth | Needs an account | Example |
+|---|---|---|---|---|
+| `observed` | The browser saw a finish event (every step of a walkthrough reached; every required object opened). No answer key exists and nothing is sent. | Nobody; it is self-reported by the page | **No** | `explorer` with `objects_visited` |
+| `attested` | The learner states they did it; the server records the statement | The learner | Yes | `lab_attestation` (as shipped) |
+| `checked` | The server grades an answer against a key it holds | The server | Yes | `quiz` (as shipped), a `predict` check |
+
+For `interactive_check` the tier is derived from the interactive, not chosen: an interactive with a `check` yields `checked`; one with a `completes_on` yields `observed`; both or neither is an error. Authors may write `evidence` for clarity; a disagreement with the derivation is an error.
+
+**Which (kind, evidence) pairs are permitted, and why.**
+
+| kind ↓ / evidence → | observed | attested | checked |
+|---|---|---|---|
+| `explore` | **yes** (the exploration badge case) | no: nothing to attest | yes (a question about what was seen) |
+| `practice` | yes | yes | yes |
+| `lab` | **no**: a browser cannot observe a lab being done | yes (shipped behaviour) | yes (future automated lab check) |
+| `assessment` | **no** | **no** | **yes**: the word claims something was graded |
+| `transfer` | **no** | **no** | **yes**: a correctness claim on an unfamiliar problem needs a key |
+
+Each refusal is a statement about what the word promises. `assessment` and `transfer` imply someone checked an answer, so they cannot rest on a page's own say-so; `lab` implies work on an environment, which a browser cannot see. Everything else is allowed, including the combination the first revision effectively forbade: an `explore` task on `observed` evidence. The validator reports a refused pair as `KIND_EVIDENCE`.
+
+A task earns its **full credit when it reaches its success status** (`passed`, `attested`, or `checked` for `interactive_check`; for observed tasks, the finish event). There is no partial credit in v1 **[design]**.
 
 **What happens to `quiz.json` points.** They keep their current job: question points roll up to a score, the score is compared with `passing_score`, and the task passes or fails. The task's `credit` is a separate, author-chosen weight. This resolves "points aggregate to nothing": question points aggregate to a *task*, and task credit aggregates to a *milestone*. Two levels, each with one meaning, rather than mixing them **[design]**.
 
-Why `read` exists but may not carry a milestone alone: it records exposure and is allowed, but the validator rejects any milestone satisfiable using only `read`/`practice` credit (§7).
+**Milestone basis (replaces the first revision's "no exposure-only milestone" rule).** Instead of forbidding weak-evidence milestones, the validator computes each milestone's **basis**: the weakest evidence tier among the inclusion-minimal sets of tasks that satisfy its rule (`milestoneBasis`). A milestone with any observed-only path has basis `observed`, however strong its other paths are. Then:
+
+| Basis | Allowed? | Constraints |
+|---|---|---|
+| `observed` | **Yes: an exploration milestone** | Label and criteria may not use grading vocabulary (`passed`, `assessed`, `graded`, `certified`, `mastered`, `demonstrated`, `attested`, `verified`, `proficient`, `score`, `exam`…): error `BASIS_VOCABULARY`. May not set `certificate: true` (`BASIS_CERTIFICATE`). May be `claimable` (§4.6) |
+| `attested` | Yes | May carry a certificate (the shipped lab path) |
+| `checked` | Yes | May carry a certificate |
+
+The learner-facing surfaces show the basis as a plain phrase, and the minted badge records it (§4.7): *"Basis: observed in your browser"*, *"Basis: self-attested lab"*, *"Basis: answers checked"*. The badge is honest about what it rests on and does not need to borrow any other word to exist. A mixed `any` rule is judged by its weakest path, so adding an observed shortcut to an assessed milestone changes it to an observed milestone and the vocabulary rule then bites; a `points` branch that should not admit observed credit says so with `kinds` (the worked example does this).
 
 ### 4.2 Milestones with multiple paths
 
@@ -212,29 +307,81 @@ My understanding is that Open Badges 3.0 is a 1EdTech specification built on W3C
 
 **What makes two credits the same.** Same `(module_slug, task_slug)`. Satisfaction is monotonic and idempotent: earning it twice, on two devices, or once anonymously and once signed in, is one credit. A badge is likewise unique per `(user, badge_id)`, which is exactly the conditional write #521 §3.2 specifies. Re-weighting a task changes derived milestone status for future evaluation; **a minted badge is frozen** with the `module_version` it was minted under, so later edits never revoke or rewrite it.
 
-**Evidence tier: the one new idea.** Each credit-bearing task carries a grading tier:
+**Evidence, not kind, decides who can be evaluated without an account.** The tiers are defined in §4.1. `observed` credit needs no account and no key; `attested` and `checked` credit need a signed-in learner. That is a property of the *evidence*, so a pre-account milestone is selected by evidence and says nothing about kind: an exploration milestone is a perfectly ordinary `explore`/`observed` task, with no assessment word attached.
 
-| Tier | `grading` | Who decides | Where it can exist |
-|---|---|---|---|
-| Verified | `server` (default; all shipped task types) | Server holds the key and records the status | Signed-in learners only |
-| Observed | `client` (new, `interactive_check` only) | The browser observes completion of a walkthrough, replay or explorer; no key is held and nothing is sent | Anyone, including anonymous visitors |
-
-Tier is a property of the task, so it is visible in the catalog and enforceable by the validator.
-
-**What a milestone needs so it can be evaluated before an account exists.** Five conditions; a milestone that meets them may be marked `"claimable": "entitlement"`:
-1. **A stable public definition**: `id`, `label`, `criteria` and rule, served without authentication (the chip and offer render from it, and the server validates against it). Answer keys are never part of it.
-2. **A rule over Observed tasks only**, and only the `{"tasks": [...]}` form. The browser then evaluates it with the same pure function the server uses (`evalRule`), shipped as a few lines of JS. A `points` rule is rejected for claimable milestones in v1 (see "Why the cookie carries the result" below).
-3. **No dependency of verified attainment on it**: not `module-complete`, not `certificate: true`, and no Verified task in the rule. A forged cookie can then mint, at worst, an exploration badge. This is the rule #521 §6 asks for.
+**What a milestone needs so it can be evaluated before an account exists.** Six conditions; a milestone that meets them may be marked `"claimable": "entitlement"`:
+1. **A stable public definition**: `id`, `label`, `criteria`, rule and basis, served without authentication (the chip and offer render from it, and the server validates against it). Answer keys are never part of it.
+2. **A rule over `observed` tasks only**, and only the `{"tasks": [...]}` form. The browser then evaluates it with the same pure function the server uses (`evalRule`), shipped as a few lines of JS. A `points` rule is rejected for claimable milestones in v1 (§4.8).
+3. **No dependency of verified attainment on it**: not `module-complete`, not `certificate: true`, and no `attested` or `checked` task in the rule. A forged cookie can then mint, at worst, an exploration badge. This is the rule #521 §6 asks for.
 4. **Re-readable at claim time**: the server re-reads the catalog entry at redemption, so a milestone that was retired or is no longer claimable is rejected, not minted.
-5. **A defined unlock event**: the finish of the Observed task. For a stateless variant, a check endpoint may return pass/fail and store nothing (the option #521 §6 leaves open); I recommend the browser-only form first because it adds no server surface.
+5. **A defined unlock event**: the finish of the observed task (`completes_on`). For a stateless variant, a check endpoint may return pass/fail and store nothing (the option #521 §6 leaves open); I recommend the browser-only form first because it adds no server surface.
+6. **Evaluable within one page view**: every task is an `interactive_check` whose interactive is placed on this module's page, and the milestone has at most three tasks. This is the decision in §4.8.
 
-**Why the cookie carries the result, not the credits.** The customer's correction removes anonymous credit storage. The cookie holds `[badge_id, unlocked_day]` pairs (#521 §2.1), the *outcome* of a browser-side evaluation, not the task credits underneath it. So no anonymous credit is "transferred" into the learner record, because none ever existed server-side. The mint creates a `BADGE#` item with provenance `source: "claim-entitlement"`, `unlocked_day`, `minted_at`, and `module_version`.
+**Why the cookie carries the result, not the credits.** The customer's correction removes anonymous credit storage. The cookie holds `[badge_id, unlocked_day]` pairs (#521 §2.1), the *outcome* of a browser-side evaluation, not the task credits underneath it. So no anonymous credit is "transferred" into the learner record, because none ever existed server-side. The mint creates a `BADGE#` item whose full shape is the contract in §4.7.
 
-**Where this departs from the addendum's literal wording, plainly.** The addendum asked that an anonymous click-through credit and a graded-lab credit be "the same kind of object" so that "claim what you earned" resolves into the learner record. With the corrected #521 model they are the same *vocabulary* (task, kind, credit, milestone, evaluator, badge id) but **they do not become the same *record***: the anonymous side ends at an entitlement for a badge, and the account side starts from a minted badge with weaker provenance than a verified one. I think that is correct, because it keeps Observed evidence from ever counting toward a certificate or a `points` milestone. If the customer wants more than that, there is a larger option:
+**Where this departs from the addendum's literal wording, plainly.** The addendum asked that an anonymous click-through credit and a graded-lab credit be "the same kind of object" so that "claim what you earned" resolves into the learner record. With the corrected #521 model they are the same *vocabulary* (task, kind, evidence, credit, milestone, evaluator, badge id) but **they do not become the same *record***: the anonymous side ends at an entitlement for a badge, and the account side starts from a minted badge whose `basis` and `source` say it rests on observed evidence. I think that is correct, because it keeps `observed` evidence from ever counting toward a certificate or a `points` milestone. If the customer wants more than that, there is a larger option:
 
-- **Option B (not recommended for v1): carry the credits.** The cookie stores satisfied `(module_slug, task_slug)` pairs (Observed tier). Redemption seeds them as `observed` credits on the account and the server re-evaluates the milestone, which would allow `points` rules and survive a milestone being edited between unlock and claim. Costs: a larger cookie, a server evaluation path for unverified credits, a rule that Observed credits may never satisfy a Verified milestone, and it reintroduces what the customer's correction removed (a trusted-by-assertion anonymous credit record). **Decision for review (§11 question 8).**
+- **Option B, now named as the next increment (§4.8): carry the task evidence.** It is how a milestone spanning page views or visits becomes evaluable, and §4.8 specifies its minimum shape so #521 can leave room for it.
 
-**What the validator now enforces for this** (`scripts/validate-authoring.mjs`, written but not run, see §2): a milestone with `claimable` must not be `module-complete`, must not set `certificate: true`, must use the `{"tasks": [...]}` form, and may reference only `interactive_check` tasks that are not required. `grading: "client"` is accepted only on `interactive_check`. Not yet checked: that the referenced interactive actually has a client-observable finish event, which needs the renderer's event contract.
+**What the validator enforces for this** (`scripts/validate-authoring.mjs`, written but not run, see §2): a milestone with `claimable` must not be `module-complete`, must not set `certificate: true`, must use the `{"tasks": [...]}` form, may reference only `interactive_check` tasks that are not required, have `observed` evidence, and whose interactives are placed in this module's README (warning above three tasks). Every `observed` task must have a `completes_on` that is a real finish for its primitive; `view`, `scroll`, `click`, `dwell` and `time` are rejected by name (`VIEW_NOT_CREDIT`). Not checked: that the renderer actually fires the finish event; that needs the renderer's event contract.
+
+### 4.7 The minted-badge record: **the** contract for #521
+
+This section is normative. #521 should adopt it verbatim; where `docs/claim-entitlement-funnel.md` §3.2–§3.3 differs (it records only source, unlock day and mint time, and does not name the identifier), this section governs. The principle: **the record must identify the definition that was actually awarded, not just when it was awarded.**
+
+**Identifier.** `badge_id = "<module_slug>.<milestone_id>"`, for example `fabric-operations-diagnosis-lab.fabric-explored`. Lowercase kebab-case segments joined by one dot (neither segment can contain a dot). It is the cookie value, the catalog key and the sort-key suffix. It is **immutable once published**: changing what a milestone means requires a new `milestone_id`; renaming or retiring never reuses an id.
+
+**Item.** One item per `(user, badge_id)` in the existing certificates table, written with `attribute_not_exists(PK) AND attribute_not_exists(SK)` so it is write-once (the pattern `certificate-issuance.ts` already uses):
+
+| Attribute | Value | Notes |
+|---|---|---|
+| `PK` | `USER#<userId>` | As certificates |
+| `SK` | `BADGE#<badge_id>` | New prefix; no existing item is touched |
+| `badge_id` | `<module_slug>.<milestone_id>` | Redundant with `SK`, kept for queries |
+| `module_slug`, `milestone_id` | strings | |
+| `module_version` | the module's frontmatter `version` **at mint time** | Frozen. Later edits never rewrite it |
+| `definition_hash` | `sha256` of the canonical JSON of `{label, criteria, rule, basis, kinds_and_credits_of_referenced_tasks}` as served in the public catalog at mint time | Identifies the definition actually awarded |
+| `definition` | snapshot `{label, criteria, basis}` | So the learner record renders without the catalog, and can never silently change |
+| `basis` | `observed` · `attested` · `checked` | The milestone's basis (§4.1). A conservative statement: the learner may have taken a stronger path |
+| `source` | `task-evidence` · `claim-entitlement` | How it was minted: evaluated from the learner's recorded tasks, or redeemed from an entitlement |
+| `unlocked_day` | days since epoch | Present only when `source` is `claim-entitlement` |
+| `minted_at` | ISO-8601 UTC | |
+
+**Rules.**
+1. **Only `observed`-basis milestones may be minted from `claim-entitlement`.** `attested` and `checked` badges are minted only from `source: "task-evidence"`, by the server, from recorded task statuses.
+2. **No entitlement is ever evidence for a certificate, `module-complete` or a `points` rule.** A `BADGE#` item is never read by `computeModuleStatus` or `issueCertificateIfComplete`.
+3. **Redemption awards the definition current at redemption.** The cookie carries only the id and day, so the server cannot know which definition was on the page when the visitor unlocked it. It mints the current published definition, records its `module_version` and `definition_hash`, and rejects the id if the milestone is retired or no longer claimable. Because meaning changes require a new id (above), "current definition of this id" is the same meaning the visitor saw, up to wording; the hash makes any wording change visible.
+4. **A minted badge is frozen.** Neither a content edit nor a re-weighting rewrites or revokes it. A genuinely wrong badge is withdrawn by an explicit, logged operation that sets a `revoked_at`, not by recomputation.
+5. **Satisfaction is monotonic and idempotent.** A repeat mint for the same `(user, badge_id)` is a no-op (`already_held`).
+
+Credits themselves keep the identity from the start of this section: `(module_slug, task_slug)`, with `kind` and `credit` read from the task definition, never from the stored record.
+
+### 4.8 Decision: how a milestone is evaluated before an account exists
+
+The reviewer's formulation: *minting a badge need not import credits into the account, but evaluating its eligibility still needs the inputs.* #521 stores only badge outcomes. So a milestone that needs two experiences cannot be evaluated across a page change or a return visit unless something carries the first experience forward. Two options:
+
+- **(a)** v1 claimable milestones must be fully evaluable within a single page view.
+- **(b)** Define a temporary task-evidence record that #521 persists.
+
+**Decision: (a) for v1, with (b) specified below as the named next increment.** Reasons:
+
+1. **It needs nothing from #521 that #521 does not already have.** The cookie stays `[badge_id, unlocked_day]`. The evaluator's inputs are in-page state that exists for the life of the view: the `completes_on` events the page itself observed. Nothing new is stored, sent or consented to. (b) would change the cookie's meaning from *outcomes* to *outcomes plus partial progress*, which the privacy analysis in #521 §2.5 and §7 did not cover and which re-introduces, in miniature, the anonymous credit record the customer's correction removed.
+2. **It matches how the evidence is gathered.** An observed finish is a statement by the page about the page. There is no server-side check that could ever detect a forged "step 1 done last week", so persisting partial observed progress would add storage and consent surface for evidence that is no stronger for having been stored.
+3. **It constrains authors in a useful direction.** A milestone that can be completed in one sitting, on one page, with at most three tasks is exactly the shape of a "try this and take a badge" experience. Longer arcs are what account-held courses, `attested` and `checked` evidence, and signed-in `task-evidence` badges are for.
+4. **Its cost is honest and small.** A visitor who completes one of two tasks and reloads restarts that milestone. The unlock for any milestone already completed is unaffected, because that outcome is already in the cookie. The UI should say "finish both on this page" rather than imply progress is saved. The validator enforces the shape: all tasks `interactive_check`, `observed`, not required, interactives placed on this page, and warns above three tasks.
+
+**What (a) means concretely.** The evaluator is the same pure `evalRule`. Its input is a set of `task_slug` values satisfied *in this page view*. When the rule becomes true the page fires the unlock event once, #521 writes `[badge_id, today]`, and the in-page set is discarded with the view.
+
+**(b), the next increment: the minimum #521 would have to persist.** Specified now so the cookie format can leave room (an additive `v2`; `v1` readers ignore it):
+
+| Needed | Shape | Why it is the minimum |
+|---|---|---|
+| What identifies a satisfied task | `[module_slug, task_slug]` | The same identity as a credit (§4.7). Nothing else identifies it |
+| When | `unlocked_day` per pair | Needed for the same fixed 30-day expiry as an entitlement |
+| What the evaluator reads | the set of pairs for one module, plus the milestone rule from the public catalog | `evalRule` needs only which tasks are satisfied; kind and credit come from the catalog, as always |
+| What it may never contain | answers, timings, device data, visitor identifiers | As #521 §2.1 |
+
+Under (b), a milestone that is a `{"tasks": […]}` rule over observed tasks can span visits. A `points` rule over observed tasks would also become evaluable in the browser, because `kind` and `credit` come from the catalog. Two rules would be added: observed pairs may only ever mint `basis: "observed"` badges, and they are never imported into `task_statuses`. I do not recommend (b) until a real exploration milestone needs more than one page view; at that point it is a cookie-format change in #521, and no change to the model in this document.
 
 **Not designed here:** the cookie format, prompting rules, TTL, consent and the redeem endpoint. They are #521's.
 
@@ -265,7 +412,7 @@ Per #489 it is optional, and the goal is understanding and usefulness, not click
 | **Progress toward a milestone**, e.g. "7 of 8 points; finish the transfer problem or the lab" | It shows the learner which evidence is missing. It is a read of §4.2. |
 | **Credit visibility**: what each task contributes and what kind it is | Makes the model legible, so learners choose paths knowingly |
 | **Path choice display**: "two ways to reach this" | Directly exposes multi-path milestones |
-| **Milestone badges** (Open Badges-shaped, §4.5) | Awarded only for evidence-bearing milestones the validator has proven are not exposure-only |
+| **Milestone badges** (Open Badges-shaped, §4.5) | Every badge states its basis (observed, attested or checked). An observed-basis badge is allowed but cannot use grading vocabulary, and no badge is awarded for viewing (§4.1) |
 | **Opt-out**: hide gamified surfaces per learner | Gamification is optional by #489 |
 
 ### Rejected
@@ -279,7 +426,7 @@ Per #489 it is optional, and the goal is understanding and usefulness, not click
 | **Speed bonuses and timers** | Penalise careful diagnosis, the skill the content teaches |
 | **Lives / hearts** | Artificial scarcity with no pedagogical basis for technical troubleshooting |
 | **Randomised or loot-style rewards** | Variable-ratio reinforcement rewards compulsion, not competence |
-| **Viewing a replay/snapshot earning credit** | Exposure is not understanding. Interactives earn only through a server-graded `check`. |
+| **Viewing a replay/snapshot earning credit** | Exposure is not understanding. An interactive earns only through a key-checked `check` or a declared finish event (`completes_on`) that is more than looking; the evidence tier is recorded and shown. |
 | **XP that converts across unrelated modules** | Hides which evidence was actually produced; a number that means nothing in particular |
 
 ---
@@ -304,8 +451,8 @@ Per #489 it is optional, and the goal is understanding and usefulness, not click
 |---|---|
 | **Legacy** (all 20 modules today) | README frontmatter required keys and slug = directory; `task_type` in the closed enum (**G4**); unique kebab-case `task_slug`; boolean `required`/`graded`/`awards_certificate`; `knowledge_check` not required; quiz task has `quiz.json`, `quiz_ref` = `quiz_id`, task `passing_score` = quiz `passing_score`; question ids unique, `correct_answer` is an option id, positive `points`; unknown top-level keys |
 | **Reference integrity** | marker ↔ `interactives.json` agree both ways; `interactive_ref` targets exist and have a `check`; asset paths exist; milestone rules reference real tasks; prerequisite module and milestone exist |
-| **Credit arithmetic** | each milestone is satisfiable with everything earned; each `any` branch is individually reachable; milestone not satisfiable by `read`/`practice` alone; `module-complete` pinned (§5); orphan credits (non-required, unreferenced) warned |
-| **Honesty** | `source_label` and `evidence_plane` present and consistent with the type; `live` rejected where no backend exists; data-plane claims need data-plane evidence; GPU/RDMA/line-rate need `disclosure_ack`; unavailable classes rejected without a flag |
+| **Credit arithmetic** | each milestone is satisfiable with everything earned; each `any` branch is individually reachable; each (kind, evidence) pair is permitted (§4.1); each milestone's basis is computed, observed-basis milestones may not use grading vocabulary or carry a certificate; claimable milestones meet the six conditions (§4.6); `module-complete` pinned (§5); orphan credits (non-required, unreferenced) warned |
+| **Honesty** | `source_label` and `evidence_plane` present and consistent with the type; `live` rejected where no backend exists; data-plane claims need data-plane evidence; GPU/RDMA/line-rate need `disclosure_ack`; unavailable classes rejected without a flag. `compare`: label equals the weaker side's provenance, counts derived not authored, old-way baseline/completeness/representativeness stated, equivalence stated or gap disclosed, `hard_way` requires captured and complete. Finish events: `view`/`scroll`/`click`/`dwell` rejected |
 
 ### 7.3 Where the enum must also change
 
@@ -331,9 +478,9 @@ node scripts/validate-authoring.mjs --modules-dir docs/examples/authoring-platfo
 
 **What the author changes**
 
-1. **README:** add two headings and two marker lines (see the example's `README.md`). Bump `version` to `v1.1.0`.
-2. **`interactives.json` (new):** a `replay` and a `predict`, each with a one-question `check`.
-3. **`completion.json`:** add `kind`/`credit` to the two existing tasks (optional; defaults would apply), add two **non-required** `interactive_check` tasks, add two milestones and one advisory prerequisite.
+1. **README:** add three headings and three marker lines (see the example's `README.md`). Bump `version` to `v1.1.0`.
+2. **`interactives.json` (new):** an `explorer` that finishes on `objects_visited` (no check), a `replay` and a `predict`, each of the latter with a one-question `check`.
+3. **`completion.json`:** add `kind`/`credit` to the two existing tasks (optional; defaults would apply), add three **non-required** `interactive_check` tasks (one `explore`/`observed`, two `checked`), add three milestones and one advisory prerequisite.
 4. **Assets:** `replays/vlan-conflict.json` and `fixtures/missing-connection.json`. Their contents in this example are *illustrative*, derived from the lab text rather than captured, and say so in a `_note` field. A shipped replay must be captured from a real session.
 
 **What the learner experiences**
@@ -343,8 +490,13 @@ node scripts/validate-authoring.mjs --modules-dir docs/examples/authoring-platfo
 | Has a vAIF | Quiz + lab (exactly as today) | `module-complete` → **certificate unchanged**; also `diagnosis-practiced` |
 | No lab available | Replay check + transfer problem | `diagnosis-practiced` (**no certificate**); progress shows "lab or quiz still needed for the certificate" |
 | Anyone | Only watches the replay | Nothing; viewing is not credited |
+| Anyone, no account | Opens the three objects in the explorer on the page | An entitlement to claim `fabric-explored` (basis: **observed**). No certificate, no `diagnosis-practiced`, nothing that implies it was graded |
 
-**Credit arithmetic of the example:** quiz 4 (`assessment`) + lab 6 (`lab`) + replay check 3 (`assessment`) + transfer 4 (`transfer`) = 17 total. `diagnosis-practiced` can be reached by quiz+lab, by replay+transfer, or by any 8 points including at least 4 of `transfer` credit. Each branch is checked for reachability by the validator, and a branch of only `read`/`practice` credit would be rejected.
+**Credit arithmetic of the example:** quiz 4 (`assessment`/`checked`) + lab 6 (`lab`/`attested`) + replay check 3 (`assessment`/`checked`) + transfer 4 (`transfer`/`checked`) + explore 1 (`explore`/`observed`) = 18 total. `diagnosis-practiced` can be reached by quiz+lab, by replay+transfer, or by 8 points drawn from `lab`/`assessment`/`transfer` credit including at least 4 of `transfer`. Its basis is therefore `attested` (the weakest minimal path is lab + transfer or quiz + lab).
+
+**Why the `kinds` filter on that third branch is there.** It states intent: observed `explore` credit does not count toward this milestone. With today's weights it changes nothing (the explore task's single point is never the deciding point). But if someone later re-weighted `explore-fabric-objects` to `credit: 4` and removed the filter, `explore-fabric-objects + transfer-unfamiliar` (4+4, with 4 of `transfer`) would satisfy the branch on browser-observed evidence for half of it. The weakest minimal path would then include an `observed` task, the milestone's basis would drop to `observed`, and the validator would reject the words "passed" and "assessment" in its criteria (`BASIS_VOCABULARY`). I traced that case by hand; the validator is unrun, so treat it as the intended behaviour, not a verified one.
+
+**The exploration badge.** `fabric-explored` is `claimable: "entitlement"`: one task, `explore`/`observed`, interactive placed on the page, not required, no certificate. Its criteria say what the learner did ("Opened the VPC, VPCAttachment and Connection objects… no answers were checked") and avoid grading words. It borrows no assessment vocabulary and needs no `assessment` or `transfer` label to exist.
 
 **Compatibility check for this module:** `module-complete` equals `{"tasks":["quiz-1","lab-main"]}`, which is today's rule; both new tasks are `required: false`; existing certificates are untouched (§5).
 
@@ -362,14 +514,15 @@ node scripts/validate-authoring.mjs --modules-dir docs/examples/authoring-platfo
 | `interactives.json` sync | New | Strip answer keys from the client payload |
 | Progress UI (progress to milestone, credit visibility) | New | Reads derived milestone state |
 | `interactive.css` tokens, `.hh-ix` scoped containers, wide-block layout option in `module-page.html` | New | §3.6; the page-level template refresh is separate |
-| Public badge catalog (`id`, `label`, `criteria`, `claimable`) and `grading: client` | New, small | The interface #521 consumes (§4.6); redeem endpoint is #521's |
+| Public badge catalog (`id`, `label`, `criteria`, `basis`, `claimable`, `definition_hash`) and `evidence` on tasks | New, small | The interface #521 consumes (§4.6–§4.8); redeem endpoint is #521's |
+| `compare` renderer and its derived counts | New | §3.7. Needs captured SONiC and Hedgehog source files, which do not exist in the repo yet |
 | Milestone badges | New | `BADGE#` items in the existing certificates table |
 | Open Badges issuance | New, deferred | §4.5 |
 | Variant pools for transfer checks | New, deferred | §4.3 |
 | `shell`, `lab-server`, `lab-pair` | Blocked on #497 and the #502 broker | Schema reserved; validator rejects until available |
 | Validator | **Done in this PR** | Read-only |
 
-**Suggested order, each step useful on its own** **[design]**: (1) run and fix the validator against live content, then gate sync on it; (2) lift the enum into `src/shared/` and share it with the Lambdas; (3) milestone evaluator plus progress UI over *existing* tasks, which gives live modules typed credit with zero content change; (4) the four zero-infrastructure renderers and `interactive_check`; (5) badges. Steps 1–3 deliver value before any interactive renderer exists.
+**Suggested order, each step useful on its own** **[design]**: (1) run and fix the validator against live content, then gate sync on it; (2) lift the enum into `src/shared/` and share it with the Lambdas; (3) milestone evaluator plus progress UI over *existing* tasks, which gives live modules typed credit with zero content change; (4) the five zero-infrastructure renderers and `interactive_check`; (5) badges. Steps 1–3 deliver value before any interactive renderer exists.
 
 ---
 
@@ -390,6 +543,9 @@ What I cut to stay small: partial credit, expressions in rules, hard gating, per
 5. **Transfer integrity:** are transfer checks without variant pools acceptable for a first release?
 6. **Open Badges:** is portability wanted now, or is the stable-id groundwork enough?
 7. **`interactive_check` answer storage:** new HubDB column versus folding into `quiz_schema_json`.
-8. **#521 interface (§4.6):** the recommended v1 is that the cookie carries the *evaluated outcome* (badge id) and Observed credits never become learner-record credits. Does the customer need the larger Option B (carry and seed credits)?
-9. **Observed tier:** is a browser-observed finish an acceptable unlock event for exploration badges, given that it is self-reported?
-10. **Look and feel (§3.6):** is a scoped stylesheet plus a wide-block layout option acceptable now, with the page-level template refresh as separate work?
+8. **Pre-account evaluation (§4.8): decided, not open.** v1 claimable milestones are evaluable within one page view; the task-evidence shape for (b) is specified for the next increment. Please object if the customer already has a multi-visit exploration milestone in mind, since that pulls (b) forward.
+9. **Observed evidence:** is a browser-observed finish an acceptable unlock event for exploration badges, given that it is self-reported? The model labels it as such (`basis: observed`) rather than hiding it.
+10. **Minted-record contract (§4.7):** confirm `<module_slug>.<milestone_id>`, the frozen `module_version` and `definition_hash`, and "redemption awards the current definition". #521 should adopt §4.7 verbatim.
+11. **Vocabulary rule:** the list of words an observed-basis milestone may not use (`ASSESSMENT_VOCAB` in the validator) is a judgement. Is it the right list?
+12. **`compare` (§3.7):** is "derived, never authored" counting acceptable, and who reviews the `representative_basis` of an old-way side? The validator can only check that it is stated. The captured SONiC and Hedgehog sources must be supplied by someone with a real topology.
+13. **Look and feel (§3.6):** is a scoped stylesheet plus a wide-block layout option acceptable now, with the page-level template refresh as separate work?

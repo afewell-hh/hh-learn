@@ -34,17 +34,52 @@ export const LEGACY_TASK_TYPES = ['quiz', 'lab_attestation', 'knowledge_check'];
 export const NEW_TASK_TYPES = ['interactive_check'];
 export const TASK_TYPES = [...LEGACY_TASK_TYPES, ...NEW_TASK_TYPES];
 
-export const CREDIT_KINDS = ['read', 'practice', 'lab', 'assessment', 'transfer'];
-/** Kinds that are evidence of understanding rather than exposure. */
-export const EVIDENCE_KINDS = ['lab', 'assessment', 'transfer'];
+/**
+ * Two independent axes (docs/authoring-platform.md section 4.1):
+ *   KIND     = what the learner did            (explore | practice | lab | assessment | transfer)
+ *   EVIDENCE = how strongly we know they did it (observed | attested | checked)
+ * A task carries one value on each. Neither is derived from the other;
+ * KIND_EVIDENCE says which pairs are legal.
+ */
+export const CREDIT_KINDS = ['explore', 'practice', 'lab', 'assessment', 'transfer'];
+/** Weakest to strongest. observed: the browser saw it, nothing sent. attested: the learner said so, the server recorded it. checked: the server graded it against a key it holds. */
+export const EVIDENCE_TIERS = ['observed', 'attested', 'checked'];
+export const EVIDENCE_RANK = { observed: 0, attested: 1, checked: 2 };
 
-/** Legacy task_type -> default credit kind. */
+/** Which evidence tiers each kind may carry. A pair not listed is refused. */
+export const KIND_EVIDENCE = {
+  explore: ['observed', 'checked'],
+  practice: ['observed', 'attested', 'checked'],
+  lab: ['attested', 'checked'],      // a browser cannot observe a lab being done
+  assessment: ['checked'],           // "assessment" claims something was graded
+  transfer: ['checked'],             // a correctness claim on an unfamiliar problem needs a key
+};
+
+/** Legacy task_type -> default kind and evidence. interactive_check is resolved from its interactive. */
 export const DEFAULT_KIND = {
   quiz: 'assessment',
   lab_attestation: 'lab',
   knowledge_check: 'practice',
-  interactive_check: 'assessment',
 };
+export const DEFAULT_EVIDENCE = {
+  quiz: 'checked',
+  lab_attestation: 'attested',
+  knowledge_check: 'checked',
+};
+
+/** Finish events that may earn Observed credit, by primitive. Viewing, scrolling and dwell are deliberately absent. */
+export const COMPLETES_ON = {
+  replay: ['all_steps'],
+  compare: ['all_steps'],
+  explorer: ['objects_visited'],
+};
+const VIEW_EVENTS = ['view', 'scroll', 'dwell', 'time', 'click', 'open'];
+
+/** Words an observed-basis milestone may not use: they claim grading or certification browser-observed evidence cannot support. */
+export const ASSESSMENT_VOCAB = /\b(certif\w*|pass(?:ed|es)?|assess\w*|proficien\w*|master\w*|competen\w*|verified|graded|scor(?:e|ed|es|ing)|exam\w*|demonstrat\w*|qualif\w*|attest\w*)\b/i;
+
+/** Open registry of leasable endpoint roles (lab-server / lab-pair). Not an enum: new roles must not need a schema change. */
+export const KNOWN_ENDPOINT_ROLES = ['gpu-host', 'compute-host', 'compute-agentic-host'];
 
 /**
  * Interactive primitive catalogue. `klass` is the #502 exercise class,
@@ -56,13 +91,14 @@ export const INTERACTIVE_TYPES = {
   replay: { klass: 'C0', available: true, label_field: 'recorded_at', needs: ['src', 'recorded_at', 'caption'] },
   explorer: { klass: 'C1', available: true, label_field: 'fixture_captured_at', needs: ['fixture', 'fixture_captured_at', 'caption'] },
   predict: { klass: 'C0', available: true, label_field: 'fixture_captured_at', needs: ['fixture', 'fixture_captured_at', 'prompt'] },
+  compare: { klass: 'C0', available: true, label_field: 'captured_at', needs: ['left', 'right', 'equivalence', 'caption'] },
   shell: { klass: 'C2', available: false, needs: ['image', 'ttl_minutes'] },
   'lab-server': { klass: 'C3', available: false, needs: ['servers', 'fabric_write', 'max_minutes'] },
   'lab-pair': { klass: 'C4', available: false, needs: ['servers', 'fabric_write', 'max_minutes'] },
 };
 
 /** Evidence-source labels the UI renders. `live` is only valid for classes that have a broker. */
-export const SOURCE_LABELS = ['recorded', 'cached', 'simulated', 'live'];
+export const SOURCE_LABELS = ['recorded', 'cached', 'simulated', 'captured', 'illustrative', 'live'];
 export const EVIDENCE_PLANES = ['control-plane', 'data-plane', 'none'];
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -96,6 +132,32 @@ export function evalRule(rule, tasks) {
   if (Array.isArray(rule.any)) return rule.any.some((r) => evalRule(r, tasks));
   if (Array.isArray(rule.all)) return rule.all.every((r) => evalRule(r, tasks));
   return false;
+}
+
+/**
+ * The evidence tier a milestone can honestly claim: the weakest tier among the
+ * inclusion-minimal sets of tasks that satisfy the rule. A milestone reachable
+ * by an observed-only path is an observed-basis milestone, however strong its
+ * other paths are. `tasks` is Map slug -> {kind, credit, evidence}.
+ * Returns null if undeterminable (a task has no resolved evidence, or > 16 tasks).
+ */
+export function milestoneBasis(rule, tasks) {
+  const slugs = [...tasks.keys()];
+  if (slugs.length > 16 || slugs.some((s) => !tasks.get(s).evidence || !tasks.get(s).kind)) return null;
+  const satisfying = [];
+  for (let mask = 1; mask < 1 << slugs.length; mask++) {
+    const earned = Object.fromEntries(slugs.map((s, i) => [s, { ...tasks.get(s), earned: Boolean(mask & (1 << i)) }]));
+    if (evalRule(rule, earned)) satisfying.push(mask);
+  }
+  if (satisfying.length === 0) return null;
+  const minimal = satisfying.filter((m) => !satisfying.some((o) => o !== m && (o & m) === o));
+  let weakest = Infinity;
+  for (const m of minimal) {
+    for (let i = 0; i < slugs.length; i++) {
+      if (m & (1 << i)) weakest = Math.min(weakest, EVIDENCE_RANK[tasks.get(slugs[i]).evidence]);
+    }
+  }
+  return EVIDENCE_TIERS[weakest];
 }
 
 /** Collect every task slug a rule mentions by name. */
@@ -242,21 +304,30 @@ export async function validateModule(dir, opts = {}) {
           err('KIND_UNKNOWN', `${where}: kind "${kind}" is not one of ${CREDIT_KINDS.join(', ')}`);
           kind = undefined;
         }
-        kind = kind ?? DEFAULT_KIND[t.task_type] ?? 'practice';
+        // interactive_check kind/evidence are resolved after interactives.json is read.
+        kind = kind ?? DEFAULT_KIND[t.task_type];
         let credit = t.credit;
         if (credit !== undefined && !(typeof credit === 'number' && credit > 0)) {
           err('CREDIT_VALUE', `${where}: credit must be a positive number`);
           credit = undefined;
         }
-        if (t.grading !== undefined) {
-          if (!['server', 'client'].includes(t.grading)) err('GRADING_VALUE', `${where}: grading must be "server" or "client"`);
-          else if (t.grading === 'client' && t.task_type !== 'interactive_check') err('GRADING_CLIENT_TYPE', `${where}: grading "client" (Observed tier) is only allowed on interactive_check`);
+        if (t.grading !== undefined) err('GRADING_RENAMED', `${where}: "grading" was replaced by "evidence" (observed | attested | checked); see docs/authoring-platform.md section 4.1`);
+        let evidence = t.evidence;
+        if (evidence !== undefined && !EVIDENCE_TIERS.includes(evidence)) {
+          err('EVIDENCE_UNKNOWN', `${where}: evidence "${evidence}" is not one of ${EVIDENCE_TIERS.join(', ')}`);
+          evidence = undefined;
         }
-        if (t.task_type === 'interactive_check') {
+        if (t.task_type !== 'interactive_check') {
+          const implied = DEFAULT_EVIDENCE[t.task_type];
+          if (evidence !== undefined && implied && evidence !== implied) {
+            err('EVIDENCE_TYPE', `${where}: ${t.task_type} is always "${implied}" evidence; "${evidence}" is only available on interactive_check`);
+          }
+          evidence = implied;
+        } else {
           if (!t.interactive_ref) err('INTERACTIVE_REF_MISSING', `${where}: interactive_check requires interactive_ref`);
           if (t.required === true) warn('NEW_TASK_REQUIRED', `${where}: a required interactive_check changes who is "complete"; for modules already live keep it required:false`);
         }
-        tasks.set(t.task_slug, { kind, credit: credit ?? 1, type: t.task_type, required: t.required === true, raw: t });
+        tasks.set(t.task_slug, { kind, credit: credit ?? 1, evidence, type: t.task_type, required: t.required === true, raw: t });
       }
       if (completion.awards_certificate === true && ![...tasks.values()].some((t) => t.required)) {
         warn('CERT_NO_REQUIRED', 'awards_certificate is true but no task is required — completion is vacuous');
@@ -305,6 +376,11 @@ export async function validateModule(dir, opts = {}) {
           if (it.type === 'replay' && it.source_label !== 'recorded') err('HONESTY_MISMATCH', `${where}: replay must be labelled "recorded"`);
           if (it.type === 'snapshot' && it.source_label !== 'cached') err('HONESTY_MISMATCH', `${where}: snapshot must be labelled "cached"`);
           if ((it.type === 'explorer' || it.type === 'predict') && it.source_label !== 'simulated') err('HONESTY_MISMATCH', `${where}: ${it.type} runs on a fixture and must be labelled "simulated"`);
+          if (it.type === 'compare') {
+            const bothCaptured = it.left?.provenance === 'captured' && it.right?.provenance === 'captured';
+            const want = bothCaptured ? 'captured' : 'illustrative';
+            if (it.source_label !== want) err('HONESTY_MISMATCH', `${where}: compare is labelled by its weakest side; with sides ${it.left?.provenance}/${it.right?.provenance} the label must be "${want}"`);
+          }
         }
         if (!EVIDENCE_PLANES.includes(it.evidence_plane)) {
           err('EVIDENCE_PLANE', `${where}: evidence_plane must be one of ${EVIDENCE_PLANES.join(', ')} (control-plane evidence is not data-plane evidence)`);
@@ -324,19 +400,48 @@ export async function validateModule(dir, opts = {}) {
         if (it.check) {
           validateQuestions(it.check, `interactive "${it.id}".check`, err, warn, { requireModule: false });
         }
+        // Finish event for Observed credit. Exactly one way to earn: a key-checked `check`, or an observed `completes_on`.
+        if (it.completes_on !== undefined) {
+          if (it.check) err('INTERACTIVE_BOTH', `${where}: declare either "check" (key-checked) or "completes_on" (browser-observed), not both; use two interactives or two tasks`);
+          if (VIEW_EVENTS.includes(it.completes_on)) {
+            err('VIEW_NOT_CREDIT', `${where}: completes_on "${it.completes_on}" is exposure, not a finish. Viewing, scrolling, clicking and dwell time never earn credit`);
+          } else if (!(COMPLETES_ON[it.type] || []).includes(it.completes_on)) {
+            err('COMPLETES_ON', `${where}: ${it.type} has no observable finish "${it.completes_on}" (allowed: ${(COMPLETES_ON[it.type] || ['none']).join(', ')})`);
+          }
+          if (it.completes_on === 'objects_visited' && !(Array.isArray(it.required_objects) && it.required_objects.length > 0)) {
+            err('REQUIRED_OBJECTS', `${where}: objects_visited needs a non-empty "required_objects" list, so "finished" is checkable`);
+          }
+        }
+        if (it.type === 'compare') await validateCompare(it, where, dir, err, warn);
+        if (Array.isArray(it.servers)) {
+          for (const s of it.servers) {
+            if (!s || typeof s.role !== 'string' || !SLUG_RE.test(s.role)) err('ENDPOINT_ROLE', `${where}: each server needs a kebab-case "role"`);
+            else if (!KNOWN_ENDPOINT_ROLES.includes(s.role)) warn('ENDPOINT_ROLE_UNKNOWN', `${where}: endpoint role "${s.role}" is not in the known registry (${KNOWN_ENDPOINT_ROLES.join(', ')}); roles are an open set, but #497/#500 must model it before it can lease`);
+          }
+        }
       }
     }
-    for (const t of tasks.values()) {
-      if (t.type === 'interactive_check') {
-        const ref = t.raw.interactive_ref;
-        const target = declared.get(ref);
-        if (ref && !target) err('INTERACTIVE_REF', `task "${t.raw.task_slug}": interactive_ref "${ref}" not declared in interactives.json`);
-        else if (target && !target.check) err('CHECK_MISSING', `task "${t.raw.task_slug}": interactive "${ref}" has no "check" (no server-held answer key to grade)`);
+  }
+  // Resolve kind/evidence for interactive_check from the interactive it points at, then check the pair.
+  for (const [slug, t] of tasks) {
+    if (t.type === 'interactive_check') {
+      const ref = t.raw.interactive_ref;
+      const target = declared.get(ref);
+      if (!interactives) {
+        err('INTERACTIVES_FILE_MISSING', `task "${slug}": interactive_check but no interactives.json`);
+      } else if (ref && !target) {
+        err('INTERACTIVE_REF', `task "${slug}": interactive_ref "${ref}" not declared in interactives.json`);
+      } else if (target) {
+        const derived = target.check ? 'checked' : target.completes_on ? 'observed' : undefined;
+        if (!derived) err('INTERACTIVE_NO_FINISH', `task "${slug}": interactive "${ref}" has neither a "check" (key-checked) nor a "completes_on" (browser-observed), so there is nothing to earn credit from`);
+        if (t.evidence !== undefined && derived && t.evidence !== derived) err('EVIDENCE_MISMATCH', `task "${slug}": evidence "${t.evidence}" but interactive "${ref}" provides "${derived}" evidence`);
+        t.evidence = t.evidence ?? derived;
       }
+      t.kind = t.kind ?? (t.evidence === 'observed' ? 'explore' : t.evidence === 'checked' ? 'practice' : undefined);
     }
-  } else {
-    for (const t of tasks.values()) {
-      if (t.type === 'interactive_check') err('INTERACTIVES_FILE_MISSING', `task "${t.raw.task_slug}": interactive_check but no interactives.json`);
+    // The independent-axes rule: which (kind, evidence) pairs exist.
+    if (t.kind && t.evidence && !KIND_EVIDENCE[t.kind].includes(t.evidence)) {
+      err('KIND_EVIDENCE', `task "${slug}": kind "${t.kind}" cannot rest on "${t.evidence}" evidence (allowed: ${KIND_EVIDENCE[t.kind].join(', ')}). Declare the activity honestly instead of borrowing a stronger kind`);
     }
   }
   // Marker <-> declaration agreement, both directions.
@@ -389,25 +494,36 @@ export async function validateModule(dir, opts = {}) {
             if (!evalRule(branch, everything)) err('BRANCH_UNREACHABLE', `${where}: any[${i}] can never be satisfied`);
           });
         }
-        // Exposure-only rule: satisfiable without lab/assessment/transfer evidence.
-        const noEvidence = Object.fromEntries([...tasks.entries()].map(([s, t]) => [s, { ...t, earned: !EVIDENCE_KINDS.includes(t.kind) }]));
-        if (evalRule(m.rule, noEvidence)) {
-          err('MILESTONE_EXPOSURE_ONLY', `${where}: reachable using only read/practice credit; every path must include lab, assessment or transfer credit`);
+        // Basis: the weakest evidence tier any minimal path to this milestone rests on.
+        // An observed-basis milestone is legal ("exploration"), but it may not use the
+        // vocabulary of grading, and may not carry a certificate.
+        const basis = milestoneBasis(m.rule, tasks);
+        if (basis === 'observed') {
+          const hit = `${m.label ?? ''} ${m.criteria ?? ''}`.match(ASSESSMENT_VOCAB);
+          if (hit) err('BASIS_VOCABULARY', `${where}: reachable on browser-observed evidence alone, so its label/criteria may not claim grading or certification (found "${hit[0]}"). Say what the learner did, e.g. "finished the walkthrough"`);
+          if (m.certificate === true) err('BASIS_CERTIFICATE', `${where}: a certificate cannot rest on browser-observed evidence`);
+        }
+        if (basis === null && !issues.some((i) => i.level === 'error' && /^(TASK_|KIND_|EVIDENCE_|INTERACTIVE_)/.test(i.code))) {
+          warn('BASIS_UNKNOWN', `${where}: evidence basis could not be determined (more than 16 tasks, or unresolved task evidence)`);
         }
         if (m.claimable !== undefined) {
-          // Claim-entitlement (#521): exploration-tier only; must not touch verified attainment.
+          // Claim-entitlement (#521). Single-page-view evaluation (design section 4.8, option a).
           if (m.claimable !== 'entitlement') err('CLAIMABLE_VALUE', `${where}: claimable must be "entitlement"`);
           if (m.id === 'module-complete') err('CLAIMABLE_MODULE_COMPLETE', `${where}: module-complete can never be claimable by entitlement`);
           if (m.certificate === true) err('CLAIMABLE_CERTIFICATE', `${where}: a certificate milestone cannot be claimable by entitlement`);
           if (!Array.isArray(m.rule?.tasks) || Object.keys(m.rule).length !== 1) {
-            err('CLAIMABLE_RULE_FORM', `${where}: a claimable milestone must use the {"tasks": [...]} rule form so the browser can evaluate it`);
+            err('CLAIMABLE_RULE_FORM', `${where}: a claimable milestone must use the {"tasks": [...]} rule form so the browser can evaluate it from in-page state`);
           } else {
+            if (m.rule.tasks.length > 3) warn('CLAIMABLE_MANY_TASKS', `${where}: ${m.rule.tasks.length} tasks must all finish in one page view; a reload restarts evaluation. Keep it to 3 or fewer`);
             for (const ref of m.rule.tasks) {
               const rt = tasks.get(ref);
               if (!rt) continue;
-              if (rt.type !== 'interactive_check') err('CLAIMABLE_TASK_TYPE', `${where}: task "${ref}" is ${rt.type}; claimable milestones may reference only interactive_check tasks (Verified tasks need an account)`);
+              if (rt.type !== 'interactive_check') err('CLAIMABLE_TASK_TYPE', `${where}: task "${ref}" is ${rt.type}; a claimable milestone may use only interactive_check tasks (the others need an account)`);
               if (rt.required) err('CLAIMABLE_TASK_REQUIRED', `${where}: task "${ref}" is required; completion must not depend on an exploration badge`);
-              if (rt.raw.grading !== 'client') err('CLAIMABLE_TASK_GRADING', `${where}: task "${ref}" must set grading:"client" (Observed tier) to be evaluable before an account exists`);
+              if (rt.evidence !== 'observed') err('CLAIMABLE_TASK_EVIDENCE', `${where}: task "${ref}" has evidence "${rt.evidence}"; before an account exists only "observed" tasks can be evaluated (no answer key reaches the browser)`);
+              if (rt.type === 'interactive_check' && !markerIds.includes(rt.raw.interactive_ref)) {
+                err('CLAIMABLE_NOT_ON_PAGE', `${where}: task "${ref}" uses interactive "${rt.raw.interactive_ref}", which is not placed in this module's README; every input must be on the page being viewed`);
+              }
             }
           }
         }
@@ -456,6 +572,79 @@ export async function validateModule(dir, opts = {}) {
   }
 
   return issues;
+}
+
+/**
+ * `compare` primitive ("old way vs Hedgehog way"). Rules exist to make a straw man
+ * impossible to ship quietly: counts are derived from the captured files rather than
+ * authored, the old-way side must state its baseline and completeness, and equivalence
+ * of outcome must be stated or the difference disclosed.
+ */
+async function validateCompare(it, where, dir, err, warn) {
+  if ('counts' in it) err('COMPARE_COUNTS_AUTHORED', `${where}: counts are derived from the source files by the renderer and validator; remove the authored "counts" so they cannot be inflated`);
+  const sides = {};
+  for (const name of ['left', 'right']) {
+    const side = it[name];
+    const w = `${where} ${name}`;
+    if (!side || typeof side !== 'object') continue; // INTERACTIVE_FIELD already reported
+    if (!['old_way', 'hedgehog_way', 'other'].includes(side.role)) err('COMPARE_ROLE', `${w}: role must be old_way | hedgehog_way | other`);
+    if (typeof side.label !== 'string' || !side.label.trim()) err('COMPARE_LABEL', `${w}: label required`);
+    if (!['captured', 'illustrative'].includes(side.provenance)) err('COMPARE_PROVENANCE', `${w}: provenance must be "captured" or "illustrative"`);
+    if (side.provenance === 'captured') {
+      const cf = side.captured_from || {};
+      for (const k of ['system', 'version', 'date']) if (!cf[k]) err('COMPARE_CAPTURED_FROM', `${w}: captured_from.${k} required (which system and version, on what date)`);
+    }
+    if (side.provenance === 'illustrative' && !side.illustrative_reason) err('COMPARE_ILLUSTRATIVE', `${w}: an illustrative side needs "illustrative_reason" (why it is not captured)`);
+    if (typeof side.src !== 'string') { err('COMPARE_SRC', `${w}: src (path to the captured text) required`); continue; }
+    sides[name] = side;
+  }
+  const old = [it.left, it.right].find((s) => s?.role === 'old_way');
+  if (old) {
+    if (!old.baseline || String(old.baseline).length < 10) err('COMPARE_BASELINE', `${where}: the old-way side must state its baseline (for example "manual per-device CLI, no automation") so a reader can judge fairness`);
+    if (!['complete', 'excerpt'].includes(old.completeness)) err('COMPARE_COMPLETENESS', `${where}: old-way completeness must be "complete" or "excerpt"`);
+    if (old.completeness === 'excerpt' && !old.omitted) err('COMPARE_OMITTED', `${where}: an excerpted old-way side must say what was omitted; counts will be shown as "excerpt"`);
+    if (!old.representative_basis || String(old.representative_basis).length < 40) err('COMPARE_REPRESENTATIVE', `${where}: old-way side needs "representative_basis" (at least a sentence): why this is how the task is genuinely done, not a straw man`);
+    if (old.provenance === 'illustrative') warn('COMPARE_OLD_ILLUSTRATIVE', `${where}: the old-way side is illustrative; prefer a captured configuration. The pane will be labelled illustrative`);
+  }
+  if (it.hard_way === true) {
+    if (!old || old.provenance !== 'captured' || old.completeness !== 'complete') {
+      err('COMPARE_HARD_WAY', `${where}: hard_way:true requires a captured, complete old-way side. A hard-way campaign that is excerpted or illustrative is a straw man`);
+    }
+  }
+  const eq = it.equivalence;
+  if (eq && typeof eq === 'object') {
+    if (!['same', 'differs'].includes(eq.status)) err('COMPARE_EQUIVALENCE', `${where}: equivalence.status must be "same" or "differs"`);
+    if (!eq.outcome) err('COMPARE_EQUIVALENCE', `${where}: equivalence.outcome (what both sides achieve) required`);
+    if (eq.status === 'differs' && !eq.difference) err('COMPARE_DIFFERENCE', `${where}: equivalence.status "differs" requires "difference" (the disclosed gap in outcome)`);
+  } else if (eq !== undefined) {
+    err('COMPARE_EQUIVALENCE', `${where}: equivalence must be an object { status, outcome, difference? }`);
+  }
+  // Derive counts and cross-check devices and step ranges.
+  return await deriveCompareCounts(it, sides, where, dir, err);
+}
+
+/** Counts shown to the learner come from here, never from the author. Device markers are `# @device <name>` lines. */
+async function deriveCompareCounts(it, sides, where, dir, err) {
+  for (const [name, side] of Object.entries(sides)) {
+    let text;
+    try { text = await readFile(join(dir, side.src), 'utf-8'); } catch { err('ASSET_MISSING', `${where} ${name}: src "${side.src}" not found`); continue; }
+    const lines = text.split('\n');
+    const devices = new Set(lines.map((l) => l.match(/^\s*(?:#|!)\s*@device\s+(\S+)/)?.[1]).filter(Boolean));
+    const content = lines.filter((l) => l.trim() && !/^\s*(#|!|\/\/)/.test(l));
+    side.derived = { lines: content.length, devices: devices.size };
+    if (Array.isArray(side.devices) && side.devices.length > 1 && devices.size === 0) {
+      err('COMPARE_DEVICES', `${where} ${name}: declares ${side.devices.length} devices but the source has no "# @device <name>" markers, so the device count cannot be verified`);
+    }
+    if (Array.isArray(side.devices) && devices.size > 0 && (side.devices.length !== devices.size || side.devices.some((d) => !devices.has(d)))) {
+      err('COMPARE_DEVICES', `${where} ${name}: devices ${JSON.stringify(side.devices)} do not match the markers in ${side.src} (${[...devices].join(', ')})`);
+    }
+    for (const [i, step] of (it.steps || []).entries()) {
+      const r = step?.[name === 'left' ? 'left' : 'right'];
+      if (!Array.isArray(r) || r.length !== 2 || !(r[0] >= 1 && r[1] >= r[0] && r[1] <= lines.length)) {
+        err('COMPARE_STEP_RANGE', `${where} steps[${i}].${name}: expected [firstLine, lastLine] within ${side.src} (${lines.length} lines)`);
+      }
+    }
+  }
 }
 
 function validateQuestions(quiz, where, err, warn, { moduleSlug, requireModule = true } = {}) {

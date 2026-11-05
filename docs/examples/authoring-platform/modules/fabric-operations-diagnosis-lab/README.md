@@ -19,7 +19,7 @@ order: 402
 ---
 
 > EXCERPT for the design example (docs/authoring-platform.md, section 8). The real module body is
-> unchanged apart from the two marker lines below; `version` goes from v1.0.0 to v1.1.0.
+> unchanged apart from the three marker lines below; `version` goes from v1.0.0 to v1.1.0.
 
 ## Scenario
 
@@ -28,6 +28,10 @@ order: 402
 ## Hands-On Lab
 
 (unchanged: Tasks 1 to 4, ending in "Document Root Cause")
+
+## Look around first: the objects involved
+
+<!-- hh:interactive id="explorer-fabric-objects" -->
 
 ## No lab available? Work the same fault from a recording
 
