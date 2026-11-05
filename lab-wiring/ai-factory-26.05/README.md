@@ -164,7 +164,11 @@ Here each backend leaf is in exactly one plane, so planes meet only at the serve
 (S `vpc_types.go:771-773`). `VLANNamespace` has **no** fabric field (S `vlannamespace_types.go:30-33`: only
 `ranges`). So "each Fabric owns its own VLAN namespace" is true here only by convention — distinct names,
 disjoint ranges, and `switch.spec.vlanNamespaces`. Uniqueness of VLANs is checked per VLANNamespace name across
-VPCs (S `vpc_types.go:898-908`), so separate names are what prevent cross-Fabric VLAN clashes.
+VPCs (S `vpc_types.go:898-908`). Two distinct mechanisms are doing separate jobs here and should not be
+conflated: separate namespace **names** scope the uniqueness check, while the **disjoint ranges** chosen in
+`01-namespaces.yaml` are what prevent numeric overlap between Fabrics. Neither alone is sufficient — a shared
+name with disjoint ranges would still collide on validation scope, and distinct names with overlapping ranges
+would permit the same VLAN id in two Fabrics.
 
 Global (not per-Fabric) address spaces come from the Fabricator config, not the wiring (S `pkg/fab/defaults.go:14-37`):
 management 172.30.0.0/21, protocol 172.30.8.0/22, VTEP 172.30.12.0/22, fabric `172.30.128.0/17`. VTEP/protocol
@@ -241,7 +245,7 @@ ports used, E1/1–48 available), or a second gateway on another Fabric/domain.
 | Connection fabric == switch fabric (`connection_types.go:896`) | 20 frontend / 64 backend / 18 storage server connections each land on a same-Fabric switch; 0 mismatches ✔ |
 | Each GPU server NIC budget < 64 | 13 ✔ |
 | ASN rules (`fabric_types.go:184-244`) | hand-checked: ranges disjoint; spine/gw ASNs outside all ranges and unique; arithmetic of asdot offsets rechecked ✔ |
-| Spine in exactly one domain (`switch_types.go:559`) | all 3 spines list 1 domain ✔ |
+| Spine in exactly one domain (`switch_types.go:559`) | all 4 spines list 1 domain ✔ |
 | Switch MACs unique | `ff:01`..`ff:0c` ✔ |
 | Field names vs Go json tags | read by eye against `SwitchSpec`, `ConnectionSpec`, `FabricSpec`, `GatewaySpec`; **not decoded** |
 | Switch profile name | `profile: vs` = `meta.SwitchProfileVS` (S `fabric` repo `api/meta/types.go:62`, main branch, not vendored copy) |
@@ -274,8 +278,10 @@ limits; whether `Default()` rewrites names; the actual hydration allocator; webh
    `0000:06:00.0/enp6s0` are copied from the generator helpers (S `vlab.go:44-58`, `RootPortPCI/Kernel`); a
    Gateway in `frontend` only; behaviour of gateway peering between Fabrics.
 7. **U7 — Cross-Fabric reachability.** Fabrics "are not cabled to each other and reach each other by peering as
-   externals" (`fabric_types.go` type comment). This wiring defines **no** cross-fabric path; the GPU server is
-   the only junction. Whether that's sufficient for the test scenario is a design question for #501.
+   externals" (`fabric_types.go` type comment). This wiring defines **no** cross-fabric path. The multi-homed
+   endpoints are the 8 GPU servers (frontend + backend + storage) **and `svc-01`** (frontend + storage) — not the
+   GPU servers alone. Note that being attached to two Fabrics does not by itself establish any forwarding path
+   between them. Whether that's sufficient for the test scenario is a design question for #501.
 8. **U8 — Connection naming.** Names like `gpu-01--enp2s10--be-b-leaf-02` (≤29 chars) are accepted.
 9. **U9 — NIC model / stability.** 13 NICs per GPU VM keep stable `enp2sN` names; switch to `virtio-net-pci`
    (S `vlabconfig.go:1350-1376`, `flatcar.VLABVirtioNamesLink`) if names or throughput misbehave.
