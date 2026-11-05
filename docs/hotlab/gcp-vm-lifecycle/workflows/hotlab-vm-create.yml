@@ -1,0 +1,403 @@
+# STAGING COPY. Install as .github/workflows/hotlab-vm-create.yml (see RUNBOOK.md).
+# It is staged under docs/ because the automation that authored it cannot write to
+# .github/workflows. The installed path is part of the WIF trust boundary.
+name: Hot Lab VM (creator)
+
+# VM lifecycle for Hot Lab prototyping (#508, parent #497).
+#
+# Identity: GitHub OIDC -> dedicated WIF pool `hotlab-creator` -> SA
+# `hotlab-vm-creator`. Separate from the read-only `hotlab-inspector` and from the
+# reaper identity. No SA keys.
+#
+# The provider attribute condition pins ALL of:
+#   repository_id       == 1046667618
+#   repository_owner_id == 193945001
+#   ref                 == refs/heads/main
+#   workflow_ref        == afewell-hh/hh-learn/.github/workflows/hotlab-vm-create.yml@refs/heads/main
+#   event_name          == workflow_dispatch
+#
+# DEFENCE IN DEPTH (see DESIGN.md). This file is only ONE layer:
+#   1. scheduling.terminationTime (ABSOLUTE wall-clock deadline) +
+#      --instance-termination-action=DELETE (GCP deletes it). NOT --max-run-duration:
+#      a duration resets on stop/start, so a stop/start loop would extend life
+#      forever (labapp spec.py rejects it for that reason; so do we).
+#   2. mandatory labels (verified positively after create)
+#   3. always() teardown in this job
+#   4. independent reaper (hotlab-vm-reaper.yml, own identity, cannot create)
+#   5. caps below are duplicated, more strictly, in the reaper; do not rely on
+#      this file policing itself.
+#
+# ASSERTION STYLE: nothing here "proves" a control by provoking a failure. Controls
+# are checked by reading back the actual instance state and comparing it to the
+# expected values (jq -e), so a wrong value fails with that specific mismatch.
+#
+# This workflow never checks out or executes PR-authored content.
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Lifecycle operation"
+        required: true
+        default: create
+        type: choice
+        options: [create, stop, start, delete]
+      ticket:
+        description: "Ticket number this VM serves (create only)"
+        required: false
+        default: "501"
+        type: string
+      machine_type:
+        description: "N2 only (Intel, nested virt capable; N2_CPUS quota 200). n2-standard-32 needs a reviewed change."
+        required: false
+        default: n2-standard-8
+        type: choice
+        options: [n2-standard-8, n2-highmem-4, n2-standard-16]
+      zone:
+        required: false
+        default: us-west4-a
+        type: choice
+        options: [us-west4-a, us-west4-b, us-west4-c]
+      ttl_minutes:
+        description: "Lifetime before self-destruct, 15-480 (create only)"
+        required: false
+        default: "240"
+        type: string
+      hold_minutes:
+        description: "Minutes to keep the VM before teardown, 0..ttl (create, teardown=now)"
+        required: false
+        default: "60"
+        type: string
+      teardown:
+        description: "now = delete after hold; at-expiry = leave until TTL (reaper + terminationTime still apply)"
+        required: false
+        default: now
+        type: choice
+        options: [now, at-expiry]
+      boot_disk_gb:
+        description: "Boot disk size GB, 50-500, pd-standard"
+        required: false
+        default: "200"
+        type: string
+      instance_name:
+        description: "hotlab-* instance (stop/start/delete only)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+# Serialise creators so the concurrency count below cannot race itself.
+concurrency:
+  group: hotlab-vm-creator
+  cancel-in-progress: false
+
+env:
+  PROJECT: ${{ vars.HOTLAB_GCP_PROJECT }}
+  # Hard caps. The reaper carries its own copy; keep the reaper >= as strict.
+  MAX_CONCURRENT: "2"
+
+jobs:
+  vm:
+    runs-on: ubuntu-latest
+    # hold (<=ttl<=480) + create/verify/teardown headroom
+    timeout-minutes: 520
+    steps:
+      - name: Validate inputs and derive names
+        id: plan
+        env:
+          OP: ${{ inputs.operation }}
+          TICKET: ${{ inputs.ticket }}
+          MACHINE_TYPE: ${{ inputs.machine_type }}
+          ZONE: ${{ inputs.zone }}
+          TTL_MIN: ${{ inputs.ttl_minutes }}
+          HOLD_MIN: ${{ inputs.hold_minutes }}
+          DISK_GB: ${{ inputs.boot_disk_gb }}
+          INSTANCE_NAME: ${{ inputs.instance_name }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          case "$ZONE" in us-west4-a|us-west4-b|us-west4-c) ;; *) fail "zone not allowlisted: $ZONE";; esac
+          [ -n "${PROJECT}" ] || fail "vars.HOTLAB_GCP_PROJECT is empty"
+
+          if [ "$OP" = create ]; then
+            case "$MACHINE_TYPE" in n2-standard-8|n2-highmem-4|n2-standard-16) ;; *) fail "machine type not allowlisted: $MACHINE_TYPE";; esac
+            [[ "$TICKET" =~ ^[0-9]{1,6}$ ]] || fail "ticket must be numeric"
+            [[ "$TTL_MIN" =~ ^[0-9]{1,3}$ ]] || fail "ttl_minutes must be an integer"
+            [[ "$HOLD_MIN" =~ ^[0-9]{1,3}$ ]] || fail "hold_minutes must be an integer"
+            [[ "$DISK_GB" =~ ^[0-9]{1,3}$ ]] || fail "boot_disk_gb must be an integer"
+            if ! (( TTL_MIN >= 15 && TTL_MIN <= 480 )); then fail "ttl_minutes out of range 15-480"; fi
+            if ! (( HOLD_MIN <= TTL_MIN )); then fail "hold_minutes must be <= ttl_minutes"; fi
+            if ! (( DISK_GB >= 50 && DISK_GB <= 500 )); then fail "boot_disk_gb out of range 50-500"; fi
+            name="hotlab-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          else
+            [[ "$INSTANCE_NAME" =~ ^hotlab-[a-z0-9-]{1,50}$ ]] || fail "instance_name must match ^hotlab-[a-z0-9-]+$"
+            name="$INSTANCE_NAME"
+          fi
+
+          # Label values: lowercase [a-z0-9_-], <=63 chars (e.g. "claude[bot]" is invalid).
+          owner="$(printf '%s' "${GITHUB_ACTOR,,}" | tr -c 'a-z0-9_-' '-' | cut -c1-63)"
+          created="$(date +%s)"
+          {
+            echo "name=${name}"
+            echo "owner=${owner}"
+            echo "created=${created}"
+            echo "expires=$(( created + ${TTL_MIN:-0} * 60 ))"
+            # Absolute deadline, RFC3339 UTC. The expires-at label and the
+            # instance's scheduling.terminationTime are the SAME instant.
+            echo "termination_time=$(date -u -d "@$(( created + ${TTL_MIN:-0} * 60 ))" +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to Google Cloud via WIF (creator pool)
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.HOTLAB_CREATOR_WIF_PROVIDER }}
+          service_account: ${{ vars.HOTLAB_CREATOR_SA_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          project_id: ${{ vars.HOTLAB_GCP_PROJECT }}
+
+      - name: Confirm federated identity
+        run: |
+          set -euo pipefail
+          echo "### Federated identity" >> "$GITHUB_STEP_SUMMARY"
+          gcloud auth list --format="value(account)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ---------------------------------------------------------------- create
+      - name: Pre-flight (concurrency cap and quota)
+        if: inputs.operation == 'create'
+        env:
+          ZONE: ${{ inputs.zone }}
+          MACHINE_TYPE: ${{ inputs.machine_type }}
+          DISK_GB: ${{ inputs.boot_disk_gb }}
+          NAME: ${{ steps.plan.outputs.name }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          region="${ZONE%-*}"
+
+          # Concurrency: count by NAME prefix, not by label, so unlabelled
+          # hotlab-* instances still count. Checked assignments (a failure inside
+          # a bare $(...) in an echo would be swallowed).
+          listing="$(gcloud compute instances list --project="$PROJECT" --filter="name~'^hotlab-'" --format='value(name)')"
+          running=0
+          if [ -n "$listing" ]; then running="$(printf '%s\n' "$listing" | wc -l)"; fi
+          if (( running >= MAX_CONCURRENT )); then
+            fail "concurrency cap: ${running} hotlab-* instance(s) exist, cap is ${MAX_CONCURRENT}. Delete one or wait for the reaper."
+          fi
+          if printf '%s\n' "$listing" | grep -qx "$NAME"; then fail "instance $NAME already exists"; fi
+
+          vcpus="$(gcloud compute machine-types describe "$MACHINE_TYPE" --zone "$ZONE" --project "$PROJECT" --format='value(guestCpus)')"
+          [[ "$vcpus" =~ ^[0-9]+$ ]] || fail "could not read guestCpus for $MACHINE_TYPE in $ZONE (got '${vcpus}')"
+
+          gcloud compute regions describe "$region" --project "$PROJECT" --format=json > region.json
+
+          # Quotas are looked up BY KEY (.quotas[] | select(.metric==$m)), never by
+          # position: aligning parallel arrays is how wrong quota figures were
+          # produced before (#508 correction). Exactly one entry must match; zero or
+          # many is an error, not a pass.
+          # N2 VMs draw on BOTH the general CPUS pool and N2_CPUS (both 200 at the
+          # time of writing; C2_CPUS=8, N2D_CPUS=16 are irrelevant: C2 too small,
+          # N2D is AMD and not nested-virt capable).
+          family="$(printf '%s' "${MACHINE_TYPE%%-*}" | tr 'a-z' 'A-Z')"   # n2 -> N2
+          check() { # metric needed
+            local metric="$1" needed="$2" avail
+            avail="$(jq -er --arg m "$metric" '[.quotas[] | select(.metric==$m)] | if length==1 then (.[0].limit - .[0].usage) else error("metric count != 1") end' region.json)" \
+              || fail "quota metric $metric not found exactly once in region $region"
+            echo "| $metric | need $needed | headroom $avail |" | tee -a "$GITHUB_STEP_SUMMARY"
+            awk -v a="$avail" -v n="$needed" 'BEGIN{exit !(a+0 >= n+0)}' \
+              || fail "quota $metric in $region: need $needed, headroom $avail. Pick a smaller machine/disk or free quota."
+          }
+          echo "### Quota pre-flight ($region)" >> "$GITHUB_STEP_SUMMARY"
+          check CPUS "$vcpus"
+          check "${family}_CPUS" "$vcpus"
+          check INSTANCES 1
+          check DISKS_TOTAL_GB "$DISK_GB"
+
+      - name: Create instance (self-destruct + labels are mandatory)
+        if: inputs.operation == 'create'
+        env:
+          ZONE: ${{ inputs.zone }}
+          MACHINE_TYPE: ${{ inputs.machine_type }}
+          DISK_GB: ${{ inputs.boot_disk_gb }}
+          TICKET: ${{ inputs.ticket }}
+          NAME: ${{ steps.plan.outputs.name }}
+          OWNER: ${{ steps.plan.outputs.owner }}
+          CREATED: ${{ steps.plan.outputs.created }}
+          EXPIRES: ${{ steps.plan.outputs.expires }}
+          TERMINATION_TIME: ${{ steps.plan.outputs.termination_time }}
+          MIN_CPU_PLATFORM: ${{ vars.HOTLAB_MIN_CPU_PLATFORM || 'Intel Cascade Lake' }}
+        run: |
+          set -euo pipefail
+          # --termination-time (absolute) + DELETE: GCP itself deletes the VM at that
+          # instant, whatever happens to GitHub, this runner or the reaper, and a
+          # stop/start cannot move it. --max-run-duration is deliberately NOT used.
+          # (U: confirm this gcloud version exposes --termination-time; if not, use
+          #  the instances.insert REST body with scheduling.terminationTime. The
+          #  read-back below is the check either way.)
+          # Mirrors labapp spec.py: no external IP, no service account/scopes,
+          # OS Login only, project SSH keys blocked, no deletion protection,
+          # no auto-restart, TERMINATE on host maintenance (nested virt cannot
+          # live-migrate), one boot disk, no extra disks.
+          # Access path: IAP TCP forwarding + OS Login (RUNBOOK 2.5).
+          gcloud compute instances create "$NAME" \
+            --project="$PROJECT" \
+            --zone="$ZONE" \
+            --machine-type="$MACHINE_TYPE" \
+            --min-cpu-platform="$MIN_CPU_PLATFORM" \
+            --enable-nested-virtualization \
+            --image-family=ubuntu-2204-lts \
+            --image-project=ubuntu-os-cloud \
+            --boot-disk-size="${DISK_GB}GB" \
+            --boot-disk-type=pd-standard \
+            --boot-disk-auto-delete \
+            --provisioning-model=STANDARD \
+            --termination-time="${TERMINATION_TIME}" \
+            --instance-termination-action=DELETE \
+            --maintenance-policy=TERMINATE \
+            --no-restart-on-failure \
+            --no-deletion-protection \
+            --no-service-account --no-scopes \
+            --no-address \
+            --metadata=block-project-ssh-keys=TRUE,enable-oslogin=TRUE \
+            --labels="managed-by=hotlab,owner=${OWNER},ticket=${TICKET},run-id=${GITHUB_RUN_ID},created-at=${CREATED},expires-at=${EXPIRES}"
+
+      - name: Verify created instance matches the required controls (read-back)
+        id: verify
+        if: inputs.operation == 'create'
+        env:
+          ZONE: ${{ inputs.zone }}
+          MACHINE_TYPE: ${{ inputs.machine_type }}
+          TICKET: ${{ inputs.ticket }}
+          NAME: ${{ steps.plan.outputs.name }}
+          OWNER: ${{ steps.plan.outputs.owner }}
+          CREATED: ${{ steps.plan.outputs.created }}
+          EXPIRES: ${{ steps.plan.outputs.expires }}
+        run: |
+          set -euo pipefail
+          gcloud compute instances describe "$NAME" --zone "$ZONE" --project "$PROJECT" --format=json > inst.json
+          # Every assertion compares an observed value to an expected one, so the
+          # failure names the mismatching control. `-e` => nonzero on false/null.
+          assert() { # description jq-filter [jq args...]
+            local desc="$1" filter="$2"; shift 2
+            if jq -e "$@" "$filter" inst.json >/dev/null; then
+              echo "PASS  $desc" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::FAIL  $desc"; echo "FAIL  $desc" >> "$GITHUB_STEP_SUMMARY"; FAILED=1
+            fi
+          }
+          FAILED=0
+          echo "### Control read-back for $NAME" >> "$GITHUB_STEP_SUMMARY"
+          # --- self-destruct (control 1) ---
+          assert "terminationAction == DELETE" '.scheduling.instanceTerminationAction == "DELETE"'
+          # maxRunDuration is a VALIDATION FAILURE, not merely "a missing field":
+          # a duration resets on stop/start. `has` is true even if the value is null/0.
+          assert "maxRunDuration ABSENT (resets on restart; forbidden)" '.scheduling | has("maxRunDuration") | not'
+          assert "terminationTime present" '(.scheduling.terminationTime // "") | length > 0'
+          # Compare instants, not strings: GCP may return the time with an offset or
+          # fractional seconds, so normalise with date(1) and compare epochs. A
+          # missing/unparseable value fails as its own named mismatch.
+          tt="$(jq -r '.scheduling.terminationTime // ""' inst.json)"
+          tt_epoch="$(date -d "$tt" +%s 2>/dev/null || echo unparseable)"
+          if [ "$tt_epoch" = "$EXPIRES" ]; then
+            echo "PASS  terminationTime == expires-at ($tt)" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::FAIL  terminationTime epoch '$tt_epoch' != expires-at '$EXPIRES' (raw '$tt')"
+            echo "FAIL  terminationTime == expires-at (got '$tt')" >> "$GITHUB_STEP_SUMMARY"; FAILED=1
+          fi
+          # --- reviewed shape (mirrors labapp spec.py validate_body) ---
+          assert "provisioningModel STANDARD" '.scheduling.provisioningModel == "STANDARD"'
+          assert "automaticRestart == false" '.scheduling.automaticRestart == false'
+          assert "onHostMaintenance == TERMINATE" '.scheduling.onHostMaintenance == "TERMINATE"'
+          assert "deletionProtection == false" '.deletionProtection == false'
+          assert "nested virtualization enabled" '.advancedMachineFeatures.enableNestedVirtualization == true'
+          assert "machine type $MACHINE_TYPE" '(.machineType|split("/")|last) == $v' --arg v "$MACHINE_TYPE"
+          assert "no service account attached" '((.serviceAccounts // []) | length) == 0'
+          assert "exactly one NIC" '(.networkInterfaces | length) == 1'
+          assert "no accessConfigs (external IPv4 forbidden)" '[.networkInterfaces[] | has("accessConfigs") and ((.accessConfigs // []) | length > 0)] | any | not'
+          assert "no ipv6AccessConfigs" '[.networkInterfaces[] | has("ipv6AccessConfigs") and ((.ipv6AccessConfigs // []) | length > 0)] | any | not'
+          assert "metadata block-project-ssh-keys=TRUE" '[.metadata.items[]? | select(.key=="block-project-ssh-keys") | .value] == ["TRUE"]'
+          assert "metadata enable-oslogin=TRUE" '[.metadata.items[]? | select(.key=="enable-oslogin") | .value] == ["TRUE"]'
+          # Constrain the disk list: exactly one disk, the boot disk, auto-delete.
+          assert "exactly one disk" '(.disks | length) == 1'
+          assert "sole disk is boot + autoDelete" '.disks[0].boot == true and .disks[0].autoDelete == true'
+          assert "label managed-by=hotlab" '.labels["managed-by"] == "hotlab"'
+          assert "label owner=$OWNER"      '.labels.owner == $v' --arg v "$OWNER"
+          assert "label ticket=$TICKET"    '.labels.ticket == $v' --arg v "$TICKET"
+          assert "label run-id"            '.labels["run-id"] == $v' --arg v "$GITHUB_RUN_ID"
+          assert "label created-at"        '.labels["created-at"] == $v' --arg v "$CREATED"
+          assert "label expires-at"        '.labels["expires-at"] == $v' --arg v "$EXPIRES"
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::Instance does not carry the required controls; teardown will delete it."
+            exit 1
+          fi
+
+      - name: Hold for proof window
+        if: inputs.operation == 'create' && inputs.teardown == 'now'
+        env:
+          HOLD_MIN: ${{ inputs.hold_minutes }}
+        run: |
+          set -euo pipefail
+          echo "Holding ${HOLD_MIN} minute(s); cancel the run to tear down early."
+          sleep "$(( HOLD_MIN * 60 ))"
+
+      # ----------------------------------------- stop / start / delete (existing)
+      - name: Operate on existing instance
+        if: inputs.operation != 'create'
+        env:
+          OP: ${{ inputs.operation }}
+          ZONE: ${{ inputs.zone }}
+          NAME: ${{ steps.plan.outputs.name }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          present="$(gcloud compute instances list --project="$PROJECT" --filter="name=${NAME} AND zone~${ZONE}" --format='value(name)')"
+          [ "$present" = "$NAME" ] || fail "instance $NAME not found in $ZONE"
+          case "$OP" in
+            stop)  gcloud compute instances stop  "$NAME" --zone "$ZONE" --project "$PROJECT" ;;
+            delete) gcloud compute instances delete "$NAME" --zone "$ZONE" --project "$PROJECT" --quiet ;;
+            start)
+              # Refuse to resurrect an expired VM. terminationTime is absolute, so
+              # stop/start cannot extend it; expires-at (same instant) is also
+              # checked here and by the reaper.
+              exp="$(gcloud compute instances describe "$NAME" --zone "$ZONE" --project "$PROJECT" --format='value(labels.expires-at)')"
+              [[ "$exp" =~ ^[0-9]+$ ]] || fail "instance has no valid expires-at label; refusing to start (reaper will delete it)"
+              (( $(date +%s) < exp )) || fail "instance is past expires-at; refusing to start (reaper will delete it)"
+              gcloud compute instances start "$NAME" --zone "$ZONE" --project "$PROJECT"
+              ;;
+            *) fail "unsupported operation $OP" ;;
+          esac
+
+      # -------------------------------------------------------------- teardown
+      # always() (not !cancelled()) so failure, timeout AND cancellation all run it.
+      # Gated on auth success: if auth failed nothing could have been created.
+      # Deletes by the deterministic name, so a half-finished create is still found.
+      - name: Teardown (always)
+        if: >-
+          always() && inputs.operation == 'create' && steps.auth.outcome == 'success' &&
+          (inputs.teardown == 'now' || steps.verify.outcome != 'success')
+        env:
+          ZONE: ${{ inputs.zone }}
+          NAME: ${{ steps.plan.outputs.name }}
+        run: |
+          set -euo pipefail
+          [ -n "$NAME" ] || { echo "::error::no instance name resolved; nothing to tear down"; exit 1; }
+          found() { gcloud compute instances list --project="$PROJECT" --filter="name=${NAME}" --format='value(name)'; }
+          before="$(found)"
+          if [ "$before" = "$NAME" ]; then
+            gcloud compute instances delete "$NAME" --zone "$ZONE" --project "$PROJECT" --quiet
+          else
+            echo "No instance named $NAME exists (create may not have run)."
+          fi
+          # Positive confirmation: re-list and require it to be gone. A list error
+          # fails the step (set -e); it is not read as "gone".
+          after="$(found)"
+          if [ -n "$after" ]; then
+            echo "::error::$NAME still exists after teardown; the reaper and terminationTime remain as backstops."
+            exit 1
+          fi
+          echo "Teardown confirmed: $NAME absent." | tee -a "$GITHUB_STEP_SUMMARY"
