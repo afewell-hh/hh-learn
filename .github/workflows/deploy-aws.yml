@@ -1,9 +1,23 @@
 name: Deploy AWS
+#
+# DISPATCH-ONLY BY DESIGN. Do not re-add a `push` trigger without reading this.
+#
+# This workflow previously ran on every push to main and on v* tags. On those
+# events there are no `workflow_dispatch` inputs, so `APP_STAGE` resolved to the
+# empty string, and serverless.yml:26 (`stage: ${env:APP_STAGE, 'dev'}`) therefore
+# defaulted the deployment to the **dev** stage. Issue #460 documented that the
+# bare `api.hedgehog.cloud` root mapping pointed at `dev-hedgehog-learn`, so an
+# unattended push-triggered deploy could affect the live production API.
+#
+# In practice every push-triggered run had failed since 2026-04-09 (variable
+# resolution error on HUBDB_MODULES_TABLE_ID), so the breakage was acting as an
+# accidental safety brake while ~7 months of Lambda changes accumulated on main.
+# Supplying that variable would have converted a harmless failure into an
+# unreviewed deploy of all that drift, at an unintended stage.
+#
+# Deployments are performed deliberately, with an explicit stage, via
+# `APP_STAGE=<stage> npm run deploy:aws` or a manual dispatch of this workflow.
 on:
-  push:
-    branches: [ main ]
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       stage:
@@ -24,6 +38,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: read }
     steps:
+      - name: Require an explicit stage
+        env:
+          STAGE: ${{ github.event.inputs.stage }}
+        run: |
+          set -euo pipefail
+          if [ -z "${STAGE}" ]; then
+            echo "::error::APP_STAGE is empty. serverless.yml defaults an empty stage to 'dev',"
+            echo "::error::and the bare api.hedgehog.cloud mapping has historically pointed there."
+            echo "::error::Dispatch this workflow with an explicit stage instead."
+            exit 1
+          fi
+          echo "Deploying to stage: ${STAGE}"
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
