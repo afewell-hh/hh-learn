@@ -74,11 +74,33 @@ jobs:
           #    fetch upstream source.
           #
           # Because an allowlist cannot subtract, --disallowed-tools carries the
-          # actual restriction. No interpreter or build tool is reachable: npm,
-          # node, python, make, sh/bash, curl/wget, chmod, docker are denied, as
-          # are find and xargs (both can execute via -exec / argument passing).
-          # Anything that must build or run repo content does so in a separate
-          # workflow WITHOUT write credentials, or locally.
+          # actual restriction.
+          #
+          # REVISED 2026-11-06. An earlier revision denied every interpreter and
+          # build tool. That made implementation work impossible to delegate at
+          # all -- #525 (build a JS component, run its tests, axe and screenshots)
+          # came back "I can't run commands in this session". Design work was
+          # unaffected; building anything was not.
+          #
+          # Why restoring npm/npx/node is defensible now, and was not before:
+          # the HIGH finding this guard answered was fork-PR code execution --
+          # a contributor's malicious test script or lifecycle hook running in a
+          # credentialed job after the action checked out their PR head. That
+          # path is closed at the ROOT by the trigger surface above: this
+          # workflow no longer responds to pull_request_review,
+          # pull_request_review_comment, or issue_comment on a PR. It sees only
+          # issues. There is no PR head to check out, so there is no contributor
+          # content to execute. The action also gates on actor write permission.
+          #
+          # So npm/npx/node here run package scripts from a branch the agent
+          # created off main -- materially different from executing a fork PR's
+          # scripts. General-purpose execution and network fetch stay denied,
+          # because nothing in the delegation model needs them and they are the
+          # tools an injected instruction would reach for.
+          #
+          # ACCEPTED RESIDUAL RISK, unchanged: prompt injection from issue or
+          # comment text into write actions. The trigger surface and the actor
+          # permission check are the mitigations; this is not solved.
           claude_args: >-
             --allowed-tools
             "Write" "Edit" "WebFetch" "WebSearch" "TodoWrite"
@@ -92,8 +114,8 @@ jobs:
             "Bash(git checkout:*)" "Bash(git describe:*)"
             "Bash(ls:*)" "Bash(cat:*)" "Bash(head:*)" "Bash(tail:*)" "Bash(wc:*)"
             "Bash(sort:*)" "Bash(uniq:*)" "Bash(jq:*)" "Bash(stat:*)" "Bash(mkdir:*)"
+            "Bash(npm:*)" "Bash(npx:*)" "Bash(node:*)" "Bash(python3:*)"
             --disallowed-tools
-            "Bash(npm:*)" "Bash(npx:*)" "Bash(node:*)" "Bash(python:*)"
-            "Bash(python3:*)" "Bash(make:*)" "Bash(sh:*)" "Bash(bash:*)"
-            "Bash(zsh:*)" "Bash(eval:*)" "Bash(curl:*)" "Bash(wget:*)"
-            "Bash(chmod:*)" "Bash(docker:*)" "Bash(find:*)" "Bash(xargs:*)"
+            "Bash(sh:*)" "Bash(bash:*)" "Bash(zsh:*)" "Bash(eval:*)"
+            "Bash(curl:*)" "Bash(wget:*)" "Bash(chmod:*)" "Bash(chown:*)"
+            "Bash(docker:*)" "Bash(sudo:*)" "Bash(find:*)" "Bash(xargs:*)"
