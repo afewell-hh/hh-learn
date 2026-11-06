@@ -48,14 +48,14 @@ hhl_ent = v1.<base64url(JSON)>
 
 ### 2.1a Dependency on #520: what the browser can evaluate before an account exists
 
-The cookie stores the **outcome** of a browser-side evaluation (a badge ID), not the task credits beneath it. That is sufficient only if the milestone can be decided **within one page view**. A milestone needing two experiences completed on different pages or visits would leave the browser unable to tell that both were done, because no task evidence persists. #520 owns this decision and has not settled it; this doc does not pre-empt it.
+The cookie stores the **outcome** of a browser-side evaluation (a badge ID), not the task credits beneath it. That is sufficient only if the milestone can be decided **within one page view**. A milestone needing two experiences completed on different pages or visits would leave the browser unable to tell that both were done, because no task evidence persists. **#520 has decided: Option A.** v1 claimable milestones must be fully evaluable within a single page view (#520 §4.6). Option B is named in #520 §4.8 as the next increment, with its minimum shape specified so this doc can leave room for it.
 
-| #520 decides | What this doc does |
+| #520 decision | What this doc does |
 |---|---|
-| **A. v1 claimable milestones are evaluated within a single page view** (the §4.6 recommendation) | Cookie shape stays as in §2.1. The #520 validator must reject a `claimable` milestone whose rule spans more than one page view. **Increment 1 assumes this.** |
-| **B. A temporary task-evidence shape is defined** (the "carry the credits" option) | Add a `t` field holding satisfied `[module_slug, task_slug]` pairs, written under the same notice, TTL and caps. The browser evaluates `evalRule` over `t` to derive `e`, and redemption re-evaluates server-side. Shape, caps and trust rules are whatever #520 specifies; this doc only persists it. Needs cookie `v2` and a revised size cap. **Not built until #520 specifies it.** |
+| **A. v1 claimable milestones are evaluated within a single page view. DECIDED for v1 (#520 §4.6).** | Cookie shape stays as in §2.1. The #520 validator rejects a `claimable` milestone whose rule spans more than one page view. **Increment 1 and v1 build to this.** |
+| **B. A temporary task-evidence shape. Specified as the next increment (#520 §4.8); not v1.** | Add a `t` field holding satisfied `[module_slug, task_slug]` pairs, written under the same notice, TTL and caps. The browser evaluates `evalRule` over `t` to derive `e`, and redemption re-evaluates server-side. Shape, caps and trust rules are whatever #520 §4.8 specifies; this doc only persists it. Needs cookie `v2` and a revised size cap. The `t` field is reserved room, not built in v1. |
 
-Increment 1 works unchanged under either answer, because a single-page-view milestone is the common subset. Multi-experience milestones wait on this row (§9).
+Increment 1 is built to Option A and would work unchanged under B, because a single-page-view milestone is the common subset. Multi-experience milestones wait on Option B (§9).
 
 ### 2.2 Cookie rather than `localStorage`
 
@@ -208,7 +208,7 @@ I rely on #520's badge idea (milestone → badge, `BADGE#` prefix, stable IDs **
 | **A flag marking a badge claimable-by-entitlement** (e.g. `claimable: "entitlement"`) | Only exploration badges may be minted from a self-reported cookie |
 | **That flag is refused for any badge a certificate, `module-complete` or verified milestone depends on** (validator rule) | Keeps verified attainment unforgeable and certificates untouched |
 | **A defined unlock event for entitlement badges** | #520 §4.6: the finish of an Observed-tier (`grading: client`) `interactive_check`, evaluated in the browser with no answer key (#298). A stateless pass/fail endpoint is the alternative; browser-only first |
-| **Option A (single-page-view evaluation) or Option B (temporary task-evidence shape)** | §2.1a. #520 decides; Increment 1 needs only Option A |
+| **Option A (single-page-view evaluation), decided for v1** | §2.1a. Option B is #520's specified next increment (§4.8) |
 | **Evidence strength kept separate from activity type** | An Observed `interactive_check` must be able to back an exploration badge without being relabelled lab, assessment or transfer, or the badge criteria would imply assessment. Badge copy says "completed the walkthrough", never "demonstrated" or "passed". #520 is addressing this; I align to its answer |
 | **Provenance and frozen `module_version` on `BADGE#` items** | §3.3 |
 
@@ -312,7 +312,7 @@ Rule for the cut: **anything the Increment 1 copy or §4 policy promises ships i
 
 **Increment 3: product pages and beyond.** `Domain=` cookie shared with product-page hosts (needs L6, `Domain` limited to hosts we control, cookie-tossing note from §2.2), and post-claim surfacing of gamified learning paths and next steps (the customer's "once claimed, encourage ongoing participation"), bounded by #489.
 
-**Waits on #520 (not scheduled):** multi-experience milestones. They need Option B's temporary task-evidence shape (§2.1a) or an explicit decision to keep v1 at single-page-view.
+**Waits on #520 (not scheduled):** multi-experience milestones. They need Option B's temporary task-evidence shape (§2.1a, #520 §4.8), the next increment on #520's side.
 
 **Explicitly waits / not built:** Open Badges 3.0 export (#520 §4.5, customer demand); cross-device continuity (out of scope by design); server-side anonymous records; reminders or emails to unregistered visitors; any gating of content; counting unlocks as certificate or `module-complete` progress.
 
@@ -325,5 +325,5 @@ Rule for the cut: **anything the Increment 1 copy or §4 policy promises ships i
 3. Confirm product pages and `/learn` hosts, and that Cognito signup completes in a single tab **[unverified]** (§2.2, §3.1).
 4. Accept that one cookie value can be redeemed by two accounts (§3.2).
 5. Obtain legal answers L1, L2, L3 and L5 before Increment 1 ships; L6 before Increment 3 (§7.3). L4 has a safe default.
-6. #520: Option A (single-page-view milestones) or Option B (temporary task-evidence shape)? Increment 1 needs only A (§2.1a).
+6. Settled: #520 chose Option A for v1; Option B is its specified next increment (§2.1a). No action needed.
 7. Claiming requires accepting functional storage; there is no declined-storage claim path (§7.2). Confirm that is acceptable.
