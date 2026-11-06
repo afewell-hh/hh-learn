@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find out whether Hedgehog makes SONiC manageable</title>
+<!--
+  #529 R1 discovery junction. OFFLINE ASSEMBLY ONLY: not a HubSpot template, not provisioned,
+  not published. Self-contained: no script, no network, no tracking, no form, no state.
+  Destination hrefs are "#" placeholders with data-link-status; no URL has been invented.
+  The destination's owner supplies the real href. See README.md.
+-->
+<style>
+  :root { --ink:#16202a; --muted:#44525f; --line:#c9d2da; --accent:#0b5cad; --soft:#f3f6f9; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:#fff; }
+  main { max-width:56rem; margin:0 auto; padding:1.5rem 1rem 3rem; }
+  h1 { font-size:1.75rem; line-height:1.2; margin:0 0 .5rem; }
+  h2 { font-size:1.15rem; margin:0 0 .35rem; }
+  p { margin:0 0 .75rem; }
+  .lede { color:var(--muted); max-width:42rem; }
+  ul.paths { list-style:none; margin:1.5rem 0; padding:0; display:grid; gap:1rem; grid-template-columns:1fr; }
+  @media (min-width:40rem) { ul.paths { grid-template-columns:1fr 1fr; } ul.paths li.primary { grid-column:1 / -1; } }
+  ul.paths li { border:1px solid var(--line); border-radius:8px; padding:1rem; background:var(--soft); }
+  ul.paths li.primary { border:2px solid var(--accent); background:#fff; }
+  a.path { color:var(--accent); font-weight:600; text-decoration:underline; overflow-wrap:anywhere; }
+  a:focus-visible { outline:3px solid #f5a400; outline-offset:2px; }
+  .label { display:inline-block; font-size:.8rem; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 .4rem; }
+  .download { border-top:1px solid var(--line); padding-top:1.25rem; margin-top:2rem; }
+  .download a { display:inline-block; padding:.6rem 1.1rem; border:2px solid var(--ink); border-radius:6px; color:var(--ink); font-weight:700; text-decoration:none; }
+  .contact { margin-top:1.5rem; color:var(--muted); font-size:.95rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Find out whether Hedgehog makes SONiC manageable</h1>
+  <p class="lede">Pick whichever question is closest to yours. Every route below opens on its own, in any order, with nothing to fill in.</p>
+
+  <ul class="paths">
+    <li class="primary" id="path-segmentation">
+      <h2><a class="path" href="#" data-destination="compare" data-link-status="pending-527-route">Shrink the blast radius</a></h2>
+      <p>Most networks are hard on the outside and soft in the middle. Cloud VPC networking made segmentation cheap enough to be the default. On-prem, it is still a project each time, because the tooling cannot keep up with how fast applications and facilities change.</p>
+      <p>See what keeping segmentation in step with your applications looks like, old way beside Hedgehog way.</p>
+      <span class="label">Illustrative example: shows configuration, not tested traffic behaviour</span>
+    </li>
+
+    <li id="path-performance">
+      <h2><a class="path" href="#" data-destination="published-performance-results" data-link-status="pending-owner">See the published performance results</a></h2>
+      <p>The results Hedgehog has already published, on the page that owns them.</p>
+    </li>
+
+    <li id="path-reference-architecture">
+      <h2><a class="path" href="#" data-destination="ocp-reference-architectures" data-link-status="pending-owner">See an OCP reference architecture</a></h2>
+      <p>The reference architectures Hedgehog has already published, on the page that owns them.</p>
+    </li>
+
+    <li id="path-replay">
+      <h2><a class="path" href="#" data-destination="fabric-operator-replay" data-link-status="provisional-488-route">Watch an operator work through a fabric</a></h2>
+      <p>A short, step-by-step replay of operating a fabric, so you can judge how much day-to-day complexity is taken off you.</p>
+      <span class="label">Replay of recorded steps</span>
+    </li>
+  </ul>
+
+  <section class="download" id="download" aria-labelledby="dl-h">
+    <h2 id="dl-h">Ready to install and run it yourself?</h2>
+    <p>This is the download route, unchanged. It is for teams who already know they want to install and operate Hedgehog.</p>
+    <a href="#" data-destination="download" data-link-status="pending-owner-existing-route">Download</a>
+  </section>
+
+  <p class="contact">Would rather talk it through? <a href="#" data-destination="contact" data-link-status="pending-owner">Contact us</a>.</p>
+</main>
+</body>
+</html>
