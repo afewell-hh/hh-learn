@@ -1,0 +1,28 @@
+{#
+  compare.html — HubL include for the `compare` interactive primitive.
+  Design: docs/authoring-platform.md sections 3.5 to 3.7.
+
+  NOT WIRED INTO ANY TEMPLATE and not uploaded. Nothing includes this file yet; publishing is
+  gated by #489. When it is wired in, the including template supplies one variable:
+
+    {% set hh_compare_json = <payload JSON string> %}
+    {% include './macros/compare.html' %}
+
+  The payload is { "interactive": <the compare entry from interactives.json>,
+                   "texts": { "left": "<src text>", "right": "<src text>" } }
+  and is produced by `node scripts/build-compare-payload.mjs <module-dir> <interactive-id>`.
+  Everything the component shows is in that inline JSON: no fetch, no beacon, no off-box request
+  (per #480 these routes use HubSpot-native analytics only).
+
+  Degrades gracefully: without the script the learner reads the <noscript>/fallback prose below,
+  and the README's `<!-- hh:interactive -->` marker is an HTML comment, so a page without this
+  include shows ordinary prose.
+#}
+{% if hh_compare_json %}
+<link rel="stylesheet" href="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/css/interactive.css') }}">
+<div class="hh-ix hh-ix-compare" data-hh-compare>
+  <p class="hh-ix-caption">This comparison needs JavaScript. It sets the configuration written by hand for each device beside the Hedgehog objects that produce the same outcome.</p>
+  <script type="application/json">{{ hh_compare_json|safe }}</script>
+</div>
+<script src="{{ get_asset_url('/CLEAN x HEDGEHOG/templates/assets/js/compare.js') }}" defer></script>
+{% endif %}

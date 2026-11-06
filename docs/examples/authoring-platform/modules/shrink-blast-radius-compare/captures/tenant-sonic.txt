@@ -1,0 +1,30 @@
+# @fixture FIXTURE: written to exercise the renderer. This is NOT configuration captured from SONiC.
+# Replace this file with the real per-device configuration from the VLAB capture.
+# @device leaf-01
+config vlan add 1010
+config vrf add Vrf-tenant-a
+config interface vrf bind Vlan1010 Vrf-tenant-a
+config interface ip add Vlan1010 10.10.10.1/24
+config vlan member add -u 1010 Ethernet4
+config vlan member add 1010 Ethernet48
+config bgp network add 10.10.10.0/24 vrf Vrf-tenant-a
+config save -y
+
+# @device leaf-02
+config vlan add 1010
+config vrf add Vrf-tenant-a
+config interface vrf bind Vlan1010 Vrf-tenant-a
+config interface ip add Vlan1010 10.10.10.2/24
+config vlan member add -u 1010 Ethernet8
+config vlan member add 1010 Ethernet48
+config bgp network add 10.10.10.0/24 vrf Vrf-tenant-a
+config save -y
+
+# @device spine-01
+config vlan add 1010
+config vrf add Vrf-tenant-a
+config vlan member add 1010 Ethernet0
+config vlan member add 1010 Ethernet4
+config bgp neighbor add vrf Vrf-tenant-a 10.10.10.1 remote-as 65101
+config bgp neighbor add vrf Vrf-tenant-a 10.10.10.2 remote-as 65102
+config save -y
