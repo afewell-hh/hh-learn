@@ -1,0 +1,8 @@
+{
+  "_note": "ILLUSTRATIVE fixture for the design example. Objects the learner may inspect before answering.",
+  "objects": [
+    { "kind": "VPCAttachment", "name": "customer-app-vpc-server-12", "spec": { "connection": "server-12--unbundled--leaf-05", "subnet": "customer-app-vpc/frontend" } },
+    { "kind": "Connection", "name": "server-12--unbundled--leaf-04", "spec": {} },
+    { "kind": "Agent", "name": "leaf-05", "status": "APPLIEDG == CURRENTG" }
+  ]
+}
