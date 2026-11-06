@@ -38,9 +38,25 @@ describe('#529 discovery junction (offline)', () => {
     expect(html).not.toMatch(/<script|<form|<input|<select|<button|onclick|fetch\(|beacon/i);
   });
 
-  it('has no invented URLs: every href is a placeholder', () => {
-    const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map(m => m[1]);
-    expect(hrefs.length).toBeGreaterThan(0);
-    expect(hrefs.every(h => h === '#')).toBe(true);
+  it('wires only the verified destinations; everything else stays an honest placeholder', () => {
+    const allowed = new Set([
+      'https://hedgehog.cloud/network-performance',
+      'https://hedgehog.cloud/case-studies/farmgpu',
+      'https://hedgehog.cloud/blog/industry-leading-ai-network-performance',
+      'https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks',
+      'https://hedgehog.cloud/download',
+    ]);
+    const anchors = [...html.matchAll(/<a\b[^>]*>/g)].map(m => m[0]);
+    for (const a of anchors) {
+      const href = /href="([^"]*)"/.exec(a)![1];
+      if (href === '#') expect(a).toMatch(/data-link-status="(pending-527-route|provisional-488-route|pending-url)"/);
+      else expect(allowed.has(href)).toBe(true);
+    }
+    expect(html).not.toContain('pending-owner');
+  });
+
+  it('cites performance material as published by Hedgehog and does not restate its numbers', () => {
+    expect(text).toMatch(/Published by Hedgehog, not measured here/);
+    expect(text).not.toMatch(/\d+\s?%|\d+\s?GB\/s|outperform/i);
   });
 });

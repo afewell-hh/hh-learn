@@ -7,8 +7,9 @@
 <!--
   #529 R1 discovery junction. OFFLINE ASSEMBLY ONLY: not a HubSpot template, not provisioned,
   not published. Self-contained: no script, no network, no tracking, no form, no state.
-  Destination hrefs are "#" placeholders with data-link-status; no URL has been invented.
-  The destination's owner supplies the real href. See README.md.
+  Verified existing hedgehog.cloud URLs are wired for performance, OCP and download.
+  Still "#" with a data-link-status: compare (#527 route), replay (#488 provisional), contact (URL not supplied).
+  No URL has been invented. See README.md.
 -->
 <style>
   :root { --ink:#16202a; --muted:#44525f; --line:#c9d2da; --accent:#0b5cad; --soft:#f3f6f9; }
@@ -25,6 +26,7 @@
   ul.paths li.primary { border:2px solid var(--accent); background:#fff; }
   a.path { color:var(--accent); font-weight:600; text-decoration:underline; overflow-wrap:anywhere; }
   a:focus-visible { outline:3px solid #f5a400; outline-offset:2px; }
+  .more { font-size:.95rem; }
   .label { display:inline-block; font-size:.8rem; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 .4rem; }
   .download { border-top:1px solid var(--line); padding-top:1.25rem; margin-top:2rem; }
   .download a { display:inline-block; padding:.6rem 1.1rem; border:2px solid var(--ink); border-radius:6px; color:var(--ink); font-weight:700; text-decoration:none; }
@@ -45,12 +47,14 @@
     </li>
 
     <li id="path-performance">
-      <h2><a class="path" href="#" data-destination="published-performance-results" data-link-status="pending-owner">See the published performance results</a></h2>
-      <p>The results Hedgehog has already published, on the page that owns them.</p>
+      <h2><a class="path" href="https://hedgehog.cloud/network-performance" data-destination="published-performance-results">See the published performance results</a></h2>
+      <p>Hedgehog's published performance results, including a fabric efficiency benchmark and a customer's reported cost comparison with proprietary InfiniBand. The figures are on the pages that own them.</p>
+      <p class="more">Also: <a href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="published-performance-farmgpu">the FarmGPU case study</a> · <a href="https://hedgehog.cloud/blog/industry-leading-ai-network-performance" data-destination="published-performance-blog">Hedgehog's write-up of the results</a></p>
+      <span class="label">Published by Hedgehog, not measured here</span>
     </li>
 
     <li id="path-reference-architecture">
-      <h2><a class="path" href="#" data-destination="ocp-reference-architectures" data-link-status="pending-owner">See an OCP reference architecture</a></h2>
+      <h2><a class="path" href="https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks" data-destination="ocp-reference-architectures">See an OCP reference architecture</a></h2>
       <p>The reference architectures Hedgehog has already published, on the page that owns them.</p>
     </li>
 
@@ -64,10 +68,10 @@
   <section class="download" id="download" aria-labelledby="dl-h">
     <h2 id="dl-h">Ready to install and run it yourself?</h2>
     <p>This is the download route, unchanged. It is for teams who already know they want to install and operate Hedgehog.</p>
-    <a href="#" data-destination="download" data-link-status="pending-owner-existing-route">Download</a>
+    <a href="https://hedgehog.cloud/download" data-destination="download">Download</a>
   </section>
 
-  <p class="contact">Would rather talk it through? <a href="#" data-destination="contact" data-link-status="pending-owner">Contact us</a>.</p>
+  <p class="contact">Would rather talk it through? <a href="#" data-destination="contact" data-link-status="pending-url">Contact us</a>.</p>
 </main>
 </body>
 </html>
