@@ -1,0 +1,21 @@
+# @fixture FIXTURE: written to exercise the renderer. This is NOT a captured Hedgehog object.
+# Replace this file with the VPC/VPCAttachment YAML from the VLAB capture.
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: VPC
+metadata:
+  name: tenant-a
+  namespace: default
+spec:
+  subnets:
+    default:
+      subnet: 10.10.10.0/24
+      vlan: 1010
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: VPCAttachment
+metadata:
+  name: tenant-a-server-01
+  namespace: default
+spec:
+  connection: server-01--unbundled--leaf-01
+  subnet: tenant-a/default

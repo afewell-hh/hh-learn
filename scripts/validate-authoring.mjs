@@ -21,9 +21,14 @@
  */
 
 import { readdir, readFile, access } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, resolve, relative, isAbsolute } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
+
+const require = createRequire(import.meta.url);
+// Single source of truth for compare counts and integrity rules; the renderer runs the same file.
+const { checkCompare, weakestLabel } = require('../clean-x-hedgehog-templates/assets/js/compare.js');
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies — the single place the enums live. Keep in sync with
@@ -377,8 +382,7 @@ export async function validateModule(dir, opts = {}) {
           if (it.type === 'snapshot' && it.source_label !== 'cached') err('HONESTY_MISMATCH', `${where}: snapshot must be labelled "cached"`);
           if ((it.type === 'explorer' || it.type === 'predict') && it.source_label !== 'simulated') err('HONESTY_MISMATCH', `${where}: ${it.type} runs on a fixture and must be labelled "simulated"`);
           if (it.type === 'compare') {
-            const bothCaptured = it.left?.provenance === 'captured' && it.right?.provenance === 'captured';
-            const want = bothCaptured ? 'captured' : 'illustrative';
+            const want = weakestLabel(it.left, it.right);
             if (it.source_label !== want) err('HONESTY_MISMATCH', `${where}: compare is labelled by its weakest side; with sides ${it.left?.provenance}/${it.right?.provenance} the label must be "${want}"`);
           }
         }
@@ -575,75 +579,26 @@ export async function validateModule(dir, opts = {}) {
 }
 
 /**
- * `compare` primitive ("old way vs Hedgehog way"). Rules exist to make a straw man
- * impossible to ship quietly: counts are derived from the captured files rather than
- * authored, the old-way side must state its baseline and completeness, and equivalence
- * of outcome must be stated or the difference disclosed.
+ * `compare` primitive ("old way vs Hedgehog way"). The integrity rules themselves live in
+ * clean-x-hedgehog-templates/assets/js/compare.js (`checkCompare`), the same code the renderer
+ * runs, so the validator and the page cannot disagree about a count, a label or a marker. This
+ * adapter only does the file I/O: it confines each `src` to the module directory, reads the
+ * text, and turns the shared findings into issues.
  */
 async function validateCompare(it, where, dir, err, warn) {
-  if ('counts' in it) err('COMPARE_COUNTS_AUTHORED', `${where}: counts are derived from the source files by the renderer and validator; remove the authored "counts" so they cannot be inflated`);
-  const sides = {};
+  const texts = {};
   for (const name of ['left', 'right']) {
-    const side = it[name];
-    const w = `${where} ${name}`;
-    if (!side || typeof side !== 'object') continue; // INTERACTIVE_FIELD already reported
-    if (!['old_way', 'hedgehog_way', 'other'].includes(side.role)) err('COMPARE_ROLE', `${w}: role must be old_way | hedgehog_way | other`);
-    if (typeof side.label !== 'string' || !side.label.trim()) err('COMPARE_LABEL', `${w}: label required`);
-    if (!['captured', 'illustrative'].includes(side.provenance)) err('COMPARE_PROVENANCE', `${w}: provenance must be "captured" or "illustrative"`);
-    if (side.provenance === 'captured') {
-      const cf = side.captured_from || {};
-      for (const k of ['system', 'version', 'date']) if (!cf[k]) err('COMPARE_CAPTURED_FROM', `${w}: captured_from.${k} required (which system and version, on what date)`);
-    }
-    if (side.provenance === 'illustrative' && !side.illustrative_reason) err('COMPARE_ILLUSTRATIVE', `${w}: an illustrative side needs "illustrative_reason" (why it is not captured)`);
-    if (typeof side.src !== 'string') { err('COMPARE_SRC', `${w}: src (path to the captured text) required`); continue; }
-    sides[name] = side;
+    const src = it[name]?.src;
+    if (typeof src !== 'string' || !src) continue; // reported by checkCompare as COMPARE_SRC
+    const rel = relative(dir, resolve(dir, src));
+    if (rel.startsWith('..') || isAbsolute(rel)) { err('COMPARE_SRC_PATH', `${where} ${name}: src "${src}" must stay inside the module directory`); continue; }
+    try { texts[name] = await readFile(join(dir, src), 'utf-8'); }
+    catch { err('ASSET_MISSING', `${where} ${name}: src "${src}" not found`); }
   }
-  const old = [it.left, it.right].find((s) => s?.role === 'old_way');
-  if (old) {
-    if (!old.baseline || String(old.baseline).length < 10) err('COMPARE_BASELINE', `${where}: the old-way side must state its baseline (for example "manual per-device CLI, no automation") so a reader can judge fairness`);
-    if (!['complete', 'excerpt'].includes(old.completeness)) err('COMPARE_COMPLETENESS', `${where}: old-way completeness must be "complete" or "excerpt"`);
-    if (old.completeness === 'excerpt' && !old.omitted) err('COMPARE_OMITTED', `${where}: an excerpted old-way side must say what was omitted; counts will be shown as "excerpt"`);
-    if (!old.representative_basis || String(old.representative_basis).length < 40) err('COMPARE_REPRESENTATIVE', `${where}: old-way side needs "representative_basis" (at least a sentence): why this is how the task is genuinely done, not a straw man`);
-    if (old.provenance === 'illustrative') warn('COMPARE_OLD_ILLUSTRATIVE', `${where}: the old-way side is illustrative; prefer a captured configuration. The pane will be labelled illustrative`);
-  }
-  if (it.hard_way === true) {
-    if (!old || old.provenance !== 'captured' || old.completeness !== 'complete') {
-      err('COMPARE_HARD_WAY', `${where}: hard_way:true requires a captured, complete old-way side. A hard-way campaign that is excerpted or illustrative is a straw man`);
-    }
-  }
-  const eq = it.equivalence;
-  if (eq && typeof eq === 'object') {
-    if (!['same', 'differs'].includes(eq.status)) err('COMPARE_EQUIVALENCE', `${where}: equivalence.status must be "same" or "differs"`);
-    if (!eq.outcome) err('COMPARE_EQUIVALENCE', `${where}: equivalence.outcome (what both sides achieve) required`);
-    if (eq.status === 'differs' && !eq.difference) err('COMPARE_DIFFERENCE', `${where}: equivalence.status "differs" requires "difference" (the disclosed gap in outcome)`);
-  } else if (eq !== undefined) {
-    err('COMPARE_EQUIVALENCE', `${where}: equivalence must be an object { status, outcome, difference? }`);
-  }
-  // Derive counts and cross-check devices and step ranges.
-  return await deriveCompareCounts(it, sides, where, dir, err);
-}
-
-/** Counts shown to the learner come from here, never from the author. Device markers are `# @device <name>` lines. */
-async function deriveCompareCounts(it, sides, where, dir, err) {
-  for (const [name, side] of Object.entries(sides)) {
-    let text;
-    try { text = await readFile(join(dir, side.src), 'utf-8'); } catch { err('ASSET_MISSING', `${where} ${name}: src "${side.src}" not found`); continue; }
-    const lines = text.split('\n');
-    const devices = new Set(lines.map((l) => l.match(/^\s*(?:#|!)\s*@device\s+(\S+)/)?.[1]).filter(Boolean));
-    const content = lines.filter((l) => l.trim() && !/^\s*(#|!|\/\/)/.test(l));
-    side.derived = { lines: content.length, devices: devices.size };
-    if (Array.isArray(side.devices) && side.devices.length > 1 && devices.size === 0) {
-      err('COMPARE_DEVICES', `${where} ${name}: declares ${side.devices.length} devices but the source has no "# @device <name>" markers, so the device count cannot be verified`);
-    }
-    if (Array.isArray(side.devices) && devices.size > 0 && (side.devices.length !== devices.size || side.devices.some((d) => !devices.has(d)))) {
-      err('COMPARE_DEVICES', `${where} ${name}: devices ${JSON.stringify(side.devices)} do not match the markers in ${side.src} (${[...devices].join(', ')})`);
-    }
-    for (const [i, step] of (it.steps || []).entries()) {
-      const r = step?.[name === 'left' ? 'left' : 'right'];
-      if (!Array.isArray(r) || r.length !== 2 || !(r[0] >= 1 && r[1] >= r[0] && r[1] <= lines.length)) {
-        err('COMPARE_STEP_RANGE', `${where} steps[${i}].${name}: expected [firstLine, lastLine] within ${side.src} (${lines.length} lines)`);
-      }
-    }
+  for (const p of checkCompare(it, texts)) {
+    // An unreadable or escaping src is already reported above; do not double-report it.
+    if (p.code === 'COMPARE_SRC' && /was not supplied/.test(p.message)) continue;
+    (p.level === 'error' ? err : warn)(p.code, `${where}: ${p.message}`);
   }
 }
 

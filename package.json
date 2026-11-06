@@ -32,7 +32,8 @@
     "validate:cms": "npm run build && npm run provision:tables -- --dry-run && npm run provision:constants -- --dry-run && npm run provision:pages -- --dry-run",
     "validate:authoring": "node scripts/validate-authoring.mjs",
     "detect-orphans": "npm run build && node dist/scripts/detect-orphans.js",
-    "test:e2e": "npx playwright test --reporter=list"
+    "test:compare": "playwright test -c playwright.compare.config.ts",
+    "test:e2e":"npx playwright test --reporter=list"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.700.0",
@@ -53,6 +54,7 @@
     "@types/aws-lambda": "^8.10.134",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.7.4",
+    "axe-core": "4.10.2",
     "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",
     "jest": "^30.3.0",

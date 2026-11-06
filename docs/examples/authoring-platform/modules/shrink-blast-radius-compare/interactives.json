@@ -1,0 +1,43 @@
+{
+  "interactives": [
+    {
+      "id": "tenant-old-vs-new",
+      "type": "compare",
+      "title": "Add a tenant: per-switch SONiC vs one VPC",
+      "caption": "FIXTURE. Per-device SONiC configuration set beside the Hedgehog objects that produce the same tenant isolation.",
+      "source_label": "illustrative",
+      "evidence_plane": "control-plane",
+      "left": {
+        "role": "old_way",
+        "label": "SONiC, configured by hand",
+        "provenance": "illustrative",
+        "illustrative_reason": "FIXTURE: placeholder written to exercise the component while the real per-device SONiC configuration is captured from a VLAB run.",
+        "fixture": true,
+        "src": "captures/tenant-sonic.txt",
+        "devices": ["leaf-01", "leaf-02", "spine-01"],
+        "baseline": "Manual per-device CLI; no automation or templating",
+        "completeness": "complete",
+        "representative_basis": "Fixture only. For the real capture: the generated per-device SONiC configuration, which is exactly what would otherwise be written by hand."
+      },
+      "right": {
+        "role": "hedgehog_way",
+        "label": "Hedgehog, one VPC",
+        "provenance": "illustrative",
+        "illustrative_reason": "FIXTURE: placeholder written to exercise the component while the real VPC and VPCAttachment YAML is captured from a VLAB run.",
+        "fixture": true,
+        "src": "captures/tenant-vpc.yaml",
+        "devices": []
+      },
+      "equivalence": {
+        "status": "same",
+        "outcome": "A workload attached to tenant-a is reachable only within tenant-a."
+      },
+      "steps": [
+        { "id": "s1", "title": "Define the tenant network", "left": [4, 7], "right": [3, 12] },
+        { "id": "s2", "title": "Attach a server", "left": [8, 9], "right": [14, 21] },
+        { "id": "s3", "title": "Repeat on every other device", "left": [13, 30], "right": [3, 21] }
+      ],
+      "hard_way": false
+    }
+  ]
+}
