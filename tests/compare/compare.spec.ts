@@ -17,7 +17,7 @@ const SHOTS = join(ROOT, 'screenshots/compare');
 type Json = Record<string, any>;
 const interactive = (): Json => JSON.parse(readFileSync(join(FIX, 'interactives.json'), 'utf-8')).interactives[0];
 const texts = () => ({ left: readFileSync(join(FIX, 'captures/tenant-sonic.txt'), 'utf-8'), right: readFileSync(join(FIX, 'captures/tenant-vpc.yaml'), 'utf-8') });
-const payload = (mut?: (it: Json) => void) => { const it = interactive(); mut?.(it); return { interactive: it, texts: texts() }; };
+const payload = (mut?: (it: Json, t: { left: string; right: string }) => void) => { const it = interactive(); const t = texts(); mut?.(it, t); return { interactive: it, texts: t }; };
 
 function html(p: Json, withScript = true): string {
   const json = JSON.stringify(p).replace(/</g, '\\u003c');
@@ -93,6 +93,24 @@ test.describe('honest rendering', () => {
   test('a device list that disagrees with the markers fails closed', async ({ page }) => {
     await load(page, payload((it) => { it.left.devices = ['leaf-01']; }));
     await expect(page.getByRole('alert')).toContainText('COMPARE_DEVICES');
+  });
+
+  test('imaginary device markers fail closed and never raise the count', async ({ page }) => {
+    await load(page, payload((it, texts) => { texts.left += '# @device imaginary-1\n# @device imaginary-2\n'; }));
+    await expect(page.getByRole('alert')).toContainText('COMPARE_DEVICE_EMPTY');
+    await expect(page.locator('.hh-ix-count')).toHaveCount(0);
+  });
+
+  test('a source_label stronger than the weakest side fails closed (renderer matches validator)', async ({ page }) => {
+    await load(page, payload((it) => { it.source_label = 'captured'; }));
+    await expect(page.getByRole('alert')).toContainText('HONESTY_MISMATCH');
+  });
+
+  test('the strip says what it measures: authoring effort, not device involvement', async ({ page }) => {
+    await load(page, payload());
+    await expect(page.locator('.hh-ix-count[data-side=right] .hh-ix-count-dev')).toContainText('0 devices configured by hand');
+    await expect(page.locator('.hh-ix-strip-note')).toContainText('authoring effort, not device involvement');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test('data-plane evidence fails closed', async ({ page }) => {

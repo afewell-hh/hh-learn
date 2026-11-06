@@ -21,14 +21,15 @@
  */
 
 import { readdir, readFile, access } from 'node:fs/promises';
-import { join, resolve, relative, isAbsolute } from 'node:path';
+import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
+import { readConfined } from './lib/confined-read.mjs';
 
 const require = createRequire(import.meta.url);
 // Single source of truth for compare counts and integrity rules; the renderer runs the same file.
-const { checkCompare, weakestLabel } = require('../clean-x-hedgehog-templates/assets/js/compare.js');
+const { checkCompare } = require('../clean-x-hedgehog-templates/assets/js/compare.js');
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies — the single place the enums live. Keep in sync with
@@ -381,10 +382,6 @@ export async function validateModule(dir, opts = {}) {
           if (it.type === 'replay' && it.source_label !== 'recorded') err('HONESTY_MISMATCH', `${where}: replay must be labelled "recorded"`);
           if (it.type === 'snapshot' && it.source_label !== 'cached') err('HONESTY_MISMATCH', `${where}: snapshot must be labelled "cached"`);
           if ((it.type === 'explorer' || it.type === 'predict') && it.source_label !== 'simulated') err('HONESTY_MISMATCH', `${where}: ${it.type} runs on a fixture and must be labelled "simulated"`);
-          if (it.type === 'compare') {
-            const want = weakestLabel(it.left, it.right);
-            if (it.source_label !== want) err('HONESTY_MISMATCH', `${where}: compare is labelled by its weakest side; with sides ${it.left?.provenance}/${it.right?.provenance} the label must be "${want}"`);
-          }
         }
         if (!EVIDENCE_PLANES.includes(it.evidence_plane)) {
           err('EVIDENCE_PLANE', `${where}: evidence_plane must be one of ${EVIDENCE_PLANES.join(', ')} (control-plane evidence is not data-plane evidence)`);
@@ -590,14 +587,17 @@ async function validateCompare(it, where, dir, err, warn) {
   for (const name of ['left', 'right']) {
     const src = it[name]?.src;
     if (typeof src !== 'string' || !src) continue; // reported by checkCompare as COMPARE_SRC
-    const rel = relative(dir, resolve(dir, src));
-    if (rel.startsWith('..') || isAbsolute(rel)) { err('COMPARE_SRC_PATH', `${where} ${name}: src "${src}" must stay inside the module directory`); continue; }
-    try { texts[name] = await readFile(join(dir, src), 'utf-8'); }
-    catch { err('ASSET_MISSING', `${where} ${name}: src "${src}" not found`); }
+    try { texts[name] = await readConfined(dir, src); }
+    catch (e) {
+      if (e.code === 'ESCAPE') err('COMPARE_SRC_PATH', `${where} ${name}: ${e.message}`);
+      else err('ASSET_MISSING', `${where} ${name}: src "${src}" not found or not a regular file`);
+    }
   }
   for (const p of checkCompare(it, texts)) {
     // An unreadable or escaping src is already reported above; do not double-report it.
     if (p.code === 'COMPARE_SRC' && /was not supplied/.test(p.message)) continue;
+    // The generic interactive checks already report an unknown source_label, evidence-plane value and plane overclaim.
+    if (['HONESTY_LABEL', 'EVIDENCE_PLANE', 'PLANE_OVERCLAIM'].includes(p.code)) continue;
     (p.level === 'error' ? err : warn)(p.code, `${where}: ${p.message}`);
   }
 }

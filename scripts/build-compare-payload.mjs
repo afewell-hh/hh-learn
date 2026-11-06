@@ -10,9 +10,10 @@
  * renderer would reject is never produced. `<` is escaped so the JSON can sit in a <script> tag.
  */
 import { readFile } from 'node:fs/promises';
-import { join, resolve, relative, isAbsolute } from 'node:path';
+import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { readConfined } from './lib/confined-read.mjs';
 
 const require = createRequire(import.meta.url);
 const { checkCompare } = require('../clean-x-hedgehog-templates/assets/js/compare.js');
@@ -25,10 +26,8 @@ export async function buildPayload(moduleDir, id) {
   const texts = {};
   for (const name of ['left', 'right']) {
     const src = interactive[name]?.src;
-    const full = resolve(dir, src || '');
-    const rel = relative(dir, full);
-    if (!src || rel.startsWith('..') || isAbsolute(rel)) throw new Error(`${name}.src "${src}" must stay inside the module directory`);
-    texts[name] = await readFile(full, 'utf-8');
+    try { texts[name] = await readConfined(dir, src); }
+    catch (e) { throw new Error(`${name}.src "${src}": ${e.message}`); }
   }
   const problems = checkCompare(interactive, texts).filter((p) => p.level === 'error');
   if (problems.length) throw new Error(problems.map((p) => `${p.code}: ${p.message}`).join('\n'));
