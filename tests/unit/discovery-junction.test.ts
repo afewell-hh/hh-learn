@@ -10,9 +10,18 @@ const text = html
   .replace(/\s+/g, ' ');
 
 describe('#529 discovery junction (offline)', () => {
-  it('uses the customer-selected segmentation label verbatim, as the primary card', () => {
-    expect(text).toContain('Shrink the blast radius');
+  // The entry label was "Shrink the blast radius" until the customer reset the messaging
+  // frame to AI networking on 2026-11-07. The blast-radius phrase is kept in the card body,
+  // where it still names the mechanism; the label now names the AI-cluster outcome.
+  it('leads the primary card on service enablement, keeping the blast-radius framing in the body', () => {
+    expect(text).toContain('Give every team and customer their own slice of the cluster');
+    expect(text).toContain('shrink the blast radius');
     expect(html).toMatch(/<li class="primary" id="path-segmentation">/);
+  });
+
+  it('frames the page as AI networking, not as SONiC manageability', () => {
+    expect(text).toMatch(/AI network/);
+    expect(text).not.toMatch(/sonic/i);
   });
 
   it('never claims isolation (binding copy rule)', () => {
@@ -55,8 +64,8 @@ describe('#529 discovery junction (offline)', () => {
     expect(html).not.toContain('pending-owner');
   });
 
-  it('cites performance material as published by Hedgehog and does not restate its numbers', () => {
-    expect(text).toMatch(/Published by Hedgehog, not measured here/);
-    expect(text).not.toMatch(/\d+\s?%|\d+\s?GB\/s|outperform/i);
+  it('attributes the benchmark to its independent source and does not restate its numbers', () => {
+    expect(text).toMatch(/Measured by SemiAnalysis, reported by Hedgehog, not measured here/);
+    expect(text).not.toMatch(/\d+\s?%|\d+\s?GB\/s|outperform|fastest|best in|industry.leading/i);
   });
 });

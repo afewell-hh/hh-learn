@@ -6,7 +6,7 @@
 
 ## Setup
 
-- **Five people**, at least two of whom run a network they own (single-owner), at least one who runs infrastructure for others (multi-tenant), and at least one who has not decided to use SONiC. Not Hedgehog staff.
+- **Five people**, at least two of whom run a network they own (single-owner), at least one who runs infrastructure for others (multi-tenant), and at least one whose first concern is AI workload performance rather than how the cluster is shared out. Not Hedgehog staff.
 - Use the offline `index.html` with working destinations substituted, or screen-share the live destinations. One person at a time. Think aloud. Do not explain the page.
 - Record per participant: the route first chosen, the time to first click, whether they returned without an answer, and their own words at each question below.
 
@@ -19,6 +19,7 @@
 5. **Download.** "If you wanted to install this today, where would you go?" Observe whether they find Download, and whether they believe it is for them.
 6. **Contact.** "If you wanted a person, what would you do?" Record whether they found it and whether they tried routes first.
 7. **Comprehension check, segmentation copy.** Ask: "In your own words, what does this say Hedgehog does for segmentation? What does it **not** tell you?"
+8. **Comprehension check, benchmark attribution.** Ask: "Who measured the performance results, and what would you still want to see?" Record whether the participant takes the figures as Hedgehog's own marketing, as independent, or cannot tell.
 
 ## What counts as a relevant answer, versus merely clicking
 
@@ -43,10 +44,11 @@ If a destination leaves people with no next step, record it as a **dead end move
 | CTA promise mismatch | Anyone expects "Download" to show a menu, or expects the entry to start an install |
 | Download lost | Anyone with a genuine install intent cannot find the download route, or cannot tell it is for them |
 | Label misread | Participant predicts a route's content wrongly in step 2 |
-| Primary label not recognised | A single-owner participant does not see "Shrink the blast radius" as relevant to them |
+| Primary label not recognised | A single-owner participant does not see "Give every team and customer their own slice of the cluster" as relevant to them, or reads it as being only about renting capacity out |
 | Multi-tenant visitor lost | A multi-tenant participant does not find themselves in the destination |
 | **Isolation overclaim** | **Any participant in step 7 says the page shows or promises that tenants or segments are isolated, secure, or proven safe. One occurrence is a defect: change the copy.** |
 | Contact treated as peer | Participant goes to contact first, or does not see it as secondary |
+| Benchmark attribution misread | In step 8, a participant cannot tell who measured the results, or believes Hedgehog measured them itself |
 | No route fits | Participant's question from step 1 matches none of the routes. This is the most valuable finding |
 
 ## Reading the result (agree this before running)

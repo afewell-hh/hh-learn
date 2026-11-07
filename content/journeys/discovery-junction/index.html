@@ -3,13 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Find out whether Hedgehog makes SONiC manageable</title>
+<title>Find out what Hedgehog does for an AI network</title>
 <!--
   #529 R1 discovery junction. OFFLINE ASSEMBLY ONLY: not a HubSpot template, not provisioned,
   not published. Self-contained: no script, no network, no tracking, no form, no state.
   Verified existing hedgehog.cloud URLs are wired for performance, OCP and download.
   Still "#" with a data-link-status: compare (#527 route), replay (#488 provisional), contact (URL not supplied).
   No URL has been invented. See README.md.
+
+  MESSAGING FRAME, set by the customer on 2026-11-07: AI networking, and the two concerns
+  that follow from it -- what the network does to AI workload performance, and how quickly
+  the cluster becomes a service someone can use. SONiC is an enabler, not the message, and
+  does not appear on this page.
 -->
 <style>
   :root { --ink:#16202a; --muted:#44525f; --line:#c9d2da; --accent:#0b5cad; --soft:#f3f6f9; }
@@ -35,32 +40,33 @@
 </head>
 <body>
 <main>
-  <h1>Find out whether Hedgehog makes SONiC manageable</h1>
-  <p class="lede">Pick whichever question is closest to yours. Every route below opens on its own, in any order, with nothing to fill in.</p>
+  <h1>Find out what Hedgehog does for an AI network</h1>
+  <p class="lede">The network decides two things about an expensive GPU cluster: how much of its performance reaches the workload, and how quickly it becomes something teams and customers can actually use. Pick whichever question is closest to yours. Every route below opens on its own, in any order, with nothing to fill in.</p>
 
   <ul class="paths">
     <li class="primary" id="path-segmentation">
-      <h2><a class="path" href="#" data-destination="compare" data-link-status="pending-527-route">Shrink the blast radius</a></h2>
-      <p>Most networks are hard on the outside and soft in the middle. Cloud VPC networking made segmentation cheap enough to be the default. On-prem, it is still a project each time, because the tooling cannot keep up with how fast applications and facilities change.</p>
-      <p>See what keeping segmentation in step with your applications looks like, old way beside Hedgehog way.</p>
+      <h2><a class="path" href="#" data-destination="compare" data-link-status="pending-527-route">Give every team and customer their own slice of the cluster</a></h2>
+      <p>An idle GPU-hour is the most expensive thing in the building, and what usually keeps one idle is not the hardware. It is how long it takes to get the next team, or the next paying customer, onto the cluster safely. Most networks are hard on the outside and soft in the middle, so each one is a project: shrink the blast radius and you have shrunk the wait as well.</p>
+      <p>Cloud VPC networking made segmentation cheap enough to be the default. On hardware you own it is still hand work, because the tooling cannot keep up with how fast applications and facilities change.</p>
+      <p>See what keeping that in step with your workloads looks like, old way beside Hedgehog way.</p>
       <span class="label">Illustrative example: shows configuration, not tested traffic behaviour</span>
     </li>
 
     <li id="path-performance">
-      <h2><a class="path" href="https://hedgehog.cloud/network-performance" data-destination="published-performance-results">See the published performance results</a></h2>
-      <p>Hedgehog's published performance results, including a fabric efficiency benchmark and a customer's reported cost comparison with proprietary InfiniBand. The figures are on the pages that own them.</p>
-      <p class="more">Also: <a href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="published-performance-farmgpu">the FarmGPU case study</a> · <a href="https://hedgehog.cloud/blog/industry-leading-ai-network-performance" data-destination="published-performance-blog">Hedgehog's write-up of the results</a></p>
-      <span class="label">Published by Hedgehog, not measured here</span>
+      <h2><a class="path" href="https://hedgehog.cloud/blog/industry-leading-ai-network-performance" data-destination="published-performance-results">See how a Hedgehog fabric measured against InfiniBand</a></h2>
+      <p>SemiAnalysis ran its ClusterMAX testing on B200 clusters at FarmGPU and RunPod, both running Hedgehog, alongside InfiniBand and RoCEv2 clusters. The NCCL results, and FarmGPU's reported cost comparison with proprietary InfiniBand, are on the pages that own them.</p>
+      <p class="more">Also: <a href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="published-performance-farmgpu">the FarmGPU case study</a> · <a href="https://hedgehog.cloud/network-performance" data-destination="published-performance-overview">what Hedgehog designs the fabric to do for AI workloads</a></p>
+      <span class="label">Measured by SemiAnalysis, reported by Hedgehog, not measured here</span>
     </li>
 
     <li id="path-reference-architecture">
       <h2><a class="path" href="https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks" data-destination="ocp-reference-architectures">See an OCP reference architecture</a></h2>
-      <p>The reference architectures Hedgehog has already published, on the page that owns them.</p>
+      <p>The AI networking blueprint Hedgehog has published through the Open Compute Project: an open design to build an AI fabric against, rather than a topology you invent. On the page that owns it.</p>
     </li>
 
     <li id="path-replay">
       <h2><a class="path" href="#" data-destination="fabric-operator-replay" data-link-status="provisional-488-route">Watch an operator work through a fabric</a></h2>
-      <p>A short, step-by-step replay of operating a fabric, so you can judge how much day-to-day complexity is taken off you.</p>
+      <p>A short, step-by-step replay of running a Hedgehog fabric, so you can judge what the day to day actually costs you, and whether the platform team you already have can run an AI network without hiring specialists for it.</p>
       <span class="label">Replay of recorded steps</span>
     </li>
   </ul>
