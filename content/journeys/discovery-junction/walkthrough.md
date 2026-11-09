@@ -19,7 +19,7 @@
 5. **Download.** "If you wanted to install this today, where would you go?" Observe whether they find Download, and whether they believe it is for them.
 6. **Contact.** "If you wanted a person, what would you do?" Record whether they found it and whether they tried routes first.
 7. **Comprehension check, segmentation copy.** Ask: "In your own words, what does this say Hedgehog does for segmentation? What does it **not** tell you?"
-8. **Comprehension check, evidence attribution.** Ask: "Who produced the performance results, and what would you still want to see?" Record whether the participant understands these are FarmGPU's own figures from FarmGPU's cluster, believes Hedgehog measured them, believes an independent analyst benchmarked the fabric, or cannot tell. The third answer is the one to watch for: there is no such benchmark.
+8. **Comprehension check, evidence attribution.** Ask: "Who produced the performance results, and what would you still want to see?" Then: "Did you read the small print, and what did you take from it?" Record whether the participant understands these are FarmGPU's own figures from FarmGPU's cluster, believes Hedgehog measured them, believes SemiAnalysis benchmarked the fabric, or cannot tell. The third answer is the one to watch for: there is no such benchmark, and the small print exists to prevent exactly that reading.
 
 ## What counts as a relevant answer, versus merely clicking
 
@@ -49,7 +49,8 @@ If a destination leaves people with no next step, record it as a **dead end move
 | Multi-tenant visitor lost | A multi-tenant participant does not find themselves in the destination |
 | **Isolation overclaim** | **Any participant in step 7 says the page shows or promises that tenants or segments are isolated, secure, or proven safe. One occurrence is a defect: change the copy.** |
 | Contact treated as peer | Participant goes to contact first, or does not see it as secondary |
-| **Evidence over-credited** | **In step 8, a participant believes an independent analyst benchmarked the Hedgehog fabric. No such benchmark exists. One occurrence is a defect: change the copy.** |
+| **Evidence over-credited** | **In step 8, a participant believes SemiAnalysis benchmarked or rated the Hedgehog fabric. No such rating exists. One occurrence is a defect: change the copy.** |
+| Small print unread or unhelpful | A participant does not notice the small print, or reads it and still cannot state who produced the figures |
 | Operator evidence discounted | In step 8, a participant dismisses FarmGPU's figures as a vendor reference and does not register JM Hands or the OCP role |
 | No route fits | Participant's question from step 1 matches none of the routes. This is the most valuable finding |
 

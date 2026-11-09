@@ -29,14 +29,30 @@ describe('#529 discovery junction (offline)', () => {
     expect(html).toMatch(/<li id="path-segmentation">/);
   });
 
-  // SemiAnalysis evaluate neoclouds, not networking products, and their published FarmGPU
-  // review said next to nothing about the network. The evidence we actually hold is
-  // FarmGPU's own publications about their own cluster. Naming SemiAnalysis here would
-  // claim an independent product benchmark that does not exist.
-  it('attributes the results to FarmGPU, never to a third-party networking benchmark', () => {
-    expect(text).toMatch(/FarmGPU's own published figures, measured on their cluster, not here/);
-    expect(text).toMatch(/FarmGPU/);
-    expect(text).not.toMatch(/semi.?analysis|clustermax/i);
+  // Customer direction 2026-11-09: name SemiAnalysis, because the name carries weight, but
+  // never as having rated the fabric -- they review GPU clouds, not fabrics, and their
+  // published FarmGPU report said next to nothing about the network. The chain lives in the
+  // small print with a link to FarmGPU's own account. These two assertions are the guard:
+  // the name may not appear without the qualifier, and the qualifier may not drift.
+  it('names SemiAnalysis only alongside the small print that qualifies it', () => {
+    const QUALIFIER =
+      "SemiAnalysis review GPU clouds, not fabrics. The figures are FarmGPU's own, " +
+      'from the cluster SemiAnalysis reviewed, which runs a Hedgehog and Celestica fabric.';
+    expect(text).toContain(QUALIFIER);
+    expect(html).toMatch(/<p class="smallprint">[\s\S]*?blog\.farmgpu\.com[\s\S]*?<\/p>/);
+    // Every mention of the name is inside the primary card, which carries the qualifier.
+    const card = html.match(/<li class="primary" id="path-performance">[\s\S]*?<\/li>/)![0];
+    const onPage = (text.match(/SemiAnalysis/g) ?? []).length;
+    const inCard = (card.match(/SemiAnalysis/g) ?? []).length;
+    expect(onPage).toBeGreaterThan(0);
+    expect(inCard).toBe(onPage);
+  });
+
+  it('never claims SemiAnalysis rated, benchmarked or measured the fabric', () => {
+    expect(text).not.toMatch(/\bindependent/i);
+    expect(text).not.toMatch(/third.?part/i);
+    expect(text).not.toMatch(/clustermax/i);
+    expect(text).not.toMatch(/SemiAnalysis[^.]{0,80}\b(rated|ranked|benchmark|measured|tested|scored)/i);
   });
 
   it('does not restate the figures or reach for superlatives', () => {
@@ -69,6 +85,7 @@ describe('#529 discovery junction (offline)', () => {
   it('wires only the verified destinations; everything else stays an honest placeholder', () => {
     const allowed = new Set([
       'https://hedgehog.cloud/case-studies/farmgpu',
+      'https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/',
       'https://hedgehog.cloud/network-performance',
       'https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks',
       'https://hedgehog.cloud/download',

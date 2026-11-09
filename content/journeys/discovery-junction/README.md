@@ -17,6 +17,8 @@ SONiC is an enabler, not the message. It does not appear on the page. The first 
 
 **The top line is deliberately general, and that is a decision, not an omission.** The customer's instruction on 2026-11-09: *"people are aware that networking is really important and makes a big difference for AI workload performance and job completion time and they are aware its really complicated and hard to get right and so I think at the highest level we should use a more generally impactful messaging and save more narrowly use case focused messaging until deeper down some path."*
 
+**The top line is a swappable element, by design.** The customer expects this dialogue to be launched from several places, which may not share one tagline, and possibly from a rotating set of them. Nothing below the opening paragraph depends on its wording: each card states its own promise and its own honesty qualifier, so the headline and lede can be replaced, varied per entry point, or rotated without touching a card. Any variant must still meet the general-premise rule below rather than leading with a use case.
+
 So the headline and opening line state only the premise the audience already holds — the network drives performance and job completion time, and it is the hardest part to get right — and every narrower message sits on a card of its own. In particular **segmentation does not lead.** Many readers are not yet aware they need it, so leading with it loses them. It keeps its own card, under the customer's own label, and the deeper use-case split belongs further along a path where a use case can actually be inferred rather than guessed at the front door.
 
 **What is carried over unchanged from the first draft.** Four routes, the preserved Download section, the quiet contact link, the honesty labels, and the no-profiling rule: no form, no quiz, no script, no tracking, no stored state. The headline, the opening line and every card's copy have been rewritten twice, to the frame above.
@@ -46,13 +48,13 @@ The routes answer the questions the customer says the audience arrives with:
 |---|---|
 | *Illustrative example: shows configuration, not tested traffic behaviour* | The segmentation example shows what is configured. It does **not** show what traffic actually does. No claim of isolation is made. |
 | *Replay of recorded steps* | The replay plays back recorded operations. It is not a live system. |
-| *FarmGPU's own published figures, measured on their cluster, not here* | The figures are FarmGPU's, measured on FarmGPU's cluster and published by FarmGPU. They are not an independent benchmark of Hedgehog as a product, and this project measured nothing and restates no numbers. The page points to the owning page instead. See **Attribution** below; this label wording is binding. |
+| *SemiAnalysis review GPU clouds, not fabrics. The figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which runs a Hedgehog and Celestica fabric.* | Small print under the primary card, with a link to FarmGPU's own account. SemiAnalysis is named because the name carries weight, and immediately qualified because they rate clouds, not fabrics. This wording is binding and the unit test fails if the name appears without it. See **Attribution** below. |
 
 ## Routes and status
 
 | Route | Destination | Link status |
 |---|---|---|
-| **See the results from a GPU cloud that runs it** (primary) | `https://hedgehog.cloud/case-studies/farmgpu`, plus `/network-performance` as a secondary link | Wired. Both verified HTTP 200. |
+| **See the results from a GPU cloud that runs it** (primary) | `https://hedgehog.cloud/case-studies/farmgpu`, plus `/network-performance` as a secondary link and `https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/` in the small print | Wired. All three verified HTTP 200 on 2026-11-09. The FarmGPU link is the page's only off-site destination, and deliberately so: the attribution chain ends at FarmGPU's own words. |
 | Shrink the blast radius | `compare` interactive, instance `shrink-blast-radius-compare` (#527) | Placeholder `#`, `pending-527-route`. Depends on #527 and the #489 gates. |
 | See an OCP reference architecture | `https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks` | Wired. Verified HTTP 200. |
 | Watch an operator work through a fabric | Replay, PR #488. Route `/learn/experience/fabric-operator` is provisional | Placeholder `#`, `provisional-488-route`. Built, unpublished, behind `EXPERIENCE_LAB_ENABLED=false`. |
@@ -80,22 +82,48 @@ Label **"Shrink the blast radius"**, verbatim, on its own card and **not** the l
 
 ## Attribution: what the performance evidence actually is
 
-**Correction, and why this section is binding.** An earlier draft of this page credited the results to **SemiAnalysis** and labelled them *"Measured by SemiAnalysis, reported by Hedgehog."* That was wrong. The customer corrected it on 2026-11-09:
+**The rule, set by the customer on 2026-11-09.** *Name SemiAnalysis, and put the chain in the small print.* Verbatim:
+
+> *"I think its better to name Semianalysis and then in the footnotes could say based on FarmGPU's reporting of Semianalysis review of FarmGPU infrastructure which utilized Hedgehog/Celestica fabric and then a link to the best farmgpu blog on the topic is fine, tighten the explanation i provided here up a bit more, put it in the small print."*
+
+This superseded two earlier drafts, both wrong in opposite directions. Draft 2 labelled the results *"Measured by SemiAnalysis, reported by Hedgehog"*, which claims an independent benchmark of the fabric that does not exist. Draft 3 removed the name altogether, which throws away weight the name legitimately carries. The resolution is: **name it, qualify it immediately, link to the primary source.**
+
+**What is actually true.** The customer's account, 2026-11-09:
 
 > *"our experience with semi-analysis is indirect, they do not directly evaluate networking solutions, they only evaluate neoclouds on a number of criteria, they dont specifically publish a network rating per provider. Our commentary about semi-analysis comes from FarmGPU, who had their env analyzed by semi-analyisis, but the formal published report did not say hardly anything about networking, which is fairly normal."*
 
-So there is **no independent third-party benchmark of Hedgehog as a networking product.** SemiAnalysis rate neoclouds, not fabrics. What does exist:
+So: SemiAnalysis reviewed FarmGPU's **cloud**. FarmGPU's cloud runs a Hedgehog and Celestica fabric. FarmGPU publish their own figures from that cluster. There is **no SemiAnalysis rating of the fabric** and the page must never imply one.
 
-1. **FarmGPU's own publications about FarmGPU's own cluster** — an NCCL all-reduce figure, a cost comparison with proprietary InfiniBand, and a deployment time. These are an operator's measurements of their own production system. That is real evidence, and it is what the page cites.
-2. **JM Hands, FarmGPU's chief executive, speaking publicly** — blogs and talks — about the praise SemiAnalysis gave the Hedgehog and Celestica fabric during their review of FarmGPU's cloud. He chairs the Open Compute Project's neocloud working group, which is why the page names him: the weight here is his standing in the field, not a vendor endorsement.
+**The small print, verbatim and binding:**
 
-**Rules that follow, enforced by the unit test:**
+> SemiAnalysis review GPU clouds, not fabrics. The figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which runs a Hedgehog and Celestica fabric. [FarmGPU's own account](https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/).
 
-- The entry page **cites FarmGPU and never names SemiAnalysis.** Naming them at the front door invites exactly the misreading the customer corrected, and an entry card has no room to state the chain precisely. The test fails on "SemiAnalysis" and on "ClusterMAX".
-- The label is *FarmGPU's own published figures, measured on their cluster, not here* — not "independent", not "third-party", not "benchmarked".
-- No figure is restated on the entry. The test fails on any percentage or throughput number, and on *outperform*, *fastest*, *best in* and *industry-leading*.
+**Why that link, and an open question about it.** The customer asked for "the best FarmGPU blog on the topic". FarmGPU's blog index was read in full on 2026-11-09. The selected post, *Building an AI Cluster: Our 17-Day Crash Course in Open Networking* (JM Hands, 31 Oct 2025), is their strongest networking write-up: the NCCL result on their own cluster, the open-Ethernet cost comparison, the OCP Summit presentation with Hedgehog and Celestica, and Hedgehog named as the partner who debugged it with them.
 
-**Flagged for the customer, about an existing live page.** `https://hedgehog.cloud/blog/industry-leading-ai-network-performance` states that SemiAnalysis "completed ClusterMAX testing" and that the Hedgehog-based clouds outperformed named InfiniBand and RoCEv2 clusters. Against the correction above, that page's framing is stronger than the chain supports. The second draft of this junction linked to it as the primary proof route; **it has been removed from the entry** rather than routing readers through our weakest attribution. That page is the customer's to review and nothing here changes it.
+**It does not, however, report what SemiAnalysis said about the network** — and neither does any other post on that blog. The only ClusterMAX post there is *FarmGPU Takes #1 in ClusterMax 2.0 Storage Benchmarks* (7 Mar 2026), which is **storage**, and explicitly not networking. That is consistent with the customer's own point that SemiAnalysis publish no per-provider network rating, but it means the published chain currently stops one link short of the networking commentary. The customer also mentions **public speeches** as a source. If a talk, podcast or slide carries it, that is the better footnote link and should replace this one. **Open question for the customer.** The wording above was chosen so that it is true against the link as it stands: it claims only that the figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which the post does support.
+
+**Rules the unit test enforces:**
+
+- The name **SemiAnalysis may not appear without the qualifying small print**, and every mention must sit inside the primary card that carries it.
+- The page must never say SemiAnalysis *rated*, *ranked*, *benchmarked*, *measured*, *tested* or *scored* anything, and the words *independent*, *third-party* and *ClusterMAX* are banned outright.
+- No figure is restated on the entry: the test fails on any percentage or throughput number, and on *outperform*, *fastest*, *best in* and *industry-leading*.
+
+**Flagged for the customer, about an existing live page.** `https://hedgehog.cloud/blog/industry-leading-ai-network-performance` states that SemiAnalysis "completed ClusterMAX testing" and that the Hedgehog-based clouds outperformed NVIDIA Israel-1 and Crusoe Iceland's InfiniBand network. Against the account above, that framing is stronger than the chain supports. It is **not linked from this junction**. It is a live, listed page: see **Live pages** below. Nothing here changes it, and whether it is revisited is the customer's decision.
+
+## Live pages: what may and may not be touched
+
+Restated by the customer on 2026-11-09 and binding on everyone working on this:
+
+> *"be sure not to change anything on any current live pages, the only changes you can make would be to pages you create, so if you wanted to make a change to a currently live page, you could copy that page to a separate unlisted page in hubspot cms and modify the copy for review, but do not modify any pages that you didnt create yourself and if we want to preview anything on hubspot cms it should be on a page that you create (could be a copy of another page) and it should be either unpublished or unlisted."*
+
+Operationally:
+
+- **Never modify a page you did not create.** Not a word of copy, not a link. This includes every page this junction links to.
+- **To propose a change to a live page:** copy it to a **new unlisted** page in HubSpot CMS, change the copy there, and submit that for review. The original is untouched.
+- **Any HubSpot preview** must be a page you created, and must be **unpublished or unlisted**. Per the earlier standing instruction, an unlisted review page is published briefly and then **unpublished** when review is done, so no temporary page is left live.
+- **Prefer no CMS at all where possible.** This junction is a single self-contained HTML file with no script, no HubSpot modules, no HubL and no data dependency, so it can be reviewed by opening the file locally or serving it from localhost. R1 review needs no HubSpot page, and none should be created for it.
+
+**State as of 2026-11-09: nothing live has been touched.** This work is local files, a GitHub PR and a review page on claude.ai. No HubSpot login, no page created, no page edited, no CMS write, no publish.
 
 ## What the entry deliberately does not do
 
