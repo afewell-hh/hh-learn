@@ -10,18 +10,37 @@ const text = html
   .replace(/\s+/g, ' ');
 
 describe('#529 discovery junction (offline)', () => {
-  // The entry label was "Shrink the blast radius" until the customer reset the messaging
-  // frame to AI networking on 2026-11-07. The blast-radius phrase is kept in the card body,
-  // where it still names the mechanism; the label now names the AI-cluster outcome.
-  it('leads the primary card on service enablement, keeping the blast-radius framing in the body', () => {
-    expect(text).toContain('Give every team and customer their own slice of the cluster');
-    expect(text).toContain('shrink the blast radius');
-    expect(html).toMatch(/<li class="primary" id="path-segmentation">/);
-  });
-
   it('frames the page as AI networking, not as SONiC manageability', () => {
     expect(text).toMatch(/AI network/);
     expect(text).not.toMatch(/sonic/i);
+  });
+
+  // Customer direction 2026-11-09: the top line stays general, because the premise that
+  // the network drives AI workload performance and job completion time is already widely
+  // held, whereas the need for segmentation is not. Narrower use-case messaging keeps its
+  // own card but must not lead.
+  it('leads on the general premise: performance and job completion time, not segmentation', () => {
+    expect(text).toMatch(/how long jobs take to finish/);
+    expect(html).toMatch(/<li class="primary" id="path-performance">/);
+  });
+
+  it('keeps the security message as its own card, under the customer-verbatim label', () => {
+    expect(text).toContain('Shrink the blast radius');
+    expect(html).toMatch(/<li id="path-segmentation">/);
+  });
+
+  // SemiAnalysis evaluate neoclouds, not networking products, and their published FarmGPU
+  // review said next to nothing about the network. The evidence we actually hold is
+  // FarmGPU's own publications about their own cluster. Naming SemiAnalysis here would
+  // claim an independent product benchmark that does not exist.
+  it('attributes the results to FarmGPU, never to a third-party networking benchmark', () => {
+    expect(text).toMatch(/FarmGPU's own published figures, measured on their cluster, not here/);
+    expect(text).toMatch(/FarmGPU/);
+    expect(text).not.toMatch(/semi.?analysis|clustermax/i);
+  });
+
+  it('does not restate the figures or reach for superlatives', () => {
+    expect(text).not.toMatch(/\d+\s?%|\d+\s?GB\/s|outperform|fastest|best in|industry.leading/i);
   });
 
   it('never claims isolation (binding copy rule)', () => {
@@ -49,9 +68,8 @@ describe('#529 discovery junction (offline)', () => {
 
   it('wires only the verified destinations; everything else stays an honest placeholder', () => {
     const allowed = new Set([
-      'https://hedgehog.cloud/network-performance',
       'https://hedgehog.cloud/case-studies/farmgpu',
-      'https://hedgehog.cloud/blog/industry-leading-ai-network-performance',
+      'https://hedgehog.cloud/network-performance',
       'https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks',
       'https://hedgehog.cloud/download',
     ]);
@@ -62,10 +80,5 @@ describe('#529 discovery junction (offline)', () => {
       else expect(allowed.has(href)).toBe(true);
     }
     expect(html).not.toContain('pending-owner');
-  });
-
-  it('attributes the benchmark to its independent source and does not restate its numbers', () => {
-    expect(text).toMatch(/Measured by SemiAnalysis, reported by Hedgehog, not measured here/);
-    expect(text).not.toMatch(/\d+\s?%|\d+\s?GB\/s|outperform|fastest|best in|industry.leading/i);
   });
 });

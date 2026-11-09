@@ -19,7 +19,7 @@
 5. **Download.** "If you wanted to install this today, where would you go?" Observe whether they find Download, and whether they believe it is for them.
 6. **Contact.** "If you wanted a person, what would you do?" Record whether they found it and whether they tried routes first.
 7. **Comprehension check, segmentation copy.** Ask: "In your own words, what does this say Hedgehog does for segmentation? What does it **not** tell you?"
-8. **Comprehension check, benchmark attribution.** Ask: "Who measured the performance results, and what would you still want to see?" Record whether the participant takes the figures as Hedgehog's own marketing, as independent, or cannot tell.
+8. **Comprehension check, evidence attribution.** Ask: "Who produced the performance results, and what would you still want to see?" Record whether the participant understands these are FarmGPU's own figures from FarmGPU's cluster, believes Hedgehog measured them, believes an independent analyst benchmarked the fabric, or cannot tell. The third answer is the one to watch for: there is no such benchmark.
 
 ## What counts as a relevant answer, versus merely clicking
 
@@ -44,16 +44,18 @@ If a destination leaves people with no next step, record it as a **dead end move
 | CTA promise mismatch | Anyone expects "Download" to show a menu, or expects the entry to start an install |
 | Download lost | Anyone with a genuine install intent cannot find the download route, or cannot tell it is for them |
 | Label misread | Participant predicts a route's content wrongly in step 2 |
-| Primary label not recognised | A single-owner participant does not see "Give every team and customer their own slice of the cluster" as relevant to them, or reads it as being only about renting capacity out |
+| Top line does not land | A participant does not accept the opening premise, that the network drives how much work the cluster does and how long jobs take, or finds it too generic to act on |
+| Segmentation card not recognised | A participant reads "Shrink the blast radius" and cannot say what it would do for them. Expected for some: the card is deliberately not the leading message |
 | Multi-tenant visitor lost | A multi-tenant participant does not find themselves in the destination |
 | **Isolation overclaim** | **Any participant in step 7 says the page shows or promises that tenants or segments are isolated, secure, or proven safe. One occurrence is a defect: change the copy.** |
 | Contact treated as peer | Participant goes to contact first, or does not see it as secondary |
-| Benchmark attribution misread | In step 8, a participant cannot tell who measured the results, or believes Hedgehog measured them itself |
+| **Evidence over-credited** | **In step 8, a participant believes an independent analyst benchmarked the Hedgehog fabric. No such benchmark exists. One occurrence is a defect: change the copy.** |
+| Operator evidence discounted | In step 8, a participant dismisses FarmGPU's figures as a vendor reference and does not register JM Hands or the OCP role |
 | No route fits | Participant's question from step 1 matches none of the routes. This is the most valuable finding |
 
 ## Reading the result (agree this before running)
 
 - With five people, treat every defect as a finding, not a vote. One person misreading the copy rule is enough to act on.
 - Do not read a route's share of first clicks as validation or failure. Equal shares are not automatically ambiguous, and unequal shares are not automatically validation.
-- **Journey is working** if most participants reach a relevant answer **and** a useful next step on at least one route, nobody hits the CTA mismatch or the isolation overclaim, and everyone who wants to download can. If most clicks are only clicks, the menu has moved the dead end and the destinations need work, not the entry.
+- **Journey is working** if most participants reach a relevant answer **and** a useful next step on at least one route, nobody hits the CTA mismatch, the isolation overclaim or the over-credited evidence, and everyone who wants to download can. If most clicks are only clicks, the menu has moved the dead end and the destinations need work, not the entry.
 - Record, per route, how many participants found an answer, how many only clicked, and how many had a next step.

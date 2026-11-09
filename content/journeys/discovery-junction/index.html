@@ -7,14 +7,22 @@
 <!--
   #529 R1 discovery junction. OFFLINE ASSEMBLY ONLY: not a HubSpot template, not provisioned,
   not published. Self-contained: no script, no network, no tracking, no form, no state.
-  Verified existing hedgehog.cloud URLs are wired for performance, OCP and download.
-  Still "#" with a data-link-status: compare (#527 route), replay (#488 provisional), contact (URL not supplied).
-  No URL has been invented. See README.md.
+  Verified existing hedgehog.cloud URLs are wired for the FarmGPU case study, the fabric
+  overview, OCP and download. Still "#" with a data-link-status: compare (#527 route),
+  replay (#488 provisional), contact (URL not supplied). No URL has been invented.
+  See README.md.
 
-  MESSAGING FRAME, set by the customer on 2026-11-07: AI networking, and the two concerns
-  that follow from it -- what the network does to AI workload performance, and how quickly
-  the cluster becomes a service someone can use. SONiC is an enabler, not the message, and
-  does not appear on this page.
+  MESSAGING FRAME, set by the customer 2026-11-07 and refined 2026-11-09:
+  AI networking is the message. SONiC is an enabler and does not appear on the page.
+  The TOP LINE is deliberately general -- the network drives AI workload performance and
+  job completion time, and it is hard to get right -- because that premise is already
+  widely held. Narrower use-case messaging, segmentation included, stays on its own card
+  rather than leading, and belongs further down a path where a use case can be inferred.
+
+  ATTRIBUTION RULE, binding. SemiAnalysis does not evaluate networking products. They
+  evaluate neoclouds, and their published FarmGPU review said next to nothing about the
+  network. Our evidence is FarmGPU's own publications about their own cluster. This page
+  therefore cites FarmGPU and never names SemiAnalysis; the unit test fails if it appears.
 -->
 <style>
   :root { --ink:#16202a; --muted:#44525f; --line:#c9d2da; --accent:#0b5cad; --soft:#f3f6f9; }
@@ -41,22 +49,22 @@
 <body>
 <main>
   <h1>Find out what Hedgehog does for an AI network</h1>
-  <p class="lede">The network decides two things about an expensive GPU cluster: how much of its performance reaches the workload, and how quickly it becomes something teams and customers can actually use. Pick whichever question is closest to yours. Every route below opens on its own, in any order, with nothing to fill in.</p>
+  <p class="lede">The network decides how much of a GPU cluster actually does work, and how long jobs take to finish. It is also the part that is hardest to get right. Pick whichever question is closest to yours. Every route below opens on its own, in any order, with nothing to fill in.</p>
 
   <ul class="paths">
-    <li class="primary" id="path-segmentation">
-      <h2><a class="path" href="#" data-destination="compare" data-link-status="pending-527-route">Give every team and customer their own slice of the cluster</a></h2>
-      <p>An idle GPU-hour is the most expensive thing in the building, and what usually keeps one idle is not the hardware. It is how long it takes to get the next team, or the next paying customer, onto the cluster safely. Most networks are hard on the outside and soft in the middle, so each one is a project: shrink the blast radius and you have shrunk the wait as well.</p>
-      <p>Cloud VPC networking made segmentation cheap enough to be the default. On hardware you own it is still hand work, because the tooling cannot keep up with how fast applications and facilities change.</p>
-      <p>See what keeping that in step with your workloads looks like, old way beside Hedgehog way.</p>
-      <span class="label">Illustrative example: shows configuration, not tested traffic behaviour</span>
+    <li class="primary" id="path-performance">
+      <h2><a class="path" href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="farmgpu-operator-results">See the results from a GPU cloud that runs it</a></h2>
+      <p>FarmGPU run a B200 cloud on a Hedgehog and Celestica fabric. They publish their own figures from their own cluster: NCCL all-reduce results, what the fabric cost them next to proprietary InfiniBand, and how long the cluster took to stand up.</p>
+      <p>Their chief executive, JM Hands, chairs the Open Compute Project's neocloud working group. The numbers are on the page that owns them.</p>
+      <p class="more">Also: <a href="https://hedgehog.cloud/network-performance" data-destination="fabric-for-ai-workloads">what Hedgehog designs the fabric to do for AI workloads</a></p>
+      <span class="label">FarmGPU's own published figures, measured on their cluster, not here</span>
     </li>
 
-    <li id="path-performance">
-      <h2><a class="path" href="https://hedgehog.cloud/blog/industry-leading-ai-network-performance" data-destination="published-performance-results">See how a Hedgehog fabric measured against InfiniBand</a></h2>
-      <p>SemiAnalysis ran its ClusterMAX testing on B200 clusters at FarmGPU and RunPod, both running Hedgehog, alongside InfiniBand and RoCEv2 clusters. The NCCL results, and FarmGPU's reported cost comparison with proprietary InfiniBand, are on the pages that own them.</p>
-      <p class="more">Also: <a href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="published-performance-farmgpu">the FarmGPU case study</a> · <a href="https://hedgehog.cloud/network-performance" data-destination="published-performance-overview">what Hedgehog designs the fabric to do for AI workloads</a></p>
-      <span class="label">Measured by SemiAnalysis, reported by Hedgehog, not measured here</span>
+    <li id="path-segmentation">
+      <h2><a class="path" href="#" data-destination="compare" data-link-status="pending-527-route">Shrink the blast radius</a></h2>
+      <p>Most networks are hard on the outside and soft in the middle. Cloud VPC networking made segmentation cheap enough to be the default. On hardware you own it is still hand work, because the tooling cannot keep up with how fast applications and facilities change.</p>
+      <p>See what keeping segmentation in step with your applications looks like, old way beside Hedgehog way.</p>
+      <span class="label">Illustrative example: shows configuration, not tested traffic behaviour</span>
     </li>
 
     <li id="path-reference-architecture">
