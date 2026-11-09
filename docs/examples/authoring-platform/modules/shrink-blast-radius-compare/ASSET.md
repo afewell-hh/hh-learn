@@ -55,18 +55,46 @@ Uses it already supports with no modification: embedded in docs, attached to a s
 shown in a talk, dropped into a blog post, or used as a reviewable artifact in a design discussion.
 If the team wants it somewhere nobody has thought of, that should cost a file copy, not a rebuild.
 
-## Status: the renderer is real, the data is not
+## Status: captured from a real fabric
 
-**The component is finished. The content is a fixture and is labelled as one, loudly.** Both panes
-declare `"fixture": true` with an `illustrative_reason`, `source_label` is `illustrative`, and the
-renderer shows a *Fixture data* pill plus: *"Fixture: this content was written to exercise the
-component. It is not configuration captured from a real system and must not be quoted as evidence."*
+**Both panes are real.** Captured on 2026-11-09 from a Hedgehog VLAB — 1 spine, 2 SONiC VS leaves,
+2 servers — on hhfab v0.51.4, fabric agent v0.144.1, SONiC 4.5.2-Enterprise_Base.
 
-Replacing it is a **data-only swap** — see the conversion note at the top of `README.md` for the
-exact steps. Both captures come from **one VLAB run**: the configuration is generated from a wiring
-diagram, so a single run produces both sides and they are guaranteed to correspond. That run has
-not happened; it needs a VM, which is gated. `tests/unit/compare.test.ts` already exercises the
-captured variant, so the swap is covered before the data exists.
+| | |
+|---|---|
+| **Left** | The configuration one tenant put on the switch: each switch's own running config (`sonic-cfggen -d` and `vtysh show running-config`), differenced before and after. 59 lines across 35 configuration objects and 24 lines of routing config, on one device. |
+| **Right** | The `VPC` and `VPCAttachment` the operator wrote, verbatim. 27 lines. |
+
+Both sides come from **the same run, the same fabric, the same moment**, so they correspond by
+construction rather than by assertion.
+
+### How the capture was taken, and two things that had to be got right
+
+1. **The convergence check had a race.** Polled immediately after applying the tenant, the controller
+   had not yet bumped any agent's generation, so every agent still read `lastAppliedGen == generation`
+   and the loop declared success against the *old* state. The first run produced a byte-identical
+   before and after. The capture now records each agent's generation *before* the apply and waits for
+   one to move past its baseline before waiting for convergence, then verifies the two snapshots
+   actually differ and fails loudly if they do not.
+2. **The left side is counted conservatively.** Expanding each configuration object into one line per
+   field would have given 76 lines instead of 35, padded with defaults nobody types
+   (`BGP_GLOBALS` alone carries about 25). One line per object is used instead: no field is selected,
+   dropped or reworded, so there is no editorial judgement in the count — and the number that results
+   is the smaller one. Routing configuration is verbatim and already omits defaults.
+
+### Only one device appears, and that is the honest result
+
+The fixture this replaced implied three devices and a step called *"repeat on every other device"*.
+The real capture shows **one**: `leaf-01`, the switch this tenant's server attaches to. `leaf-02` and
+`spine-01` were untouched. That step was removed rather than kept as a claim the evidence does not
+support. A tenant with servers on more leaves lands on each of them.
+
+### Re-capturing
+
+`capture.sh` and `make-panes.mjs` from the capture run are not in this repository — they drive a local
+VLAB, which needs roughly 45 GB of disk and about 25 minutes to boot. Converting a fresh capture is a
+data-only swap of the two files in `captures/` plus the `captured_from` dates; the validator refuses a
+half-converted instance.
 
 ## What it does and does not claim
 

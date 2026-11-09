@@ -1,15 +1,21 @@
-# @fixture FIXTURE: written to exercise the renderer. This is NOT a captured Hedgehog object.
-# Replace this file with the VPC/VPCAttachment YAML from the VLAB capture.
 apiVersion: vpc.githedgehog.com/v1beta1
 kind: VPC
 metadata:
   name: tenant-a
   namespace: default
 spec:
+  ipv4Namespace: default
+  vlanNamespace: default
   subnets:
     default:
-      subnet: 10.10.10.0/24
+      subnet: 10.0.10.0/24
+      gateway: 10.0.10.1
       vlan: 1010
+      dhcp:
+        enable: true
+        range:
+          start: 10.0.10.10
+          end: 10.0.10.99
 ---
 apiVersion: vpc.githedgehog.com/v1beta1
 kind: VPCAttachment

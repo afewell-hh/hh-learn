@@ -1,30 +1,75 @@
-# @fixture FIXTURE: written to exercise the renderer. This is NOT configuration captured from SONiC.
-# Replace this file with the real per-device configuration from the VLAB capture.
+# Captured from a Hedgehog VLAB on 2026-11-09, hhfab version v0.51.4.
+# Topology: 1 spine, 2 leaves, 2 servers; SONiC VS switches.
+#
+# This is the configuration that appeared on the switches when ONE tenant was added:
+# each switch's own running configuration, differenced before and after. Nobody typed it
+# here, the controller generated it, and it is what an operator would otherwise have had
+# to author per device.
+#
+# Counting: one line per switch configuration object, value verbatim as compact JSON.
+# Expanding each object into its individual fields would have produced 76 lines instead
+# of 35 on this device, padded with defaults nobody types, so the smaller count is used.
+# Routing configuration is verbatim from the switch, which already omits defaults.
 # @device leaf-01
-config vlan add 1010
-config vrf add Vrf-tenant-a
-config interface vrf bind Vlan1010 Vrf-tenant-a
-config interface ip add Vlan1010 10.10.10.1/24
-config vlan member add -u 1010 Ethernet4
-config vlan member add 1010 Ethernet48
-config bgp network add 10.10.10.0/24 vrf Vrf-tenant-a
-config save -y
+# switch configuration objects this tenant added (35)
+ATTACHED_HOST_INTERFACE|VrfVtenant-a|Vlan1010|ipv4 {"admin-distance":"250"}
+BGP_GLOBALS|VrfVtenant-a {"always_compare_med":"false","as_notation":"asdot","ebgp_requires_policy":"false","external_compare_router_id":"false","fast_external_failover":"true","holdtime":"180","ignore_as_path_length":"false","keepalive":"60","load_balance_mp_relax":"false","local_asn":"4200006632","log_nbr_state_changes":"true","network_import_check":"true","router_id":"172.30.8.1"}
+BGP_GLOBALS_AF|VrfVtenant-a|ipv4_unicast {"import_vrf_route_map":"import-vrf--tenant-a","max_ebgp_paths":"16","max_ibgp_paths":"1","route_flap_dampen":"false"}
+BGP_GLOBALS_AF|VrfVtenant-a|l2vpn_evpn {"dad-enabled":"true"}
+BGP_GLOBALS_ROUTE_ADVERTISE|VrfVtenant-a|L2VPN_EVPN|IPV4_UNICAST {"policy":["filter-attached-hosts"]}
+PORT|Ethernet0 {"admin_status":"up","adv_speeds":"all","alias":"Eth1/1","autoneg":"off","description":"Unbundled server-01 server-01--unbundled--leaf-01","fec":"none","index":"1","lanes":"49","link_training":"off","mtu":"9036","speed":"25000","tagged_vlans":["1010"],"unreliable_los":"auto"}
+PREFIX|vpc-not-subnets--tenant-a|1|10.0.10.0/24|24..32 {"action":"deny"}
+PREFIX|vpc-not-subnets--tenant-a|65535|0.0.0.0/0|0..32 {"action":"permit"}
+PREFIX|vpc-subnets--tenant-a|1|10.0.10.0/24|24..32 {"action":"permit"}
+PREFIX_SET|vpc-not-subnets--tenant-a {"mode":"IPv4"}
+PREFIX_SET|vpc-peers--tenant-a {"mode":"IPv4"}
+PREFIX_SET|vpc-static-ext-subnets--tenant-a {"mode":"IPv4"}
+PREFIX_SET|vpc-subnets--tenant-a {"mode":"IPv4"}
+ROUTE_MAP|import-vrf--tenant-a|50000 {"match_prefix_set":"vpc-peers--tenant-a","route_operation":"permit"}
+ROUTE_MAP|import-vrf--tenant-a|65535 {"route_operation":"deny"}
+ROUTE_MAP|vpc-redistribute-connected--tenant-a|5 {"match_prefix_set":"vpc-subnets--tenant-a","route_operation":"permit"}
+ROUTE_MAP|vpc-redistribute-connected--tenant-a|6 {"match_prefix_set":"vpc-static-ext-subnets--tenant-a","route_operation":"permit"}
+ROUTE_MAP|vpc-redistribute-connected--tenant-a|10 {"route_operation":"deny"}
+ROUTE_MAP|vpc-redistribute-static--tenant-a|5 {"match_prefix_set":"vpc-static-ext-subnets--tenant-a","route_operation":"permit"}
+ROUTE_MAP_SET|import-vrf--tenant-a {}
+ROUTE_MAP_SET|vpc-redistribute-connected--tenant-a {}
+ROUTE_MAP_SET|vpc-redistribute-static--tenant-a {}
+ROUTE_REDISTRIBUTE|VrfVtenant-a|attached-host|bgp|ipv4 {}
+ROUTE_REDISTRIBUTE|VrfVtenant-a|connected|bgp|ipv4 {"route_map":["vpc-redistribute-connected--tenant-a"]}
+ROUTE_REDISTRIBUTE|VrfVtenant-a|static|bgp|ipv4 {"route_map":["vpc-redistribute-static--tenant-a"]}
+SAG|Vlan1010|IPv4 {"gwip":["10.0.10.1/24"]}
+SUPPRESS_VLAN_NEIGH|Vlan1010 {"suppress":"on"}
+VLAN|Vlan1010 {"admin_status":"up","autostate":"enable","description":"VPC tenant-a/default","dhcp_relay_link_select":"enable","dhcp_relay_src_intf":"eth0","dhcp_relay_vrf_select":"enable","dhcp_servers":["172.30.0.1"],"members":["Ethernet0"],"vlanid":"1010"}
+VLAN|Vlan3000 {"admin_status":"up","autostate":"enable","description":"VPC tenant-a IRB","vlanid":"3000"}
+VLAN_INTERFACE|Vlan1010 {"vrf_name":"VrfVtenant-a"}
+VLAN_INTERFACE|Vlan3000 {"vrf_name":"VrfVtenant-a"}
+VLAN_MEMBER|Vlan1010|Ethernet0 {"tagging_mode":"tagged"}
+VRF|VrfVtenant-a {"fallback":"false","vni":"100"}
+VXLAN_TUNNEL_MAP|vtepfabric|map_100_Vlan3000 {"vlan":"Vlan3000","vni":"100"}
+VXLAN_TUNNEL_MAP|vtepfabric|map_101_Vlan1010 {"vlan":"Vlan1010","vni":"101"}
 
-# @device leaf-02
-config vlan add 1010
-config vrf add Vrf-tenant-a
-config interface vrf bind Vlan1010 Vrf-tenant-a
-config interface ip add Vlan1010 10.10.10.2/24
-config vlan member add -u 1010 Ethernet8
-config vlan member add 1010 Ethernet48
-config bgp network add 10.10.10.0/24 vrf Vrf-tenant-a
-config save -y
-
-# @device spine-01
-config vlan add 1010
-config vrf add Vrf-tenant-a
-config vlan member add 1010 Ethernet0
-config vlan member add 1010 Ethernet4
-config bgp neighbor add vrf Vrf-tenant-a 10.10.10.1 remote-as 65101
-config bgp neighbor add vrf Vrf-tenant-a 10.10.10.2 remote-as 65102
-config save -y
+# routing configuration this tenant added (24 lines)
+vrf VrfVtenant-a
+ vni 100
+exit-vrf
+interface Vlan1010 vrf VrfVtenant-a
+ ip attached-host advertise 250
+router bgp 4200006632 vrf VrfVtenant-a
+  redistribute connected route-map vpc-redistribute-connected--tenant-a
+  redistribute attached-host
+  redistribute static route-map vpc-redistribute-static--tenant-a
+  import vrf route-map import-vrf--tenant-a
+  advertise ipv4 unicast route-map filter-attached-hosts
+ip prefix-list vpc-not-subnets--tenant-a seq 1 deny 10.0.10.0/24 le 32
+ip prefix-list vpc-not-subnets--tenant-a seq 65535 permit 0.0.0.0/0 le 32
+ip prefix-list vpc-subnets--tenant-a seq 1 permit 10.0.10.0/24 le 32
+route-map import-vrf--tenant-a permit 50000
+ match ip address prefix-list vpc-peers--tenant-a
+route-map import-vrf--tenant-a deny 65535
+route-map vpc-redistribute-connected--tenant-a permit 5
+ match ip address prefix-list vpc-subnets--tenant-a
+route-map vpc-redistribute-connected--tenant-a permit 6
+ match ip address prefix-list vpc-static-ext-subnets--tenant-a
+route-map vpc-redistribute-connected--tenant-a deny 10
+route-map vpc-redistribute-static--tenant-a permit 5
+ match ip address prefix-list vpc-static-ext-subnets--tenant-a

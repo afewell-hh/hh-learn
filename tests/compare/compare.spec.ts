@@ -59,11 +59,12 @@ const requests = (page: Page) => {
 test.describe('honest rendering', () => {
   test('counts are derived from the files and the label is the weaker side', async ({ page }) => {
     await load(page, payload());
-    await expect(page.locator('.hh-ix-count[data-side=left] .hh-ix-num').first()).toHaveText('23');
-    await expect(page.locator('.hh-ix-count[data-side=left] .hh-ix-count-dev .hh-ix-num')).toHaveText('3');
-    await expect(page.locator('.hh-ix-count[data-side=right] .hh-ix-num').first()).toHaveText('19');
-    await expect(page.locator('[data-hh-label]')).toHaveText('Illustrative');
-    await expect(page.locator('.hh-ix-pill--fixture').first()).toBeVisible();
+    // Real capture (VLAB, 2026-11-09): one tenant, one server attachment, so one switch changes.
+    await expect(page.locator('.hh-ix-count[data-side=left] .hh-ix-num').first()).toHaveText('59');
+    await expect(page.locator('.hh-ix-count[data-side=left] .hh-ix-count-dev .hh-ix-num')).toHaveText('1');
+    await expect(page.locator('.hh-ix-count[data-side=right] .hh-ix-num').first()).toHaveText('27');
+    await expect(page.locator('[data-hh-label]')).toHaveText('Captured');
+    await expect(page.locator('.hh-ix-pill--fixture')).toHaveCount(0);
     await expect(page.locator('.hh-ix-pill--plane')).toHaveText('Control-plane evidence');
     // Equivalence sits between the strip and the panes.
     const order = await page.evaluate(() => {
@@ -75,11 +76,18 @@ test.describe('honest rendering', () => {
   });
 
   test('one captured side and one illustrative side is labelled Illustrative', async ({ page }) => {
+    // Both sides are captured now, so the weaker-label rule is exercised by degrading one.
     await load(page, payload((it) => {
-      it.left.provenance = 'captured'; delete it.left.fixture; delete it.left.illustrative_reason;
-      it.left.captured_from = { system: 'SONiC', version: 'x', date: '2026-11-01' };
+      delete it.left.captured_from;
+      it.left.provenance = 'illustrative';
+      it.left.illustrative_reason = 'degraded on purpose, to check that the weaker side sets the label';
+      it.source_label = 'illustrative';
     }));
-    // The left file still carries "# @fixture", so this must fail closed rather than render as captured.
+    await expect(page.locator('[data-hh-label]')).toHaveText('Illustrative');
+  });
+
+  test('a captured side whose file still says @fixture fails closed', async ({ page }) => {
+    await load(page, payload((it, texts) => { texts.left = '# @fixture left over\n' + texts.left; }));
     await expect(page.getByRole('alert')).toContainText('COMPARE_FIXTURE_CAPTURED');
   });
 
@@ -91,7 +99,8 @@ test.describe('honest rendering', () => {
   });
 
   test('a device list that disagrees with the markers fails closed', async ({ page }) => {
-    await load(page, payload((it) => { it.left.devices = ['leaf-01']; }));
+    // leaf-01 is the only device in the capture; claiming two disagrees with the markers.
+    await load(page, payload((it) => { it.left.devices = ['leaf-01', 'leaf-02']; }));
     await expect(page.getByRole('alert')).toContainText('COMPARE_DEVICES');
   });
 
@@ -102,7 +111,12 @@ test.describe('honest rendering', () => {
   });
 
   test('a source_label stronger than the weakest side fails closed (renderer matches validator)', async ({ page }) => {
-    await load(page, payload((it) => { it.source_label = 'captured'; }));
+    await load(page, payload((it) => {
+      delete it.left.captured_from;
+      it.left.provenance = 'illustrative';
+      it.left.illustrative_reason = 'degraded on purpose, so the primitive label is too strong';
+      it.source_label = 'captured';
+    }));
     await expect(page.getByRole('alert')).toContainText('HONESTY_MISMATCH');
   });
 
@@ -157,11 +171,24 @@ test.describe('keyboard and focus', () => {
 
   test('code regions are keyboard scrollable and device chips jump', async ({ page }) => {
     await load(page, payload());
-    const region = page.getByRole('region', { name: /SONiC, configured by hand/ });
+    const region = page.getByRole('region', { name: /What the switch ends up configured with/ });
     await region.focus();
     await expect(region).toBeFocused();
-    await page.getByRole('button', { name: 'spine-01' }).click();
-    await expect.poll(() => region.evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+    // The capture touches one switch, and a jump-nav with a single target is pointless, so the
+    // renderer draws chips only above one device. That is the behaviour, not a gap in the test.
+    await expect(page.locator('.hh-ix-chip')).toHaveCount(0);
+  });
+
+  test('device chips appear and jump once there is more than one device', async ({ page }) => {
+    await load(page, payload((it, texts) => {
+      texts.left += '\n# @device leaf-02\nVLAN|Vlan1010 {"vlanid":"1010"}\nVRF|VrfVtenant-a {"vni":"100"}\n';
+      it.left.devices = ['leaf-01', 'leaf-02'];
+    }));
+    const region = page.getByRole('region', { name: /What the switch ends up configured with/ });
+    await expect(page.locator('.hh-ix-chip')).toHaveCount(2);
+    const before = await region.evaluate((e) => e.scrollTop);
+    await page.getByRole('button', { name: 'leaf-02' }).click();
+    await expect.poll(() => region.evaluate((e) => e.scrollTop)).not.toBe(before);
   });
 
   test('stepping through every step fires the local finish event and nothing else', async ({ page }) => {
@@ -245,7 +272,7 @@ test.describe('network', () => {
     const seen = requests(page);
     await load(page, payload());
     for (let i = 0; i < 3; i++) await page.locator('.hh-ix-step').nth(i).click();
-    await page.getByRole('button', { name: 'leaf-02' }).click();
+    await page.locator('.hh-ix-fair summary').first().click();
     await page.keyboard.press('Tab');
     expect(seen).toEqual([]);
     expect(await page.evaluate(() => (window as any).__net)).toEqual([]);
@@ -268,4 +295,38 @@ test.describe('screenshots', () => {
     await page.waitForTimeout(800);
     await page.locator('.hh-ix-compare').screenshot({ path: join(SHOTS, 'compare-desktop-dark.png') });
   });
+});
+
+/**
+ * Regression, found when the fixture was replaced by a real VLAB capture (2026-11-09).
+ *
+ * scrollTo() measured `target.offsetTop`, which is relative to the nearest POSITIONED
+ * ancestor. The <pre> scroller is not positioned, so the value was a page coordinate,
+ * scrollTo clamped to the bottom, and the highlighted step was never brought into view.
+ * The short fixture file hid it: every line already fitted on screen, so no scroll was
+ * needed for the highlight to be visible. The captured file is 75 lines and exposed it.
+ */
+test('every step scrolls its highlighted range into view in both panes', async ({ page }) => {
+  await load(page, payload());
+  const steps = page.locator('.hh-ix-step');
+  const count = await steps.count();
+  expect(count).toBeGreaterThan(1);
+
+  for (let i = 0; i < count; i++) {
+    await steps.nth(i).click();
+    await page.waitForTimeout(600); // smooth scroll settles
+    const seen = await page.evaluate(() =>
+      [...document.querySelectorAll('pre.hh-ix-code')].map((pre) => {
+        const hl = pre.querySelectorAll('.hh-ix-ln--hl');
+        if (!hl.length) return { highlighted: 0, inView: false };
+        const p = pre.getBoundingClientRect();
+        const f = hl[0].getBoundingClientRect();
+        return { highlighted: hl.length, inView: f.top >= p.top - 4 && f.top <= p.bottom };
+      }),
+    );
+    for (const pane of seen) {
+      expect(pane.highlighted).toBeGreaterThan(0);
+      expect(pane.inView).toBe(true);
+    }
+  }
 });

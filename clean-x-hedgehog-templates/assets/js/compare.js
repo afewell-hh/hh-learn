@@ -458,7 +458,11 @@
       var target = lineEls[name][lineNo - 1];
       var pre = scrollers[name];
       if (!target || !pre) return;
-      var top = Math.max(0, target.offsetTop - 8);
+      // Measure against the scroller itself. offsetTop is relative to the nearest POSITIONED
+      // ancestor, which the <pre> is not, so it yields a page coordinate; scrollTo then clamps
+      // to the bottom and the highlighted step is never brought into view. Short files hid this
+      // because every line already fitted on screen.
+      var top = Math.max(0, target.getBoundingClientRect().top - pre.getBoundingClientRect().top + pre.scrollTop - 8);
       if (typeof pre.scrollTo === 'function') pre.scrollTo({ top: top, behavior: reduce ? 'auto' : 'smooth' });
       else pre.scrollTop = top;
     }

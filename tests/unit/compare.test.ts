@@ -21,20 +21,31 @@ const baseIt = (): Json => JSON.parse(read('interactives.json')).interactives[0]
 const baseTexts = () => ({ left: read('captures/tenant-sonic.txt'), right: read('captures/tenant-vpc.yaml') });
 const codes = (it: Json, texts = baseTexts()) => core.checkCompare(it, texts).filter((p: Json) => p.level === 'error').map((p: Json) => p.code);
 
-/** A fully captured, non-fixture variant, as the real instance will be after the data-only swap. */
+/**
+ * The instance IS a real capture now (VLAB run of 2026-11-09), so this is just the
+ * instance. It stays a named helper because the rules below read better that way, and
+ * because the inverse -- fixtured() -- is what the fixture-only rules need.
+ */
 function captured(): { it: Json; texts: { left: string; right: string } } {
+  return { it: clone(baseIt()), texts: baseTexts() };
+}
+
+/** The instance degraded back to an illustrative fixture: the state the rules below bite on. */
+function fixtured(): { it: Json; texts: { left: string; right: string } } {
   const it = clone(baseIt());
   for (const s of ['left', 'right']) {
-    delete it[s].fixture;
-    delete it[s].illustrative_reason;
-    it[s].provenance = 'captured';
-    it[s].captured_from = { system: s === 'left' ? 'SONiC' : 'Hedgehog Fabric', version: '9.9.9-test', date: '2026-11-01' };
+    delete it[s].captured_from;
+    it[s].provenance = 'illustrative';
+    it[s].illustrative_reason = `FIXTURE: written to exercise the component, not captured from any system (${s})`;
+    it[s].fixture = true;
   }
-  it.source_label = 'captured';
-  const strip = (t: string) => t.split('\n').filter((l) => !/@fixture/.test(l)).join('\n');
-  // Dropping the two leading fixture lines shifts physical line numbers; recompute the step ranges.
-  const texts = { left: strip(baseTexts().left), right: strip(baseTexts().right) };
-  it.steps = [{ id: 's1', title: 'a', left: [3, 5], right: [1, 10] }];
+  it.source_label = 'illustrative';
+  const t = baseTexts();
+  const mark = '# @fixture written to exercise the renderer\n';
+  const texts = { left: mark + t.left, right: mark + t.right };
+  // The added marker line shifts every physical line number by one.
+  const bump = (r: number[]) => [r[0] + 1, r[1] + 1];
+  it.steps = (it.steps as Json[]).map((st) => ({ ...st, left: bump(st.left), right: bump(st.right) }));
   return { it, texts };
 }
 
@@ -47,10 +58,11 @@ describe('derivation (rule 1: counts are derived, never authored)', () => {
     expect(a.perDevice.b.lines).toBe(1);
   });
 
-  it('the fixture yields 23 SONiC lines over 3 devices and 19 YAML lines', () => {
+  it('the captured instance yields 59 switch lines on one device and 27 YAML lines', () => {
+    // One tenant, one server attachment: only the leaf the server hangs off is reconfigured.
     const t = baseTexts();
-    expect(core.analyse(t.left)).toMatchObject({ lines: 23, devices: ['leaf-01', 'leaf-02', 'spine-01'] });
-    expect(core.analyse(t.right).lines).toBe(19);
+    expect(core.analyse(t.left)).toMatchObject({ lines: 59, devices: ['leaf-01'], fixture: false });
+    expect(core.analyse(t.right).lines).toBe(27);
   });
 
   it('an authored counts key is COMPARE_COUNTS_AUTHORED, at the top level or on a side', () => {
@@ -93,8 +105,8 @@ describe('provenance per pane (rule 2)', () => {
   });
 
   it('illustrative needs illustrative_reason', () => {
-    const it = baseIt(); delete it.left.illustrative_reason;
-    expect(codes(it)).toContain('COMPARE_ILLUSTRATIVE');
+    const { it, texts } = fixtured(); delete it.left.illustrative_reason;
+    expect(codes(it, texts)).toContain('COMPARE_ILLUSTRATIVE');
   });
 
   it('unknown provenance is refused', () => {
@@ -115,10 +127,11 @@ describe('fixtures cannot pass as captures', () => {
     expect(codes(it, texts)).toContain('COMPARE_FIXTURE_CAPTURED');
   });
   it('fixture:true requires the marker inside the file, and vice versa', () => {
-    const a = baseTexts(); a.left = a.left.replace('@fixture', 'fixture-not-marker');
-    expect(codes(baseIt(), a)).toContain('COMPARE_FIXTURE_MARK');
-    const it = baseIt(); delete it.left.fixture;
-    expect(codes(it)).toContain('COMPARE_FIXTURE_MARK');
+    const f = fixtured();
+    const a = { ...f.texts, left: f.texts.left.replace('@fixture', 'fixture-not-marker') };
+    expect(codes(f.it, a)).toContain('COMPARE_FIXTURE_MARK');
+    const g = fixtured(); delete g.it.left.fixture;
+    expect(codes(g.it, g.texts)).toContain('COMPARE_FIXTURE_MARK');
   });
 });
 
@@ -138,8 +151,8 @@ describe('old-way fairness (rule 3) and hard_way (rule 5)', () => {
     expect(codes(it)).not.toContain('COMPARE_OMITTED');
   });
   it('hard_way refuses illustrative or excerpted old way', () => {
-    const it = baseIt(); it.hard_way = true;
-    expect(codes(it)).toContain('COMPARE_HARD_WAY');
+    const { it: f, texts: ft } = fixtured(); f.hard_way = true;
+    expect(codes(f, ft)).toContain('COMPARE_HARD_WAY');
     const { it: c, texts } = captured(); c.hard_way = true;
     expect(codes(c, texts)).toEqual([]);
     c.left.completeness = 'excerpt'; c.left.omitted = 'x';
@@ -221,12 +234,13 @@ describe('validate-authoring.mjs on compare', () => {
   };
   const issueCodes = (r: Json) => (r.json.report[SLUG] as Json[]).filter((i) => i.level === 'error').map((i) => i.code);
 
-  it('accepts the fixture instance with only the two expected warnings', () => {
-    // Illustrative old way (it is a fixture) and no credit task (opening the panes earns nothing, by design).
+  it('accepts the captured instance with only the one expected warning', () => {
+    // No credit task: opening the panes earns nothing, by design. COMPARE_OLD_ILLUSTRATIVE
+    // is gone because the old-way side is now a real capture rather than a fixture.
     const r = validate(tmp);
     expect(r.status).toBe(0);
     expect(r.json.errors).toBe(0);
-    expect(r.json.report[SLUG].map((i: Json) => i.code).sort()).toEqual(['COMPARE_OLD_ILLUSTRATIVE', 'INTERACTIVE_NO_CREDIT']);
+    expect(r.json.report[SLUG].map((i: Json) => i.code).sort()).toEqual(['INTERACTIVE_NO_CREDIT']);
   });
 
   it('rejects an authored counts key', () => {
@@ -237,7 +251,13 @@ describe('validate-authoring.mjs on compare', () => {
   });
 
   it('rejects a primitive label stronger than its weakest side', () => {
-    mutate((it) => { it.source_label = 'captured'; });
+    // Degrade one side only: the primitive may not keep claiming "captured".
+    mutate((it) => {
+      delete it.left.captured_from;
+      it.left.provenance = 'illustrative';
+      it.left.illustrative_reason = 'degraded on purpose, to check weaker-label-wins';
+      it.source_label = 'captured';
+    });
     expect(issueCodes(validate(tmp))).toContain('HONESTY_MISMATCH');
   });
 
@@ -286,7 +306,7 @@ describe('fix 1: device counts cannot be inflated', () => {
     const t = baseTexts();
     const inflated = t.left + Array.from({ length: 11 }, (_, i) => `# @device imaginary-${i}\n`).join('');
     const a = core.analyse(inflated);
-    expect(a.devices).toEqual(['leaf-01', 'leaf-02', 'spine-01']);
+    expect(a.devices).toEqual(['leaf-01']);
     expect(a.emptyDevices).toHaveLength(11);
     expect(codes(baseIt(), { ...t, left: inflated })).toContain('COMPARE_DEVICE_EMPTY');
   });
@@ -300,7 +320,8 @@ describe('fix 1: device counts cannot be inflated', () => {
     const c = codes(it, { ...t, left });
     expect(c).toContain('COMPARE_DEVICE_EMPTY');
     expect(c).toContain('COMPARE_DEVICES');
-    expect(core.checkCompare(it, { ...t, left }).derived.left.devices).toHaveLength(3);
+    // Only the device that actually carries configuration counts, however many are declared.
+    expect(core.checkCompare(it, { ...t, left }).derived.left.devices).toEqual(['leaf-01']);
   });
 
   it('a section holding only comments or blanks is empty', () => {
@@ -399,10 +420,10 @@ describe('fix 3: captured metadata and fairness statements must be meaningful', 
   });
 
   it('an illustrative reason or an equivalence outcome of whitespace or a placeholder is refused', () => {
-    const it = baseIt();
+    const { it, texts } = fixtured();
     it.left.illustrative_reason = 'n/a';
     it.equivalence.outcome = '          ';
-    const c = codes(it);
+    const c = codes(it, texts);
     expect(c).toContain('COMPARE_ILLUSTRATIVE');
     expect(c).toContain('COMPARE_EQUIVALENCE');
   });
@@ -424,11 +445,12 @@ describe('fix 4: the strip measures authoring effort, not device involvement', (
 
 describe('fix 5: shared checks reject what the validator rejects', () => {
   it('source_label is checked by the shared rules (builder and renderer)', () => {
-    const it = baseIt();
+    // Weaker-label-wins: one illustrative side forbids a "captured" primitive label.
+    const { it, texts } = fixtured();
     it.source_label = 'captured';
-    expect(codes(it)).toContain('HONESTY_MISMATCH');
+    expect(codes(it, texts)).toContain('HONESTY_MISMATCH');
     it.source_label = 'live';
-    expect(codes(it)).toContain('HONESTY_LABEL');
+    expect(codes(it, texts)).toContain('HONESTY_LABEL');
   });
 
   it('evidence-plane vocabulary and plane overclaim are checked by the shared rules', () => {
