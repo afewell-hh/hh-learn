@@ -48,13 +48,13 @@ The routes answer the questions the customer says the audience arrives with:
 |---|---|
 | *Illustrative example: shows configuration, not tested traffic behaviour* | The segmentation example shows what is configured. It does **not** show what traffic actually does. No claim of isolation is made. |
 | *Replay of recorded steps* | The replay plays back recorded operations. It is not a live system. |
-| *SemiAnalysis review GPU clouds, not fabrics. The figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which runs a Hedgehog and Celestica fabric.* | Small print under the primary card, with a link to FarmGPU's own account. SemiAnalysis is named because the name carries weight, and immediately qualified because they rate clouds, not fabrics. This wording is binding and the unit test fails if the name appears without it. See **Attribution** below. |
+| *SemiAnalysis NCCL data, from their ClusterMAX testing of clouds that run this fabric. They rate clouds, not fabrics, so there is no SemiAnalysis rating of Hedgehog itself.* | Small print under the primary card. SemiAnalysis is named and their data is used, including the comparative result; the one limit — they rate clouds, not fabrics — is stated in the same breath. This wording is binding and the unit test fails if the name appears without it. See **Attribution** below. |
 
 ## Routes and status
 
 | Route | Destination | Link status |
 |---|---|---|
-| **See the results from a GPU cloud that runs it** (primary) | `https://hedgehog.cloud/case-studies/farmgpu`, plus `/network-performance` as a secondary link and `https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/` in the small print | Wired. All three verified HTTP 200 on 2026-11-09. The FarmGPU link is the page's only off-site destination, and deliberately so: the attribution chain ends at FarmGPU's own words. |
+| **See the results from a GPU cloud that runs it** (primary) | `https://hedgehog.cloud/case-studies/farmgpu`, plus three secondary links: `https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/`, `https://hedgehog.cloud/blog/industry-leading-ai-network-performance` and `/network-performance` | Wired. All four verified HTTP 200 on 2026-11-09. The FarmGPU blog is the page's only off-site destination. |
 | Shrink the blast radius | `compare` interactive, instance `shrink-blast-radius-compare` (#527) | Placeholder `#`, `pending-527-route`. Depends on #527 and the #489 gates. |
 | See an OCP reference architecture | `https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks` | Wired. Verified HTTP 200. |
 | Watch an operator work through a fabric | Replay, PR #488. Route `/learn/experience/fabric-operator` is provisional | Placeholder `#`, `provisional-488-route`. Built, unpublished, behind `EXPERIENCE_LAB_ENABLED=false`. |
@@ -82,33 +82,43 @@ Label **"Shrink the blast radius"**, verbatim, on its own card and **not** the l
 
 ## Attribution: what the performance evidence actually is
 
-**The rule, set by the customer on 2026-11-09.** *Name SemiAnalysis, and put the chain in the small print.* Verbatim:
+**The rule, set by the customer on 2026-11-09:** *name SemiAnalysis, put the chain in the small print, leverage the material fully without overstating it.* The customer's framing: *"we can make the best out of what they actually said and not more, I do want to leverage the material to its fullest with comparable liberties as our competitors - we should not undersell ourselfs, but I dont want to be outright dishonest."*
 
-> *"I think its better to name Semianalysis and then in the footnotes could say based on FarmGPU's reporting of Semianalysis review of FarmGPU infrastructure which utilized Hedgehog/Celestica fabric and then a link to the best farmgpu blog on the topic is fine, tighten the explanation i provided here up a bit more, put it in the small print."*
+Two earlier drafts got this wrong in opposite directions. One labelled the results *"Measured by SemiAnalysis, reported by Hedgehog"*, which implied a SemiAnalysis benchmark of the fabric. The next removed the name entirely and called the figures "FarmGPU's own", which **undersold** them. The source was then checked directly, and the second was more wrong than the first.
 
-This superseded two earlier drafts, both wrong in opposite directions. Draft 2 labelled the results *"Measured by SemiAnalysis, reported by Hedgehog"*, which claims an independent benchmark of the fabric that does not exist. Draft 3 removed the name altogether, which throws away weight the name legitimately carries. The resolution is: **name it, qualify it immediately, link to the primary source.**
+### What the sources actually say (checked 2026-11-09)
 
-**What is actually true.** The customer's account, 2026-11-09:
+| Source | Finding |
+|---|---|
+| `hedgehog.cloud/case-studies/farmgpu` | The comparison image is `FarmGPU Performance graph`, captioned **"Source: SemiAnalysis"**, directly under "FarmGPU achieved 392 GB/s in NCCL all-reduce benchmarks". Hedgehog's own published position is that the NCCL data is SemiAnalysis's. |
+| `hedgehog.cloud/blog/industry-leading-ai-network-performance` | Explains who SemiAnalysis are, lists the ClusterMAX criteria they test — **"NCCL/RCCL Networking Performance"** among them — and states "Hedgehog impacts most of these criteria, but for this report we are focusing on NCCL/RCCL Networking Performance." The social-card alt text reads "...NVIDIA Spectrum-X and untuned RoCEv2 in Semi Analysis NCCL testing". |
+| `blog.farmgpu.com/b200-cluster/` (9 Sep 2025) | Cites SemiAnalysis for the *stakes* — half-speed AllReduce costs ~10% MFU on 70B training, 15–20% on MoE, and 16–512 MB is the message range that matters — and reports FarmGPU's own 390 GB/s bus bandwidth measured against that framework. |
+| `blog.farmgpu.com/building-an-ai-cluster-.../` (31 Oct 2025) | FarmGPU's build account: open Ethernet at roughly half the InfiniBand cost, 17 days to commercial launch, Hedgehog named as the debugging partner, OCP Summit presentation with Hedgehog and Celestica. Does **not** mention SemiAnalysis. |
 
-> *"our experience with semi-analysis is indirect, they do not directly evaluate networking solutions, they only evaluate neoclouds on a number of criteria, they dont specifically publish a network rating per provider. Our commentary about semi-analysis comes from FarmGPU, who had their env analyzed by semi-analyisis, but the formal published report did not say hardly anything about networking, which is fairly normal."*
+**Conclusion.** SemiAnalysis test NCCL networking performance as one of the ClusterMAX criteria, and their NCCL results from the Hedgehog-based clouds are the source of the published comparison. The data is theirs and the page uses it, including the comparative result, with the source named in the same sentence.
 
-So: SemiAnalysis reviewed FarmGPU's **cloud**. FarmGPU's cloud runs a Hedgehog and Celestica fabric. FarmGPU publish their own figures from that cluster. There is **no SemiAnalysis rating of the fabric** and the page must never imply one.
+**The one limit, and it is the only one.** SemiAnalysis rate **GPU clouds** against ClusterMAX criteria. They publish no per-provider network rating and no rating of Hedgehog as a product. The page must never imply one. That is what the small print exists to say.
 
-**The small print, verbatim and binding:**
+### The small print, verbatim and binding
 
-> SemiAnalysis review GPU clouds, not fabrics. The figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which runs a Hedgehog and Celestica fabric. [FarmGPU's own account](https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/).
+> SemiAnalysis NCCL data, from their ClusterMAX testing of clouds that run this fabric. They rate clouds, not fabrics, so there is no SemiAnalysis rating of Hedgehog itself.
 
-**Why that link, and an open question about it.** The customer asked for "the best FarmGPU blog on the topic". FarmGPU's blog index was read in full on 2026-11-09. The selected post, *Building an AI Cluster: Our 17-Day Crash Course in Open Networking* (JM Hands, 31 Oct 2025), is their strongest networking write-up: the NCCL result on their own cluster, the open-Ethernet cost comparison, the OCP Summit presentation with Hedgehog and Celestica, and Hedgehog named as the partner who debugged it with them.
+### Withdrawn: the earlier flag on the Hedgehog blog post
 
-**It does not, however, report what SemiAnalysis said about the network** — and neither does any other post on that blog. The only ClusterMAX post there is *FarmGPU Takes #1 in ClusterMax 2.0 Storage Benchmarks* (7 Mar 2026), which is **storage**, and explicitly not networking. That is consistent with the customer's own point that SemiAnalysis publish no per-provider network rating, but it means the published chain currently stops one link short of the networking commentary. The customer also mentions **public speeches** as a source. If a talk, podcast or slide carries it, that is the better footnote link and should replace this one. **Open question for the customer.** The wording above was chosen so that it is true against the link as it stands: it claims only that the figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which the post does support.
+An earlier revision of this README flagged `hedgehog.cloud/blog/industry-leading-ai-network-performance` as claiming "more directly than the chain supports", and removed it from the junction. **That flag was wrong and is withdrawn.** It rested on a summarised read. The page in fact names SemiAnalysis, explains what they do, lists the criteria they test including NCCL/RCCL networking performance, narrows itself to that criterion explicitly, and attributes the chart. The link is **restored** as a secondary destination on the primary card. Nothing on that live page was ever touched.
 
-**Rules the unit test enforces:**
+### Guard changes, made deliberately
 
-- The name **SemiAnalysis may not appear without the qualifying small print**, and every mention must sit inside the primary card that carries it.
-- The page must never say SemiAnalysis *rated*, *ranked*, *benchmarked*, *measured*, *tested* or *scored* anything, and the words *independent*, *third-party* and *ClusterMAX* are banned outright.
-- No figure is restated on the entry: the test fails on any percentage or throughput number, and on *outperform*, *fastest*, *best in* and *industry-leading*.
+`outperform` was previously banned on the entry. **That ban is removed**, because a comparative result sourced to SemiAnalysis in the same sentence is legitimate use of the material, and writing round the ban with a synonym would have been evasion rather than a decision. What the test still enforces:
 
-**Flagged for the customer, about an existing live page.** `https://hedgehog.cloud/blog/industry-leading-ai-network-performance` states that SemiAnalysis "completed ClusterMAX testing" and that the Hedgehog-based clouds outperformed NVIDIA Israel-1 and Crusoe Iceland's InfiniBand network. Against the account above, that framing is stronger than the chain supports. It is **not linked from this junction**. It is a live, listed page: see **Live pages** below. Nothing here changes it, and whether it is revisited is the customer's decision.
+- **SemiAnalysis may not be named without the exact qualifier above**, and every mention must sit inside the primary card that carries it.
+- No claim of a SemiAnalysis *rating, ranking, score, certification or award* of Hedgehog, and no "ClusterMAX rating for Hedgehog". The words *third-party* are banned.
+- **No restated figures** — no percentage, no throughput number.
+- **No unsourced superlatives**: *fastest*, *best in*, *industry-leading*, *unmatched*, *world-class*.
+
+### Candidate better sources, not yet used
+
+The customer mentioned JM Hands covering this in public speeches. Two exist and are linked from the Hedgehog case study rather than wired here: an **AI Networking Summit video** in which FarmGPU "shares key test results comparing their OCP-based AI network against proprietary benchmarks, including InfiniBand", and an **AI Hedge podcast** episode with Jonmichael Hands. Either could strengthen the small print if a stable URL is confirmed. Not added without one, per the no-invented-URL rule.
 
 ## Live pages: what may and may not be touched
 

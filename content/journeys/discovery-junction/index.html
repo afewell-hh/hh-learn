@@ -19,11 +19,14 @@
   widely held. Narrower use-case messaging, segmentation included, stays on its own card
   rather than leading, and belongs further down a path where a use case can be inferred.
 
-  ATTRIBUTION RULE, binding, set by the customer 2026-11-09. SemiAnalysis IS named, because
-  the name carries weight, but never as having rated the fabric: they review GPU clouds, not
-  fabrics, and their published FarmGPU report said next to nothing about the network. The
-  chain goes in the small print, tightly, with a link to FarmGPU's own account. The unit test
-  fails if SemiAnalysis is named without that small print alongside it.
+  ATTRIBUTION RULE, binding, set by the customer 2026-11-09 and settled against source.
+  SemiAnalysis IS named, and the NCCL data IS theirs: NCCL/RCCL networking performance is one
+  of the ClusterMAX criteria they test, and hedgehog.cloud's own case study credits the
+  comparison graph and the all-reduce figure to them ("Source: SemiAnalysis"). What they do
+  NOT do is rate fabrics -- they rate GPU clouds against the ClusterMAX criteria, and publish
+  no per-provider network rating and no Hedgehog product rating. So: name them, use the data,
+  and state that one limit in the small print. The unit test fails if the name appears without
+  the qualifier, and bans any claim of a SemiAnalysis rating of Hedgehog.
 -->
 <style>
   :root { --ink:#16202a; --muted:#44525f; --line:#c9d2da; --accent:#0b5cad; --soft:#f3f6f9; }
@@ -57,10 +60,10 @@
   <ul class="paths">
     <li class="primary" id="path-performance">
       <h2><a class="path" href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="farmgpu-operator-results">See the results from a GPU cloud that runs it</a></h2>
-      <p>FarmGPU run a B200 cloud on a Hedgehog and Celestica fabric, and it is one of the clouds SemiAnalysis review. FarmGPU publish their own figures from that cluster: NCCL all-reduce results, what the fabric cost them next to proprietary InfiniBand, and how long it took to stand up.</p>
-      <p>Their chief executive, JM Hands, chairs the Open Compute Project's neocloud working group. The numbers are on the page that owns them.</p>
-      <p class="more">Also: <a href="https://hedgehog.cloud/network-performance" data-destination="fabric-for-ai-workloads">what Hedgehog designs the fabric to do for AI workloads</a></p>
-      <p class="smallprint">SemiAnalysis review GPU clouds, not fabrics. The figures are FarmGPU's own, from the cluster SemiAnalysis reviewed, which runs a Hedgehog and Celestica fabric. <a href="https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/" data-destination="farmgpu-own-account">FarmGPU's own account</a>.</p>
+      <p>SemiAnalysis test NCCL networking performance as one of their ClusterMAX criteria for GPU clouds. Their NCCL results from FarmGPU and RunPod, both running a Hedgehog and Celestica fabric, are the source of the published comparison in which those clouds came out ahead of NVIDIA's Spectrum-X reference cluster and an untuned RoCEv2 cluster.</p>
+      <p>FarmGPU add their own account of the build: what the open fabric cost next to proprietary InfiniBand, and how long the cluster took to reach commercial launch. Their chief executive, JM Hands, chairs the Open Compute Project's neocloud working group. The numbers are on the pages that own them.</p>
+      <p class="more">Also: <a href="https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/" data-destination="farmgpu-own-account">FarmGPU's own write-up</a> · <a href="https://hedgehog.cloud/blog/industry-leading-ai-network-performance" data-destination="hedgehog-results-analysis">Hedgehog's analysis of the results</a> · <a href="https://hedgehog.cloud/network-performance" data-destination="fabric-for-ai-workloads">what the fabric is designed to do for AI workloads</a></p>
+      <p class="smallprint">SemiAnalysis NCCL data, from their ClusterMAX testing of clouds that run this fabric. They rate clouds, not fabrics, so there is no SemiAnalysis rating of Hedgehog itself.</p>
     </li>
 
     <li id="path-segmentation">
