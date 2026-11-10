@@ -17,6 +17,7 @@ nobody re-introduces them.
 | 27 lines of declared intent | The applied `VPC` and `VPCAttachment`, verbatim. |
 | Per-decision object counts (19 for route policy, 5 for BGP identity, etc.) | Derived from the same capture by grouping the 35 objects by the decision each serves. All 35 map to exactly one decision; none are unaccounted for. |
 | The operator's file contains no `vni`, `route-target`, `irb`, `anycast`, `suppress`, `mtu`, `bgp`, `evpn` or `vxlan` | Grep of the captured file. |
+| The eight decisions are the configuration surface of an EVPN/VXLAN deployment | Not our invention. The page cites [Cisco's VXLAN BGP EVPN Design and Implementation Guide](https://www.cisco.com/c/en/us/td/docs/dcn/whitepapers/cisco-vxlan-bgp-evpn-design-and-implementation-guide.html) as a reputable vendor-neutral-enough reference for the same surface. |
 
 Raw capture and conversion notes: `docs/examples/authoring-platform/modules/shrink-blast-radius-compare/`.
 
@@ -25,7 +26,8 @@ Raw capture and conversion notes: `docs/examples/authoring-platform/modules/shri
 | Claim | Working |
 |---|---|
 | 120 values must agree for a four-network tenant across six switches | 4 per-network decisions × 4 networks × 6 switches = 96; plus 4 per-tenant decisions × 6 switches = 24. Shown on the page with the split visible, deliberately not "8 × 4 × 6 = 192", which would double-count per-VRF decisions. |
-| $568/hour, $13,600/day, $95,000/week | 64 GPUs (8 nodes × 8) × $8.87/GPU-hour. |
+| $568/hour, $13,600/day, $95,000/week | 64 GPUs (8 nodes × 8) × $8.87/GPU-hour. **Framed on the page as the rentable value of idle capacity, not as a realised loss**, with the assumption stated inline: it presumes the capacity would otherwise earn at a published list rate, which is the scenario's premise and not a measurement of anyone's contract. |
+| "six switches" | A stated worked example, not a finding. The page invites the reader to substitute their own number and notes that the only load-bearing part is that it is more than one. |
 
 ## Third-party sources
 
@@ -38,7 +40,7 @@ Raw capture and conversion notes: `docs/examples/authoring-platform/modules/shri
 | The rise in IT and networking outages is "likely caused by increased IT and network complexity, leading to issues with change management and misconfigurations" | Uptime Institute, *Annual Outage Analysis 2025* | — | `https://datacenter.uptimeinstitute.com/rs/711-RIA-145/images/2025.AnnualOutageAnalysis.pdf` |
 | ~70% of outages come from changes to a live system | Google, *Site Reliability Engineering*, O'Reilly 2016, Introduction | **No methodology published.** Page labels it as Google's operational experience, not research | `https://sre.google/sre-book/introduction/` |
 | Idle GPUs become unallocatable because capacity is stranded, lacks matching CPUs, or violates network-locality constraints | Alibaba Serverless Infrastructure characterisation, USENIX OSDI 2026, abstract | 155,410 GPUs, 37,707 nodes, 14M jobs, 6 months of 2025 | `https://www.usenix.org/system/files/osdi26-li-suyi.pdf` |
-| 5% of idle GPUs unallocatable for a 1-GPU request, 28% for an 8-GPU/128-CPU request | Same paper, Figure 13 | as above | as above |
+| 5% of idle GPUs unallocatable for a 1-GPU request, 28% for an 8-GPU/128-CPU request | Same paper, Figure 13 | as above. **The page states the paper's own attribution — stranded GPUs and insufficient CPUs, not fractional-GPU fragmentation — and explicitly declines to claim how much of the 28% is network-related, because the figure does not break that out** | as above |
 | GPU allocation "directly affects revenue" | Same paper, §GPU allocation | as above | as above |
 | $8.87 per GPU per hour, HGX B200 | Lambda, public pricing page, read 2026-11-10 | 256+ GPUs, 2 weeks to 1 year — their **lowest** published tier | `https://lambda.ai/pricing` |
 
@@ -65,6 +67,14 @@ Each of these would have strengthened the page and collapsed under one click.
 | "The $401 billion idle-GPU problem" | Synthetic: a Gartner spend forecast multiplied by a vendor's utilisation figure. Neither organisation makes the claim. |
 | "MLPerf shows N% of peak FLOPs" | MLCommons' own rules state utilisation is not an MLPerf metric. |
 | "Run:ai: 83% of GPUs are idle" | The 83% is the sum of two self-reported qualitative buckets, not an idle measurement. Routinely misquoted. 2021, and Run:ai is now part of NVIDIA. |
+
+## Removed under the 2026-11-10 evidence standard
+
+| Removed | Why |
+|---|---|
+| "That record is usually a spreadsheet" | True-sounding and probably common, but an unsourced claim about industry practice. Replaced with what is derivable: wherever the record lives, the fabric cannot read it, so nothing but a person checks for collisions. |
+| "Bigger, network-sensitive placements strand worse" | My gloss, not the paper's finding. Replaced with the paper's own attribution and an explicit refusal to apportion the 28%. |
+| "that is what the wait costs" | Implied a realised loss. Now "the rentable value of the capacity standing idle", with the assumption stated. |
 
 **Still unverified, needs a human:** the Gartner press release behind the $401B and $2.52T
 spend figures is bot-blocked and must be opened in a real browser before any Gartner number

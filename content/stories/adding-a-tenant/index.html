@@ -138,14 +138,26 @@
   .money p { color:var(--hero-dim); margin:0 0 .7rem; font-size:.95rem; }
   .money p:last-child { margin:0; }
   .money strong { color:var(--hero-fg); }
+
+  .next { display:grid; gap:.8rem; grid-template-columns:1fr; margin-top:1.3rem; }
+  @media (min-width:40rem) { .next { grid-template-columns:1fr 1fr; } }
+  .next a { display:block; border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem;
+    background:var(--paper); text-decoration:none; color:inherit; transition:border-color .15s; }
+  .next a:hover { border-color:var(--derived); }
+  .next .what { display:block; font:650 1rem/1.3 "Archivo",sans-serif; color:var(--ink); margin-bottom:.3rem; }
+  .next .why { display:block; font-size:.9rem; color:var(--body); }
+  .next .tagline { display:inline-block; margin-top:.6rem; font-size:.72rem; letter-spacing:.08em;
+    text-transform:uppercase; font-weight:600; border-radius:999px; padding:.1rem .55rem;
+    background:var(--surface); color:var(--dim); border:1px solid var(--line); }
+  .next .tagline.live { background:var(--derived-bg); color:var(--derived); border-color:var(--derived-line); }
 </style>
 
 <div class="hero">
   <div class="wrap">
     <p class="eyebrow">Neocloud operations</p>
     <h1>The hard part happens before anyone types a command</h1>
-    <p>A customer signs for eight HGX B300 nodes. The eight you have free are not in the same rack — they hang off <strong>six different leaf switches</strong>.</p>
-    <p>Until all six agree on exactly what this tenant is, those nodes earn nothing. On a hand-run EVPN/VXLAN fabric, getting six switches to agree is an engineering exercise, not a typing exercise.</p>
+    <p>A customer signs for eight HGX B300 nodes. The eight you have free are not in the same rack. Say they hang off <strong>six different leaf switches</strong> — the exact number is yours to substitute, and the only part that matters is that it is more than one and you did not get to choose it.</p>
+    <p>Until those switches agree on exactly what this tenant is, the nodes earn nothing. On a hand-run EVPN/VXLAN fabric, getting them to agree is an engineering exercise, not a typing exercise.</p>
   </div>
 </div>
 
@@ -156,8 +168,8 @@
       <p><strong>One network, for one tenant.</strong> A GPU tenant usually needs several: a frontend network, two backend planes so compute traffic stays on its own rails, and something for management. Each is its own network, and every port on every node has to join the right one.</p>
       <p>Putting all of that on one page would bury the point. So this follows the smallest unit of the job — <strong>one subnet reaching one node</strong> — and then multiplies it back up at the end. Everything below happens once per network.</p>
     </div>
-    <h2>Eight things that must be identical on all six switches</h2>
-    <p class="standfirst">For one of the tenant's networks. None of these are typed quickly and forgotten — each is a decision that has to hold across every switch that network touches, and stay true the next time the tenant grows.</p>
+    <h2>Eight things that must be identical on every switch</h2>
+    <p class="standfirst">For one of the tenant's networks. None of these are typed quickly and forgotten — each is a decision that has to hold across every switch that network touches, and stay true the next time the tenant grows. They are not our invention: they are the configuration surface described in any vendor's EVPN/VXLAN design guide, for example <a href="https://www.cisco.com/c/en/us/td/docs/dcn/whitepapers/cisco-vxlan-bgp-evpn-design-and-implementation-guide.html" style="color:var(--derived)">Cisco's</a>.</p>
     <ul class="decisions">
       <li><b>The L2VNI for the subnet</b><span>A network identifier that must be unique across the entire fabric, not just this switch.</span><em>Reuse one another tenant already has, and two tenants quietly share a broadcast domain.</em></li>
       <li><b>The L3VNI for the tenant's routing table</b><span>A second identifier, also fabric-unique, that carries routed traffic between leaves.</span><em>Collide it, and traffic crosses between tenants that were meant to be separate.</em></li>
@@ -258,7 +270,7 @@ spec:
         <tr><td>BGP identity for the tenant<span class="byhand">By hand: an ASN and router-id per VRF per leaf, allocated without colliding with anything already deployed</span></td><td class="nothing">nothing</td><td><span class="objs">5</span><code>asn 4200006632, router-id 172.30.8.1, address families</code></td></tr>
       </tbody>
     </table>
-    <p style="margin-top:1.3rem">Read the amber lines as the job description. Every one of those lines is something a person allocates, records somewhere the next person will find it, applies to six switches, and verifies — then locates again the next time this tenant changes. That record is usually a spreadsheet, and the fabric has no idea it exists.</p>
+    <p style="margin-top:1.3rem">Read the amber lines as the job description. Every one of those lines is something a person allocates, records somewhere the next person will find it, applies to six switches, and verifies — then locates again the next time this tenant changes. Wherever that record lives, the fabric cannot read it — so nothing but the person checks whether this allocation collides with an existing one.</p>
     <p>On the right, none of it was allocated per leaf, so none of it can disagree between leaves. The same declaration produces the same configuration on every switch the tenant lands on, including the switch you add six months from now.</p>
   </div>
 </section>
@@ -282,13 +294,14 @@ spec:
     <p style="margin-top:1.3rem">One hundred and twenty values, and <strong>nothing in the fabric tells you when two of them disagree.</strong> You find out from a tenant who cannot reach their own storage, or from a security review that discovers two customers in the same broadcast domain.</p>
     <p>The Hedgehog side of the same tenant is four network declarations and one attachment per port. Nothing to allocate, nothing to record, nothing to reconcile — and the ninth node on a seventh switch is the same single operation as the first, not a new design exercise.</p>
     <div class="money">
-      <p><strong>Eight HGX nodes is 64 GPUs.</strong> At Lambda's published list rate for B200 capacity at scale — $8.87 per GPU per hour — that is what the wait costs while six switches are brought into agreement:</p>
+      <p><strong>Eight HGX nodes is 64 GPUs.</strong> Priced at Lambda's published list rate for B200 capacity at scale — $8.87 per GPU per hour — that is the <strong>rentable value of the capacity standing idle</strong> while the switches are brought into agreement:</p>
       <div class="row">
         <span class="cell"><span class="n">$568</span><span class="l">per hour</span></span>
         <span class="cell"><span class="n">$13,600</span><span class="l">per day</span></span>
         <span class="cell"><span class="n">$95,000</span><span class="l">per week</span></span>
       </div>
-      <p>The customer has signed. The nodes are racked and powered. The only thing between them and earning is six switches agreeing on what this tenant is.</p>
+      <p>The customer has signed. The nodes are racked and powered. The only thing between them and earning is a set of switches agreeing on what this tenant is.</p>
+      <p style="font-size:.85rem">Read this as the value of the asset while it waits, not as a bill. It assumes the capacity would otherwise be earning at a published list rate, which is the premise of the scenario rather than a measurement of anyone's contract.</p>
       <p style="font-size:.8rem;margin-top:.9rem">Rate from <a href="https://lambda.ai/pricing" style="color:var(--hero-dim)">lambda.ai/pricing</a>, read 10 November 2026: HGX B200, 256+ GPUs, 2 weeks to 1 year — their lowest published tier, so this is the conservative end. B300 has no public list price; B200 is the nearest published capacity. 64 × $8.87 = $567.68/hr.</p>
     </div>
 
@@ -298,7 +311,7 @@ spec:
       <p>“High GPU demand does not yield high effective utilization: <strong>idle GPUs frequently become unallocatable</strong> because free capacity is stranded across nodes, lacks matching CPUs, or <strong>violates network-locality constraints</strong>.”</p>
       <cite>Alibaba Serverless Infrastructure, characterised over six months across <strong>155,410 GPUs</strong> and 14 million jobs. USENIX OSDI 2026. The same paper defines GPU allocation as “the fraction of total GPU capacity claimed by jobs — which reflects how effectively resources are claimed and <strong>directly affects revenue</strong>.”</cite>
     </blockquote>
-    <p style="margin-top:1.2rem">Their Figure 13 measures how much idle capacity cannot be handed out, by the shape of the request. For a single GPU it is <strong>5%</strong>. For an eight-GPU request with substantial CPU alongside it — <strong>the shape of the tenant in this story</strong> — it is <strong>28%</strong>. Bigger, network-sensitive placements strand worse.</p>
+    <p style="margin-top:1.2rem">Their Figure 13 measures how much idle capacity cannot be handed out, by the shape of the request. For a single GPU it is <strong>5%</strong>. For an eight-GPU request with substantial CPU alongside it — <strong>the shape of the tenant in this story</strong> — it is <strong>28%</strong>. The paper attributes that unallocatable capacity to GPUs stranded across nodes and to insufficient CPUs beside them — explicitly <em>not</em> to fractional-GPU fragmentation, which it finds negligible. Network locality appears in its own summary of why idle GPUs become unallocatable; the figure does not break out how much of the 28% it accounts for, and neither will we.</p>
     <p>This is also why it compounds. In the hand-run model the next tenant is the whole exercise again, on a fabric that now has more existing allocations to collide with. The work does not get easier as the cluster fills. It gets harder, and one inconsistency costs more.</p>
   </div>
 </section>
@@ -320,6 +333,36 @@ spec:
       <li>The eight decisions are what a hand-run EVPN/VXLAN deployment requires. We did not build one alongside to race it.</li>
       <li>Route distinguishers and broadcast replication are fabric-wide choices made once at build time, so they did not appear in a per-tenant difference.</li>
     </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Where this goes next</h2>
+    <p class="standfirst">Four directions out of here. Each says what you will see, so you can judge before you click.</p>
+    <div class="next">
+      <a href="https://claude.ai/artifact/J6n7iLFHpcVbbKf3CpaTwc">
+        <span class="what">See the configuration side by side</span>
+        <span class="why">The full before-and-after from the lab run behind this page: what the switch ended up with, beside the file that caused it. Step through it line by line.</span>
+        <span class="tagline live">Built · captured from a real fabric</span>
+      </a>
+      <a href="#">
+        <span class="what">Watch a hand-made change get reverted</span>
+        <span class="why">Someone edits a switch directly at 2am. The controller notices and puts it back. This is the answer to “what stops my fabric drifting away from what I declared?”</span>
+        <span class="tagline">Next to be built</span>
+      </a>
+      <a href="#">
+        <span class="what">Prove to a reviewer what changed, and when</span>
+        <span class="why">A compliance reviewer asks who altered tenant separation. Follow the trail from declared intent to reconciled state.</span>
+        <span class="tagline">Planned</span>
+      </a>
+      <a href="#">
+        <span class="what">Find out whether the network is holding your GPUs back</span>
+        <span class="why">A different question entirely: not how the tenant gets built, but what the fabric does to job completion once it is running.</span>
+        <span class="tagline">Planned</span>
+      </a>
+    </div>
+    <p style="margin-top:1.2rem;font-size:.9rem;color:var(--dim)">Three of these are not built yet and say so. Nothing here asks who you are or what you do — the options are the same for everyone, and what gets opened is more useful to us than anything we could have guessed about you.</p>
   </div>
 </section>
 
