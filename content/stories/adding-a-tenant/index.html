@@ -176,20 +176,16 @@
   <div class="wrap">
     <p class="eyebrow">Neocloud operations</p>
     <h1>The hard part happens before anyone types a command</h1>
-    <p>A customer signs for eight HGX B300 nodes. The eight you have free are not in the same rack. Say they hang off <strong>six different leaf switches</strong> — the exact number is yours to substitute, and the only part that matters is that it is more than one and you did not get to choose it.</p>
-    <p>Until those switches agree on exactly what this tenant is, the nodes earn nothing. On a hand-run EVPN/VXLAN fabric, getting them to agree is an engineering exercise, not a typing exercise.</p>
+    <p>A customer signs for eight HGX B300 nodes. The eight you have free are not in the same rack — they hang off <strong>six different leaf switches</strong>.</p>
+    <p>Until all six agree on exactly what this tenant is, the nodes earn nothing. On a hand-run EVPN/VXLAN fabric, getting six switches to agree is an engineering exercise long before it is a typing exercise.</p>
   </div>
 </div>
 
 <section>
   <div class="wrap">
-    <div class="scope">
-      <p class="tag">What this story follows</p>
-      <p><strong>One network, for one tenant.</strong> A GPU tenant usually needs several: a frontend network, two backend planes so compute traffic stays on its own rails, and something for management. Each is its own network, and every port on every node has to join the right one.</p>
-      <p>Putting all of that on one page would bury the point. So this follows the smallest unit of the job — <strong>one subnet reaching one node</strong> — and then multiplies it back up at the end. Most of what follows repeats for every network; a few of the choices are made once per tenant, and the arithmetic at the end keeps those apart.</p>
-    </div>
-    <h2>Nine configuration choices to coordinate across leaves</h2>
-    <p class="standfirst">For one of the tenant's networks. None of these are typed quickly and forgotten — each is a decision that has to hold across every switch that network touches, and stay true the next time the tenant grows. This is the configuration surface described in any vendor's EVPN/VXLAN design guide — <a href="https://www.cisco.com/c/en/us/td/docs/dcn/whitepapers/cisco-vxlan-bgp-evpn-design-and-implementation-guide.html" style="color:var(--derived)">Cisco's, for example</a>.</p>
+    <h2>What “agree” actually means</h2>
+    <p class="standfirst">Nine choices. Every switch this tenant touches has to end up holding the same answer to each one, and keep holding it the next time the tenant grows. This is the configuration surface any vendor's EVPN/VXLAN design guide describes — <a href="https://www.cisco.com/c/en/us/td/docs/dcn/whitepapers/cisco-vxlan-bgp-evpn-design-and-implementation-guide.html">Cisco's, for example</a>.</p>
+    <p>A tenant like this usually needs more than one network — a frontend, two backend planes so compute traffic stays on its own rails, and something for management. This story follows <strong>one of them, end to end</strong>, and multiplies back up at the finish.</p>
     <ul class="decisions">
       <li><b>The L2VNI for the subnet</b><span>A network identifier that must be unique across the entire fabric, not just this switch.</span><em>Reuse one another tenant already has, and two tenants quietly share a broadcast domain.</em></li>
       <li><b>The L3VNI for the tenant's routing table</b><span>A second identifier, also fabric-unique, that carries routed traffic between leaves.</span><em>Collide it, and traffic crosses between tenants that were meant to be separate.</em></li>
@@ -202,13 +198,13 @@
       <li><b>MTU, end to end</b><span>Overlay encapsulation adds bytes. Every hop has to have room for them.</span><em>Miss it on one hop and large frames are dropped there while small ones pass.</em></li>
     </ul>
     <div class="alarm">
-      <p><strong>Here is why this is a security problem and not just an operations problem.</strong></p>
+      <p><strong>Now the part that makes this a security problem and not just an operations one.</strong></p>
       <p>None of these failures raise an alarm. A reused VNI does not error — it works, and two tenants are in the same broadcast domain. A mistyped route target does not error — it advertises routes somewhere they should never go. The fabric stays up, the dashboards stay green, and the thing you have built is not the thing you designed.</p>
       <p>The blast radius of one wrong value is not one switch. It is the separation between two customers.</p>
     </div>
 
-    <h2 style="margin-top:2.5rem">This is the most common way networks break</h2>
-    <p class="standfirst">The industry has been measuring this for years.</p>
+    <h2 style="margin-top:2.5rem">If that sounds like an edge case, it is the opposite</h2>
+    <p class="standfirst">Configuration and change management is not one way networks fail. It is the most common one, and the industry has been measuring it for years.</p>
     <blockquote class="pull">
       <p>“Network-related issues continue to account for the largest share of IT service outages… As in previous years, these are driven primarily by <strong>configuration and change management failures</strong>.”</p>
       <cite>Uptime Institute, <em>Annual Outage Analysis 2026</em>, Figure 11 (n=122). Configuration and change management has been the leading cause of network-related outages in every Uptime resiliency survey since 2021.</cite>
@@ -242,8 +238,8 @@
 
 <section>
   <div class="wrap">
-    <h2>What the operator writes instead</h2>
-    <p class="standfirst">For that one network and one node — the same slice as above. Captured from a running Hedgehog fabric, not written for this page.</p>
+    <h2>Against all nine of those, here is what the operator writes</h2>
+    <p class="standfirst">The same tenant, the same network, the same node — declared on a Hedgehog fabric instead. Captured from a running system, not written for this page.</p>
     <pre class="code">apiVersion: vpc.githedgehog.com/v1beta1
 kind: VPC
 metadata:
@@ -269,8 +265,8 @@ spec:
 
 <section>
   <div class="wrap">
-    <h2>So who decided them?</h2>
-    <p class="standfirst">The controller did. Here is the whole transaction.</p>
+    <h2>So who made the other choices?</h2>
+    <p class="standfirst">Four values went in; nine choices came out settled. The controller made the rest, and this is the whole transaction.</p>
     <div class="flow">
       <div class="box in"><b>What a person types into Hedgehog</b>Four values: a subnet, a gateway, a VLAN number, and which port the server is on.</div>
       <div class="arrow" aria-hidden="true">→</div>
@@ -314,6 +310,7 @@ spec:
       </table>
     </div>
     <p style="margin-top:1.3rem">One hundred and twenty applications of nine choices — and <strong>the fabric does not itself reconcile them against a record of what you already allocated.</strong> You find out from a tenant who cannot reach their own storage, or from a security review that discovers two customers in the same broadcast domain.</p>
+    <p>And it compounds. In the hand-run model the next tenant is the whole exercise again, on a fabric that now holds more allocations to collide with. The work does not get easier as the cluster fills.</p>
     <p>The Hedgehog side of the same tenant is four network declarations and one attachment per port. The operator still chooses subnets, gateways and VLAN numbers; what they do not do is allocate and track the identifiers behind them. Adding the ninth node is the same declaration again, not a new design exercise.</p>
     <div class="money">
       <p><strong>Eight HGX nodes is 64 GPUs.</strong> Priced at Lambda's published list rate for B200 capacity at scale — $8.87 per GPU per hour — that is the <strong>rentable value of the capacity standing idle</strong> while the switches are brought into agreement:</p>
@@ -327,20 +324,21 @@ spec:
       <p style="font-size:.8rem;margin-top:.9rem">Rate from <a href="https://lambda.ai/pricing" style="color:var(--hero-dim)">lambda.ai/pricing</a>, read 10 November 2026: HGX B200, 256+ GPUs, 2 weeks to 1 year — their lowest published tier, so this is the conservative end. B300 has no public list price; B200 is the nearest published capacity. 64 × $8.87 = $567.68/hr.</p>
     </div>
 
-    <h2 style="margin-top:2.5rem">And capacity you own still strands</h2>
-    <p class="standfirst">The largest production GPU fleet ever characterised in public found that owning the GPUs is not the same as being able to allocate them — and named the network as one of the reasons.</p>
+    <h3 style="font-size:1.1rem;margin:2.2rem 0 .5rem">Waiting is not the only way this capacity sits idle</h3>
+    <p>The same constraint shows up after the tenant is running. The largest production GPU fleet characterised in public found that owning the GPUs is not the same as being able to hand them out — and named the network among the reasons.</p>
     <blockquote class="pull">
       <p>“High GPU demand does not yield high effective utilization: <strong>idle GPUs frequently become unallocatable</strong> because free capacity is stranded across nodes, lacks matching CPUs, or <strong>violates network-locality constraints</strong>.”</p>
-      <cite>Alibaba Serverless Infrastructure, characterised over six months across <strong>155,410 GPUs</strong> and 14 million jobs. USENIX OSDI 2026. The same paper defines GPU allocation as “the fraction of total GPU capacity claimed by jobs — which reflects how effectively resources are claimed and <strong>directly affects revenue</strong>.”</cite>
+      <cite>Alibaba Serverless Infrastructure, six months across <strong>155,410 GPUs</strong> and 14 million jobs. USENIX OSDI 2026. The same paper defines GPU allocation as “the fraction of total GPU capacity claimed by jobs — which reflects how effectively resources are claimed and <strong>directly affects revenue</strong>.”</cite>
     </blockquote>
-    <p style="margin-top:1.2rem">Their Figure 13 measures how much idle capacity cannot be handed out, by the shape of the request. For a single GPU it is <strong>5%</strong>. For an eight-GPU request with 128 CPUs beside it, it is <strong>28%</strong> — larger, more constrained placements strand more than small ones. The paper attributes that unallocatable capacity to GPUs stranded across nodes and to insufficient CPUs beside them — explicitly <em>not</em> to fractional-GPU fragmentation, which it finds negligible. Network locality appears in its own summary of why idle GPUs become unallocatable; the figure does not break out how much of the 28% it accounts for, and neither will we.</p>
-    <p>This is also why it compounds. In the hand-run model the next tenant is the whole exercise again, on a fabric that now has more existing allocations to collide with. The work does not get easier as the cluster fills. It gets harder, and one inconsistency costs more.</p>
-  </div>
+    <p style="margin-top:1.2rem">Their Figure 13 measures how much idle capacity cannot be handed out, by the shape of the request: <strong>5%</strong> for a single GPU, <strong>28%</strong> for an eight-GPU request with 128 CPUs beside it. The paper attributes that to GPUs stranded across nodes and to insufficient CPUs beside them — explicitly <em>not</em> to fractional-GPU fragmentation, which it finds negligible. Network locality appears in its own summary of why idle GPUs become unallocatable; the figure does not break out how much of the 28% it accounts for, and neither will we.</p>
+    <p>So the delay and the stranding are the same problem seen twice: capacity you have paid for that nobody can use yet.</p>
+    </div>
 </section>
 
 <section>
   <div class="wrap">
     <h2>What we actually measured</h2>
+    <p class="standfirst">Everything above rests on a single lab run. Here is exactly what it was, and what it does not cover.</p>
     <div class="evidence">
       <h3>One tenant, applied to a live fabric</h3>
       <p>A Hedgehog VLAB — one spine, two SONiC switches, two servers — on hhfab v0.51.4 and SONiC 4.5.2. We read every switch's running configuration, applied one VPC and one VPCAttachment, waited for the fabric to converge, and read it again.</p>
