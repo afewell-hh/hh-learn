@@ -88,3 +88,37 @@ are not restated as though measured here.
 
 One VLAB run, roughly an hour. The local host is viable (it ran the first capture) subject to disk;
 otherwise a GCP VM at about $1.52/hour. No always-on environment is required for this exercise.
+
+---
+
+# Narrative spine, drafted before the data
+
+Written now, deliberately, because the last story's main defect was that nobody read it end to
+end as one argument until the customer did. Each section below has to be answerable from the one
+before it. Measured values go in as `[measured]` and are not written until the capture returns them.
+
+| Section | Job | Hands off to |
+|---|---|---|
+| **Hero** — someone changes a switch directly | A real moment: a TAC case, an outage, an old runbook, pressure. Not a hypothetical vandal. | "so what happens next?" |
+| **In a hand-run fabric, that edit becomes the truth** | There is no other source of truth. The switch now disagrees with whatever record the team keeps, and nothing says so. This is the drift problem, and it is the same spreadsheet from the tenant story. | "what would it take for that not to be true?" |
+| **On a declared fabric, the edit is just a difference** | The mechanism, from the reconciliation package: the controller derives switch-specific intent; the agent reads actual state, diffs, applies, reports. Periodic enforcement means a manual change inside managed scope is corrected without anyone filing a new intent. | "show me" |
+| **So we removed something by hand, [measured] times** | The demonstration. One managed value deleted on a real switch, polled until it returned, wall-clock recorded per trial, reported with spread. | "is that a guarantee?" |
+| **No, and here is the shape of it** | Convergence, not transactional rollback. A failed action stops that pass; a later pass re-reads and computes the remainder. The interval is a documented mechanism, not a deadline. | "what else doesn't it do?" |
+| **What it does not do** | Managed scope only — with the out-of-scope edit we made that was *not* reverted, shown rather than described. Not malicious-change prevention. Not attribution of who edited. Not uninterrupted forwarding. Not tenant separation during the interval. Not fabric-wide atomic recovery. | "what exactly did you run?" |
+| **What we actually measured** | Topology, versions, method, and the limits. States its own release rather than claiming to confirm the package's pinned v0.131.0 citations. | "where next" |
+| **Where this goes next** | One built destination, the rest marked unbuilt. No reader profiling. | — |
+
+## Register
+
+The hero must ring true to someone who has done it. The reason for a hand edit is almost never
+carelessness — it is a person under pressure with a production problem and a known-good command.
+The page should not imply otherwise, and the security argument is stronger if it does not: the
+point is that competent, well-intentioned edits still leave a fabric disagreeing with its record.
+
+## Copy rules carried over
+
+- Short-form copy says "periodic enforcement". The interval appears only in detailed copy, as the
+  documented mechanism.
+- Celestica SONiC+ and Cumulus are not presented as GA.
+- Hardware and role support claims follow the supported-devices documentation.
+- No claim that configuration evidence demonstrates traffic behaviour.
