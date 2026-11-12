@@ -1,0 +1,85 @@
+{
+  "interactives": [
+    {
+      "id": "tenant-old-vs-new",
+      "type": "compare",
+      "title": "Add one tenant: what lands on the switch, and what you write",
+      "caption": "Captured from a Hedgehog VLAB. The left pane is the configuration that appeared on the switch when one tenant was added, taken as a before-and-after difference of the switch's own running config. The right pane is what the operator wrote to cause it.",
+      "source_label": "captured",
+      "evidence_plane": "control-plane",
+      "left": {
+        "role": "old_way",
+        "label": "What the switch ends up configured with",
+        "provenance": "captured",
+        "captured_from": {
+          "system": "Hedgehog VLAB: 1 spine, 2 SONiC VS leaves, 2 servers",
+          "version": "hhfab v0.51.4, agent v0.144.1",
+          "date": "2026-11-09"
+        },
+        "src": "captures/tenant-sonic.txt",
+        "devices": [
+          "leaf-01"
+        ],
+        "baseline": "Per-device configuration, as it would be authored by hand on each switch",
+        "completeness": "complete",
+        "representative_basis": "The generated per-device configuration, which is exactly what would otherwise be written by hand. Taken as the difference of `sonic-cfggen -d` and `vtysh show running-config` on each switch, before and after one VPC and one VPCAttachment were applied; SONiC 4.5.2-Enterprise_Base. Counted as one line per configuration object rather than one line per field: expanding the fields would have given 76 lines instead of 35 on this device, padded with defaults nobody types, so the smaller number is used. Routing configuration is verbatim from the switch and already omits defaults."
+      },
+      "right": {
+        "role": "hedgehog_way",
+        "label": "What the operator writes",
+        "provenance": "captured",
+        "captured_from": {
+          "system": "The VPC and VPCAttachment applied to that VLAB",
+          "version": "vpc.githedgehog.com/v1beta1",
+          "date": "2026-11-09"
+        },
+        "src": "captures/tenant-vpc.yaml",
+        "devices": [],
+        "completeness": "complete"
+      },
+      "equivalence": {
+        "status": "same",
+        "outcome": "One tenant network exists on the fabric and server-01 is attached to it. Both panes describe the same applied state of the same fabric at the same moment."
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "title": "Create the tenant network",
+          "left": [
+            40,
+            49
+          ],
+          "right": [
+            9,
+            18
+          ]
+        },
+        {
+          "id": "s2",
+          "title": "Write the routing policy it needs",
+          "left": [
+            21,
+            39
+          ],
+          "right": [
+            1,
+            18
+          ]
+        },
+        {
+          "id": "s3",
+          "title": "Bring up the port and advertise the host",
+          "left": [
+            15,
+            20
+          ],
+          "right": [
+            19,
+            27
+          ]
+        }
+      ],
+      "hard_way": false
+    }
+  ]
+}
