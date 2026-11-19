@@ -2,7 +2,7 @@
 title: "Systematic Troubleshooting Framework"
 slug: "fabric-operations-troubleshooting-framework"
 difficulty: "intermediate"
-estimated_minutes: 10
+estimated_minutes: 15
 version: "v1.1.0"
 validated_on: "2026-11-19"
 pathway_slug: "network-like-hyperscaler"
