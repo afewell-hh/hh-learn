@@ -235,12 +235,11 @@ modules:
     creates: []
     destroys: []
     notes: >
-      Read-only Prometheus query module. Queries switch metrics
-      (fabric_agent_interface_in_utilization, fabric_agent_interface_out_octets,
-      fabric_agent_bgp_neighbor_session_state, etc.) via Prometheus UI at
-      YOUR_VM_IP:9090. Requires an operational fabric with Prometheus
-      collecting metrics. test-vpc persists from Module 1.2 but is not
-      referenced or required by this module.
+      Read-only Prometheus query module. R0 switch Alloy sends fabric_agent_*
+      metrics by remote write; it does not create a fabric-proxy scrape target.
+      Students query interface and BGP series in Prometheus at YOUR_VM_IP:9090
+      after the fabric settles. No student VPC or prior module mutation is
+      required.
 
   - slug: fabric-operations-dashboard-interpretation
     course: 3
