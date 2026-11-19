@@ -42,7 +42,7 @@ You should know how to run `kubectl` on the lab VM and navigate Grafana. The rel
 
 A user reports that `server-07` cannot reach a gateway in `customer-app-vpc`. They say an attachment was submitted earlier. You have no manifest, apply output or ArgoCD sync result yet.
 
-On a fresh released R0 VM, `customer-app-vpc` and a server-07 attachment to it are absent. The actual physical Connection is `server-07--unbundled--leaf-03`, with switch port `leaf-03/E1/3`. These facts are the starting observations, not a prearranged VLAN fault. The report is still useful: it tells you what configuration and history to request.
+On a fresh released R0 VM, `customer-app-vpc` and a server-07 attachment to it are absent. The actual wiring Connection is `server-07--unbundled--leaf-03`, with switch port `leaf-03/E1/3`. These facts are the starting observations, not a prearranged VLAN fault. The report is still useful: it tells you what configuration and history to request.
 
 ### The hypothesis loop
 
@@ -125,7 +125,7 @@ Verify both VPCs, their attachments and any VPCPeering first. Check the peering 
 
 ### GitOps says the configuration is synced, but traffic fails
 
-Confirm the ArgoCD application revision and compare the live VPC/attachment specs with the intended files under `active/`. Then inspect Agent generations and run a server-side traffic test. “Synced” means ArgoCD applied the desired objects; it is not a forwarding test. If an object is missing, inspect the sync result before attributing it to a webhook.
+Confirm the ArgoCD application revision and compare the live VPC/attachment specs with the intended files under `active/`. Then inspect Agent generations and run a server-side traffic test. “Synced” reports that ArgoCD's tracked live objects match the desired revision; it is not a forwarding or application-health test. If an object is missing, inspect the sync result before attributing it to a webhook.
 
 ## Practice: write a supported next action
 
@@ -133,7 +133,7 @@ For the fresh R0 observations above, write three lines:
 
 1. **Reported:** server-07 cannot reach `customer-app-vpc`; the claimed earlier submission is unverified.
 2. **Observed:** the VPC and matching attachment are absent; server-07 is physically connected to leaf-03/E1/3; record the actual Agent generation and interface state you saw.
-3. **Next action:** request the desired manifests and apply or ArgoCD sync result. Do not claim a VLAN conflict, automatic reassignment, switch failure or successful repair from this baseline.
+3. **Next action:** revise the initial VLAN-fault hypothesis: without the VPC and attachment, there is no tenant VLAN for this report to inspect. Request the desired manifests and apply or ArgoCD sync result. Do not claim a VLAN conflict, automatic reassignment, switch failure or successful repair from this baseline.
 
 If you have an actual VPC and attachment from another exercise, repeat the resource and Connection comparison with their real names. Do not create a fault for this module. The Pre-Support Diagnostic Checklist shows how to save a private evidence bundle when a real incident requires escalation.
 
