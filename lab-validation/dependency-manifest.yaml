@@ -312,12 +312,12 @@ modules:
     creates: []
     destroys: []
     notes: >
-      Applies troubleshooting methodology to a simulated VLAN-conflict
-      scenario (customer-app-vpc/server-07). Diagnostic commands run against
-      the real cluster's Agent CRD state and Grafana metrics. The specific
-      resources in the scenario (customer-app-vpc, customer-app-vpc-server-07)
-      are illustrative — the learning objective is methodology, not exact
-      resource matching. No new K8s VPCs or VPCAttachments are created.
+      Read-only incident claim audit on a fresh operational fabric. The
+      customer-app-vpc/server-07 report is unverified; students observe the
+      absent VPC and attachment, discover server-07's real Connection, inspect
+      Agent generations and Grafana, and request submission history. The old
+      VLAN-conflict/automatic-reassignment story is not a live fixture. No
+      K8s VPCs, VPCAttachments or fault objects are created or changed.
 
   - slug: fabric-operations-rollback-recovery
     course: 4
