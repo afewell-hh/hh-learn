@@ -61,7 +61,7 @@ The vAIDC requires an **n1-standard-32** instance (32 vCPUs, 120 GB RAM). You ma
 - GCP Console → IAM & Admin → Quotas → search "CPUs" for your target region
 - The default quota for new projects is often 8–24 vCPUs; request an increase if needed
 
-**Recommended region:** `us-west1` (Oregon) — the vAIDC image is hosted in the `teched-473722` project and deploys fastest from this region. Alternative: `us-central1` if `us-west1` has availability issues.
+**Recommended zone:** `us-central1-a`, where the current image passed its N1 lab test. If you use another zone, confirm it supports N1 and nested virtualization.
 
 ---
 
@@ -85,13 +85,14 @@ gcloud services enable compute.googleapis.com
 
 ```bash
 gcloud compute instances create hedgehog-lab \
-  --zone=us-west1-c \
+  --zone=us-central1-a \
   --machine-type=n1-standard-32 \
-  --image=hedgehog-vaidc-v20260114 \
+  --image=labapp-candidate-r0-20261119-nodesktop3 \
   --image-project=teched-473722 \
   --boot-disk-size=300GB \
   --boot-disk-type=pd-balanced \
   --enable-nested-virtualization \
+  --min-cpu-platform="Intel Haswell" \
   --tags=http-server,https-server
 ```
 
@@ -108,7 +109,7 @@ gcloud compute firewall-rules create allow-vaidc-services \
 
 ```bash
 gcloud compute instances describe hedgehog-lab \
-  --zone=us-west1-c \
+  --zone=us-central1-a \
   --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
 ```
 
@@ -120,9 +121,9 @@ Use these commands to control your vAIDC lifecycle:
 
 | Command | Purpose |
 |--------|---------|
-| `gcloud compute instances stop hedgehog-lab --zone=us-west1-c` | Pause the VM to save costs (data is preserved) |
-| `gcloud compute instances start hedgehog-lab --zone=us-west1-c` | Resume a stopped VM |
-| `gcloud compute instances delete hedgehog-lab --zone=us-west1-c` | Delete everything when you're completely done |
+| `gcloud compute instances stop hedgehog-lab --zone=us-central1-a` | Pause the VM to save costs (data is preserved) |
+| `gcloud compute instances start hedgehog-lab --zone=us-central1-a` | Resume a stopped VM |
+| `gcloud compute instances delete hedgehog-lab --zone=us-central1-a` | Delete everything when you're completely done |
 
 **Always stop your lab when not actively using it.** See the Cost Management section below.
 
@@ -147,10 +148,10 @@ Open these URLs in a browser on your own computer; the VM does not need a deskto
 
 ### Get the ArgoCD Admin Password
 
-The VM's default `kubectl` context is `vlab`, but the ArgoCD admin secret lives in the management cluster. Switch to the management cluster first, retrieve the password, then switch back to `vlab` before continuing with the rest of the lab work.
+The VM's default `kubectl` context is `vlab`, but the ArgoCD admin secret lives in the management cluster. The command below selects that cluster for this request without changing your default context.
 
 ```bash
-gcloud compute ssh hedgehog-lab --zone=us-west1-c --command="kubectl config use-context k3d-k3d-observability >/dev/null && kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo; kubectl config use-context vlab >/dev/null"
+gcloud compute ssh ubuntu@hedgehog-lab --zone=us-central1-a --command="kubectl --context=k3d-k3d-observability -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo"
 ```
 
 If you are already logged into the VM over SSH, run the commands directly:
@@ -170,7 +171,7 @@ Run all three commands in order. If you do not switch back to `vlab`, later labs
 ### SSH Access
 
 ```bash
-gcloud compute ssh hedgehog-lab --zone=us-west1-c
+gcloud compute ssh ubuntu@hedgehog-lab --zone=us-central1-a
 ```
 
 Once connected, you can run `kubectl` commands against the Hedgehog control plane:
@@ -210,9 +211,9 @@ The n1-standard-32 instance is a powerful machine with meaningful costs. Manage 
 
 ### Best Practices
 
-- **Stop the VM whenever you're not actively working** — `gcloud compute instances stop hedgehog-lab --zone=us-west1-c`
-- **Resume when you return** — `gcloud compute instances start hedgehog-lab --zone=us-west1-c`
-- **Delete when completely done** — `gcloud compute instances delete hedgehog-lab --zone=us-west1-c`
+- **Stop the VM whenever you're not actively working** — `gcloud compute instances stop hedgehog-lab --zone=us-central1-a`
+- **Resume when you return** — `gcloud compute instances start hedgehog-lab --zone=us-central1-a`
+- **Delete when completely done** — `gcloud compute instances delete hedgehog-lab --zone=us-central1-a`
 
 Stopping vs. deleting: stopping preserves your VM state (kubectl context, any changes you made) and only charges for disk storage. Deleting removes everything. For a multi-week course, stop between sessions; delete when you've finished the pathway.
 
@@ -227,7 +228,7 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 1. Go to GCP Console → IAM & Admin → Quotas
 2. Filter by "CPUs" for your region
 3. Request a quota increase (usually approved within minutes for modest requests)
-4. If needed, rerun **Step 3: Create the VM** with a different zone such as `us-central1-a` instead of `us-west1-c`
+4. If needed, rerun **Step 3: Create the VM** with a different zone such as `us-west1-c` instead of `us-central1-a`, after confirming N1 and nested virtualization support
 
 ### Services Not Accessible After 10 Minutes
 
@@ -239,7 +240,7 @@ Your project may not have sufficient vCPU quota for an n1-standard-32 instance.
 
 - Ensure you're authenticated: `gcloud auth login`
 - Try Cloud Console SSH: Console → Compute Engine → VM instances → SSH button
-- Try IAP tunneling: `gcloud compute ssh hedgehog-lab --zone=us-west1-c --tunnel-through-iap`
+- Try IAP tunneling: `gcloud compute ssh ubuntu@hedgehog-lab --zone=us-central1-a --tunnel-through-iap`
 
 ## Wrap-Up
 
