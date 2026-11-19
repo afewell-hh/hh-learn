@@ -706,13 +706,13 @@ The commit history in Gitea shows all changes with timestamps, authors, and comm
 
 A) Fabric Dashboard
 B) Platform Dashboard
-C) Interfaces Dashboard
+C) Hedgehog Switch Interface Counters
 D) Node Exporter Dashboard
 
 <details>
 <summary>Show Answer</summary>
 
-**Correct Answer:** C (Interfaces Dashboard)
+**Correct Answer:** C (Hedgehog Switch Interface Counters)
 
 **Explanation:**
 

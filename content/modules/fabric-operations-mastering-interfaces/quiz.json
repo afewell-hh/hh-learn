@@ -6,7 +6,7 @@
     {
       "id": "q1",
       "type": "multiple_choice",
-      "stem": "You need to view historical CPU usage trends for spine-01 over the last 24 hours. Which interface should you use?",
+      "stem": "You need to view the CPU usage samples available for spine-01. Which interface should you use?",
       "options": [
         {"id": "a", "text": "kubectl"},
         {"id": "b", "text": "Gitea"},
@@ -19,12 +19,12 @@
     {
       "id": "q2",
       "type": "multiple_choice",
-      "stem": "You run `kubectl describe vpc test-vpc` and see: `Warning  ReconcileFailed  2m  fabricator  Subnet 10.10.10.0/24 overlaps with existing VPC 'prod-vpc'`. What does this mean?",
+      "stem": "You apply an unattached `test-vpc`. `kubectl get vpc test-vpc` succeeds, but no Agent generation changes. What can you conclude?",
       "options": [
-        {"id": "a", "text": "The VPC is being deployed normally (this warning is expected)"},
-        {"id": "b", "text": "The VPC configuration has an error that must be fixed"},
-        {"id": "c", "text": "The VPC is waiting for switches to become available"},
-        {"id": "d", "text": "The Fabricator controller needs to be restarted"}
+        {"id": "a", "text": "The VPC does not exist"},
+        {"id": "b", "text": "The API stored the VPC, while Agent generations show no switch-facing change"},
+        {"id": "c", "text": "All server DHCP leases have been verified"},
+        {"id": "d", "text": "The Fabricator controller must be restarted"}
       ],
       "correct_answer": "b",
       "points": 1
@@ -32,7 +32,7 @@
     {
       "id": "q3",
       "type": "multiple_choice",
-      "stem": "Your manager asks: \"When was the production-vpc modified and by whom?\" Which Gitea feature should you use?",
+      "stem": "Your manager asks: \"When was the teaching myfirst-vpc configuration changed and by whom?\" Which Gitea feature should you use?",
       "options": [
         {"id": "a", "text": "File browser"},
         {"id": "b", "text": "Commit history"},
@@ -45,11 +45,11 @@
     {
       "id": "q4",
       "type": "multiple_choice",
-      "stem": "You suspect a switch is dropping packets due to a bad cable or transceiver. Which Grafana dashboard is MOST useful?",
+      "stem": "You want to inspect a selected virtual switch port's errors and discards. Which Grafana dashboard is most useful?",
       "options": [
         {"id": "a", "text": "Fabric Dashboard"},
         {"id": "b", "text": "Platform Dashboard"},
-        {"id": "c", "text": "Interfaces Dashboard"},
+        {"id": "c", "text": "Hedgehog Switch Interface Counters"},
         {"id": "d", "text": "Node Exporter Dashboard"}
       ],
       "correct_answer": "c",
@@ -58,10 +58,10 @@
     {
       "id": "q5",
       "type": "multiple_choice",
-      "stem": "A VPC appears to be configured correctly in Gitea, but servers aren't receiving DHCP addresses. What should you check NEXT?",
+      "stem": "A Git-managed VPC appears correctly configured in Gitea, but servers are not receiving DHCP addresses. What should you check next?",
       "options": [
         {"id": "a", "text": "Recreate the VPC configuration file in Gitea"},
-        {"id": "b", "text": "Use kubectl to verify the VPC was deployed and check for error events"},
+        {"id": "b", "text": "Use kubectl to inspect the named VPC, its attachment and affected Agents"},
         {"id": "c", "text": "Check Grafana for switch health"},
         {"id": "d", "text": "Contact support immediately"}
       ],
@@ -74,7 +74,7 @@
       "stem": "Grafana shows spine-01 as 'Down'. What should you do FIRST?",
       "options": [
         {"id": "a", "text": "Reboot spine-01 immediately"},
-        {"id": "b", "text": "Check kubectl for spine-01 Agent status and events"},
+        {"id": "b", "text": "Check kubectl for spine-01 Agent status and current spec"},
         {"id": "c", "text": "Edit spine-01 configuration in Gitea"},
         {"id": "d", "text": "Check Platform Dashboard"}
       ],

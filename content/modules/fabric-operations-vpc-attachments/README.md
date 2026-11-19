@@ -751,16 +751,11 @@ Do you need switch redundancy?
    - Agent CRD APPLIEDG increments to match CURRENTG once config is applied to switches
    - Note: VPCAttachment events are typically empty — use `kubectl get agents` to track status
 
-**Timeline:**
+**Timeline:** The API can store an attachment before the affected Agents apply it. Convergence varies with the running lab and can take minutes; check affected Agent generations with a bounded wait instead of assuming a fixed delay.
 
-- VPCAttachment creation: < 1 second (Kubernetes write)
-- Reconciliation: 5-15 seconds (depends on fabric size)
-- Configuration application: 10-30 seconds (switch agents apply config)
-- Full convergence: 30-60 seconds (BGP EVPN convergence)
+### Static Addressing on a Server
 
-### Static IP Assignment on VPCAttachments
-
-For IPv4 subnets (without DHCP), you can optionally specify a static IP in the VPCAttachment:
+For IPv4 subnets without DHCP, the VPCAttachment selects the VPC subnet and server connection. It does not assign a server IP:
 
 ```yaml
 apiVersion: vpc.githedgehog.com/v1beta1
@@ -770,22 +765,9 @@ metadata:
 spec:
   connection: server-01--mclag--leaf-01--leaf-02
   subnet: webapp-prod/web-servers
-  staticAddress: 10.10.10.10  # Optional static IP assignment
 ```
 
-**When to use:**
-
-- Servers requiring fixed IPs (databases, load balancer backends)
-- IP address management tracked in Hedgehog
-- DNS A records pointing to specific IPs
-
-**If omitted:**
-
-Server uses its own network configuration (manual IP assignment in server OS).
-
-**Note:**
-
-For DHCPv4 subnets, omit `staticAddress`—the DHCP server will assign IPs dynamically.
+Configure a static IP such as `10.10.10.10/24` on the server's matching data interface, with gateway `10.10.10.1`, and test it separately. A DHCP-enabled subnet also requires the server's data interface to request a lease. Neither address is supplied by a VPCAttachment field.
 
 ### Multiple Attachments Per Server
 

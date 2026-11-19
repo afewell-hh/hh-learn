@@ -285,18 +285,18 @@ kubectl get vpc webapp-prod -o yaml | grep -A 20 "subnets:"
 **Verify VPC is ready for server attachments:**
 
 ```bash
-# Check that VPC exists and has no errors
+# Check that the API stores the VPC
 kubectl get vpc webapp-prod
 
-# VPC should appear with no error indicators
-# (Status field may be empty - that's normal)
+# The VPC should appear; its minimal status does not report switch readiness
 ```
 
 **Review DHCP configuration:**
 
 ```bash
 # Inspect DHCP settings for worker-nodes subnet
-kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
+set -o pipefail
+kubectl get vpc webapp-prod -o json | jq -e '.spec.subnets["worker-nodes"].dhcp'
 
 # Expected output (similar to):
 # {
@@ -716,7 +716,7 @@ kubectl describe vpc <name>
 kubectl get vpc <name> -o yaml
 
 # View specific field (e.g., subnets)
-kubectl get vpc <name> -o jsonpath='{.spec.subnets}' | jq
+kubectl get vpc <name> -o json | jq '.spec.subnets'
 
 # Delete VPC
 kubectl delete vpc <name>
@@ -739,7 +739,7 @@ kubectl get vpc <name> -o yaml
 kubectl get vpcs -o yaml | grep -E "(name:|subnet:)"
 
 # Verify DHCP configuration
-kubectl get vpc <name> -o jsonpath='{.spec.subnets.*.dhcp}' | jq
+kubectl get vpc <name> -o json | jq '.spec.subnets | to_entries[] | {subnet: .key, dhcp: .value.dhcp}'
 ```
 
 ### Related Modules
