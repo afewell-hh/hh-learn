@@ -50,6 +50,7 @@ Run as `ubuntu` on the lab VM:
 ```bash
 kubectl config current-context
 argocd app get hedgehog-config
+argocd app get hedgehog-config -o json | jq -e '.spec.syncPolicy.automated.prune == true'
 kubectl get vpc r0-revert -o name --ignore-not-found
 kubectl get vpcs -o json | jq '[.items[] | select(any(.spec.subnets[]?; .subnet == "10.99.91.0/24" or .vlan == 1997)) | .metadata.name]'
 WORKDIR=$(mktemp -d "$HOME/rollback-lab-XXXXXX")
@@ -59,7 +60,7 @@ git status --short
 git branch --show-current
 ```
 
-Expect context `vlab`, an accessible ArgoCD app, no `r0-revert`, an empty `[]` reservation check, a clean Git checkout and branch `main`. The temporary work directory avoids altering any earlier course checkout. If the name, subnet or VLAN is already in use, **stop** and choose different unused values within the namespace rules before creating anything. The repository may contain teaching files with lab information; do not copy their contents into evidence or commits.
+Expect context `vlab`, an accessible ArgoCD app with automatic prune enabled, no `r0-revert`, an empty `[]` reservation check, a clean Git checkout and branch `main`. The temporary work directory avoids altering any earlier course checkout. If the name, subnet or VLAN is already in use, **stop** and choose different unused values within the namespace rules before creating anything. The repository may contain teaching files with lab information; do not copy their contents into evidence or commits.
 
 ### Task 2: Commit and observe the creation
 
@@ -89,15 +90,25 @@ git commit -m 'Add rollback practice VPC'
 CREATE=$(git rev-parse HEAD)
 printf 'Creation commit: %s\n' "$CREATE"
 git push origin main
-argocd app sync hedgehog-config --revision "$CREATE" --timeout 180
-argocd app get hedgehog-config -o json | jq -e --arg revision "$CREATE" '.status.sync.status == "Synced" and .status.sync.revision == $revision'
+wait_for_revision() {
+  local revision="$1" attempt
+  for attempt in $(seq 1 18); do
+    if argocd app get hedgehog-config --refresh -o json | jq -e --arg revision "$revision" '.status.sync.status == "Synced" and .status.sync.revision == $revision' >/dev/null; then
+      return 0
+    fi
+    sleep 10
+  done
+  echo "ArgoCD did not sync revision $revision within 180 seconds" >&2
+  return 1
+}
+wait_for_revision "$CREATE"
 kubectl get vpc r0-revert -o json | jq '{name: .metadata.name, uid: .metadata.uid, subnet: .spec.subnets.practice}'
 argocd app get hedgehog-config
 ```
 
-The server-side dry-run checks this manifest against the live API and admission webhook without persisting it. If it fails, do not commit; inspect the error and correct the file. After push and sync, record the VPC UID and confirm the ArgoCD application is Synced. This unattached VPC need not change an Agent generation, and no gateway or DHCP test is expected.
+The server-side dry-run checks this manifest against the live API and admission webhook without persisting it. If it fails, do not commit; inspect the error and correct the file. The push triggers ArgoCD's automatic sync; the bounded wait checks that it reached your **actual creation revision**. Record the VPC UID. This unattached VPC need not change an Agent generation, and no gateway or DHCP test is expected.
 
-If a Git push or ArgoCD sync fails, stop and preserve the command output. Inspect the actual application status and repository history before trying again; do not directly `kubectl apply` or delete a resource to hide a GitOps failure.
+If a Git push or the revision wait fails, stop and preserve the command output. Inspect the actual application status and repository history before trying again; do not directly `kubectl apply` or delete a resource to hide a GitOps failure. This app tracks `main` with auto-sync, so `argocd app sync --revision <commit>` is rejected; use the revision wait above.
 
 ### Task 3: Revert the exact commit and verify prune
 
@@ -109,13 +120,12 @@ REVERT=$(git rev-parse HEAD)
 printf 'Revert commit: %s\n' "$REVERT"
 git log -2 --format='%h %s'
 git push origin main
-argocd app sync hedgehog-config --revision "$REVERT" --prune --timeout 180
-argocd app get hedgehog-config -o json | jq -e --arg revision "$REVERT" '.status.sync.status == "Synced" and .status.sync.revision == $revision'
+wait_for_revision "$REVERT"
 test -z "$(kubectl get vpc r0-revert -o name --ignore-not-found)" && echo 'Practice VPC pruned'
 argocd app get hedgehog-config
 ```
 
-Confirm that the Git log contains **both** your creation commit and its revert, ArgoCD reports Synced, and the named VPC is absent. A later automatic sync may make the explicit `argocd app sync` a no-op; the observed final Git revision and absent VPC are still the required results. Do not claim that any server connectivity was restored: no server was attached in this exercise.
+Confirm that the Git log contains **both** your creation commit and its revert, ArgoCD reports Synced at the **revert revision**, and the named VPC is absent. The application's automatic prune performs the deletion after the revert push. Do not claim that any server connectivity was restored: no server was attached in this exercise.
 
 If revert conflicts or prune fails, keep the Git and ArgoCD output and ask for help. Do not force-push, delete the teaching repository, remove finalizers, or manually delete the VPC as a substitute for proving GitOps rollback.
 
