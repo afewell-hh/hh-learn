@@ -221,8 +221,12 @@ modules:
         name: webapp-prod
     notes: >
       Deletes all webapp-prod resources in safe dependency order:
-      VPCAttachments first, then VPC. After this module the cluster contains
-      only test-vpc (persisted from Module 1.2). Fabric returns to clean state.
+      VPCAttachments first, then VPC. After attachment deletion, poll leaf-01..04
+      until both attachment entries leave their desired specs and APPLIEDG matches
+      CURRENTG. After VPC deletion, poll again until the VPC entry is absent and
+      generations match. Both waits are bounded. test-vpc may persist from Module 1.2;
+      other student resources are outside this deletion. Agent convergence is
+      a reported control-plane result, not a dataplane teardown proof.
 
   # ─── Course 3: Observability ──────────────────────────────────────────────
 
