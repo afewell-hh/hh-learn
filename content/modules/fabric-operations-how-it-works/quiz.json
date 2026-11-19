@@ -19,12 +19,12 @@
     {
       "id": "q2",
       "type": "multiple_choice",
-      "stem": "You run `kubectl apply -f vpc.yaml`. What is the correct order of operations that follows?",
+      "stem": "You update an existing VPC that has a server attachment, producing a switch-facing configuration change. What is the correct order of operations?",
       "options": [
-        {"id": "a", "text": "Fabric Controller watches VPC → Switch Agent applies config → Controller updates Agent spec → VPC created"},
-        {"id": "b", "text": "VPC CRD created → Fabric Controller computes config → Controller updates Agent spec → Switch Agent applies via gNMI"},
-        {"id": "c", "text": "Switch Agent applies config → Fabric Controller watches VPC → VPC CRD created → Controller updates spec"},
-        {"id": "d", "text": "Controller updates Agent spec → VPC CRD created → Switch Agent applies config → Fabric Controller watches"}
+        {"id": "a", "text": "Fabric Controller watches VPC → Switch Agent applies config → Controller updates Agent spec → VPC spec updated"},
+        {"id": "b", "text": "VPC spec updated → Fabric Controller computes config → Controller updates affected Agent specs → Switch Agents apply via gNMI"},
+        {"id": "c", "text": "Switch Agent applies config → Fabric Controller watches VPC → VPC spec updated → Controller updates spec"},
+        {"id": "d", "text": "Controller updates Agent spec → VPC spec updated → Switch Agent applies config → Fabric Controller watches"}
       ],
       "correct_answer": "b",
       "points": 1
