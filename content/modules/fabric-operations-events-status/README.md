@@ -141,22 +141,24 @@ On a fresh released R0 VM, the first command prints nothing and the second print
 
 ### Task 3: Inspect the relevant Agent's applied state
 
+The following commands use the released R0 wiring (`leaf-01/E1/7`). If Task 1 found a different switch or port, substitute those values here.
+
 ```bash
 kubectl get agents
 kubectl get agent leaf-01 -o json | jq '{currentGeneration: .metadata.generation, appliedGeneration: .status.lastAppliedGen, appliedCondition: [.status.conditions[]? | select(.type == "Applied") | .status], interface: .status.state.interfaces["E1/7"]}'
 ```
 
-Compare `APPLIEDG` and `CURRENTG` for leaf-01 and the other switches. Equal generations mean the current desired Agent configuration has been applied; a prior `Applied=True` condition alone does not prove that. The interface object shows operational state and counters. It does not list VLAN membership. With no server-03 VPCAttachment, do not infer that a tenant VLAN or DHCP service should be present on that port.
+Compare `APPLIEDG` and `CURRENTG` for leaf-01 and the other switches. Equal generations mean the current desired Agent configuration has been applied; a prior `Applied=True` condition alone does not prove that. An empty `appliedCondition` array means no such condition was reported, so inspect Agent status and generations before drawing a conclusion. The interface object shows operational state and counters. It does not list VLAN membership. With no server-03 VPCAttachment, do not infer that a tenant VLAN or DHCP service should be present on that port.
 
 ### Task 4: Compare the switch view with Grafana
 
-Open **Hedgehog Switch Interface Counters** in Grafana. Set the **Switch** variable to `leaf-01` and the **Interface** variable to `E1/7`. Record the interface state and any counters or traffic series that the dashboard actually displays. A quiet port on a lab with no tenant attachment is not, by itself, evidence of a switch or DHCP fault. Grafana does not prove that a VPC, VPCAttachment, or VLAN was accepted; use the Kubernetes objects and Agent generations for those questions.
+Open **Hedgehog Switch Interface Counters** in Grafana. On released R0, set the **Switch** variable to `leaf-01` and the **Interface** variable to `E1/7`; use Task 1's actual values if your wiring differs. Record the interface state and any counters or traffic series that the dashboard actually displays. A quiet port on a lab with no tenant attachment is not, by itself, evidence of a switch or DHCP fault. Grafana does not prove that a VPC, VPCAttachment, or VLAN was accepted; use the Kubernetes objects and Agent generations for those questions.
 
 ### Task 5: State the diagnosis and next action
 
 For the fresh R0 baseline, the supported diagnosis is: the reported `testapp-vpc` is currently absent and `server-03` has no attachment to it. The physical Connection exists, but it cannot supply DHCP for an absent VPC. The submission history is unknown, so record the missing desired objects and hand the request to the VPC provisioning workflow from Course 2. Do not claim an admission rejection, switch failure, VLAN conflict, or successful repair without evidence. This module makes no changes, so it has no cleanup step.
 
-If your lab already has a `testapp-vpc` and a server-03 attachment, compare their actual specs with the Connection, check the relevant Agent generations, and investigate the observed interface state. The printed fresh-baseline diagnosis no longer applies in that case.
+If your lab already has a `testapp-vpc` and a server-03 attachment, use the object reads in Task 2 and Agent checks in Task 3 to compare their actual specs and generations with the Connection, then investigate the observed interface state. The printed fresh-baseline diagnosis no longer applies in that case.
 
 ### Lab Summary
 
@@ -466,8 +468,8 @@ kubectl get vpc
 # myvpc     default    default    10s
 # test-vpc  default    default    5h
 
-# In fabric v0.96.2, an unattached VPC does not enter a switch Agent spec or change its generation.
-# Check Agent convergence after an attachment changes switch configuration.
+# Agent generation equality alone does not prove that an unattached VPC is in use.
+# Check resource existence, then Agent convergence after an attachment changes switch configuration.
 ```
 
 **VPC Creation — Validation Failure**
