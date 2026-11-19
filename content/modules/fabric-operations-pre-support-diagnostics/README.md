@@ -77,7 +77,7 @@ Module 3.3 (kubectl)     ──┘     Diagnostic
                                  Workflow
 ```
 
-You'll use Prometheus queries, Grafana dashboards, admission webhook output, and Agent CRD status together in a systematic escalation workflow. This integrated approach is what separates novice operators from experienced ones who can confidently navigate the boundary between self-resolution and escalation.
+You'll use Prometheus queries, Grafana dashboards, any available submission or admission output, and Agent CRD status together in a systematic escalation workflow. The live exercise shows how to keep a reported symptom separate from observed state.
 
 ## Learning Objectives
 
@@ -106,298 +106,125 @@ By the end of this module, you will be able to:
 
 ## Scenario: Complete Pre-Escalation Diagnostic Collection
 
-A user reports that their newly created VPC `customer-app-vpc` with VPCAttachment for `server-07` isn't working. Server-07 cannot reach other servers in the VPC. You'll execute the full diagnostic checklist, collect evidence, and determine if this requires escalation or self-resolution.
+A user reports that `server-07` cannot reach a proposed `customer-app-vpc`. First establish whether that configuration exists. The released R0 VM does not seed this VPC or a server-07 attachment, so this exercise works from a fresh VM without creating a fault or changing fabric objects. Treat the report as unconfirmed until the evidence supports it.
 
 **Environment Access:**
 - **Grafana:** http://YOUR_VM_IP:3000
 - **Prometheus:** http://YOUR_VM_IP:9090
 - **kubectl:** Already configured
 
-### Task 1: Execute Pre-Escalation Checklist (3 minutes)
+### Task 1: Run the six-step pre-escalation checklist
 
-**Objective:** Systematically check fabric health using the 6-step checklist
+Run these commands as `ubuntu` on the lab VM. Keep the same shell open for Tasks 1 and 2. The reported name is a search key, not proof that a VPC was submitted or accepted.
 
-**Step 1.1: Kubernetes Resource Health**
+**1. Resource and controller health**
 
 ```bash
-# Check VPC and VPCAttachment exist
-kubectl get vpc customer-app-vpc
-kubectl get vpcattachment -A | grep server-07
-
-# Check controller pods
+VPC=customer-app-vpc
+CONN=$(kubectl get connections -o name | grep 'server-07--' | head -1)
+test -n "$CONN" || { echo 'No server-07 Connection found'; exit 1; }
+LINK=$(kubectl get "$CONN" -o jsonpath='{.spec.unbundled.link.switch.port}')
+SW=${LINK%%/*}
+PORT=${LINK#*/}
+test "$SW" != "$PORT" || { echo 'Unexpected switch port format'; exit 1; }
+printf 'server-07 connection=%s switch=%s port=%s\n' "$CONN" "$SW" "$PORT"
+kubectl get vpc "$VPC" --ignore-not-found -o name
+kubectl get vpcattachments -o json | jq --arg vpc "$VPC" '[.items[] | select((.spec.subnet // "") | startswith($vpc + "/")) | {name: .metadata.name, subnet: .spec.subnet, connection: .spec.connection}]'
 kubectl get pods -n fab
 ```
 
-**Look for:** All pods in `Running` state. Pods in `CrashLoopBackOff` or `Error` → escalation trigger. **If controller is crashing, escalate immediately.**
+On the released wiring, the Connection is `server-07--unbundled--leaf-03` at `leaf-03/E1/3`. Use the lookup result if your wiring differs. An empty VPC name or attachment array means the desired object is absent **now**; it does not prove why it is absent. Check the submitting user's `kubectl apply` output or ArgoCD sync history before claiming a webhook rejection. Confirm that the controller pod is healthy before using later results.
 
----
-
-**Step 1.2: Check Admission Webhook Errors and Agent Convergence**
+**2. Agent reconciliation**
 
 ```bash
-# Verify resources exist (if missing, they were rejected by admission webhook)
-kubectl get vpc customer-app-vpc
-kubectl get vpcattachment | grep server-07
-
-# Check Agent reconciliation convergence
 kubectl get agents
-# APPLIEDG == CURRENTG → config applied to all switches
-# APPLIEDG < CURRENTG → still reconciling (wait and recheck)
-
-# Describe resources (Events: <none> is expected for fabric CRDs)
-kubectl describe vpcattachment customer-app-vpc--server-07
+kubectl get agent "$SW" -o json | jq '{name: .metadata.name, currentGeneration: .metadata.generation, appliedGeneration: .status.lastAppliedGen, appliedCondition: [.status.conditions[]? | select(.type == "Applied") | .status]}'
 ```
 
-> **Note:** Fabric CRDs (VPC, VPCAttachment) do not emit Kubernetes events. Validation errors
-> surface at `kubectl apply` time via admission webhooks. Check ArgoCD sync status for any
-> webhook errors that occurred when the resource was created.
+Compare `APPLIEDG` with `CURRENTG`. Equal values mean the latest desired Agent configuration applied; they do not prove this reported VPC exists or that server traffic flows. If they differ, wait and recheck before escalating.
 
-**Look for:**
-- ✅ Resource exists + APPLIEDG == CURRENTG → configuration applied
-- ❌ Resource missing → was rejected by admission webhook (check ArgoCD sync error)
-- ❌ APPLIEDG < CURRENTG (not converging after 5+ minutes) → possible agent/controller issue
-
-**Decision:** Admission webhook error with clear config error → self-resolve. Resource exists and
-agents converged but issue persists → continue checklist.
-
----
-
-**Step 1.3: Agent Status**
+**3. Server connection and interface state**
 
 ```bash
-# Find switch for server-07
-kubectl get connections | grep server-07
-
-# Check agent and interface (agents are in default namespace)
-kubectl get agent leaf-04
-kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'
+kubectl get "$CONN" -o yaml
+kubectl get agent "$SW" -o json | jq --arg port "$PORT" '{switch: .metadata.name, interface: $port, state: (.status.state.interfaces[$port] // null)}'
 ```
 
-**Look for:**
-- ✅ `oper: "up"`, low error counters
-- ❌ `oper: "down"` or high `ind` (discards) counters → check cabling
+Record the actual port, operational state and counters. Interface status does not show tenant VLAN membership. If no attachment exists, do not expect tenant DHCP from this Connection.
 
----
-
-**Step 1.4: BGP Health**
+**4. BGP health**
 
 ```bash
-# Check BGP neighbors (agents in default namespace)
-kubectl get agent leaf-04 -o jsonpath='{.status.state.bgpNeighbors}' | jq
-
-# Alternative: Query Prometheus (state value 6 = Established)
-curl -s 'http://YOUR_VM_IP:9090/api/v1/query?query=fabric_agent_bgp_neighbor_session_state!=6' | jq
+kubectl get agent "$SW" -o json | jq '.status.state.bgpNeighbors // {}'
+curl -fsSG --data-urlencode 'query=fabric_agent_bgp_neighbor_session_state' http://127.0.0.1:9090/api/v1/query | jq '{series: (.data.result | length), notEstablished: [.data.result[]? | select(.value[1] != "6") | .metric]}'
 ```
 
-**Look for:** All neighbors `state: "established"` (Agent CRD) or no results from PromQL (all sessions are 6=Established). If sessions are down, check spine connectivity.
+Prometheus state `6` means Established. Check that `series` is greater than zero before interpreting an empty `notEstablished` array; no series is a telemetry gap, not proof that every session is healthy. BGP health is context, not an explanation for a VPC that is absent.
 
----
+**5. Grafana review**
 
-**Step 1.5: Grafana Dashboard Review**
+Open `http://YOUR_VM_IP:3000` (admin/admin). In **Hedgehog Switch Interface Counters**, select the discovered switch and port and record the shown state and traffic counters. In **Hedgehog Fabric**, review BGP sessions. In **Hedgehog Fabric Logs**, search for the switch and report whether matching logs appear. The virtual switches may have no temperature, fan, ASIC or filesystem sensor series; do not report missing hardware-only panels as a fault. These dashboards do not display configured tenant VLAN membership.
 
-Review dashboards at http://YOUR_VM_IP:3000 (admin/admin):
-- **Hedgehog Fabric:** BGP sessions, switch health
-- **Hedgehog Switch Interface Counters:** leaf-04/E1/8 state, VLAN, traffic
-- **Hedgehog Fabric Platform Stats:** CPU/memory, temperature, fan speed
-- **Hedgehog Fabric Logs:** ERROR logs for leaf-04
-- **Hedgehog Switch Critical Resources:** ASIC route/nexthop utilization
-
----
-
-**Step 1.6: Controller and Agent Logs**
+**6. Controller logs**
 
 ```bash
-# Controller logs
-kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -i error
-
-# If crashed, get previous logs
-kubectl logs -n fab deployment/fabric-ctrl --previous
+kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -iE 'error|panic' || true
+kubectl get pods -n fab
 ```
 
-**Look for:** ERROR/PANIC messages, reconciliation loops. Escalate if found.
+No matches are a valid result. Collect `--previous` logs only if the controller restarted. Do not infer a crash from an empty grep result.
 
----
+For the fresh released image, the expected finding is an absent `customer-app-vpc` and no attachment to it. The Connection, Agent and telemetry checks describe the healthy baseline; they do not establish a DHCP failure. Record that the request needs its desired configuration or submission history before support escalation can be decided.
 
-**Checklist Outcomes:**
+### Task 2: Collect a local diagnostic bundle
 
-**A) Self-Resolve:** Clear config errors (VLAN conflict, connection not found, subnet overlap) → Fix in Gitea
-
-**B) Escalate:** Controller crashes, agent issues, no errors but doesn't work, hardware failures → Collect diagnostics
-
-**Success Criteria:**
-- ✅ Executed all 6 steps
-- ✅ Identified self-resolve vs escalation
-- ✅ Documented findings
-
----
-
-### Task 2: Collect Diagnostic Evidence (2-3 minutes)
-
-**Objective:** Gather complete diagnostic bundle for support
-
-**Quick Collection Script:**
+The bundle contains cluster details. Keep it on the VM and review it for sensitive values before sharing it with anyone.
 
 ```bash
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
 OUTDIR="hedgehog-diagnostics-${TIMESTAMP}"
-mkdir -p ${OUTDIR}
-
-# Problem description
-echo "Issue: server-07 cannot reach other servers in customer-app-vpc" > ${OUTDIR}/diagnostic-timestamp.txt
-date >> ${OUTDIR}/diagnostic-timestamp.txt
-
-# Collect CRDs
-kubectl get vpc,vpcattachment,vpcpeering -o yaml > ${OUTDIR}/crds-vpc.yaml
-kubectl get switches,servers,connections -o yaml > ${OUTDIR}/crds-wiring.yaml
-kubectl get agents -o yaml > ${OUTDIR}/crds-agents.yaml
-
-# Collect system events (fabric CRDs do not emit K8s events, but system events may help)
-kubectl get events --all-namespaces --sort-by='.lastTimestamp' > ${OUTDIR}/events.log
-kubectl logs -n fab deployment/fabric-ctrl --tail=2000 > ${OUTDIR}/controller.log
-kubectl logs -n fab deployment/fabric-ctrl --previous > ${OUTDIR}/controller-previous.log 2>/dev/null || echo "No previous logs" > ${OUTDIR}/controller-previous.log
-
-# Collect status and versions
-kubectl get pods -n fab > ${OUTDIR}/pods-fab.txt
-kubectl version > ${OUTDIR}/kubectl-version.txt
-kubectl get agents -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.version}{"\n"}{end}' > ${OUTDIR}/agent-versions.txt
-
-# Collect agent details for affected switch (leaf-04)
-kubectl get agent leaf-04 -o yaml > ${OUTDIR}/agent-leaf-04.yaml
-kubectl get agent leaf-04 -o jsonpath='{.status.state.interfaces}' | jq > ${OUTDIR}/agent-leaf-04-interfaces.json
-
-# Compress
-tar czf ${OUTDIR}.tar.gz ${OUTDIR}
-echo "Created: ${OUTDIR}.tar.gz"
+mkdir -p "$OUTDIR"
+printf 'Reported issue: server-07 cannot reach %s\nCollection time: %s UTC\n' "$VPC" "$(date -u +%FT%TZ)" > "$OUTDIR/report.txt"
+printf 'Connection: %s\nSwitch: %s\nPort: %s\n' "$CONN" "$SW" "$PORT" >> "$OUTDIR/report.txt"
+kubectl get vpc "$VPC" --ignore-not-found -o yaml > "$OUTDIR/reported-vpc.yaml"
+kubectl get vpcattachments -o json | jq --arg vpc "$VPC" '[.items[] | select((.spec.subnet // "") | startswith($vpc + "/"))]' > "$OUTDIR/reported-attachments.json"
+kubectl get "$CONN" -o yaml > "$OUTDIR/server-connection.yaml"
+kubectl get agents > "$OUTDIR/agents.txt"
+kubectl get agent "$SW" -o yaml > "$OUTDIR/affected-agent.yaml"
+kubectl get pods -n fab > "$OUTDIR/fab-pods.txt"
+kubectl get events -n fab --sort-by='.lastTimestamp' > "$OUTDIR/fab-events.txt"
+kubectl logs -n fab deployment/fabric-ctrl --tail=500 > "$OUTDIR/controller.log"
+kubectl version > "$OUTDIR/kubectl-version.txt"
+tar czf "$OUTDIR.tar.gz" "$OUTDIR"
+printf 'Local bundle: %s.tar.gz\n' "$OUTDIR"
 ```
 
-**Collect Grafana Screenshots:**
+If the controller has restarted, add its previous log with `kubectl logs -n fab deployment/fabric-ctrl --previous > "$OUTDIR/controller-previous.log"` and recreate the archive. Save Grafana screenshots under descriptive names in `$OUTDIR`, then recreate the archive. Empty reported-object files are useful evidence. Do not add secrets or unrelated objects.
 
-1. Navigate to "Hedgehog Switch Interface Counters" dashboard, filter leaf-04/E1/8, screenshot
-2. Navigate to "Hedgehog Fabric Logs" dashboard, filter leaf-04, screenshot errors
-3. Add to bundle: `cp grafana-*.png ${OUTDIR}/ && tar czf ${OUTDIR}.tar.gz ${OUTDIR}`
+### Task 3: Record a supported decision
 
-**Success Criteria:**
-- ✅ Diagnostic bundle created with CRDs, events, logs, Agent status, versions
-- ✅ Grafana screenshots captured
-- ✅ Bundle includes problem statement
+Open `$OUTDIR/report.txt` and add a decision with the evidence behind it. On a fresh R0 VM, record **configuration/request history needed**: the reported VPC and attachment are absent, and no submission result was provided. Ask for the intended VPC/attachment manifests and the `kubectl apply` result or ArgoCD sync result. A known admission error with a clear configuration fix can be self-resolved. Escalate a controller crash, persistent Agent divergence or unexplained forwarding failure only when the corresponding evidence exists.
 
----
+### Task 4: Draft a support handoff
 
-### Task 3: Determine Escalation Decision (1 minute)
-
-**Objective:** Decide if issue requires support escalation
-
-**Self-Resolve (Configuration Errors):**
-- VLAN conflict, subnet overlap, connection not found, invalid CIDR, missing VPC → Fix in Gitea, commit
-
-**Escalate (System/Unexpected Issues):**
-- Controller crashes, agent disconnects, no errors but doesn't work, hardware failures, performance issues
-
-**Document Decision:**
+Create `$OUTDIR/support-ticket.md` with the report, observed resource names, collection time, checklist results, versions, and any screenshots. Mark unverified symptoms as **reported**, state what was actually observed, and leave severity and impact as **unknown** until confirmed. Include the decision from Task 3 and the next requested evidence. Recreate the archive after adding the draft:
 
 ```bash
-echo "Decision: [Self-Resolve/Escalate]" >> ${OUTDIR}/diagnostic-timestamp.txt
-echo "Reason: [Explanation]" >> ${OUTDIR}/diagnostic-timestamp.txt
+tar czf "$OUTDIR.tar.gz" "$OUTDIR"
 ```
 
-**Success Criteria:**
-- ✅ Clear decision documented with reasoning
+Review the bundle manually before sharing it. A word search for `password`, `token` and `secret` can help find material to inspect, but automated replacement does not reliably redact credentials.
 
----
-
-### Task 4: Write Support Ticket (2 minutes)
-
-**Objective:** Document issue clearly for support
-
-**Support Ticket Template:**
-
-```markdown
-# Issue Summary
-**Problem:** [One-sentence description]
-**Severity:** [P1-P4]
-**Impacted Resources:** [VPCs, servers, switches]
-**Started:** [Timestamp UTC]
-**Recent Changes:** [What changed?]
-
-# Environment
-**Hedgehog Version:** Controller image, Agent versions
-**Fabric Topology:** Spine/leaf count
-**Kubernetes Version:** [version]
-
-# Symptoms
-**Observable:** [What you see in Grafana/kubectl/logs]
-**Expected:** [What should happen]
-**Actual:** [What is happening]
-
-# Diagnostics Completed
-**Checklist:** [✅ admission webhook check, Agent convergence, BGP health, Grafana, logs, CRDs]
-**Troubleshooting Attempted:** [What you tried and results]
-**Findings:** [What you discovered]
-
-# Attachments
-**Diagnostic Bundle:** hedgehog-diagnostics-[timestamp].tar.gz
-**Grafana Screenshots:** [filenames with descriptions]
-
-# Impact
-**Users Affected:** [number/type]
-**Business Impact:** [critical/non-critical]
-**Workaround:** [if any]
-```
-
-**Save ticket:**
-
-```bash
-# Add to bundle
-cp support-ticket.md ${OUTDIR}/
-tar czf ${OUTDIR}.tar.gz ${OUTDIR}
-```
-
-**Key Principles:**
-- Be concise and specific
-- Show your troubleshooting work
-- Attach complete diagnostics
-- Avoid speculation, stick to observations
-- Professional tone
-
-**Success Criteria:**
-- ✅ Clear problem statement with diagnostics
-- ✅ Troubleshooting documented
-- ✅ Professional, specific tone
+**Success criteria:** You ran all six read-only checks, saved a local evidence bundle, separated the user's report from observed state, and wrote a supported next action. No VPC, attachment or fault was created.
 
 ---
 
 ### Lab Summary
 
-**What You Accomplished:**
-
-You completed the full pre-escalation diagnostic workflow:
-- ✅ Executed systematic 6-step health check (Kubernetes resources, admission webhook errors, agents, BGP, Grafana, logs)
-- ✅ Collected comprehensive diagnostics (CRDs, events, logs, Agent status, versions, topology)
-- ✅ Made escalation decision (self-resolve vs escalate)
-- ✅ Wrote effective support ticket (clear, concise, with evidence)
-- ✅ Created diagnostic bundle for support (compressed, complete, well-organized)
-
-**Key Takeaways:**
-
-1. **Checklist ensures thoroughness** - Don't skip steps, even if you think you know the issue
-2. **Evidence collection is systematic** - kubectl + Grafana + logs provide complete picture
-3. **Escalation triggers are clear** - Configuration errors = self-resolve, unexpected behavior = escalate
-4. **Support tickets need specifics** - Problem statement + diagnostics + troubleshooting attempts
-5. **Diagnostic automation saves time** - Script collection vs manual (see Concept 5)
-6. **Early escalation with good data is better than endless troubleshooting**
-
-**Real-World Application:**
-
-This workflow applies to production fabric operations:
-- When on-call and encountering fabric issues
-- When users report VPC connectivity problems
-- When Grafana alerts fire for fabric components
-- When changes don't produce expected results
-
-**The diagnostic checklist and support ticket template are directly usable in production.**
+You practiced the pre-escalation workflow on a real fabric baseline: discover the actual topology, verify the reported objects, inspect Agent and BGP state, review Grafana and logs, and package only relevant evidence. An absent object calls for configuration or submission history; it is not, by itself, evidence of a failed webhook or switch.
 
 ---
-
 ## Concepts & Deep Dive
 
 ### Concept 1: Pre-Escalation Diagnostic Checklist
@@ -409,8 +236,8 @@ The 6-step checklist ensures systematic troubleshooting before escalation.
 **The 6 Steps:**
 
 1. **Kubernetes Resources:** Verify VPCs, Agents, controller pods exist and running
-2. **Events:** Check for Warning events indicating config errors vs bugs
-3. **Agent Status:** Confirm agents connected, Ready, recent heartbeat
+2. **Submission and system events:** Check the apply or ArgoCD result for admission errors; Kubernetes system events provide separate context
+3. **Agent Status:** Compare applied/current generations and inspect available operational state
 4. **BGP Health:** All sessions established (use kubectl or Prometheus)
 5. **Grafana:** Check Fabric, Interfaces, Platform, Logs, Critical Resources dashboards
 6. **Logs:** Check controller/agent logs for ERROR/PANIC messages
@@ -459,7 +286,7 @@ tar czf hedgehog-diagnostics-$(date +%Y%m%d-%H%M%S).tar.gz hedgehog-diagnostics-
 1. **Controller Issues:** CrashLoopBackOff, PANIC/fatal errors, repeated restarts, reconciliation loops
 2. **Agent Issues:** Repeated disconnects (not reboot), can't connect (switch reachable), unexpected errors
 3. **Hardware Failures:** Switch not booting, kernel panics, persistent sensor errors
-4. **Unexpected Behavior:** Ready status but doesn't work, config not applied, impossible metrics, BGP flapping
+4. **Unexpected Behavior:** Configuration is present and converged but forwarding fails, impossible metrics, BGP flapping
 5. **Performance Issues:** Degradation without capacity issues, slow reconciliation, API unresponsive
 6. **Data Plane:** Traffic not forwarding despite correct config, unexplained packet loss, VXLAN issues
 
@@ -483,7 +310,7 @@ Issue → Checklist → Clear config error? YES → Self-resolve
                  → Operational question? YES → Check docs
 ```
 
-**Rule:** If admission webhook error or `kubectl get` clearly explains (config error) → Self-resolve. If no explanation found or unexpected behavior → Escalate.
+**Rule:** A recorded admission error can explain a rejected submission. An absent object from `kubectl get` alone cannot. Request the configuration and submission history when they are missing; escalate unexplained behavior after the relevant checks.
 
 ---
 
@@ -519,7 +346,7 @@ Issue → Checklist → Clear config error? YES → Self-resolve
 
 ### Concept 5: Diagnostic Collection Automation
 
-Automate collection for consistency and speed (30 seconds vs 5-10 minutes manual).
+Automate collection for consistency. The Task 2 commands are the runnable baseline example; adjust the scope and filenames to the actual incident.
 
 **Basic Script Structure:**
 
@@ -558,13 +385,9 @@ tar czf ${OUTDIR}.tar.gz ${OUTDIR}
 echo "Created: ${OUTDIR}.tar.gz ($(du -h ${OUTDIR}.tar.gz | cut -f1))"
 ```
 
-**Benefits:** Consistency, completeness, speed, error handling
+**Benefits:** Consistent naming and repeatable collection. Check every command's result; this illustrative script does not provide error handling.
 
-**Redacting Secrets:**
-```bash
-find ${OUTDIR} -type f -exec sed -i 's/password:.*/password: REDACTED/g' {} \;
-find ${OUTDIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
-```
+**Before sharing:** Inspect the collected files manually for credentials and unrelated data. Search terms can help locate values to review, but a simple text substitution is not reliable redaction.
 
 ---
 
@@ -618,13 +441,7 @@ find ${OUTDIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
 
 ### Issue: Redacting Sensitive Information
 
-**Automated redaction:**
-```bash
-find ${DIR} -type f -exec sed -i 's/password:.*/password: REDACTED/g' {} \;
-find ${DIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
-```
-
-**Manual review:** `grep -ri "password\|token\|secret" hedgehog-diagnostics-*/`
+**Manual review:** Inspect each file before sharing. `grep -riE 'password|token|secret' "$OUTDIR"` can locate candidates, but a negative search does not prove that the bundle contains no credentials.
 
 ---
 
@@ -632,8 +449,7 @@ find ${DIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
 
 **Common requests:**
 1. Time-range metrics: `curl 'http://YOUR_VM_IP:9090/api/v1/query_range?query=...'`
-2. Switch CLI: `hhfab vlab ssh leaf-04 "show running-config"`
-3. Detailed interface stats: `kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'`
+2. Detailed interface stats: `kubectl get agent "$SW" -o json | jq --arg port "$PORT" '.status.state.interfaces[$port]'`
 
 **Best practice:** Keep original bundle, add supplemental files to ticket
 
@@ -660,53 +476,11 @@ find ${DIR} -type f -exec sed -i 's/token:.*/token: REDACTED/g' {} \;
 
 ### Diagnostic Collection Quick Reference
 
-**6-Step Checklist:**
-
-```bash
-# 1. Kubernetes Resource Health
-kubectl get vpc,vpcattachment
-kubectl get switches,agents
-kubectl get pods -n fab
-
-# 2. Admission Webhook / Agent Convergence
-# Check ArgoCD for webhook errors at sync time
-kubectl get agents   # APPLIEDG == CURRENTG?
-
-# 3. Switch Agent Status
-kubectl get agents
-kubectl get agent <switch> -o yaml
-
-# 4. BGP Health
-kubectl get agent <switch> -o jsonpath='{.status.state.bgpNeighbors}' | jq
-curl -s 'http://YOUR_VM_IP:9090/api/v1/query?query=fabric_agent_bgp_neighbor_session_state!=6' | jq
-
-# 5. Grafana Dashboards (http://YOUR_VM_IP:3000, admin/admin)
-# - Hedgehog Fabric (BGP, switch health)
-# - Hedgehog Switch Interface Counters (interface state, errors)
-# - Hedgehog Fabric Platform Stats (hardware health)
-# - Hedgehog Fabric Logs (error logs)
-
-# 6. Controller Logs
-kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -i error
-```
+Use Task 1's six steps in order: verify the reported objects and controller, compare Agent generations, inspect the discovered server port, check BGP series, review Grafana, and check controller logs. Use submission or ArgoCD history to identify an admission error; object absence alone cannot identify its cause.
 
 **Diagnostic Collection:**
 
-```bash
-# Use automated script
-./diagnostic-collect.sh
-
-# OR manual collection
-OUTDIR="hedgehog-diagnostics-$(date +%Y%m%d-%H%M%S)"
-mkdir -p ${OUTDIR}
-
-kubectl get vpc,vpcattachment -o yaml > ${OUTDIR}/crds-vpc.yaml
-kubectl get events --all-namespaces --sort-by='.lastTimestamp' > ${OUTDIR}/events.log
-kubectl logs -n fab deployment/fabric-ctrl --tail=2000 > ${OUTDIR}/controller.log
-kubectl get agent <switch> -o yaml > ${OUTDIR}/agent-<switch>.yaml
-
-tar czf ${OUTDIR}.tar.gz ${OUTDIR}
-```
+Use Task 2's local collection commands. Review the files and the archive before any support handoff.
 
 ---
 
