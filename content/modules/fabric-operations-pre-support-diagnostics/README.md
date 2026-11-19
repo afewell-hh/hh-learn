@@ -190,25 +190,38 @@ For the fresh released image, the expected finding is an absent `customer-app-vp
 
 ### Task 2: Collect a local diagnostic bundle
 
-The bundle contains cluster details. Keep it on the VM and review it for sensitive values before sharing it with anyone.
+The bundle contains cluster details. Treat it as sensitive, keep it on the VM, and review it before any private support handoff. Never attach it to a public issue or ticket. The collection function returns an error without closing your interactive shell if a required command fails.
 
 ```bash
 TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
 OUTDIR="hedgehog-diagnostics-${TIMESTAMP}"
+collect_diagnostics() (
+set -euo pipefail
+: "${VPC:?Run Task 1 first}"
+: "${CONN:?Run Task 1 first}"
+: "${SW:?Run Task 1 first}"
+: "${PORT:?Run Task 1 first}"
 mkdir -p "$OUTDIR"
 printf 'Reported issue: server-07 cannot reach %s\nCollection time: %s UTC\n' "$VPC" "$(date -u +%FT%TZ)" > "$OUTDIR/report.txt"
 printf 'Connection: %s\nSwitch: %s\nPort: %s\n' "$CONN" "$SW" "$PORT" >> "$OUTDIR/report.txt"
 kubectl get vpc "$VPC" --ignore-not-found -o yaml > "$OUTDIR/reported-vpc.yaml"
 kubectl get vpcattachments -o json | jq --arg vpc "$VPC" '[.items[] | select((.spec.subnet // "") | startswith($vpc + "/"))]' > "$OUTDIR/reported-attachments.json"
 kubectl get "$CONN" -o yaml > "$OUTDIR/server-connection.yaml"
+kubectl get switches,servers,connections > "$OUTDIR/wiring-summary.txt"
 kubectl get agents > "$OUTDIR/agents.txt"
+kubectl get agents -o json | jq '[.items[] | {name: .metadata.name, version: .status.version}]' > "$OUTDIR/agent-versions.json"
 kubectl get agent "$SW" -o yaml > "$OUTDIR/affected-agent.yaml"
 kubectl get pods -n fab > "$OUTDIR/fab-pods.txt"
 kubectl get events -n fab --sort-by='.lastTimestamp' > "$OUTDIR/fab-events.txt"
 kubectl logs -n fab deployment/fabric-ctrl --tail=500 > "$OUTDIR/controller.log"
 kubectl version > "$OUTDIR/kubectl-version.txt"
+for file in server-connection.yaml wiring-summary.txt agents.txt agent-versions.json affected-agent.yaml fab-pods.txt controller.log kubectl-version.txt; do
+  test -s "$OUTDIR/$file" || { echo "Missing or empty required file: $file" >&2; return 1; }
+done
 tar czf "$OUTDIR.tar.gz" "$OUTDIR"
 printf 'Local bundle: %s.tar.gz\n' "$OUTDIR"
+)
+collect_diagnostics
 ```
 
 If the controller has restarted, add its previous log with `kubectl logs -n fab deployment/fabric-ctrl --previous > "$OUTDIR/controller-previous.log"` and recreate the archive. Save Grafana screenshots under descriptive names in `$OUTDIR`, then recreate the archive. Empty reported-object files are useful evidence. Do not add secrets or unrelated objects.
@@ -236,6 +249,7 @@ Review the bundle manually before sharing it. List its contents with `tar tzf "$
 You practiced the pre-escalation workflow on a real fabric baseline: discover the actual topology, verify the reported objects, inspect Agent and BGP state, review Grafana and logs, and package only relevant evidence. An absent object calls for configuration or submission history; it is not, by itself, evidence of a failed webhook or switch.
 
 ---
+
 ## Concepts & Deep Dive
 
 ### Concept 1: Pre-Escalation Diagnostic Checklist
@@ -359,7 +373,7 @@ Issue → Checklist → Clear config error? YES → Self-resolve
 
 Automate collection for consistency. The Task 2 commands are the runnable baseline example; adjust the scope and filenames to the actual incident.
 
-Use the Task 2 collection block as the basic script. It binds output names to the discovered Connection and switch, limits the controller log tail, and leaves the archive on the VM for review. Check each command result before sharing a bundle.
+Use the Task 2 collection block as the basic script. It records the discovered Connection and switch, collects the affected Agent and a bounded controller log, and leaves the archive on the VM for review. Check each command result before sharing a bundle.
 
 **Before sharing:** Inspect the collected files manually for credentials and unrelated data. Search terms can help locate values to review, but a simple text substitution is not reliable redaction.
 
