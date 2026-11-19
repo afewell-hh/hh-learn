@@ -48,6 +48,7 @@ Run the shell blocks in one terminal session so `CREATE` and `REVERT` remain ava
 Run as `ubuntu` on the lab VM:
 
 ```bash
+set -o pipefail
 kubectl config current-context
 argocd app get hedgehog-config
 argocd app get hedgehog-config -o json | jq -e '.spec.syncPolicy.automated.prune == true'
@@ -67,6 +68,7 @@ Expect context `vlab`, an accessible ArgoCD app with automatic prune enabled, no
 The released default IPv4Namespace includes `10.99.0.0/16`, and the VLAN namespace allows 1000–2999. `r0-revert` is within the VPC name limit. Create only this new file under ArgoCD's `active/` path:
 
 ```bash
+set -o pipefail
 cat > active/r0-revert.yaml <<'VPC_YAML'
 apiVersion: vpc.githedgehog.com/v1beta1
 kind: VPC
@@ -102,7 +104,7 @@ wait_for_revision() {
   return 1
 }
 wait_for_revision "$CREATE"
-kubectl get vpc r0-revert -o json | jq '{name: .metadata.name, uid: .metadata.uid, subnet: .spec.subnets.practice}'
+kubectl get vpc r0-revert -o json | jq -e '{name: .metadata.name, uid: .metadata.uid, subnet: .spec.subnets.practice} | select(.name == "r0-revert" and .uid != null and .subnet.subnet == "10.99.91.0/24")'
 argocd app get hedgehog-config
 ```
 
@@ -115,19 +117,22 @@ If a Git push or the revision wait fails, stop and preserve the command output. 
 Use the `CREATE` value from Task 2. `git revert` makes a new commit that reverses the file addition while preserving the creation commit in history:
 
 ```bash
+set -o pipefail
 git revert --no-edit "$CREATE"
 REVERT=$(git rev-parse HEAD)
 printf 'Revert commit: %s\n' "$REVERT"
 git log -2 --format='%h %s'
 git push origin main
 wait_for_revision "$REVERT"
-test -z "$(kubectl get vpc r0-revert -o name --ignore-not-found)" && echo 'Practice VPC pruned'
+VPC_AFTER=$(kubectl get vpc r0-revert -o name --ignore-not-found) && test -z "$VPC_AFTER" && echo 'Practice VPC pruned'
 argocd app get hedgehog-config
 ```
 
 Confirm that the Git log contains **both** your creation commit and its revert, ArgoCD reports Synced at the **revert revision**, and the named VPC is absent. The application's automatic prune performs the deletion after the revert push. Do not claim that any server connectivity was restored: no server was attached in this exercise.
 
 If revert conflicts or prune fails, keep the Git and ArgoCD output and ask for help. Do not force-push, delete the teaching repository, remove finalizers, or manually delete the VPC as a substitute for proving GitOps rollback.
+
+If the shell closes after the creation push, open the checkout under the `rollback-lab-...` directory and inspect `git log --format='%H %s' -- active/r0-revert.yaml` to recover your actual creation hash. Confirm it is your commit before reverting; do not create a second practice VPC or guess a hash. Stop after any failed command and resolve that error before moving to the next step.
 
 ### Lab completion record
 
