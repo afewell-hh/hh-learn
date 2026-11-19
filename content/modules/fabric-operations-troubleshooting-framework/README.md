@@ -3,8 +3,8 @@ title: "Systematic Troubleshooting Framework"
 slug: "fabric-operations-troubleshooting-framework"
 difficulty: "intermediate"
 estimated_minutes: 10
-version: "v1.0.0"
-validated_on: "2025-10-17"
+version: "v1.1.0"
+validated_on: "2026-11-19"
 pathway_slug: "network-like-hyperscaler"
 pathway_name: "Network Like a Hyperscaler"
 tags:
@@ -14,7 +14,7 @@ tags:
   - diagnostics
   - methodology
   - decision-trees
-description: "Learn systematic troubleshooting methodology using hypothesis-driven investigation, decision trees, and integrated diagnostic workflows for Hedgehog fabric operations."
+description: "Learn hypothesis-driven troubleshooting with evidence checks, decision paths, and diagnostic workflows for Hedgehog fabric operations."
 order: 401
 ---
 
@@ -71,7 +71,7 @@ kubectl get agents
 kubectl get agent leaf-03 -o json | jq '{currentGeneration: .metadata.generation, appliedGeneration: .status.lastAppliedGen, appliedCondition: [.status.conditions[]? | select(.type == "Applied") | .status], interface: (.status.state.interfaces["E1/3"] // null)}'
 ```
 
-On the released baseline, the VPC command prints nothing and the attachment query prints `[]`. The Connection lookup returns `server-07--unbundled--leaf-03` and `leaf-03/E1/3`. Compare all seven Agent generation columns; use leaf-03's interface object for operational state. If the reported VPC exists in your lab, inspect its actual spec and attachment before deciding whether a connection mismatch is possible.
+On the released baseline, the VPC command prints nothing and the attachment query prints `[]`. The attachment filter selects `.spec.subnet` values beginning with `customer-app-vpc/`, the `vpc/subnet` reference form. The Connection lookup returns `server-07--unbundled--leaf-03` and `leaf-03/E1/3`. The port JSONPath applies to an **unbundled** Connection; if your wiring shows a different type, inspect that Connection's YAML before choosing a port. Compare `APPLIEDG` with `CURRENTG` for all seven Agents; use leaf-03's interface object for operational state. If the reported VPC exists in your lab, inspect its actual spec and attachment before deciding whether a connection mismatch is possible.
 
 **What you can conclude:** the reported VPC and attachment are absent now on a fresh R0 VM. The Connection exists independently of any VPC. An interface reported `up` and equal Agent generations do not establish DHCP, gateway reachability, or VLAN configuration. Ask the user for the intended VPC and attachment manifests and the result of `kubectl apply` or the ArgoCD sync. An admission error can be identified from that submission result; `kubectl get` alone cannot reconstruct one.
 
