@@ -66,11 +66,10 @@ modules:
     notes: >
       Creates test-vpc in two steps: first with default subnet only (vlan 1999),
       then adds backend subnet (vlan 1998) via optional Task 5 update. The
-      practical assessment instructs deletion, but for pathway continuity
-      test-vpc must persist — Module 1.3 (mastering-interfaces) explicitly
-      depends on it. Phase 0 validation left test-vpc in place.
-      Local YAML files created (test-vpc.yaml, test-vpc-updated.yaml) are
-      not K8s resources and are cleaned up by the student after the module.
+      practical assessment now keeps test-vpc for Module 1.3, which reads it.
+      An unattached VPC edit may not change Agent generations or emit VPC
+      Events; those signals do not gate this module. Local YAML files are
+      student working files, not Kubernetes resources.
 
   - slug: fabric-operations-mastering-interfaces
     course: 1

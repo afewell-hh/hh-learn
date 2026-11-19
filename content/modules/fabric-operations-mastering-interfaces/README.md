@@ -3,7 +3,7 @@ title: "Mastering the Three Interfaces"
 slug: "fabric-operations-mastering-interfaces"
 difficulty: "beginner"
 estimated_minutes: 20
-version: "v1.0.0"
+version: "v1.1.0"
 validated_on: "2025-10-16"
 pathway_slug: "network-like-hyperscaler"
 pathway_name: "Network Like a Hyperscaler"
@@ -54,7 +54,7 @@ You'll practice reading each interface, correlating information across them, and
 By the end of this module, you will be able to:
 
 1. **Select the appropriate interface** for specific operational tasks (read current state, audit configuration, monitor health)
-2. **Interpret kubectl output** including events, reconciliation status, and resource relationships
+2. **Interpret kubectl output** including desired state, Agent status, and resource relationships
 3. **Navigate Gitea** for configuration audit, commit history, and change diffs
 4. **Read Grafana dashboards** for fabric health monitoring across all 6 Hedgehog dashboards
 5. **Correlate information across interfaces** to troubleshoot configuration issues systematically
@@ -82,7 +82,7 @@ Each interface provides unique information you can't get from the others.
 
 | Interface | Primary Role | When to Use | Information Type |
 |-----------|--------------|-------------|------------------|
-| **kubectl** | **Read/Inspect** | Check current state, view events, troubleshoot issues | Real-time cluster state |
+| **kubectl** | **Read/Inspect** | Check stored objects, Agent state and topology | Current cluster state |
 | **Gitea** | **Write/Audit** | Create/modify configs, review history, audit changes | Declarative desired state |
 | **Grafana** | **Observe/Monitor** | View health trends, monitor metrics, identify patterns | Time-series operational data |
 
@@ -90,7 +90,7 @@ Each interface provides unique information you can't get from the others.
 
 **Use kubectl when you need to:**
 - ✅ Check if a VPC exists and is reconciled
-- ✅ View error events from failed configurations
+- ✅ Read API rejection messages and Agent status for failed changes
 - ✅ List all resources of a specific type
 - ✅ See current switch agent status
 - ✅ Troubleshoot why something isn't working right now
@@ -103,7 +103,7 @@ Each interface provides unique information you can't get from the others.
 - ✅ Maintain compliance audit trails
 
 **Use Grafana when you need to:**
-- ✅ View fabric health trends over the past 24 hours
+- ✅ View fabric health over the samples available on this VM
 - ✅ Check if switches are experiencing CPU pressure
 - ✅ Monitor interface traffic and error rates
 - ✅ Aggregate logs from multiple switches
@@ -131,7 +131,7 @@ kubectl shows you what's happening **right now** in the cluster. Think of it as 
 
 **Objective:** View the VPC you created in Module 1.2 and verify its reconciliation
 
-**Why this matters:** Before troubleshooting any VPC issue, you need to confirm it exists and check for error events. kubectl is your first diagnostic tool.
+**Why this matters:** Before troubleshooting a VPC, confirm its stored spec and distinguish it from reported switch state.
 
 **Commands:**
 
@@ -142,7 +142,7 @@ kubectl get vpcs
 # Get detailed information about your VPC
 kubectl get vpc test-vpc -o yaml
 
-# Check for reconciliation events (most important!)
+# Read the human-readable object summary
 kubectl describe vpc test-vpc
 ```
 
@@ -158,7 +158,7 @@ API Version:  vpc.githedgehog.com/v1beta1
 Kind:         VPC
 Metadata:
   Creation Timestamp:  2026-xx-xxTxx:xx:xxZ
-  Generation:          2
+  Generation:          1 or 2
   Resource Version:    xxxxxx
   UID:                 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 Spec:
@@ -183,9 +183,9 @@ Events:            <none>
 
 **What to look for:**
 
-- **Events: \<none>** - This is **good news**! Hedgehog VPCs do not currently emit Kubernetes events, so an empty Events section means no errors occurred. If error events are present, they indicate a problem.
+- **Events: \<none>** - This Fabric release does not emit Kubernetes Events for VPC operations. Empty Events do not prove successful reconciliation.
 - **Spec fields present** - Your configuration is stored in the cluster
-- **Two subnets visible** - Both `default` and `backend` subnets from Module 1.2's Task 5
+- **Stored subnets visible** - `default` is required; `backend` appears only if you completed Module 1.2's optional Task 5
 
 **Understanding VPC Status:**
 
@@ -199,8 +199,8 @@ kubectl get agents
 **Validation exercise:**
 
 Run `kubectl describe vpc test-vpc` and `kubectl get agents`, then answer:
-- Are there any error or warning events in the VPC? (Expected: No — Events: \<none>)
-- Do all agent APPLIEDG values match CURRENTG? (Expected: Yes)
+- Does the VPC exist, and which subnets are stored? (Expected: `default`; `backend` only after optional Task 5)
+- Do all Agent APPLIEDG values match CURRENTG at the baseline? (Expected: Yes; this does not prove the unattached VPC reached a switch)
 
 ---
 
@@ -227,13 +227,13 @@ kubectl get vpcattachments -A
 
 ```
 NAMESPACE   NAME       ROLE          DESCR           APPLIED   VERSION
-default     leaf-01    server-leaf   VS-01 MCLAG 1   2m        v0.87.4
-default     leaf-02    server-leaf   VS-02 MCLAG 1   3m        v0.87.4
-default     leaf-03    server-leaf   VS-03 ESLAG 1   2m        v0.87.4
-default     leaf-04    server-leaf   VS-04 ESLAG 1   3m        v0.87.4
-default     leaf-05    server-leaf   VS-05           5m        v0.87.4
-default     spine-01   spine         VS-06           4m        v0.87.4
-default     spine-02   spine         VS-07           3m        v0.87.4
+default     leaf-01    server-leaf   VS-01 MCLAG 1   2m        v0.96.2
+default     leaf-02    server-leaf   VS-02 MCLAG 1   3m        v0.96.2
+default     leaf-03    server-leaf   VS-03 ESLAG 1   2m        v0.96.2
+default     leaf-04    server-leaf   VS-04 ESLAG 1   3m        v0.96.2
+default     leaf-05    server-leaf   VS-05           5m        v0.96.2
+default     spine-01   spine         VS-06           4m        v0.96.2
+default     spine-02   spine         VS-07           3m        v0.96.2
 ```
 
 **What this tells you:**
@@ -271,12 +271,12 @@ Run the commands above and answer:
 
 **Objective:** Learn when to use `describe` versus `get` for different information needs
 
-**Why this matters:** `describe` is human-readable and shows events (critical for troubleshooting). `get -o yaml` gives you exact field values for validation.
+**Why this matters:** `describe` is human-readable; `get -o yaml` gives exact spec fields. VPC Events are usually empty in this release.
 
 **Commands:**
 
 ```bash
-# Human-readable summary with events
+# Human-readable summary; Events may be empty
 kubectl describe vpc test-vpc
 
 # Raw YAML for exact field inspection
@@ -290,13 +290,13 @@ kubectl get vpcs
 
 | Command | Best For | Example Use Case |
 |---------|----------|------------------|
-| `kubectl describe` | Troubleshooting | Check for error events during VPC creation |
+| `kubectl describe` | Object summary | Read spec and metadata; Events may be empty |
 | `kubectl get -o yaml` | Field validation | Verify exact VLAN ID or subnet CIDR |
 | `kubectl get` (tabular) | Quick inventory | List all VPCs to see what exists |
 
 **Key teaching point:**
 
-The Events section at the bottom of `kubectl describe` output is **your first troubleshooting checkpoint**. Always check events before diving deeper into logs or switch state.
+For VPCs in this Fabric release, an empty Events section is expected and inconclusive. Read the VPC spec, affected Agent state and any admission error from the command that failed.
 
 ---
 
@@ -304,7 +304,7 @@ The Events section at the bottom of `kubectl describe` output is **your first tr
 
 **What you practiced:**
 - ✅ Inspecting VPC state with kubectl
-- ✅ Understanding event-based reconciliation (no errors = success)
+- ✅ Distinguishing VPC desired state from Agent applied state
 - ✅ Listing fabric resources (switches, connections)
 - ✅ Choosing between `describe` and `get` commands
 
@@ -313,7 +313,7 @@ The Events section at the bottom of `kubectl describe` output is **your first tr
 ```bash
 # VPC operations
 kubectl get vpcs                      # List all VPCs
-kubectl describe vpc <name>           # Check events (most important!)
+kubectl describe vpc <name>           # Read a human-readable object summary
 kubectl get vpc <name> -o yaml        # View full configuration
 
 # Fabric topology
@@ -322,7 +322,7 @@ kubectl get connections -A            # List server connections
 kubectl get vpcattachments -A         # List VPC-to-server bindings
 
 # General troubleshooting
-kubectl get events --sort-by='.lastTimestamp' | tail -20
+kubectl get agents
 ```
 
 ---
@@ -514,195 +514,24 @@ Hedgehog provides **6 pre-built dashboards** covering different aspects of fabri
 
 ### Grafana Dashboard Tour Overview
 
-**Access:** `http://YOUR_VM_IP:3000` (username: `admin`, password: `admin`)
+Sign in at `http://YOUR_VM_IP:3000` with `admin` / `admin`. Open each saved dashboard by title from **Dashboards**; URL slugs may differ. Use **Last 15 minutes** or samples available since this VM booted. A fresh clone cannot provide a full day of its own history.
 
-**The 6 Hedgehog Dashboards:**
+| Dashboard title | UID | Runnable read |
+| --- | --- | --- |
+| Hedgehog Fabric | `ab831ceb-cf5c-474a-b7e9-83dcd075c218` | Select a **Switch** and read a BGP neighbor's state. |
+| Hedgehog Switch Interface Counters | `a5e5b12d-b340-4753-8f83-af8d54304822` | Select a **Switch** and **Interface**; read state, traffic, errors and discards. |
+| Hedgehog Fabric Logs | `c42a51e5-86a8-42a0-b1c9-d1304ae655bv` | Select a **Switch**; read one timestamped line or note no match. |
+| Hedgehog Fabric Platform Stats | `f8a648b9-5510-49ca-9273-952ba6169b7v` | Select **Host Name**; note which physical-sensor panels have `No data`. |
+| Hedgehog Switch Critical Resources | `fb08315c-cabb-4da7-9db9-2e17278f1781` | Select a **Switch**; record any route, nexthop or neighbor value. |
+| Hedgehog mod of Node Exporter Full | `rYdddlPWv` | Select a **Host**; read CPU and RAM, and record any `N/A` filesystem or swap panel. |
 
-1. **Fabric Dashboard** - Overall fabric health (MOST IMPORTANT)
-2. **Platform Dashboard** - Control plane health (MOST IMPORTANT)
-3. **Interfaces Dashboard** - Port status and traffic
-4. **Logs Dashboard** - Aggregated syslog
-5. **Node Exporter Dashboard** - Switch hardware metrics
-6. **Switch CRM Dashboard** - ASIC capacity monitoring
+### Task 3.1: Tour the six views
 
-**Time allocation:**
-- Dashboards 1-2: ~1 minute each (critical for daily operations)
-- Dashboards 3-6: ~30-60 seconds each (overview only)
+Open the six titles above. For each one, record the selected switch, interface or host; the time range; and one actual displayed value or `No data`. On **Hedgehog Fabric**, note the current BGP view rather than assuming a green history cell rules out short flaps. On **Hedgehog Fabric Logs**, a `VPC` search is optional and no hit is not a failure.
 
----
+The virtual switches may not export physical temperature, fan, PSU or ASIC/TCAM capacity series. `No data` on those panels is an observation, not a physical hardware fault. Route and nexthop values on **Hedgehog Switch Critical Resources** remain useful as displayed counters. On **Hedgehog mod of Node Exporter Full**, CPU/RAM may appear while Root FS or SWAP shows `N/A`. Do not impose fixed CPU, error-rate or capacity thresholds without workload and source context. Course 3.2 examines these panels in depth.
 
-### Task 3.1: Fabric Dashboard
-
-**Purpose:** High-level fabric health overview - your daily starting point
-
-**URL:** `http://YOUR_VM_IP:3000/d/ab831ceb-cf5c-474a-b7e9-83dcd075c218/fabric`
-
-**Key panels to look for:**
-- **Switch Status** - Green/red indicators for each switch
-- **Fabric Topology** - Visual representation of spine-leaf architecture
-- **Active VPCs** - Count of deployed VPCs
-- **Connection Health** - MCLAG/ESLAG status
-
-**What healthy looks like:**
-- ✅ All switches showing green status
-- ✅ VPC count matches `kubectl get vpcs | wc -l` output
-- ✅ No red indicators or alerts
-- ✅ All connections showing as established
-
-**Why this dashboard matters:**
-
-This is your **first checkpoint each day**. Before making any changes to the fabric, glance at this dashboard to confirm everything is healthy. Red indicators warrant investigation before you proceed.
-
-**Validation exercise:**
-
-Open the Fabric dashboard and answer:
-- How many switches are showing "Up" status? (Expected: 7 - all switches)
-- Does the VPC count match what you see in kubectl? (Expected: Yes)
-
----
-
-### Task 3.2: Platform Dashboard
-
-**Purpose:** Hedgehog control plane health (Kubernetes & Fabricator controller)
-
-**URL:** `http://YOUR_VM_IP:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
-
-**Key panels to look for:**
-- **Control Node Status** - CPU, memory, disk usage of control plane
-- **Fabricator Controller** - Reconciliation rate, error count
-- **Kubernetes API** - API server request rate and latency
-- **etcd Health** - Cluster database metrics
-
-**What healthy looks like:**
-- ✅ Control node CPU < 80%
-- ✅ Fabricator error count = 0
-- ✅ API server responding with low latency
-- ✅ etcd healthy with no frequent leader elections
-
-**Why this dashboard matters:**
-
-The control plane is the **brain of Hedgehog**. If the control plane is unhealthy (high CPU, Fabricator errors), your VPC changes won't apply correctly. Monitor this dashboard during and after VPC deployments.
-
-**What to expect:** CPU/memory spikes during reconciliation are normal. Sustained high usage or error counts are not.
-
-**Validation exercise:**
-
-Open the Platform dashboard and observe:
-- What's the current CPU usage? (Expected: Typically < 50%, varies by activity)
-- Are there any Fabricator errors? (Expected: 0 errors)
-
----
-
-### Task 3.3: Interfaces Dashboard
-
-**Purpose:** Switch port utilization, link status, and error rates
-
-**URL:** `http://YOUR_VM_IP:3000/d/a5e5b12d-b340-4753-8f83-af8d54304822/interfaces`
-
-**Key panels to look for:**
-- **Port Status** - Up/down state for all interfaces
-- **Traffic Rates** - Ingress/egress bandwidth usage
-- **Error Counters** - CRC errors, drops, discards
-- **Interface Types** - Fabric links, server links, MCLAG peer links
-
-**What healthy looks like:**
-- ✅ All fabric links (spine↔leaf) showing up
-- ✅ Error rates < 0.1% (occasional errors are normal, sustained errors indicate problems)
-- ✅ Traffic patterns match expected workload
-- ✅ No excessive packet drops
-
-**Why this dashboard matters:**
-
-Interface health is your early warning system for **physical layer issues**: bad cables, transceiver failures, or link saturation. If users report connectivity problems, check this dashboard for interface errors.
-
-**Validation exercise:**
-
-Open the Interfaces dashboard and check:
-- Are all fabric links (spine-to-leaf) showing "Up"? (Expected: Yes)
-- Do you see any interfaces with high error rates? (Expected: No, or very low)
-
----
-
-### Task 3.4: Logs Dashboard
-
-**Purpose:** Aggregated syslog messages from all switches
-
-**URL:** `http://YOUR_VM_IP:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
-
-**Key panels to look for:**
-- **Recent Logs** - Stream of syslog messages
-- **Log Levels** - Count by severity (INFO, WARNING, ERROR)
-- **Top Log Sources** - Which switches are logging most
-- **Search Box** - Filter logs by keyword
-
-**What healthy looks like:**
-- ✅ Mostly INFO level logs (routine operations)
-- ✅ No ERROR level logs (or investigate if present)
-- ✅ WARNING logs during config changes are normal
-- ✅ Logs from all 7 switches present
-
-**Why this dashboard matters:**
-
-Logs are your **black box recorder** for the fabric. When troubleshooting intermittent issues or reconstructing events, searchable, time-stamped logs from all switches are essential.
-
-**Validation exercise:**
-
-Open the Logs dashboard and try:
-- Search for "VPC" or "test-vpc" in the search box
-- Do you see logs related to your VPC creation? (Expected: Possibly — VNI assignment and VLAN configuration logs may appear)
-
----
-
-### Task 3.5: Node Exporter Dashboard
-
-**Purpose:** Switch hardware metrics (CPU, memory, disk, system load)
-
-**URL:** `http://YOUR_VM_IP:3000/d/rYdddlPWv/node-exporter-full-2`
-
-**Key panels to look for:**
-- **CPU Usage** - Per-switch CPU utilization
-- **Memory Usage** - RAM consumption
-- **Disk I/O** - Read/write rates and disk space
-- **System Load** - 1/5/15 minute load averages
-
-**What healthy looks like:**
-- ✅ CPU usage < 80% (brief spikes during config push are okay)
-- ✅ Memory usage stable (not steadily growing)
-- ✅ Disk space > 20% free
-
-**Why this dashboard matters:**
-
-These are your **switch vital signs**—Linux OS-level metrics. High CPU or memory usage can indicate switch software issues, not network issues. Disk space problems can prevent logging.
-
-**Quick skim:** This dashboard has many panels. Focus on the top-level summary panels for CPU and memory. Deep dives happen during capacity planning or performance troubleshooting.
-
----
-
-### Task 3.6: Switch CRM Dashboard
-
-**Purpose:** Critical Resource Monitoring - ASIC resources (TCAM, route tables, neighbors)
-
-**URL:** `http://YOUR_VM_IP:3000/d/fb08315c-cabb-4da7-9db9-2e17278f1781/switch-critical-resources`
-
-**Key panels to look for:**
-- **TCAM Utilization** - ACL and route table space used
-- **Route Count** - IPv4/IPv6 routes programmed
-- **ARP/ND Neighbors** - Neighbor table entries
-- **VXLAN Tunnels** - VTEP count
-
-**What healthy looks like:**
-- ✅ TCAM usage < 80% (leaving room for growth)
-- ✅ Route count matches expected topology
-- ✅ Neighbor entries stable
-- ✅ VXLAN tunnels correlate with VPC count
-
-**Why this dashboard matters:**
-
-Switch ASICs have **finite hardware resources**. TCAM (Ternary Content Addressable Memory) stores ACLs and routes. If you approach capacity limits, the switch may reject new VPCs or routes. This dashboard helps you plan capacity.
-
-**Quick skim:** Note the utilization percentages. If anything is approaching 80%, that's a signal to plan for fabric expansion.
-
----
+**Validation exercise:** Which title shows the BGP view? Which shows one interface's errors and discards? Which selected switch has a recent log line? Name one unavailable virtual-hardware series and one metric that is present. Record the values you actually see; the displayed state can change during boot.
 
 ### Part 3 Summary
 
@@ -710,18 +539,18 @@ Switch ASICs have **finite hardware resources**. TCAM (Ternary Content Addressab
 - ✅ Purpose of each of the 6 Grafana dashboards
 - ✅ Key metrics to monitor in each dashboard
 - ✅ How to navigate between dashboards
-- ✅ What "healthy" looks like in each context
+- ✅ Which dashboard panels have samples and which have virtual-hardware limits
 
 **Grafana Dashboard Quick Reference:**
 
-| Dashboard | Use When | Key Metrics | Priority |
-|-----------|----------|-------------|----------|
-| **Fabric** | Daily health check | Switch status, VPC count | 🔴 Critical |
-| **Platform** | Control plane issues | Fabricator errors, CPU | 🔴 Critical |
-| **Interfaces** | Link/connectivity problems | Port status, error rates | 🟡 Important |
-| **Logs** | Troubleshooting, auditing | Error logs, event timeline | 🟡 Important |
-| **Node Exporter** | Performance issues | CPU, memory, disk | 🟢 Monitoring |
-| **CRM** | Capacity planning | TCAM usage, route count | 🟢 Monitoring |
+| Dashboard | Useful read in this virtual lab |
+| --- | --- |
+| Hedgehog Fabric | BGP neighbor state and history at the available resolution |
+| Hedgehog Switch Interface Counters | One port's state, traffic, errors and discards |
+| Hedgehog Fabric Logs | Timestamped switch logs for a selected switch |
+| Hedgehog Fabric Platform Stats | Available physical-sensor series or `No data` |
+| Hedgehog Switch Critical Resources | Reported routes, nexthops and neighbors; no physical ASIC claim |
+| Hedgehog mod of Node Exporter Full | CPU/RAM and any unavailable root filesystem or swap series |
 
 **Key takeaway:** Grafana shows you **trends over time**. Use it to answer questions like "when did this start?" and "is this getting worse?" that kubectl can't answer.
 
@@ -729,189 +558,32 @@ Switch ASICs have **finite hardware resources**. TCAM (Ternary Content Addressab
 
 ## Integrated Troubleshooting Scenario
 
-### "My VPC Isn't Working" - A Decision Tree
+The following DHCP incident is **illustrative**. This R0 lab does not seed `broken-vpc`, `broken-vpc.yaml` or a DHCP fault. Do not create or alter an object to make the story appear real. The runnable reads below use the `test-vpc` from Module 1.2 and the Gitea teaching history.
 
-You've now practiced using each interface individually. Real troubleshooting requires using **all three together** in a systematic flow. Let's walk through a common scenario.
+A colleague says a server has no DHCP lease. First ask for the exact VPC and VPCAttachment names, the server connection and the time of failure. Determine whether the desired configuration came from a Gitea commit synced by ArgoCD or a direct `kubectl apply`. The `test-vpc` in Module 1.2 was applied directly, so it has no Gitea commit to audit.
 
----
+### Step 1: Read available configuration and history
 
-### The Scenario
+Open `http://YOUR_VM_IP:3001/student/hedgehog-config` and inspect the `active/` tree and `myfirst-vpc` add/remove commits. Record an author, timestamp and changed file. These teaching commits demonstrate Git history; they are not the history of `test-vpc`. For a real GitOps incident, inspect the commit and ArgoCD sync revision of the **named** VPC before proposing a change.
 
-A colleague messages you:
-
-> "I created a VPC called `broken-vpc` but servers can't get DHCP addresses. Can you help troubleshoot?"
-
-Where do you start? Which interface do you check first?
-
----
-
-### Step 1: Check Configuration (Gitea)
-
-**Question:** Is the VPC configured correctly in Git?
-
-**Why start here:** Git is the **source of truth**. If the configuration is wrong in Gitea, nothing else matters—the VPC will be created incorrectly.
-
-**Actions:**
-
-1. Open Gitea (`http://YOUR_VM_IP:3001`) → navigate to `student/hedgehog-config` repository
-2. Browse to `active/` directory
-3. Find and open `broken-vpc.yaml` (if it exists there)
-4. Review the DHCP configuration
-
-**What to look for:**
-
-```yaml
-spec:
-  subnets:
-    default:
-      dhcp:
-        enable: true        # ✅ Should be true
-        range:
-          start: 10.x.x.10  # ✅ Should be a valid IP in the subnet
-          end: 10.x.x.250   # ✅ Should be greater than start
-      subnet: 10.x.x.0/24   # ✅ Should match the IP range
-      vlan: 1001            # ✅ Should be in valid VLAN range
-```
-
-**If configuration is wrong:**
-- Fix it in Gitea (edit the file, commit the change)
-- Wait for ArgoCD to sync (or trigger manual sync)
-- The VPC will reconcile with the correct configuration
-
-**If configuration looks correct:**
-- Move to Step 2 (check deployment status)
-
----
-
-### Step 2: Check Deployment Status (kubectl)
-
-**Question:** Did the VPC actually get created in the cluster? Did it reconcile successfully?
-
-**Why check this:** The configuration might be correct in Git, but ArgoCD might not have synced it yet, or the Fabricator controller might have encountered an error during reconciliation.
-
-**Actions:**
+### Step 2: Read actual cluster state
 
 ```bash
-# Check if VPC exists
-kubectl get vpc broken-vpc
-
-# Check for error events (MOST IMPORTANT)
-kubectl describe vpc broken-vpc
-
-# Focus on the Events section at the bottom
-kubectl describe vpc broken-vpc | tail -20
+kubectl get vpc test-vpc -o yaml
+kubectl describe vpc test-vpc
+kubectl get vpcattachments
+kubectl get agents
 ```
 
-**What to look for in Events:**
+Confirm that `test-vpc` exists and read its stored subnet spec. It is unattached in this module, so no server DHCP claim follows from its existence. A VPC `Events: <none>` line is expected in Fabric v0.96.2 and **does not prove** reconciliation or server connectivity. For a real attached VPC, confirm the named VPCAttachment and connection, then check affected Agent desired entries, `APPLIEDG == CURRENTG`, the server lease and a bounded dataplane test. An admission rejection may stop an invalid object before it exists; use the returned API error instead of inventing a VPC warning event.
 
-**Healthy VPC (no errors):**
-```
-Events:  <none>
-```
-No error events means the VPC reconciled successfully. If DHCP still isn't working, the issue is likely at the runtime layer (check Grafana in Step 3).
+### Step 3: Read observed fabric health
 
-**VPC with reconciliation errors:**
-```
-Events:
-  Type     Reason             Message
-  ----     ------             -------
-  Warning  ReconcileFailed    Subnet 10.10.10.0/24 overlaps with existing VPC 'prod-vpc'
-  Warning  ReconcileFailed    Invalid VLAN 999 not in vlanNamespace 'default' range
-  Error    DHCPRangeInvalid   DHCP range 10.10.10.10-10.10.10.5 invalid: start > end
-```
+Open **Hedgehog Fabric** and **Hedgehog Switch Interface Counters** in Grafana. Select a real switch and port and record the displayed BGP state, link state and error/discard trend. Open **Hedgehog Fabric Logs**, select a switch and note a timestamped line or no match. These views can narrow a real incident but do not diagnose the unseeded story. Use actual timestamps and object names when correlating Git, cluster and telemetry evidence.
 
-**Common error events and what they mean:**
+**Decision rule:** Treat missing configuration, a mismatched Agent generation, a server without a lease and a blank dashboard panel as different findings. Gather the named object's admission result, attachment, Agent and server evidence before changing or restarting anything.
 
-| Error Event | Problem | Fix |
-|-------------|---------|-----|
-| "Subnet overlaps..." | IP conflict with another VPC | Change subnet to non-overlapping range |
-| "Invalid VLAN..." | VLAN ID not in allowed range | Use VLAN within vlanNamespace range |
-| "DHCP range invalid" | start IP > end IP, or range outside subnet | Fix DHCP range in Gitea |
-
-**If you see error events:**
-- The event message tells you exactly what's wrong
-- Fix the issue in Gitea (go back to Step 1)
-- Commit the fix and wait for reconciliation
-
-**If no error events:**
-- VPC is correctly deployed
-- Move to Step 3 (check runtime health)
-
----
-
-### Step 3: Check Fabric Health (Grafana)
-
-**Question:** Are the switches healthy and able to serve DHCP requests?
-
-**Why check this:** Even if the VPC is correctly configured and deployed, switches might be unhealthy (down, CPU overloaded, Fabricator errors) and unable to forward DHCP traffic.
-
-**Actions:**
-
-1. **Open Fabric Dashboard**
-   - URL: `http://YOUR_VM_IP:3000/d/ab831ceb-cf5c-474a-b7e9-83dcd075c218/fabric`
-   - Check: Are all switches showing green (Up) status?
-   - Red switches indicate hardware/connectivity issues
-
-2. **Open Platform Dashboard**
-   - URL: `http://YOUR_VM_IP:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
-   - Check: Is Fabricator error count = 0?
-   - Errors here mean reconciliation loop is failing
-
-3. **Open Logs Dashboard**
-   - URL: `http://YOUR_VM_IP:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
-   - Search for "broken-vpc" or "DHCP"
-   - Look for error messages related to DHCP relay or VPC configuration
-
-**What to look for:**
-
-- **Red switches** → Hardware/connectivity issue, escalate to infrastructure team
-- **Fabricator errors > 0** → Control plane issue, check Fabricator logs with `kubectl logs -n fab deployment/fabric-ctrl`
-- **DHCP relay errors in logs** → Switches trying but failing to forward DHCP, check network connectivity between servers and switches
-
-**If Grafana shows healthy state:**
-- Switches are up, control plane is healthy, no errors in logs
-- The issue may be server-side (DHCP client not running, interface down)
-- Or VPCAttachment might be missing (server not actually connected to VPC)
-
----
-
-### Troubleshooting Decision Tree Diagram
-
-```
-My VPC Isn't Working
-    ↓
-Is the config correct in Gitea?
-    ├─ NO → Fix config in Gitea, commit, wait for sync
-    └─ YES → ↓
-              Does kubectl show the VPC exists?
-                  ├─ NO → Check ArgoCD sync status
-                  └─ YES → ↓
-                            Are there error events in kubectl describe?
-                                ├─ YES → Fix issue shown in event message (back to Gitea)
-                                └─ NO → ↓
-                                          Are switches healthy in Grafana?
-                                              ├─ NO → Check Fabric/Platform dashboards, escalate if needed
-                                              └─ YES → Check Logs dashboard, verify VPCAttachment, check server DHCP client
-```
-
----
-
-### Key Troubleshooting Principles
-
-1. **Start at the source** (Gitea) - Wrong configuration is the most common issue
-2. **Verify deployment** (kubectl) - Check that desired state reached the cluster
-3. **Check runtime health** (Grafana) - Ensure switches can execute the configuration
-4. **Follow events** - Error events tell you exactly what's wrong
-5. **Correlate across interfaces** - No single interface has the complete picture
-
-**Validation exercise:**
-
-Answer these questions to check your understanding:
-- If a VPC has no error events in kubectl, what does that mean? (Expected: VPC reconciled successfully)
-- Where would you look to see who last modified a VPC configuration? (Expected: Gitea commit history)
-- Which Grafana dashboard shows if switches are up or down? (Expected: Fabric Dashboard)
-
----
+**Validation exercise:** Explain why `kubectl get vpc test-vpc` proves storage but not a DHCP lease, why `Events: <none>` is inconclusive, and which Gitea history entry you can actually inspect.
 
 ## Wrap-Up
 
@@ -921,7 +593,7 @@ You've now mastered the three-interface operational model:
 
 1. **kubectl = Current State**
    - Use for: Real-time inspection, troubleshooting, checking reconciliation
-   - Key command: `kubectl describe` to view events
+   - Key commands: `kubectl get vpc test-vpc -o yaml` and `kubectl get agents`
 
 2. **Gitea = Configuration History**
    - Use for: Auditing changes, reviewing diffs, maintaining compliance
@@ -932,9 +604,8 @@ You've now mastered the three-interface operational model:
    - Key dashboards: Fabric (daily check), Platform (control plane), Interfaces (links)
 
 4. **Troubleshooting = All Three Together**
-   - Flow: Gitea (config) → kubectl (deployment) → Grafana (runtime health)
-   - Always check events first
-   - Error events tell you what's wrong
+   - Flow: identify the actual source (Git or direct apply) → read the named cluster objects and Agents → correlate current telemetry
+   - A VPC `Events: <none>` line is inconclusive in this release
 
 ### What You've Accomplished
 
@@ -948,8 +619,8 @@ You've now mastered the three-interface operational model:
 You should now feel confident answering:
 - "Which interface should I use to check if a VPC is deployed correctly?" → kubectl
 - "How do I see who changed a VPC configuration last week?" → Gitea commit history
-- "Where can I view switch CPU usage trends over the past day?" → Grafana Node Exporter dashboard
-- "My VPC isn't working—where do I start troubleshooting?" → Check config in Gitea, then events in kubectl, then health in Grafana
+- "Where can I view available switch CPU usage samples?" → Grafana Node Exporter dashboard
+- "My VPC isn't working—where do I start troubleshooting?" → Identify its config source, inspect the named VPC and attachment with kubectl, then correlate Agent and Grafana evidence
 
 ### Preview of Module 1.4
 
@@ -961,7 +632,7 @@ Next module wraps up Course 1 with a recap of what you've learned (Modules 1.1-1
 
 ### Question 1: Interface Selection
 
-**Stem:** You need to view historical CPU usage trends for spine-01 over the last 24 hours. Which interface should you use?
+**Stem:** You need to view the CPU usage samples available for spine-01. Which interface should you use?
 
 A) kubectl
 B) Gitea
@@ -975,7 +646,7 @@ D) ArgoCD
 
 **Explanation:**
 
-Grafana stores time-series metrics and displays trends over time. kubectl shows current state only (a snapshot). Gitea is for configuration history, not runtime metrics. ArgoCD is for GitOps deployment, not monitoring. The Node Exporter dashboard in Grafana shows CPU usage trends.
+Grafana stores time-series samples and can display trends within the data available since this VM booted. kubectl shows current cluster state. Gitea contains the teaching repository history; ArgoCD reports GitOps sync state. The Node Exporter dashboard can show CPU samples for a selected host.
 
 **Learning Objective:** LO #1 - Select the appropriate interface
 
@@ -983,29 +654,21 @@ Grafana stores time-series metrics and displays trends over time. kubectl shows 
 
 ---
 
-### Question 2: kubectl Event Interpretation
+### Question 2: VPC and Agent Evidence
 
-**Stem:** You run `kubectl describe vpc test-vpc` and see this in the Events section:
+**Stem:** You apply an unattached `test-vpc`. `kubectl get vpc test-vpc` succeeds, but no Agent generation changes. What can you conclude?
 
-```
-Warning  ReconcileFailed  2m  fabricator  Subnet 10.10.10.0/24 overlaps with existing VPC 'prod-vpc'
-```
-
-What does this mean?
-
-A) The VPC is being deployed normally (this warning is expected)
-B) The VPC configuration has an error that must be fixed
-C) The VPC is waiting for switches to become available
-D) The Fabricator controller needs to be restarted
+A) The VPC does not exist
+B) The API stored the VPC, while no switch-facing change is shown by Agent generations
+C) All server DHCP leases have been verified
+D) The Fabricator controller must be restarted
 
 <details>
 <summary>Show Answer</summary>
 
-**Correct Answer:** B (The VPC configuration has an error that must be fixed)
+**Correct Answer:** B
 
-**Explanation:**
-
-Warning and Error events indicate configuration problems that prevent successful reconciliation. This specific event shows a subnet conflict—the VPC cannot be created until you choose a non-overlapping subnet. You need to fix the configuration in Gitea and recommit. No error/warning events = successful reconciliation.
+**Explanation:** The VPC read proves stored desired state. Without an attachment, its edit need not enter any Agent spec. Empty VPC Events and unchanged Agent generations do not prove a server dataplane outcome.
 
 **Learning Objective:** LO #2 - Interpret kubectl output
 
@@ -1015,7 +678,7 @@ Warning and Error events indicate configuration problems that prevent successful
 
 ### Question 3: Gitea Audit Trail
 
-**Stem:** Your manager asks: "When was the production-vpc modified and by whom?" Which Gitea feature should you use?
+**Stem:** Your manager asks: "When was the teaching `myfirst-vpc` configuration changed and by whom?" Which Gitea feature should you use?
 
 A) File browser
 B) Commit history
@@ -1039,7 +702,7 @@ The commit history in Gitea shows all changes with timestamps, authors, and comm
 
 ### Question 4: Grafana Dashboard Selection
 
-**Stem:** You suspect a switch is dropping packets due to a bad cable or transceiver. Which Grafana dashboard is MOST useful?
+**Stem:** You want to inspect a selected virtual switch port's errors and discards. Which Grafana dashboard is most useful?
 
 A) Fabric Dashboard
 B) Platform Dashboard
@@ -1053,7 +716,7 @@ D) Node Exporter Dashboard
 
 **Explanation:**
 
-The Interfaces Dashboard shows detailed per-port metrics including error counters (CRC errors, frame errors), drop counters, and discard counters—all indicators of physical layer issues like bad cables or transceivers. The Fabric Dashboard shows high-level health but not detailed error counters. Platform Dashboard monitors control plane, not switch ports. Node Exporter shows OS metrics, not interface errors.
+The Hedgehog Switch Interface Counters dashboard shows a selected port's state, traffic, errors and discards. On this virtual switch, these counters do not by themselves identify a physical cable or transceiver fault.
 
 **Learning Objective:** LO #4 - Read Grafana dashboards
 
@@ -1063,21 +726,21 @@ The Interfaces Dashboard shows detailed per-port metrics including error counter
 
 ### Question 5: Troubleshooting Methodology
 
-**Stem:** A VPC appears to be configured correctly in Gitea, but servers aren't receiving DHCP addresses. What should you check NEXT?
+**Stem:** A Git-managed VPC appears to be configured correctly in Gitea, but servers are not receiving DHCP addresses. What should you check next?
 
 A) Recreate the VPC configuration file in Gitea
-B) Use kubectl to verify the VPC was deployed and check for error events
+B) Use kubectl to inspect the named VPC, its attachment and affected Agents
 C) Check Grafana for switch health
 D) Contact support immediately
 
 <details>
 <summary>Show Answer</summary>
 
-**Correct Answer:** B (Use kubectl to verify the VPC was deployed and check for error events)
+**Correct Answer:** B (Inspect the named VPC, its attachment and affected Agents)
 
 **Explanation:**
 
-Follow the systematic troubleshooting flow: Config (Gitea) → Deployment (kubectl) → Health (Grafana). If Gitea config looks correct, the next step is to verify the VPC actually deployed successfully using kubectl and check for error events. The events will tell you if reconciliation failed. Only after confirming kubectl shows successful deployment should you move to Grafana to check runtime health.
+First identify the exact VPC and attachment and whether the configuration came from Git. The next read is the named cluster objects and affected Agent state. A VPC Events section may be empty even when more evidence is needed; follow with server and telemetry checks for a real DHCP incident.
 
 **Learning Objective:** LO #5 - Correlate information across interfaces
 
@@ -1090,18 +753,18 @@ Follow the systematic troubleshooting flow: Config (Gitea) → Deployment (kubec
 **Stem:** You see in Grafana Fabric Dashboard that spine-01 is showing "Down" status. What should you do FIRST?
 
 A) Reboot spine-01 immediately
-B) Check kubectl for spine-01 Agent status and events
+B) Check kubectl for spine-01 Agent status and current spec
 C) Edit spine-01 configuration in Gitea
 D) Check Platform Dashboard
 
 <details>
 <summary>Show Answer</summary>
 
-**Correct Answer:** B (Check kubectl for spine-01 Agent status and events)
+**Correct Answer:** B (Check kubectl for spine-01 Agent status and current spec)
 
 **Explanation:**
 
-Grafana shows symptoms (switch down), but kubectl can tell you more detail about WHY: Agent not reporting, configuration errors, reconciliation issues, etc. Always gather more information before taking action. Rebooting (A) without understanding the root cause could make things worse. Editing config (C) is premature—you don't know if configuration is the issue yet. Platform Dashboard (D) shows control plane health, not specific switch status.
+The dashboard is a symptom. Read the named Agent spec and status to identify what it reports at this moment, then correlate other evidence. Do not reboot or edit configuration based on one panel.
 
 **Learning Objective:** LO #6 - Apply troubleshooting methodology
 
@@ -1115,13 +778,13 @@ Grafana shows symptoms (switch down), but kubectl can tell you more detail about
 
 1. **kubectl:** How many VPCs exist in the cluster right now?
 2. **Gitea:** Who created the `myfirst-vpc` configuration and when?
-3. **Grafana:** Are all switches showing healthy status in the Fabric Dashboard?
+3. **Grafana:** What BGP state is displayed for one selected switch and neighbor in Hedgehog Fabric?
 
 **Success Criteria:**
 
 - ✅ Uses correct kubectl command (`kubectl get vpcs`)
 - ✅ Navigates to Gitea commit history and identifies author/timestamp
-- ✅ Opens Grafana Fabric Dashboard and interprets switch status
+- ✅ Opens Hedgehog Fabric and records a displayed switch/neighbor BGP state
 - ✅ Can explain which interface was appropriate for each question
 - ✅ Demonstrates understanding of when to use each interface
 
@@ -1141,7 +804,7 @@ Grafana shows symptoms (switch down), but kubectl can tell you more detail about
 **VPC inspection:**
 ```bash
 kubectl get vpcs                      # List all VPCs
-kubectl describe vpc <name>           # Check events for reconciliation status
+kubectl describe vpc <name>           # Read a human-readable object summary
 kubectl get vpc <name> -o yaml        # View full VPC configuration
 ```
 
@@ -1152,12 +815,13 @@ kubectl get connections -A            # List server connections
 kubectl get vpcattachments -A         # List VPC-to-server attachments
 ```
 
-**Event inspection:**
+**Agent status after a switch-facing change:**
 ```bash
-kubectl get events --sort-by='.lastTimestamp' | tail -20   # Recent events
-kubectl get events --field-selector involvedObject.name=<name>  # Events for specific resource
-kubectl describe <resource-type> <name>                     # Events in context
+kubectl get agents                      # Compare applied and current generations
+kubectl get agent leaf-01 -o yaml       # Inspect the named Agent's spec and status
 ```
+
+VPC Events are typically empty on this Fabric release; an empty section does not establish reconciliation.
 
 ---
 
@@ -1189,7 +853,7 @@ kubectl describe <resource-type> <name>                     # Events in context
 
 2. **Platform Dashboard** (control plane health)
    - URL: `/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
-   - Use for: Fabricator errors, control node CPU/memory, API latency
+   - Use for: available platform panels; physical sensors may show `No data`
 
 3. **Interfaces Dashboard** (port health)
    - URL: `/d/a5e5b12d-b340-4753-8f83-af8d54304822/interfaces`
@@ -1205,7 +869,7 @@ kubectl describe <resource-type> <name>                     # Events in context
 
 6. **Switch CRM Dashboard** (capacity monitoring)
    - URL: `/d/fb08315c-cabb-4da7-9db9-2e17278f1781/switch-critical-resources`
-   - Use for: TCAM usage, route table capacity, capacity planning
+   - Use for: reported routes and nexthops; no physical ASIC capacity claim
 
 ---
 
@@ -1213,15 +877,15 @@ kubectl describe <resource-type> <name>                     # Events in context
 
 **Standard flow for "VPC not working" issues:**
 
-1. **Gitea** - Verify configuration is correct in Git
-2. **kubectl** - Check if VPC exists and has error events
-3. **Grafana** - Confirm switches are healthy and operational
+1. **Source** - Identify whether this VPC came from Gitea/ArgoCD or direct apply
+2. **kubectl** - Read the named VPC, attachments and affected Agents
+3. **Grafana and server** - Correlate selected telemetry with an actual lease or dataplane check
 
 **Quick checks:**
 
 ```bash
-# 1. Check VPC exists and has no errors
-kubectl describe vpc <name> | grep -A 5 Events
+# 1. Read the named VPC's desired state; substitute a real name
+kubectl get vpc <name> -o yaml
 
 # 2. Check switch health
 kubectl get agents -A

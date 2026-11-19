@@ -3,7 +3,7 @@ title: "How Hedgehog Works: The Control Model"
 slug: "fabric-operations-how-it-works"
 difficulty: "beginner"
 estimated_minutes: 15
-version: "v1.0.0"
+version: "v1.1.0"
 validated_on: "2025-10-16"
 pathway_slug: "network-like-hyperscaler"
 pathway_name: "Network Like a Hyperscaler"
@@ -39,7 +39,7 @@ It's not magic. It's **declarative infrastructure** with a well-designed control
 
 **Hedgehog approach:** You declare your intent once. The fabric continuously reconciles actual state to match desired state. If a switch reboots, it automatically rejoins and reconfigures itself.
 
-This is how hyperscalers run networks at scale—and now you can too.
+This declarative model lets you manage network intent without configuring each switch by hand.
 
 ### What You'll Learn
 
@@ -50,7 +50,7 @@ This module demystifies the control model:
 - How switch agents apply configurations
 - How to observe this process in real-time
 
-You'll create your first VPC and watch the reconciliation happen step by step.
+You'll create your first VPC, inspect the stored intent, and distinguish that from switch-facing Agent state.
 
 ### Learning Objectives
 
@@ -58,7 +58,7 @@ By the end of this module, you will be able to:
 
 1. **Explain the CRD reconciliation pattern** - Describe how desired state (kubectl apply) becomes actual state (switch configuration)
 2. **Identify the key components** - Recognize Fabric Controller, Agent CRDs, and switch agents in the control flow
-3. **Observe reconciliation in action** - Watch Kubernetes events as a VPC is created and configured
+3. **Observe reconciliation in action** - Inspect the VPC object and understand when Agent status can confirm a switch change
 4. **Interpret Agent CRD status** - Use Agent CRD to view switch operational state and reconciliation progress
 5. **Understand abstraction boundaries** - Explain what the operator manages (CRDs) vs. what the system manages (switch configs)
 
@@ -143,7 +143,7 @@ If current ≠ desired, the controller takes action. If current = desired, nothi
 ```
 You                  Fabric Controller       Agent CRD         Switch Agent        SONiC Switch
 │                           │                    │                  │                    │
-├─ kubectl apply vpc.yaml ─>│                    │                  │                    │
+├─ apply attached VPC ────>│                    │                  │                    │
 │                           │                    │                  │                    │
 │                           ├─ Watch VPC CRD     │                  │                    │
 │                           ├─ Compute config    │                  │                    │
@@ -159,22 +159,22 @@ You                  Fabric Controller       Agent CRD         Switch Agent     
 │                           │                    │<── Report status─┤                    │
 │                           │                    │                  │                    │
 │<─── kubectl get vpc ──────┤                    │                  │                    │
-│     (shows Ready)         │                    │                  │                    │
+│     (shows desired spec)  │                    │                  │                    │
 ```
 
-### Concept 3: Reconciliation and Events
+### Concept 3: Switch-Facing Reconciliation
 
-When you apply a CRD, a series of events occurs:
+When a VPC has attachments that affect switches, the control loop proceeds through these stages:
 
-**Example: Creating a VPC**
+**Example: Updating an attached VPC**
 
-1. **Created:** VPC object appears in Kubernetes
+1. **Updated:** The VPC desired spec changes in Kubernetes
 2. **Reconciling:** Fabric Controller picks up the change
-3. **Computing:** Controller calculates which switches need configuration
-4. **Agent Update:** Controller writes specs to relevant Agent CRDs
+3. **Computing:** Controller calculates which switches, if any, need configuration
+4. **Agent Update:** Controller writes changed specs to relevant Agent CRDs when needed
 5. **Applying:** Switch agents apply configurations via gNMI
-6. **Status Report:** Agents report success back to Agent CRD status
-7. **Ready:** VPC status becomes Ready (when all switches configured)
+6. **Status Report:** Affected Agents report the applied generation in Agent CRD status
+7. **Observe:** The VPC object shows desired state; Agent status reports applied generations when a switch configuration changes
 
 You can observe reconciliation progress via **Agent CRD status**:
 
@@ -188,7 +188,7 @@ kubectl get agents
 
 **Note on Kubernetes Events:** In the current version of Hedgehog Fabric, the fabric controller does not emit Kubernetes events for VPC operations. If you run `kubectl get events --field-selector involvedObject.name=<vpc-name>` after creating a VPC, you will typically see no results — this is expected behavior, not an error. Verify reconciliation via agent status instead (shown in the lab below).
 
-Agent generation is your window into the control loop.
+Agent generation is a window into switch-facing changes. An unattached VPC can be stored without changing an Agent generation.
 
 ### Concept 4: Why This Model Matters for Operators
 
@@ -197,7 +197,7 @@ Agent generation is your window into the control loop.
 1. **Self-healing:** Switch reboots? Agent reapplies config automatically
 2. **Declarative:** Describe what you want, not how to configure it
 3. **Idempotent:** Apply the same YAML repeatedly—safe and predictable
-4. **Observable:** Events and Agent status show exactly what's happening
+4. **Observable:** VPC desired state and Agent status show different parts of the control loop
 5. **Git-friendly:** CRDs are YAML files—version control, code review, GitOps
 
 **What You Control:**
@@ -231,7 +231,7 @@ Remember from Module 1.1: Most Hedgehog CRDs have minimal status fields. The rea
 
 **Why this matters:**
 
-- VPC says "Ready" but you want to see *which switches* configured it → Check Agent CRDs
+- VPC desired spec shows the requested network; check Agent CRDs for reported switch state
 - Troubleshooting connectivity → Check Agent CRD for interface status
 - Monitoring fabric health → Watch Agent CRD status fields
 
@@ -251,34 +251,28 @@ Agent CRDs are your deep observability layer.
 
 **Overview:**
 
-You'll create your first VPC, watch Kubernetes events as it reconciles, and inspect Agent CRDs to see how switches report their state. This is your first time *creating* something (not just exploring), and you'll see the control loop in action.
+You'll create your first VPC, read its desired spec, and inspect Agent CRDs to see how switches report their state. An unattached VPC may not change any Agent spec, so this lab does not claim to observe a switch reconfiguration.
 
 **Environment:**
 
 - Same Hedgehog vlab from Module 1.1
 - kubectl access to create VPCs
-- Events visible during active reconciliation
+- Access to VPC and Agent resources
 
 ---
 
 ### Task 1: Prepare to Observe
 
-**Objective:** Open a second terminal to watch events in real-time (optional but recommended)
+**Objective:** Confirm you can read the VPC and Agent resources before creating anything
 
-**Steps (if using two terminals):**
+**Steps:**
 
 ```bash
-# Terminal 1: You'll create the VPC here
-# (this is your main terminal)
-
-# Terminal 2 (optional): Watch events continuously
-kubectl get events --watch --field-selector involvedObject.kind=VPC
-
-# This will stream events as they happen
-# You'll see events appear as you create the VPC in Terminal 1
+kubectl config current-context
+kubectl get agents
 ```
 
-**Note:** If you only have one terminal, you can view events after creating the VPC—it works fine, just less dramatic!
+**Note:** The pinned Fabric version does not emit Kubernetes Events for VPC operations. A separate event watcher is not needed for this lab.
 
 **Success Criteria:**
 
@@ -338,31 +332,31 @@ kubectl get vpc test-vpc
 # test-vpc   default   default   5s
 ```
 
-**Verify reconciliation via agent generation:**
+**Inspect Agent generations:**
 
 ```bash
-# Check agents — APPLIEDG and CURRENTG should match, and APPLIED timestamp updates
+# Check baseline Agent status. An unattached VPC need not change any Agent.
 kubectl get agents
 
-# Expected output (APPLIEDG == CURRENTG for all agents means reconciliation complete):
+# Expected baseline: APPLIEDG == CURRENTG for all seven Agents.
 # NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
 # leaf-01    server-leaf   VS-01 MCLAG 1   2m        6          6          v0.96.2
 # ...
 ```
 
-> **Note on events:** Running `kubectl get events --field-selector involvedObject.name=test-vpc` will return no results — this is expected. The current version of Hedgehog Fabric does not emit Kubernetes events for VPC operations. Use agent status to verify reconciliation instead.
+> **Note on events:** The current Fabric version does not emit Kubernetes Events for VPC operations. Read `test-vpc` to confirm its stored spec; Agent status reports only the current switch baseline for this unattached VPC.
 
 **Success Criteria:**
 
 - ✅ VPC created without errors (`vpc.vpc.githedgehog.com/test-vpc created`)
 - ✅ VPC object exists in cluster (`kubectl get vpc test-vpc` succeeds)
-- ✅ Agent APPLIEDG and CURRENTG match (reconciliation complete)
+- ✅ Agent APPLIEDG and CURRENTG match (baseline Agent state; the unattached VPC may not change them)
 
 ---
 
-### Task 3: Observe Agent CRD Updates
+### Task 3: Inspect Agent CRD State
 
-**Objective:** See how the Fabric Controller updates Agent CRDs with configuration
+**Objective:** Distinguish the VPC desired spec from Agent configuration and status
 
 **Steps:**
 
@@ -414,20 +408,18 @@ kubectl get agent leaf-01 -o yaml | grep -A 20 "status:"
 
 ---
 
-### Task 4: Verify VPC is Ready
+### Task 4: Verify the VPC Object and Agent Baseline
 
-**Objective:** Confirm reconciliation completed successfully
+**Objective:** Confirm the VPC was stored and inspect reported Agent state without assuming an unattached VPC reconfigured switches
 
 **Steps:**
 
 ```bash
-# Check VPC status (wait 30-60 seconds after creation)
-kubectl get vpc test-vpc -o yaml | grep -A 10 status:
-
-# Look for status fields (may be minimal or empty)
+# Read the stored VPC intent; status may be empty
+kubectl get vpc test-vpc -o yaml
 ```
 
-**Verify reconciliation via agent status:**
+**Inspect agent status:**
 
 ```bash
 # Check agent conditions — Applied=True means switch received and applied config
@@ -451,19 +443,19 @@ kubectl describe vpc test-vpc
 
 **Key Insight:**
 
-VPC status is intentionally minimal, and Hedgehog does not currently emit Kubernetes events for VPC operations. Verify reconciliation via **Agent CRD status**: when `Applied=True` and `APPLIEDG == CURRENTG`, configuration has been successfully applied to switches.
+VPC status is intentionally minimal, and Hedgehog does not currently emit Kubernetes events for VPC operations. For a switch configuration change, `Applied=True` and `APPLIEDG == CURRENTG` report that the Agent applied its current spec. The unattached `test-vpc` may not enter an Agent spec, so these values alone do not prove this VPC reached a switch.
 
 **Success Criteria:**
 
 - ✅ VPC object stable (can be retrieved without errors)
-- ✅ Agent conditions show `Applied=True` (reconciliation succeeded)
-- ✅ Agent APPLIEDG matches CURRENTG for all switches
+- ✅ Agent conditions show `Applied=True` for the current Agent spec, if present
+- ✅ Agent APPLIEDG matches CURRENTG for all switches at the observed baseline
 
 ---
 
-### Task 5: Optional - Modify and Re-Reconcile
+### Task 5: Optional - Modify the Unattached VPC
 
-**Objective:** See reconciliation happen again when you change desired state
+**Objective:** Change VPC desired state and observe what the API stores
 
 **Steps:**
 
@@ -505,23 +497,23 @@ kubectl apply -f test-vpc-updated.yaml
 # vpc.vpc.githedgehog.com/test-vpc configured
 ```
 
-**Verify the update via agent generation:**
+**Verify the VPC update:**
 
 ```bash
-# The APPLIEDG column will increment when new config is pushed to switches
+# The VPC-only edit need not change any Agent generation while unattached
 kubectl get agents
 
 # Then confirm both subnets are present in the VPC spec:
 kubectl get vpc test-vpc -o yaml | grep -E "(backend|default|subnet:)"
 ```
 
-**Observe:** The controller detects the change, updates Agent specs, switches reconfigure—all automatically.
+**Observe:** The VPC object changes. Without a VPCAttachment, the edit need not enter any switch Agent spec or advance `APPLIEDG`. Course 2 attaches servers and observes the switch-facing change.
 
 **Success Criteria:**
 
 - ✅ Update applied without errors (`vpc.vpc.githedgehog.com/test-vpc configured`)
 - ✅ VPC now has two subnets (backend and default visible in YAML)
-- ✅ Agent APPLIEDG incremented (new configuration pushed to switches)
+- ✅ No Agent generation increment is required for this unattached VPC edit
 
 ---
 
@@ -530,16 +522,16 @@ kubectl get vpc test-vpc -o yaml | grep -E "(backend|default|subnet:)"
 **What you did:**
 
 - ✅ Created your first VPC using kubectl apply
-- ✅ Watched Kubernetes events during reconciliation
+- ✅ Inspected VPC desired state and Agent baseline separately
 - ✅ Inspected Agent CRDs to see switch operational state
-- ✅ Verified VPC reconciliation completed successfully
-- ✅ (Optional) Modified VPC and watched re-reconciliation
+- ✅ Verified that the VPC desired spec was stored and read the Agent baseline
+- ✅ (Optional) Modified the unattached VPC and checked the stored spec
 
 **What you learned:**
 
 - Declarative infrastructure: You declare desired state, the system reconciles
 - Control loop: Fabric Controller → Agent CRD → Switch Agent → SONiC
-- Events are your observability window into reconciliation
+- VPC desired state and Agent status answer different questions; VPC Events are absent in this release
 - Agent CRDs contain deep switch operational state
 - Changes are automatically reconciled (self-healing)
 
@@ -553,7 +545,7 @@ kubectl get vpc test-vpc -o yaml | grep -E "(backend|default|subnet:)"
 
 1. **Desired state (CRD) → Actual state (switches)** via the reconciliation loop
 2. **Three actors:** Fabric Controller, Agent CRD, Switch Agent
-3. **Events show progress:** Watch reconciliation happen in real-time
+3. **Observe the right signal:** Read VPC desired state; use Agent status when a switch spec changes
 4. **Agent CRDs are deep observability:** Switch operational state lives here
 5. **Abstraction means power:** You manage intent, the system handles complexity
 
@@ -563,7 +555,7 @@ You now understand:
 
 - Why kubectl apply is safe (idempotent, declarative)
 - What "reconciling" means (closing the gap between desired and actual)
-- Where to look when troubleshooting (events, Agent CRD status)
+- Where to look when troubleshooting (VPC desired state and Agent CRD status)
 - Why Hedgehog is self-healing (continuous reconciliation)
 
 ### Preview of Module 1.3
@@ -600,11 +592,11 @@ The Fabric Controller runs in Kubernetes, watches for CRD changes (VPCs, VPCAtta
 
 **Question 2: Scenario-Based**
 
-You create a VPC with `kubectl apply -f vpc.yaml`. What is the correct order of operations?
+You update an existing VPC that already has a server attachment, producing a switch-facing configuration change. What is the correct order of operations?
 
 1. Switch Agent applies config via gNMI
 2. Fabric Controller updates Agent CRD spec
-3. VPC CRD created in Kubernetes
+3. VPC CRD spec updated in Kubernetes
 4. Fabric Controller watches VPC CRD and computes config
 
 <details>
@@ -614,7 +606,7 @@ You create a VPC with `kubectl apply -f vpc.yaml`. What is the correct order of 
 
 **Explanation:**
 
-Correct flow: VPC CRD created (3), Fabric Controller watches and computes (4), Controller updates Agent spec (2), Switch Agent applies via gNMI (1). This is the reconciliation loop in action.
+Correct flow for a switch-facing change: VPC CRD spec updated (3), Fabric Controller watches and computes (4), Controller updates affected Agent specs (2), and those Switch Agents apply via gNMI (1). The unattached `test-vpc` in this lab need not update an Agent spec.
 
 </details>
 
@@ -661,7 +653,7 @@ Agent CRD status contains comprehensive switch operational state reported by the
 
 **Question 5: Practical**
 
-You create a VPC but want to verify reconciliation completed successfully. What kubectl commands would you use? (List 2)
+You apply an unattached VPC. Which two kubectl reads distinguish stored VPC intent from reported switch state?
 
 <details>
 <summary>Show Answer</summary>
@@ -669,21 +661,11 @@ You create a VPC but want to verify reconciliation completed successfully. What 
 **Answer:**
 
 ```bash
-# Option 1: Check events for reconciliation status
-kubectl get events --field-selector involvedObject.name=<vpc-name> --sort-by='.lastTimestamp'
-
-# Option 2: Describe VPC to see events in summary
-kubectl describe vpc <vpc-name>
-
-# Option 3: Get VPC status (if populated)
-kubectl get vpc <vpc-name> -o yaml | grep -A 10 status:
+kubectl get vpc test-vpc -o yaml  # Confirms the desired VPC spec was stored
+kubectl get agents                # Shows reported applied/current generations
 ```
 
-**Rubric:**
-
-- Full credit: Any 2 valid commands that show reconciliation status
-- Partial credit: 1 valid command
-- No credit: Commands that don't reveal reconciliation state
+The VPC read proves the API stored the object. Agent generation equality reports the Agents' current configuration baseline; an unattached VPC may not change any Agent spec or generation. An empty VPC Events section does not prove reconciliation or dataplane behavior.
 
 </details>
 
@@ -691,22 +673,21 @@ kubectl get vpc <vpc-name> -o yaml | grep -A 10 status:
 
 ### Practical Assessment
 
-**Task:** Create a VPC, verify it reconciled successfully, then delete it cleanly.
+**Task:** Inspect the `test-vpc` you created and explain what the API and Agents each report. Keep it for Module 1.3.
 
 **Steps:**
 
-1. Create VPC with `kubectl apply -f vpc.yaml`
-2. Use kubectl to verify reconciliation (events or describe)
-3. Delete VPC with `kubectl delete vpc <name>`
-4. Verify deletion completed (no lingering resources)
+1. Confirm `test-vpc` exists and inspect its spec with `kubectl get vpc test-vpc -o yaml`.
+2. Run `kubectl get agents` and compare `APPLIEDG` with `CURRENTG` on all seven.
+3. Explain why an unattached VPC may leave Agent generations unchanged.
+4. Keep `test-vpc` in place: Module 1.3 reads it, and Course 2 creates a separate `webapp-prod` VPC.
 
 **Success Criteria:**
 
-- ✅ VPC created without errors
-- ✅ Used appropriate kubectl commands to verify reconciliation
-- ✅ Can explain what events indicate success
-- ✅ Deleted VPC cleanly
-- ✅ Understands reconciliation happened both on create and delete
+- ✅ VPC exists with the expected stored subnet spec.
+- ✅ Agent baseline was read without claiming the VPC reached switches.
+- ✅ Can explain why empty VPC Events are not success evidence.
+- ✅ `test-vpc` remains available for the next module.
 
 ---
 
@@ -732,21 +713,21 @@ kubectl get vpc <vpc-name> -o yaml | grep -A 10 status:
 **VPC creation:**
 
 ```bash
-kubectl apply -f vpc.yaml        # Create or update VPC
+kubectl apply -f test-vpc.yaml   # Create or update this lab VPC
 kubectl get vpc <name>           # View VPC summary
-kubectl describe vpc <name>      # View VPC details and events
+kubectl describe vpc <name>      # View VPC details; Events may be empty
 kubectl get vpc <name> -o yaml   # View full VPC YAML
-kubectl delete vpc <name>        # Delete VPC
+kubectl delete vpc <name>        # Delete only when a later lab no longer needs it
 ```
 
-**Event observation:**
+**Agent status after a switch-facing change:**
 
 ```bash
-kubectl get events --field-selector involvedObject.name=<name>  # Filter events by resource
-kubectl get events --watch                                      # Watch events in real-time
-kubectl get events --sort-by='.lastTimestamp'                   # Sort events by time
-kubectl describe vpc <name>                                     # View events in context
+kubectl get agents                         # Compare APPLIEDG and CURRENTG
+kubectl get agent leaf-01 -o yaml          # Inspect applied condition and spec
 ```
+
+An empty VPC Events section is expected in this Fabric release and is not a reconciliation check.
 
 **Agent CRD inspection:**
 
