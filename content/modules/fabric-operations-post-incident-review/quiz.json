@@ -21,10 +21,10 @@
       "type": "multiple_choice",
       "stem": "The named VPC and attachment are absent when you collect evidence for a reported server-07 problem. Which statement is supported?",
       "options": [
-        {"id": "a", "text": "The webhook rejected the VPC request."},
-        {"id": "b", "text": "Those objects were absent at collection time; submission history and cause remain unknown."},
-        {"id": "c", "text": "The switch silently moved VLAN 1025 to 1020."},
-        {"id": "d", "text": "Support already restored server-07 connectivity."}
+        {"id": "a", "text": "Their absence proves the webhook rejected them; check logs to find the exact error."},
+        {"id": "b", "text": "They were absent when checked; request submission history before naming a cause."},
+        {"id": "c", "text": "ArgoCD deleted them before collection; Git history will identify who caused it."},
+        {"id": "d", "text": "The switch is misconfigured; inspect ports before checking the request history."}
       ],
       "correct_answer": "b",
       "points": 1
@@ -34,10 +34,10 @@
       "type": "multiple_choice",
       "stem": "Which action item is BEST (most SMART)?",
       "options": [
-        {"id": "a", "text": "Be more careful when writing support reports."},
-        {"id": "b", "text": "Improve the support checklist someday."},
-        {"id": "c", "text": "Owner: Jordan. Due: within 14 days. Add an intake checklist for intended YAML, submission result, test output and UTC time; the next practice report must fill or mark each field unavailable."},
-        {"id": "d", "text": "Someone should write down the missing evidence somewhere."}
+        {"id": "a", "text": "Owner: Jordan. Due: 14 days. Remind operators to be more careful when writing reports."},
+        {"id": "b", "text": "Owner: Jordan. Due: 14 days. Improve the support checklist with useful details."},
+        {"id": "c", "text": "Owner: Jordan. Due: 14 days. Add YAML, submission result, test output and UTC time to intake; verify all four on the next practice report."},
+        {"id": "d", "text": "Owner: Jordan. Due: 14 days. Add a Gitea warning label and assume reports are complete."}
       ],
       "correct_answer": "c",
       "points": 1

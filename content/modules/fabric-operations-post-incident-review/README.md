@@ -46,11 +46,11 @@ date -u +'%Y-%m-%dT%H:%M:%SZ'
 kubectl config current-context
 kubectl get vpc customer-app-vpc -o name --ignore-not-found
 kubectl get vpcattachments -o json | jq '[.items[] | select((.spec.subnet // "") | startswith("customer-app-vpc/")) | .metadata.name]'
-kubectl get connections | grep 'server-07'
+kubectl get connections -o json | jq '[.items[] | select(.metadata.name | startswith("server-07--")) | .metadata.name]'
 kubectl get agents
 ```
 
-On the released R0 baseline, context `vlab` is expected, the named VPC is absent, the attachment search is empty, and the Connection lookup identifies the actual server-07 wiring. Record the values you see rather than copying an old port name. A missing object at collection time does **not** show whether a request was submitted, rejected or later deleted. If a command fails, record the error and stop drawing conclusions from its missing output.
+On the released R0 baseline, context `vlab` is expected, the named VPC is absent, the attachment search is empty, and the Connection lookup identifies the actual server-07 wiring. `set -o pipefail` keeps a failed `kubectl` read from being hidden by `jq`. Record the values you see rather than copying an old port name. A missing object at collection time does **not** show whether a request was submitted, rejected or later deleted. If a command fails, record the error and stop drawing conclusions from its missing output.
 
 If you have no 4.3 record, use this **illustrative** rollback record only to practice the review format: "A learner pushed a creation commit, observed a VPC UID, pushed a revert commit, then saw ArgoCD Synced at the revert revision and the VPC absent." It provides no hash, timestamp, outage or proof about your VM. Mark it as a sample in your worksheet.
 
