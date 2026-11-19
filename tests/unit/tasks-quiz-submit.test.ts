@@ -68,9 +68,9 @@ const DIAGNOSIS_QUIZ: QuizSchema = {
   passing_score: 75,
   questions: [
     { id: 'q1', correct_answer: 'b', points: 1 },
-    { id: 'q2', correct_answer: 'b', points: 1 },
-    { id: 'q3', correct_answer: 'c', points: 1 },
-    { id: 'q4', correct_answer: 'b', points: 1 },
+    { id: 'q2', correct_answer: 'c', points: 1 },
+    { id: 'q3', correct_answer: 'a', points: 1 },
+    { id: 'q4', correct_answer: 'd', points: 1 },
   ],
 };
 
@@ -121,12 +121,12 @@ describe('gradeQuiz', () => {
   });
 
   describe('fabric-operations-diagnosis-lab (4 questions, passing_score=75)', () => {
-    it('all correct (q1=b, q2=b, q3=c, q4=b) → score=100, pass=true', () => {
+    it('all correct (q1=b, q2=c, q3=a, q4=d) → score=100, pass=true', () => {
       const answers = [
         { id: 'q1', value: 'b' },
-        { id: 'q2', value: 'b' },
-        { id: 'q3', value: 'c' },
-        { id: 'q4', value: 'b' },
+        { id: 'q2', value: 'c' },
+        { id: 'q3', value: 'a' },
+        { id: 'q4', value: 'd' },
       ];
       const result = gradeQuiz(DIAGNOSIS_QUIZ, answers);
       expect(result.score).toBe(100);
@@ -137,7 +137,7 @@ describe('gradeQuiz', () => {
       const answers = [
         { id: 'q1', value: 'a' },
         { id: 'q2', value: 'a' },
-        { id: 'q3', value: 'a' },
+        { id: 'q3', value: 'b' },
         { id: 'q4', value: 'a' },
       ];
       const result = gradeQuiz(DIAGNOSIS_QUIZ, answers);
@@ -148,8 +148,8 @@ describe('gradeQuiz', () => {
     it('partial: 3/4 correct → score=75, pass=true (exactly at threshold)', () => {
       const answers = [
         { id: 'q1', value: 'b' }, // correct
-        { id: 'q2', value: 'b' }, // correct
-        { id: 'q3', value: 'c' }, // correct
+        { id: 'q2', value: 'c' }, // correct
+        { id: 'q3', value: 'a' }, // correct
         { id: 'q4', value: 'a' }, // wrong
       ];
       const result = gradeQuiz(DIAGNOSIS_QUIZ, answers);
@@ -161,7 +161,7 @@ describe('gradeQuiz', () => {
       const answers = [
         { id: 'q1', value: 'b' }, // correct
         { id: 'q2', value: 'a' }, // wrong
-        { id: 'q3', value: 'a' }, // wrong
+        { id: 'q3', value: 'b' }, // wrong
         { id: 'q4', value: 'a' }, // wrong
       ];
       const result = gradeQuiz(DIAGNOSIS_QUIZ, answers);

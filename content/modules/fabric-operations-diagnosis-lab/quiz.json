@@ -6,12 +6,12 @@
     {
       "id": "q1",
       "type": "multiple_choice",
-      "stem": "Server-03 in VPC prod-vpc cannot reach server-04 in the same VPC. Both VPCAttachments exist and all agents are converged (APPLIEDG == CURRENTG). What is your NEXT diagnostic step using systematic methodology?",
+      "stem": "A user says server-07 cannot reach customer-app-vpc. On a fresh released lab, the named VPC lookup prints nothing and the matching VPCAttachment list is empty. What is the best next action?",
       "options": [
-        {"id": "a", "text": "Restart the fabric controller"},
-        {"id": "b", "text": "Check Agent CRD to verify VLANs configured on both switch interfaces"},
-        {"id": "c", "text": "Escalate to support immediately"},
-        {"id": "d", "text": "Delete and recreate both VPCAttachments"}
+        {"id": "a", "text": "Conclude the VPC was never submitted"},
+        {"id": "b", "text": "Request the manifests and submission history"},
+        {"id": "c", "text": "Change the switch port to VLAN 1020"},
+        {"id": "d", "text": "Escalate a confirmed DHCP failure"}
       ],
       "correct_answer": "b",
       "points": 1
@@ -19,40 +19,40 @@
     {
       "id": "q2",
       "type": "multiple_choice",
-      "stem": "VPCPeering between vpc-a and vpc-b exists. kubectl describe shows no errors. Server in vpc-a can ping its own gateway but CANNOT ping server in vpc-b. Which failure mode is most likely?",
+      "stem": "All Agents show APPLIEDG equal to CURRENTG, and leaf-03/E1/3 reports oper up. What do these observations establish?",
       "options": [
-        {"id": "a", "text": "BGP peering problem (sessions down)"},
-        {"id": "b", "text": "VPC isolation settings or permit list misconfiguration"},
-        {"id": "c", "text": "Interface errors (physical layer issue)"},
-        {"id": "d", "text": "Configuration drift (GitOps reconciliation failure)"}
-      ],
-      "correct_answer": "b",
-      "points": 1
-    },
-    {
-      "id": "q3",
-      "type": "multiple_choice",
-      "stem": "Using Decision Tree 3, you have verified: VPCAttachment references correct connection, subnet exists in VPC, and Agent CRD shows VLAN configured on interface. According to the decision tree, what should you check NEXT?",
-      "options": [
-        {"id": "a", "text": "Controller logs for reconciliation errors"},
-        {"id": "b", "text": "Grafana Interface Dashboard for errors"},
-        {"id": "c", "text": "nativeVLAN setting matches server expectation"},
-        {"id": "d", "text": "Escalate immediately (all checks passed)"}
+        {"id": "a", "text": "The reported VPC exists and server-07 has a DHCP lease"},
+        {"id": "b", "text": "The server can ping its VPC gateway"},
+        {"id": "c", "text": "The current desired Agent generations applied and that switch port is operationally up"},
+        {"id": "d", "text": "VLAN 1025 is configured on E1/3"}
       ],
       "correct_answer": "c",
       "points": 1
     },
     {
+      "id": "q3",
+      "type": "multiple_choice",
+      "stem": "On fabric v0.96.2, querying .status.state.interfaces[\"E1/3\"].vlans returns null. How should you interpret that result?",
+      "options": [
+        {"id": "a", "text": "That field is unavailable; inspect the specs when objects exist"},
+        {"id": "b", "text": "No VLAN can be configured on the switch"},
+        {"id": "c", "text": "The VLAN was silently reassigned by the VLANNamespace"},
+        {"id": "d", "text": "The controller is in CrashLoopBackOff"}
+      ],
+      "correct_answer": "a",
+      "points": 1
+    },
+    {
       "id": "q4",
       "type": "multiple_choice",
-      "stem": "Resources exist, agents are converged, and Agent CRD shows all interfaces up with VLANs configured correctly, but the server still cannot communicate. Why should you check Grafana BEFORE checking controller logs?",
+      "stem": "The user claims a manually chosen VLAN 1025 was silently reassigned to 1020, but customer-app-vpc is absent. Which conclusion is supported on the released fabric?",
       "options": [
-        {"id": "a", "text": "Grafana is faster to load than kubectl logs"},
-        {"id": "b", "text": "Grafana provides visual trends and historical context (e.g., intermittent errors over time)"},
-        {"id": "c", "text": "Controller logs are unreliable"},
-        {"id": "d", "text": "Grafana is always the first troubleshooting step"}
+        {"id": "a", "text": "A VLAN conflict is confirmed because Grafana shows E1/3 Up"},
+        {"id": "b", "text": "The switch applied VLAN 1020 because APPLIEDG equals CURRENTG"},
+        {"id": "c", "text": "An empty Kubernetes Events list proves the VLAN change succeeded"},
+        {"id": "d", "text": "Unverified; inspect the manifests and submission result"}
       ],
-      "correct_answer": "b",
+      "correct_answer": "d",
       "points": 1
     }
   ]
