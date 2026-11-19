@@ -171,11 +171,11 @@ kubectl get agent "$SW" -o json | jq '.status.state.bgpNeighbors // {}'
 curl -fsSG --data-urlencode 'query=fabric_agent_bgp_neighbor_session_state' http://127.0.0.1:9090/api/v1/query | jq '{series: (.data.result | length), notEstablished: [.data.result[]? | select(.value[1] != "6") | .metric]}'
 ```
 
-Prometheus state `6` means Established. Check that `series` is greater than zero before interpreting an empty `notEstablished` array; no series is a telemetry gap, not proof that every session is healthy. BGP health is context, not an explanation for a VPC that is absent.
+Prometheus state `6` means Established. Check that `series` is greater than zero before interpreting an empty `notEstablished` array; no series is a telemetry gap, not proof that every session is healthy. After a fresh boot, wait a few minutes and repeat the query if no series have arrived yet. BGP health is context, not an explanation for a VPC that is absent.
 
 **5. Grafana review**
 
-Open `http://YOUR_VM_IP:3000` (admin/admin). In **Hedgehog Switch Interface Counters**, select the discovered switch and port and record the shown state and traffic counters. In **Hedgehog Fabric**, review BGP sessions. In **Hedgehog Fabric Logs**, search for the switch and report whether matching logs appear. The virtual switches may have no temperature, fan, ASIC or filesystem sensor series; do not report missing hardware-only panels as a fault. These dashboards do not display configured tenant VLAN membership.
+Open `http://YOUR_VM_IP:3000` (admin/admin). In **Hedgehog Switch Interface Counters**, select the discovered switch and port and record the shown state and traffic counters. If the port is missing immediately after boot, repeat after switch metrics arrive in Prometheus. In **Hedgehog Fabric**, review BGP sessions. In **Hedgehog Fabric Logs**, search for the switch and report whether matching logs appear. The virtual switches may have no temperature, fan, ASIC or filesystem sensor series; do not report missing hardware-only panels as a fault. These dashboards do not display configured tenant VLAN membership.
 
 **6. Controller logs**
 
@@ -271,7 +271,7 @@ The 6-step checklist ensures systematic troubleshooting before escalation.
 
 | Indicator | Self-Resolve | Escalate |
 |-----------|--------------|----------|
-| Admission webhook | VLAN conflict, connection not found | Resource applied but config doesn't converge |
+| Configuration and reconciliation | Recorded validation error with a clear fix | Accepted object with unexplained persistent non-convergence |
 | Pods | Running | CrashLoopBackOff |
 | Agent convergence | APPLIEDG == CURRENTG | APPLIEDG stuck below CURRENTG |
 | BGP | Established | Flapping without cause |
