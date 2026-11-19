@@ -8,7 +8,7 @@
       "type": "multiple_choice",
       "stem": "A user says server-07 cannot reach customer-app-vpc. On a fresh released lab, the named VPC lookup prints nothing and the matching VPCAttachment list is empty. What is the best next action?",
       "options": [
-        {"id": "a", "text": "Restart the fabric controller because the webhook must have rejected the VPC"},
+        {"id": "a", "text": "Conclude the VPC was never submitted"},
         {"id": "b", "text": "Request the manifests and submission history"},
         {"id": "c", "text": "Change the switch port to VLAN 1020"},
         {"id": "d", "text": "Escalate a confirmed DHCP failure"}
@@ -34,7 +34,7 @@
       "type": "multiple_choice",
       "stem": "On fabric v0.96.2, querying .status.state.interfaces[\"E1/3\"].vlans returns null. How should you interpret that result?",
       "options": [
-        {"id": "a", "text": "That VLAN list is not part of this Agent interface status; inspect the VPC/attachment specs and use a server-side test when the objects exist"},
+        {"id": "a", "text": "That field is unavailable; inspect the specs when objects exist"},
         {"id": "b", "text": "No VLAN can be configured on the switch"},
         {"id": "c", "text": "The VLAN was silently reassigned by the VLANNamespace"},
         {"id": "d", "text": "The controller is in CrashLoopBackOff"}

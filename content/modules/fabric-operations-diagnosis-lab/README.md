@@ -66,7 +66,7 @@ kubectl get agents
 kubectl get agent leaf-03 -o json | jq '{currentGeneration: .metadata.generation, appliedGeneration: .status.lastAppliedGen, appliedCondition: [.status.conditions[]? | select(.type == "Applied") | .status], interface: (.status.state.interfaces["E1/3"] // null)}'
 ```
 
-Compare `APPLIEDG` and `CURRENTG` for all seven Agents. Equal values mean each Agent applied its current desired generation. The `Applied=True` condition can persist across a restart, so compare generations too. The interface object shows operational state and counters; it does **not** show tenant VLAN membership. An operational port does not prove DHCP or gateway reachability for an absent VPC.
+Compare `APPLIEDG` and `CURRENTG` for all Agents. Equal values mean each Agent applied its current desired generation. In this released fabric, an `Applied=True` condition can persist across a restart, so compare generations too. The interface object shows operational state and counters; it does **not** show tenant VLAN membership. An operational port does not prove DHCP or gateway reachability for an absent VPC.
 
 If the generations differ, wait and repeat the check before classifying it as persistent divergence. If Task 1 found a different switch or port, substitute those values in the second command.
 
@@ -74,7 +74,7 @@ If the generations differ, wait and repeat the check before classifying it as pe
 
 Open **Hedgehog Switch Interface Counters** in Grafana (admin/admin), select Switch `leaf-03` and Interface `E1/3`, and record the visible state and input/output series. Open **Hedgehog Fabric** for BGP context. In **Hedgehog Fabric Logs**, select `leaf-03` and record any relevant entries with their timestamps. A generic log error or an empty chart is not, by itself, the cause of this VPC report. Switch metrics may take a few minutes to appear after a fresh boot; wait and retry if the port is missing from the selector at first.
 
-On the released-image validation clone, E1/3 appeared Up with input/output series after telemetry settled, and the BGP query returned 62 series. Those observations describe that clone at that time. They do not establish a server-07 tenant gateway ping, a DHCP lease, or a configured tenant VLAN.
+On the released-image validation clone, E1/3 appeared Up with input/output series after telemetry settled, and the BGP query returned live series. Those observations describe that clone at that time. They do not establish a server-07 tenant gateway ping, a DHCP lease, or a configured tenant VLAN.
 
 ### Task 4: Revise the hypothesis and write the handoff
 
