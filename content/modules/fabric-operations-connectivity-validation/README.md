@@ -297,7 +297,7 @@ You don't need to understand every field in the Agent CRD. The key insight: if V
 
 **Objective:** Understand end-to-end validation approach
 
-In a vlab environment, servers are simulated, so actual ping tests may not be possible. However, understanding the **validation methodology** is critical for production deployments.
+The VLAB servers are nested virtual machines, so a gateway ping is possible after configuring their data interfaces. The production examples below assume a single interface named `eth0`; they are illustrative and do not match this VLAB's bonded, tagged server connections.
 
 **Validation layers (from abstract to physical):**
 
@@ -339,12 +339,26 @@ ip addr show eth0
 ping -c 3 10.10.20.1
 ```
 
-**In vlab environment:**
+**Optional VLAB gateway check (server-01):**
 
-Since servers are simulated, focus on:
-- kubectl describe output showing no errors
-- Event inspection showing successful reconciliation
-- Agent CRD verification showing configuration applied
+After creating `webapp-prod` and its `server-01-web-servers` attachment, open the nested server from the lab VM with `cd ~/hhfab && hhfab vlab ssh --name server-01`. Run the following once inside that server. Its data links are `enp2s1` and `enp2s2`; the attachment uses an 802.3ad bond and tagged VLAN 1010. This configuration is temporary and does not change the saved image.
+
+```bash
+sudo modprobe bonding
+sudo ip link add bond0 type bond mode 802.3ad miimon 100 lacp_rate fast
+for nic in enp2s1 enp2s2; do
+  sudo ip link set "$nic" down
+  sudo ip link set "$nic" master bond0
+  sudo ip link set "$nic" up
+done
+sudo ip link set bond0 up
+sudo ip link add link bond0 name bond0.1010 type vlan id 1010
+sudo ip link set bond0.1010 up
+sudo ip addr add 10.10.10.10/24 dev bond0.1010
+ping -n -c 3 -W 2 10.10.10.1
+```
+
+The released R0 image passed this gateway ping. A separate test also passed a routed ping between server-05 and server-01 after configuring both servers' bonds, VLANs, addresses and routes. DHCP lease assignment was not tested. For the course checks, also verify the VPC and attachments exist and the relevant Agents show `APPLIEDG == CURRENTG`; an empty Kubernetes Events section is normal for these objects.
 
 **Validation checklist summary:**
 
@@ -702,6 +716,8 @@ kubectl exec -n fab <agent-pod-name> -- ping <switch-ip>
 **Cause:** Server OS network configuration missing or incorrect
 
 **Fix:**
+
+The commands below are generic single-interface production examples. In this VLAB, use the bonded VLAN procedure in Step 5; `eth0` is not a server data interface here.
 
 ```bash
 # SSH to server and check network configuration
