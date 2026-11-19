@@ -115,12 +115,13 @@ A user reports that `server-07` cannot reach a proposed `customer-app-vpc`. Firs
 
 ### Task 1: Run the six-step pre-escalation checklist
 
-Run these commands as `ubuntu` on the lab VM. Keep the same shell open for Tasks 1 and 2. The reported name is a search key, not proof that a VPC was submitted or accepted. The browser URLs use `YOUR_VM_IP`; commands run on the VM can reach Prometheus at `127.0.0.1`.
+Run these commands as `ubuntu` on the lab VM. Keep the same shell open through Task 4 so the discovered values and bundle path remain available; in a new shell, rerun Task 1 and set `OUTDIR` to the bundle directory before continuing. The reported name is a search key, not proof that a VPC was submitted or accepted. The browser URLs use `YOUR_VM_IP`; commands run on the VM can reach Prometheus at `127.0.0.1`.
 
 **1. Resource and controller health**
 
 ```bash
 discover_server_07() {
+  unset CONN SW PORT LINK
   VPC=customer-app-vpc
   kubectl get connections | grep '^server-07--' || true
   mapfile -t matches < <(kubectl get connections -o name | grep '/server-07--unbundled--' || true)
@@ -197,6 +198,7 @@ TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
 OUTDIR="hedgehog-diagnostics-${TIMESTAMP}"
 collect_diagnostics() (
 set -euo pipefail
+umask 077
 : "${VPC:?Run Task 1 first}"
 : "${CONN:?Run Task 1 first}"
 : "${SW:?Run Task 1 first}"
@@ -204,7 +206,7 @@ set -euo pipefail
 mkdir -p "$OUTDIR"
 printf 'Reported issue: server-07 cannot reach %s\nCollection time: %s UTC\n' "$VPC" "$(date -u +%FT%TZ)" > "$OUTDIR/report.txt"
 printf 'Connection: %s\nSwitch: %s\nPort: %s\n' "$CONN" "$SW" "$PORT" >> "$OUTDIR/report.txt"
-kubectl get vpc "$VPC" --ignore-not-found -o yaml > "$OUTDIR/reported-vpc.yaml"
+kubectl get vpc "$VPC" --ignore-not-found -o yaml > "$OUTDIR/reported-vpc.yaml" # Intentionally empty if absent
 kubectl get vpcattachments -o json | jq --arg vpc "$VPC" '[.items[] | select((.spec.subnet // "") | startswith($vpc + "/"))]' > "$OUTDIR/reported-attachments.json"
 kubectl get "$CONN" -o yaml > "$OUTDIR/server-connection.yaml"
 kubectl get switches,servers,connections > "$OUTDIR/wiring-summary.txt"
