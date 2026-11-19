@@ -128,13 +128,13 @@ kubectl get connections | grep '^server-03--'
 kubectl get connection server-03--unbundled--leaf-01 -o jsonpath='{.spec.unbundled.link.switch.port}' && echo
 ```
 
-The released wiring maps `server-03/enp2s1` to `leaf-01/E1/7`. The first command is the lookup; if your lab shows another connection, use its actual name and switch port in the remaining steps. A Connection describes cabling. It does not establish that the server has a VPC attachment.
+The released wiring maps `server-03/enp2s1` to `leaf-01/E1/7`. The first command is the lookup; copy the Connection name it prints into the second command if your lab differs, then use its actual switch port in the remaining steps. The name and port come from the released image's `course-wiring.yaml` and may change in later releases. A Connection describes cabling. It does not establish that the server has a VPC attachment.
 
 ### Task 2: Check whether the requested VPC and attachment exist
 
 ```bash
 kubectl get vpc testapp-vpc -o name --ignore-not-found
-kubectl get vpcattachments -o json | jq '[.items[] | select(.spec.subnet | startswith("testapp-vpc/")) | {name: .metadata.name, subnet: .spec.subnet, connection: .spec.connection}]'
+kubectl get vpcattachments -o json | jq '[.items[] | select((.spec.subnet // "") | startswith("testapp-vpc/")) | {name: .metadata.name, subnet: .spec.subnet, connection: .spec.connection}]'
 ```
 
 On a fresh released R0 VM, the first command prints nothing and the second prints `[]`. These observations mean the requested VPC and attachment are absent. They do **not** prove why: nobody may have submitted them, they may have been deleted, or an earlier apply may have failed. An admission webhook error appears at `kubectl apply` time; Kubernetes Events do not reconstruct one after the fact for these fabric resources. If your lab has different objects, record the actual names and inspect their specs instead of treating the baseline output as a fault.
@@ -466,7 +466,7 @@ kubectl get vpc
 # myvpc     default    default    10s
 # test-vpc  default    default    5h
 
-# An unattached VPC does not enter a switch Agent spec or change its generation.
+# In fabric v0.96.2, an unattached VPC does not enter a switch Agent spec or change its generation.
 # Check Agent convergence after an attachment changes switch configuration.
 ```
 
