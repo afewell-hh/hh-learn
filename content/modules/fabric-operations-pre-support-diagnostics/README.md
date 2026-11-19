@@ -175,7 +175,7 @@ Prometheus state `6` means Established. Check that `series` is greater than zero
 
 **5. Grafana review**
 
-Open `http://YOUR_VM_IP:3000` (admin/admin). In **Hedgehog Switch Interface Counters**, select the discovered switch and port and record the shown state and traffic counters. If the port is missing immediately after boot, repeat after switch metrics arrive in Prometheus. In **Hedgehog Fabric**, review BGP sessions. In **Hedgehog Fabric Logs**, search for the switch and report whether matching logs appear. The virtual switches may have no temperature, fan, ASIC or filesystem sensor series; do not report missing hardware-only panels as a fault. These dashboards do not display configured tenant VLAN membership.
+Open `http://YOUR_VM_IP:3000` (admin/admin). In **Hedgehog Switch Interface Counters**, select the discovered switch and port and record the shown state and traffic counters. If the port is missing immediately after boot, repeat after switch metrics arrive in Prometheus. In **Hedgehog Fabric**, review BGP sessions. In **Hedgehog Fabric Logs**, select the discovered switch and record any matching logs; a log line needs interpretation before it becomes evidence of the reported problem. The virtual switches may have no temperature, fan, ASIC or filesystem sensor series; do not report missing hardware-only panels as a fault. These dashboards do not display configured tenant VLAN membership.
 
 **6. Controller logs**
 
