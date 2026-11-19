@@ -325,15 +325,26 @@ modules:
     fast_forward_needed: false
     is_read_only: false
     prerequisites: []
-    creates: []
-    destroys: []
+    creates:
+      - type: vpc
+        name: r0-revert
+        namespace: default
+        vlans: [1997]
+        subnets:
+          - name: practice
+            subnet: "10.99.91.0/24"
+            gateway: "10.99.91.1"
+            vlan: 1997
+            dhcp: false
+    destroys:
+      - type: vpc
+        name: r0-revert
+        namespace: default
     notes: >
-      GitOps rollback workflow module. Lab steps involve git revert and
-      ArgoCD sync against the student/hedgehog-config Gitea repository.
-      Modifies Gitea commit history but does not create or destroy K8s fabric
-      resources (VPCs, VPCAttachments). The scenario uses webapp-vpc as an
-      illustrative example for the git revert demonstration. Fabric state
-      is unchanged after this module.
+      Create one unattached practice VPC through the student/hedgehog-config
+      Gitea repository and ArgoCD application, then revert the actual creation
+      commit and verify ArgoCD prunes it. Two Git commits remain; the final
+      fabric state has no practice VPC. No attachments or dataplane test.
 
   - slug: fabric-operations-post-incident-review
     course: 4
