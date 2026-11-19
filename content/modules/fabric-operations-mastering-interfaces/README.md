@@ -343,7 +343,7 @@ Gitea provides Git-based version control for your network configurations. Every 
 
 **Steps:**
 
-1. Open Gitea in your browser: `http://YOUR_VM_IP:3001` (or `http://localhost:3001` if using RDP inside the VM)
+1. Open Gitea in your browser: `http://YOUR_VM_IP:3001`
 2. Navigate to the `student/hedgehog-config` repository
 3. Click **Commits** in the top navigation
 4. Review the commit history
@@ -514,7 +514,7 @@ Hedgehog provides **6 pre-built dashboards** covering different aspects of fabri
 
 ### Grafana Dashboard Tour Overview
 
-**Access:** `http://YOUR_VM_IP:3000` (username: `admin`, password: `admin`) — use `http://localhost:3000` if accessing from inside the VM via RDP
+**Access:** `http://YOUR_VM_IP:3000` (username: `admin`, password: `admin`)
 
 **The 6 Hedgehog Dashboards:**
 
@@ -535,7 +535,7 @@ Hedgehog provides **6 pre-built dashboards** covering different aspects of fabri
 
 **Purpose:** High-level fabric health overview - your daily starting point
 
-**URL:** `http://localhost:3000/d/ab831ceb-cf5c-474a-b7e9-83dcd075c218/fabric`
+**URL:** `http://YOUR_VM_IP:3000/d/ab831ceb-cf5c-474a-b7e9-83dcd075c218/fabric`
 
 **Key panels to look for:**
 - **Switch Status** - Green/red indicators for each switch
@@ -565,7 +565,7 @@ Open the Fabric dashboard and answer:
 
 **Purpose:** Hedgehog control plane health (Kubernetes & Fabricator controller)
 
-**URL:** `http://localhost:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
+**URL:** `http://YOUR_VM_IP:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
 
 **Key panels to look for:**
 - **Control Node Status** - CPU, memory, disk usage of control plane
@@ -597,7 +597,7 @@ Open the Platform dashboard and observe:
 
 **Purpose:** Switch port utilization, link status, and error rates
 
-**URL:** `http://localhost:3000/d/a5e5b12d-b340-4753-8f83-af8d54304822/interfaces`
+**URL:** `http://YOUR_VM_IP:3000/d/a5e5b12d-b340-4753-8f83-af8d54304822/interfaces`
 
 **Key panels to look for:**
 - **Port Status** - Up/down state for all interfaces
@@ -627,7 +627,7 @@ Open the Interfaces dashboard and check:
 
 **Purpose:** Aggregated syslog messages from all switches
 
-**URL:** `http://localhost:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
+**URL:** `http://YOUR_VM_IP:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
 
 **Key panels to look for:**
 - **Recent Logs** - Stream of syslog messages
@@ -657,7 +657,7 @@ Open the Logs dashboard and try:
 
 **Purpose:** Switch hardware metrics (CPU, memory, disk, system load)
 
-**URL:** `http://localhost:3000/d/rYdddlPWv/node-exporter-full-2`
+**URL:** `http://YOUR_VM_IP:3000/d/rYdddlPWv/node-exporter-full-2`
 
 **Key panels to look for:**
 - **CPU Usage** - Per-switch CPU utilization
@@ -682,7 +682,7 @@ These are your **switch vital signs**—Linux OS-level metrics. High CPU or memo
 
 **Purpose:** Critical Resource Monitoring - ASIC resources (TCAM, route tables, neighbors)
 
-**URL:** `http://localhost:3000/d/fb08315c-cabb-4da7-9db9-2e17278f1781/switch-critical-resources`
+**URL:** `http://YOUR_VM_IP:3000/d/fb08315c-cabb-4da7-9db9-2e17278f1781/switch-critical-resources`
 
 **Key panels to look for:**
 - **TCAM Utilization** - ACL and route table space used
@@ -848,17 +848,17 @@ Events:
 **Actions:**
 
 1. **Open Fabric Dashboard**
-   - URL: `http://localhost:3000/d/ab831ceb-cf5c-474a-b7e9-83dcd075c218/fabric`
+   - URL: `http://YOUR_VM_IP:3000/d/ab831ceb-cf5c-474a-b7e9-83dcd075c218/fabric`
    - Check: Are all switches showing green (Up) status?
    - Red switches indicate hardware/connectivity issues
 
 2. **Open Platform Dashboard**
-   - URL: `http://localhost:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
+   - URL: `http://YOUR_VM_IP:3000/d/f8a648b9-5510-49ca-9273-952ba6169b7v/platform`
    - Check: Is Fabricator error count = 0?
    - Errors here mean reconciliation loop is failing
 
 3. **Open Logs Dashboard**
-   - URL: `http://localhost:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
+   - URL: `http://YOUR_VM_IP:3000/d/c42a51e5-86a8-42a0-b1c9-d1304ae655bv/logs`
    - Search for "broken-vpc" or "DHCP"
    - Look for error messages related to DHCP relay or VPC configuration
 
@@ -1164,7 +1164,7 @@ kubectl describe <resource-type> <name>                     # Events in context
 ### Gitea Quick Reference
 
 **Navigation:**
-- **Repository URL:** `http://localhost:3001/student/hedgehog-config`
+- **Repository URL:** `http://YOUR_VM_IP:3001/student/hedgehog-config`
 - **Commits:** Click "Commits" tab to view history
 - **Diff View:** Click on any commit to see changes
 - **File Browser:** Click files/folders to navigate
@@ -1179,7 +1179,7 @@ kubectl describe <resource-type> <name>                     # Events in context
 
 ### Grafana Quick Reference
 
-**Access:** `http://localhost:3000` (admin/prom-operator)
+**Access:** `http://YOUR_VM_IP:3000` (admin/admin)
 
 **Dashboard URLs:**
 
