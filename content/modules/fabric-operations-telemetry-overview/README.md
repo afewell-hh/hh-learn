@@ -102,6 +102,20 @@ rate(fabric_agent_interface_out_octets{hostname="leaf-01",interface="E1/5"}[5m])
 
 The octet counter accumulates bytes; its raw value is not the current link speed. `rate(...[5m]) * 8` estimates bits per second from samples in a five-minute window. A fresh VM may need time to collect enough samples before the rate appears. A utilization gauge such as `fabric_agent_interface_in_utilization` is an instantaneous reported level and does not need `rate()`.
 
+If `E1/5` has no series, query `fabric_agent_interface_out_octets{hostname="leaf-01"}` and choose an `interface` label from the actual result for both counter and rate queries.
+
+### PromQL quick reference
+
+These optional expressions reuse the same observed series:
+
+```promql
+fabric_agent_interface_out_octets{hostname=~"leaf-.*"}
+avg by (hostname) (fabric_agent_interface_in_utilization)
+sum by (hostname) (rate(fabric_agent_interface_out_octets[5m]))
+```
+
+`=~` selects labels matching a regular expression; here it selects leaf hostnames. `avg by (hostname)` averages interface gauge values for each switch. `sum by (hostname)` adds per-interface counter rates for each switch, after `rate()` has converted each counter to bytes per second. These aggregates answer different questions from a single interface sample and need enough fresh data in the selected window. See the [Prometheus query operators](https://prometheus.io/docs/prometheus/latest/querying/operators/) for the full syntax.
+
 To see whether a BGP sample is recent, you can also query:
 
 ```promql
