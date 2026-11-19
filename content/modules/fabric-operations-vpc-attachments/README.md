@@ -3,7 +3,7 @@ title: "VPC Attachments: Connecting Servers"
 slug: "fabric-operations-vpc-attachments"
 difficulty: "beginner"
 estimated_minutes: 25
-version: "v1.0.0"
+version: "v1.1.0"
 validated_on: "2025-10-16"
 pathway_slug: "network-like-hyperscaler"
 pathway_name: "Network Like a Hyperscaler"
@@ -22,13 +22,13 @@ order: 202
 
 ## Introduction
 
-In Module 2.1, you created the `webapp-prod` VPC with two subnets: `web-servers` (static IPs) and `worker-nodes` (DHCP). Your VPC is fully configured and ready—but there's one problem: **no servers can reach it yet**.
+In Module 2.1, you created the `webapp-prod` VPC with two subnets: `web-servers` (static IPs) and `worker-nodes` (DHCP). The VPC object is stored, but no server connection has been attached to it yet.
 
-A VPC without servers is like a road without cars—perfectly built but completely unused. To make your VPC operational, you need to **attach servers** to it. This is where **VPCAttachment** comes in.
+A VPC without attached servers has no course workload using its subnets. To configure the switch side of a server connection, create a **VPCAttachment**.
 
-VPCAttachment bridges the virtual and physical layers of your infrastructure. It binds a VPC subnet (virtual network) to a server connection (physical wiring), automatically configuring the switches to enable connectivity. Once attached, your servers can communicate within the VPC, and your three-tier application network comes to life.
+VPCAttachment bridges the virtual and physical layers of your infrastructure. It binds a VPC subnet (virtual network) to a server connection (physical wiring), causing the affected switches to configure that connection. Server addressing and traffic still require a configured data interface and separate validation.
 
-In this module, you'll attach two servers to the `webapp-prod` VPC you created in Module 2.1, learning about different connection types and validating the complete connectivity workflow.
+In this module, you'll attach two server connections to the `webapp-prod` VPC you created in Module 2.1, learn their connection types, and validate the resulting attachment and Agent state.
 
 ## Learning Objectives
 
@@ -36,7 +36,7 @@ By the end of this module, you will be able to:
 
 1. **Create VPCAttachments** - Connect servers to VPC subnets using YAML manifests
 2. **Distinguish connection types** - Explain MCLAG, ESLAG, Bundled, and Unbundled connections
-3. **Validate server connectivity** - Confirm VPCAttachment status and server network access
+3. **Validate attachment state** - Confirm the named attachments and affected Agent generations
 4. **Troubleshoot attachment issues** - Diagnose common VPCAttachment problems
 5. **Understand the three-tier hierarchy** - Recognize Wiring → VPC → VPCAttachment relationship
 
@@ -50,7 +50,7 @@ By the end of this module, you will be able to:
 
 ## Scenario: Completing the Connectivity Workflow
 
-The `webapp-prod` VPC is ready, but no servers can reach it yet. Your task: attach two servers to the VPC—`server-01` (MCLAG connection) to the `web-servers` subnet for static IPs, and `server-05` (ESLAG connection) to the `worker-nodes` subnet for DHCP. This will complete the connectivity workflow and make the VPC operational, allowing your web application to serve traffic and your worker nodes to scale dynamically.
+The `webapp-prod` VPC exists, but its subnets are not yet attached to server connections. Your task: attach `server-01` (MCLAG connection) to the `web-servers` subnet for static addressing and `server-05` (ESLAG connection) to the `worker-nodes` subnet with DHCP enabled. This configures the fabric side; application traffic and a DHCP lease require separate server-side setup and checks.
 
 > **Before You Begin the Lab**
 >
@@ -232,7 +232,7 @@ Note: VPCAttachment events do not appear in `kubectl get events` — use agent g
 
 - ✅ VPCAttachment created successfully
 - ✅ Agent APPLIEDG == CURRENTG on leaf-01 and leaf-02
-- ✅ No errors shown in `kubectl describe vpcattachment server-01-web-servers`
+- ✅ `kubectl describe vpcattachment server-01-web-servers` shows the intended connection and subnet
 
 ### Step 3: Create VPCAttachment for server-05 (ESLAG, DHCP)
 
@@ -258,7 +258,7 @@ EOF
 - **Connection type**: ESLAG (EVPN-based multi-homing to leaf-03 and leaf-04)
 - **Subnet**: `worker-nodes` (DHCPv4 subnet for dynamic IP assignment)
 - **DHCP range**: 10.10.20.10-250 (configured in the VPC subnet)
-- **Result**: VLAN 1020 will be configured on server-05's ports, DHCP server will offer IPs
+- **Result after switch application**: VLAN 1020 is configured on the server-05 connection. A lease also requires the server's data interface to request DHCP on the matching network.
 
 Apply the VPCAttachment:
 
@@ -279,17 +279,22 @@ kubectl get vpcattachments
 
 # Get detailed information
 kubectl describe vpcattachment server-05-worker-nodes
+
+# Wait until APPLIEDG equals CURRENTG on leaf-03 and leaf-04
+kubectl get agents
 ```
 
 **Success Criteria:**
 
 - ✅ VPCAttachment created successfully
-- ✅ Server-05 will receive DHCP IP from range when booted (10.10.20.10-250)
-- ✅ No error events
+- ✅ The attachment references `webapp-prod/worker-nodes` and the actual ESLAG connection
+- ✅ The affected Agents report applied generations matching their current generations after the change
+
+Creating an attachment does not prove that server-05 has obtained a DHCP lease. The nested server needs a configured data interface and DHCP client; lease and dataplane validation are separate exercises.
 
 ### Step 4: Validate VPCAttachments
 
-**Objective:** Confirm both attachments are operational
+**Objective:** Confirm both attachments are stored and their affected switch configurations have been applied
 
 List all VPCAttachments to see the complete picture:
 
@@ -337,7 +342,7 @@ kubectl get connection server-05--eslag--leaf-03--leaf-04 -o yaml | grep -A 5 "e
 
 - ✅ Both attachments appear in list
 - ✅ Agent APPLIEDG == CURRENTG (reconciliation complete)
-- ✅ No errors shown in kubectl describe for either attachment
+- ✅ Both `kubectl describe` reads show the intended connection and subnet; an empty Events section alone is inconclusive
 - ✅ Connection types confirmed (MCLAG vs ESLAG)
 
 ### Step 5: Understand Connection Type Impact
@@ -385,7 +390,7 @@ kubectl get connection server-05--eslag--leaf-03--leaf-04 -o yaml
 4. **Computes configuration** - Calculates VLAN on server-facing ports, VXLAN tunnel config, BGP EVPN routes
 5. **Updates Agent CRDs** - Writes switch configurations to Agent CRD specs
 6. **Switch agents apply config** - Each switch agent configures its local switch
-7. **Status reported** - Success or errors shown in events
+7. **Status reported** - The affected Agents report their applied generations; VPCAttachment events may be empty
 
 **From an operator perspective:**
 

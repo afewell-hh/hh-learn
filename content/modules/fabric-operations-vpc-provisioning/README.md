@@ -3,7 +3,7 @@ title: "VPC Provisioning Essentials"
 slug: "fabric-operations-vpc-provisioning"
 difficulty: "beginner"
 estimated_minutes: 20
-version: "v1.0.0"
+version: "v1.1.0"
 validated_on: "2025-10-16"
 pathway_slug: "network-like-hyperscaler"
 pathway_name: "Network Like a Hyperscaler"
@@ -30,7 +30,7 @@ By the end of this module, you will be able to:
 1. **Provision a VPC** - Create a VPC using kubectl apply with YAML manifest
 2. **Distinguish subnet types** - Explain the difference between IPv4 (static) and DHCPv4 subnets
 3. **Validate VPC creation** - Use kubectl get/describe to confirm VPC status
-4. **Interpret VPC events** - Read Kubernetes events to track reconciliation
+4. **Interpret VPC observations** - Distinguish API acceptance, desired spec, and Agent status; know why an empty Events section is inconclusive
 5. **Troubleshoot common issues** - Diagnose and fix VPC provisioning problems
 
 ## Prerequisites
@@ -97,7 +97,7 @@ EOF
     - VLAN 1010 for layer 2 isolation
   - **worker-nodes:** DHCPv4 subnet (DHCP enabled)
     - 10.10.20.0/24 subnet
-    - DHCP range: .10-.250 (240 IPs available)
+    - DHCP range: .10-.250 (241 IPs available)
     - Gateway at .1 (outside DHCP range)
 
 **Validation:**
@@ -143,20 +143,20 @@ kubectl get vpcs
 # webapp-prod    5s
 ```
 
-**Verify reconciliation via agent status:**
+**Check the fabric's existing Agent status:**
 
 ```bash
-# Confirm agents applied the config (APPLIEDG should equal CURRENTG)
+# Confirm APPLIEDG matches CURRENTG on all seven Agents
 kubectl get agents
 ```
 
-> **Note on events:** `kubectl get events --field-selector involvedObject.name=webapp-prod` will return no results — this is expected. The current version of Hedgehog Fabric does not emit Kubernetes events for VPC operations. Use agent status to verify reconciliation.
+> **What this proves:** `kubectl apply` and `kubectl get vpc` confirm the API accepted and stores the VPC. This VPC has no attachments yet, so its subnets need not enter any switch Agent spec or increase an Agent generation. Matching `APPLIEDG` and `CURRENTG` shows the existing switch configuration is caught up; it is not proof that this unattached VPC reached a switch. The current Fabric release does not emit VPC operation events.
 
 **Success Criteria:**
 
 - ✅ VPC appears in `kubectl get vpcs` output
 - ✅ No error messages during apply
-- ✅ Agent APPLIEDG matches CURRENTG (reconciliation complete)
+- ✅ Existing Agent generations match; no generation increase is required for an unattached VPC
 
 ### Step 3: Inspect VPC Status
 
@@ -206,12 +206,12 @@ Spec:
 Events:  <none>
 ```
 
-> **Expected:** The Events section will be empty — this is normal. Hedgehog Fabric does not emit Kubernetes events for VPC operations. An empty Events section means no errors occurred.
+> **Expected:** The Events section may be empty because this Fabric release does not emit VPC operation events. Its absence neither proves success nor rules out an error. Check the apply result and stored spec; Course 2.2 checks switch application after attaching servers.
 
 **Verification checklist:**
 
 ```bash
-# Confirm agent applied the config
+# Check existing fabric health; an unattached VPC need not change Agent specs
 kubectl get agents
 
 # APPLIEDG should equal CURRENTG for all agents
@@ -222,20 +222,20 @@ kubectl get agents
 - ✅ VPC shows both subnets with correct CIDR blocks
 - ✅ VLANs assigned (1010 and 1020)
 - ✅ DHCP range visible for worker-nodes subnet
-- ✅ Events section is empty (no errors)
+- ✅ Understand that an empty Events section is inconclusive
 
-### Step 4: Verify Reconciliation via Agent Status
+### Step 4: Inspect Agent Status Before Attachment
 
-**Objective:** Confirm reconciliation completed successfully
+**Objective:** Read the existing switch status without attributing a generation change to this unattached VPC
 
-Verify the fabric controllers applied the VPC configuration to switches:
+Check the seven Agents before the VPC is attached to any server:
 
 ```bash
 # Check all agents — APPLIEDG should equal CURRENTG
 kubectl get agents
 ```
 
-**Expected output (APPLIEDG == CURRENTG for all agents = reconciliation complete):**
+**Expected output (generation numbers vary; equality shows current switch specs are applied):**
 
 ```
 NAME       ROLE          DESCR           APPLIED   APPLIEDG   CURRENTG   VERSION
@@ -244,28 +244,27 @@ leaf-02    server-leaf   VS-02 MCLAG 1   2m        7          7          v0.96.2
 ...
 ```
 
-**Inspect a specific agent for confirmation:**
+**Inspect a specific Agent's reported condition:**
 
 ```bash
 # Check Applied condition = True
 kubectl get agent leaf-01 -o yaml | grep -A 5 "conditions:"
 ```
 
-**Understanding reconciliation flow:**
+**Understanding the stages:**
 
 1. **VPC created:** Object stored in Kubernetes etcd
-2. **Fabric Controller detects change:** Computes new switch configurations
-3. **Agent specs updated:** Controller writes new config to each Agent CRD
-4. **Switch agents apply:** Agents detect spec change, apply via gNMI, increment APPLIEDG
-5. **Complete:** APPLIEDG == CURRENTG, Applied condition = True
+2. **VPC remains unattached:** Its subnets are stored as desired state; no switch configuration change is required yet
+3. **Course 2.2 attaches servers:** The controller adds the relevant VPC and attachment configuration to the affected Agent specs
+4. **Switch agents apply:** The affected Agents report `APPLIEDG == CURRENTG` after processing that change
 
-> **Note on Kubernetes events:** `kubectl get events --field-selector involvedObject.name=webapp-prod` will return no results — the current version of Hedgehog Fabric does not emit K8s events for VPC operations. Agent status is the correct way to verify reconciliation.
+> **Note:** An `Applied=True` condition may already exist from earlier switch configuration. It does not by itself prove this VPC was installed. Course 2.2 creates the named attachments and checks affected Agent generations. VPC operation events are not emitted in this release.
 
 **Success Criteria:**
 
-- ✅ Agent APPLIEDG matches CURRENTG for all 7 agents
-- ✅ Agent conditions show `Applied=True`
-- ✅ Understand that reconciliation is verified through agent status, not VPC events
+- ✅ Agent APPLIEDG matches CURRENTG for all 7 agents at baseline
+- ✅ Inspect leaf-01's `Applied=True` condition without treating it as VPC-specific evidence
+- ✅ Explain why this unattached VPC has not yet caused a switch configuration change
 
 ### Step 5: Validate Configuration Matches Desired State
 
@@ -323,7 +322,7 @@ kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 - ✅ Created production-ready VPC manifest with two subnets
 - ✅ Applied VPC configuration using kubectl
 - ✅ Validated VPC status and configuration
-- ✅ Observed reconciliation events
+- ✅ Distinguished the stored VPC spec from switch application and absent VPC events
 - ✅ Confirmed desired state matches actual state
 
 **What you learned:**
@@ -331,7 +330,7 @@ kubectl get vpc webapp-prod -o jsonpath='{.spec.subnets.worker-nodes.dhcp}' | jq
 - IPv4 subnets (no DHCP) are for static IP assignments
 - DHCPv4 subnets (DHCP enabled) provide dynamic IP allocation
 - VPC reconciliation happens automatically via the control loop
-- Events provide visibility into the provisioning process
+- This release does not emit VPC operation events; inspect the stored object and, after attachment, affected Agent specs and applied generations
 - kubectl is your primary tool for VPC lifecycle management
 
 **Next steps:**
@@ -464,14 +463,14 @@ VPC status is intentionally minimal. Most operational state lives in Agent CRDs 
 ```yaml
 status:
   # Status fields are minimal or empty
-  # Use events and Agent CRDs for detailed state
+  # After attachment, use affected Agent CRDs for switch state
 ```
 
 **Why minimal status?**
 
 - VPC is declarative intent (what you want)
 - Agent CRDs contain switch operational state (what exists)
-- Events show reconciliation progress (what happened)
+- This release does not emit VPC operation events; an empty Events section is inconclusive
 - This separation keeps VPC definition clean and focused
 
 **Auto-assigned VLANs:**
@@ -509,11 +508,10 @@ web-servers:
    - VXLAN VNI assignment
    - VLAN-to-VXLAN mappings
    - BGP EVPN route targets
-5. **Agent CRD Update:** Controller writes switch configurations to Agent CRD specs
-6. **Switch Agent Detection:** Each switch agent watches its Agent CRD
-7. **Configuration Application:** Switch agents apply config via gNMI to SONiC
-8. **Status Reporting:** Switch agents report back to Agent CRD status
-9. **Event Generation:** Controller emits events showing progress
+5. **Before attachment:** No switch needs this VPC solely because the VPC object exists
+6. **After attachment:** Controller writes the VPC and attachment into affected Agent specs
+7. **Configuration Application:** Affected switch agents apply their changed specs
+8. **Status Reporting:** Those Agents report `APPLIEDG == CURRENTG` when caught up
 
 **Timeline:**
 
@@ -523,13 +521,7 @@ web-servers:
 
 **When is a VPC "Ready"?**
 
-A VPC is ready when:
-- ✅ No error events in `kubectl get events`
-- ✅ VPC can be queried without errors
-- ✅ Events show "Ready" or reconciliation completion
-- ✅ Relevant switches have updated Agent CRD status
-
-**Note:** VPC status field may be empty even when ready. Trust the events!
+Before attachment, confirm that `kubectl apply` succeeded and `kubectl get vpc webapp-prod -o yaml` contains the intended subnets. After Course 2.2 creates attachments, inspect those objects, the affected Agents' desired specs, and `APPLIEDG == CURRENTG`. An empty VPC Events section or minimal VPC status cannot substitute for those checks. Neither stage alone proves a server obtained a lease or passed traffic.
 
 ### VPC Naming Best Practices
 
@@ -566,22 +558,20 @@ A VPC is ready when:
 
 ## Troubleshooting
 
-### Issue: VPC stuck in "Pending" state
+### Issue: VPC creation or configuration fails
 
-**Symptom:** `kubectl get vpc` shows VPC but events show warnings
+**Symptom:** `kubectl apply` is rejected, the VPC is absent, or its stored spec differs from the manifest
 
-**Cause:** Configuration validation error or VLAN conflict
+**Possible cause:** Configuration validation error or VLAN conflict
 
 **Fix:**
 
 ```bash
-# Check events for specific error
-kubectl describe vpc webapp-prod
+# Read the actual API response and stored spec, if present
+kubectl get vpc webapp-prod -o yaml
 
-# Look for error messages like:
-# - "VLAN 1010 already in use"
-# - "Subnet overlaps with existing VPC"
-# - "Invalid CIDR notation"
+# An empty Events section is not proof of success or failure
+kubectl describe vpc webapp-prod
 
 # If VLAN conflict, change VLAN ID in YAML
 # If subnet overlap, choose different subnet range
@@ -735,27 +725,15 @@ kubectl delete vpc <name>
 kubectl delete -f vpc.yaml
 ```
 
-**Event monitoring:**
+**Event caveat:**
 
-```bash
-# View VPC events
-kubectl get events --field-selector involvedObject.name=<vpc-name>
-
-# Sort events by time
-kubectl get events --sort-by='.lastTimestamp' | grep <vpc-name>
-
-# Watch events in real-time
-kubectl get events --watch --field-selector involvedObject.name=<vpc-name>
-
-# View all recent events
-kubectl get events --sort-by='.lastTimestamp' | tail -20
-```
+Kubernetes Events are useful for resources that emit them, but this Fabric release does not emit events for VPC operations. Do not wait for an event or infer success from an empty event list. Use the API response and stored VPC spec here, then the affected Agent specs and applied generations after attachment.
 
 **Validation and troubleshooting:**
 
 ```bash
-# Check for errors
-kubectl describe vpc <name> | grep -A 5 Events
+# Check the stored object and compare its spec with the manifest
+kubectl get vpc <name> -o yaml
 
 # View all VPCs with their subnets
 kubectl get vpcs -o yaml | grep -E "(name:|subnet:)"
