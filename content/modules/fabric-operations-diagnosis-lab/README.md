@@ -95,9 +95,9 @@ Write a short handoff with **reported symptom**, **observed facts**, **unknown s
 
 **Lab success:** You ran the read-only checks, reviewed the actual dashboard views, and documented a supported next action. You did not create a fault, modify fabric objects or claim a repair.
 
-## Why the old VLAN story is not a valid live test
+## How to test a VLAN-conflict claim
 
-An illustrative incident could describe a server expecting one VLAN while a switch is configured for another. That is a hypothesis, not an observation from this released VM. The old story depended on `customer-app-vpc` and `existing-vpc-prod` objects that are not present, a 10.20.10.0/24 subnet outside this image's default IPv4Namespace, and an interface status `.vlans` field that fabric v0.96.2 does not provide. The webhook would not silently accept and reassign the conflicting manually chosen VLAN. A learner cannot confirm that root cause by following the old commands.
+A server expecting one VLAN while its VPC configuration requests another is a possible incident hypothesis. Test it against real objects and submission output. On the released R0 baseline, neither `customer-app-vpc` nor `existing-vpc-prod` is present; 10.20.10.0/24 is outside this image's default IPv4Namespace; and fabric v0.96.2 does not expose an interface `.vlans` status field or silently reassign a conflicting manually chosen VLAN. Those facts cannot confirm a VLAN-conflict root cause for this report.
 
 When a real attachment exists, compare its subnet and Connection fields with the VPC and wiring specs. Use Agent generations for applied desired state, interface status and Grafana for operational context, and a server-side test for the dataplane. If a validation error occurred, use the recorded apply or ArgoCD sync output. The Pre-Support Diagnostic Checklist shows how to package evidence privately for support.
 
