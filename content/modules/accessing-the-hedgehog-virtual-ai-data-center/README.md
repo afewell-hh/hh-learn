@@ -154,15 +154,11 @@ The VM's default `kubectl` context is `vlab`, but the ArgoCD admin secret lives 
 gcloud compute ssh ubuntu@hedgehog-lab --zone=us-central1-a --command="kubectl --context=k3d-k3d-observability -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo"
 ```
 
-If you are already logged into the VM over SSH, run the commands directly:
+If you are already logged into the VM over SSH, run the command directly:
 
 ```bash
-kubectl config use-context k3d-k3d-observability
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
-kubectl config use-context vlab
+kubectl --context=k3d-k3d-observability -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
 ```
-
-Run all three commands in order. If you do not switch back to `vlab`, later labs will start from the wrong Kubernetes context.
 
 ---
 
