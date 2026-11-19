@@ -140,6 +140,7 @@ After your VM is running (allow 5–10 minutes for all services to initialize):
 | **Prometheus** | `http://YOUR_VM_IP:9090` | No login required |
 
 Replace `YOUR_VM_IP` with the IP address shown after deployment.
+Open these URLs in a browser on your own computer; the VM does not need a desktop login.
 
 > **Security Note:** These services are exposed over public IP addresses. For personal lab use, this is acceptable for short durations. When you're not actively working on labs, stop the VM to reduce both costs and exposure. Never use default credentials for anything containing sensitive data.
 
