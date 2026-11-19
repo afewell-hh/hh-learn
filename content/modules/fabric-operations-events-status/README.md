@@ -115,7 +115,9 @@ By the end of this module, you will be able to:
 
 ## Scenario: Integrated Troubleshooting with kubectl and Grafana
 
-You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-03`. The server reports it's not getting DHCP. You'll use both Grafana and kubectl to diagnose the issue.
+Suppose you provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-03`, and the server reports it's not getting DHCP. You would use both Grafana and kubectl to diagnose the issue.
+
+> **Illustrative incident:** The released R0 lab starts without `testapp-vpc` or its server-03 attachment. Tasks 1–5 below describe a worked troubleshooting case and cannot be run as written on a fresh VM. The actual server-03 connection is `server-03--unbundled--leaf-01`; leaf-05 names in this example are hypothetical. Use the Connection lookup and Agent commands against objects you actually create; do not treat the example fault or output as a seeded lab fixture. Agent interface status in fabric v0.96.2 does not list VLAN membership, so the VLAN findings below are narrative until this scenario is rewritten.
 
 **Environment Access:**
 - **Grafana:** http://YOUR_VM_IP:3000
@@ -273,7 +275,7 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 
    ```bash
    # View interface E1/7 state
-   kubectl get agent leaf-05 -o json | jq \'.status.state.interfaces["E1/7"]\'
+   kubectl get agent leaf-05 -o json | jq '.status.state.interfaces["E1/7"]'
    ```
 
    **Expected output (healthy):**
@@ -433,7 +435,7 @@ You provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-
 
 6. **Verify on server (optional):**
    ```bash
-   hhfab vlab ssh server-03
+   cd ~/hhfab && hhfab vlab ssh --name server-03
    ip addr show  # Should show DHCP IP address
    ```
 
@@ -639,7 +641,7 @@ kubectl get agent leaf-01 -o jsonpath='{.status.lastAppliedGen}'
 kubectl get agent leaf-01 -o jsonpath='{.status.state.interfaces}' | jq
 
 # Specific interface
-kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
 ```
 
 **Example output:**
@@ -736,10 +738,12 @@ kubectl get agent leaf-01 -o jsonpath='{.status.state.criticalResources}' | jq
 **Agent Conditions:**
 
 ```bash
-# Check if agent is Ready
-kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+# Check whether the agent reports its configuration as applied
+kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Applied")].status}'
 # Output: True
 ```
+
+`Applied` is the condition this fabric version reports for leaf-01. Compare `APPLIEDG` with `CURRENTG` to confirm the latest generation has been applied; the condition alone does not establish that.
 
 **Why This Matters:**
 
@@ -751,7 +755,7 @@ Agent CRD status provides **source of truth for switch state** at Kubernetes lev
 **Grafana:** Interface up, no traffic
 **Agent CRD Check:**
 ```bash
-kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
 ```
 **Finding:** Interface operational but no VLANs configured
 **Next Step:** Check Agent APPLIEDG/CURRENTG convergence and admission webhook errors from when the VPCAttachment was applied
@@ -994,7 +998,7 @@ spec.subnets[0]: invalid CIDR notation "10.0.10.0/33"
 
 ---
 
-**Error Pattern 5: Agent Not Ready (Reconciliation Stalled)**
+**Error Pattern 5: Agent Generation Stalled**
 
 **Observed via `kubectl get agents`:**
 ```
@@ -1063,7 +1067,7 @@ kubectl get agents
 
 ```bash
 # Check interface state
-kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
 
 # Output shows:
 # "oper": "up"  (interface operational)
@@ -1296,7 +1300,7 @@ VPCAttachment, Switch, Connection, or Agent CRDs. `kubectl describe vpc myvpc` w
 
 ### Issue: Agent CRD jsonpath Queries Return Empty
 
-**Symptom:** `kubectl get agent ... -o json | jq \'.status.state.interfaces["E1/5"]\'` returns nothing
+**Symptom:** `kubectl get agent ... -o json | jq '.status.state.interfaces["E1/5"]'` returns nothing
 
 **Possible Causes:**
 1. Interface name incorrect
@@ -1441,7 +1445,7 @@ kubectl get agent leaf-01 -o jsonpath='{.status.version}'
 kubectl get agent leaf-01 -o jsonpath='{.status.state.interfaces}' | jq
 
 # View specific interface
-kubectl get agent leaf-01 -o json | jq \'.status.state.interfaces["E1/5"]\'
+kubectl get agent leaf-01 -o json | jq '.status.state.interfaces["E1/5"]'
 
 # View BGP neighbors
 kubectl get agent leaf-01 -o jsonpath='{.status.state.bgpNeighbors}' | jq
@@ -1455,8 +1459,8 @@ kubectl get agent leaf-01 -o jsonpath='{.status.state.platform}' | jq
 # View ASIC resources
 kubectl get agent leaf-01 -o jsonpath='{.status.state.criticalResources}' | jq
 
-# Check agent conditions (Ready)
-kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+# Check agent condition (Applied)
+kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Applied")].status}'
 ```
 
 **VPC/VPCAttachment Queries:**
