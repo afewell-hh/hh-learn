@@ -355,10 +355,11 @@ modules:
     creates: []
     destroys: []
     notes: >
-      Pure process and SRE culture module. No hands-on lab steps or K8s
-      resource changes. Students work through a blameless post-incident review
-      template and document lessons learned. Requires only an operational
-      fabric for the vAIDC preamble block.
+      Read-only evidence review and local worksheet. Students may use their
+      Course 4.2 and 4.3 records or the printed read-only checks and a clearly
+      labelled sample. No prior mutation is required. The reported server-07
+      symptom remains unverified; no outage, VLAN root cause, support response
+      or recovery is asserted. No K8s resources are changed.
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
 #
