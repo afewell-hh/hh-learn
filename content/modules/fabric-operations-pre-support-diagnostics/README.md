@@ -115,25 +115,36 @@ A user reports that `server-07` cannot reach a proposed `customer-app-vpc`. Firs
 
 ### Task 1: Run the six-step pre-escalation checklist
 
-Run these commands as `ubuntu` on the lab VM. Keep the same shell open for Tasks 1 and 2. The reported name is a search key, not proof that a VPC was submitted or accepted.
+Run these commands as `ubuntu` on the lab VM. Keep the same shell open for Tasks 1 and 2. The reported name is a search key, not proof that a VPC was submitted or accepted. The browser URLs use `YOUR_VM_IP`; commands run on the VM can reach Prometheus at `127.0.0.1`.
 
 **1. Resource and controller health**
 
 ```bash
-VPC=customer-app-vpc
-CONN=$(kubectl get connections -o name | grep 'server-07--' | head -1)
-test -n "$CONN" || { echo 'No server-07 Connection found'; exit 1; }
-LINK=$(kubectl get "$CONN" -o jsonpath='{.spec.unbundled.link.switch.port}')
-SW=${LINK%%/*}
-PORT=${LINK#*/}
-test "$SW" != "$PORT" || { echo 'Unexpected switch port format'; exit 1; }
-printf 'server-07 connection=%s switch=%s port=%s\n' "$CONN" "$SW" "$PORT"
+discover_server_07() {
+  VPC=customer-app-vpc
+  kubectl get connections | grep '^server-07--' || true
+  mapfile -t matches < <(kubectl get connections -o name | grep '/server-07--unbundled--' || true)
+  if [ "${#matches[@]}" -ne 1 ]; then
+    echo 'Expected one unbundled server-07 Connection; inspect the listed wiring before continuing' >&2
+    return 1
+  fi
+  CONN=${matches[0]}
+  LINK=$(kubectl get "$CONN" -o jsonpath='{.spec.unbundled.link.switch.port}')
+  if [[ "$LINK" != */* ]]; then
+    echo 'Unexpected switch port format; inspect the Connection before continuing' >&2
+    return 1
+  fi
+  SW=${LINK%%/*}
+  PORT=${LINK#*/}
+  printf 'server-07 connection=%s switch=%s port=%s\n' "$CONN" "$SW" "$PORT"
+}
+discover_server_07
 kubectl get vpc "$VPC" --ignore-not-found -o name
 kubectl get vpcattachments -o json | jq --arg vpc "$VPC" '[.items[] | select((.spec.subnet // "") | startswith($vpc + "/")) | {name: .metadata.name, subnet: .spec.subnet, connection: .spec.connection}]'
 kubectl get pods -n fab
 ```
 
-On the released wiring, the Connection is `server-07--unbundled--leaf-03` at `leaf-03/E1/3`. Use the lookup result if your wiring differs. An empty VPC name or attachment array means the desired object is absent **now**; it does not prove why it is absent. Check the submitting user's `kubectl apply` output or ArgoCD sync history before claiming a webhook rejection. Confirm that the controller pod is healthy before using later results.
+On the released wiring, the Connection is `server-07--unbundled--leaf-03` at `leaf-03/E1/3`. If the lookup reports zero or multiple unbundled Connections, stop and inspect the wiring; the later commands require one selected switch and port. An empty VPC name or attachment array means the desired object is absent **now**; it does not prove why it is absent. Check the submitting user's `kubectl apply` output or ArgoCD sync history before claiming a webhook rejection. Confirm that the controller pod is healthy before using later results.
 
 **2. Agent reconciliation**
 
@@ -214,7 +225,7 @@ Create `$OUTDIR/support-ticket.md` with the report, observed resource names, col
 tar czf "$OUTDIR.tar.gz" "$OUTDIR"
 ```
 
-Review the bundle manually before sharing it. A word search for `password`, `token` and `secret` can help find material to inspect, but automated replacement does not reliably redact credentials.
+Review the bundle manually before sharing it. List its contents with `tar tzf "$OUTDIR.tar.gz"` and check file sizes. A word search for `password`, `token` and `secret` can help find material to inspect, but automated replacement does not reliably redact credentials.
 
 **Success criteria:** You ran all six read-only checks, saved a local evidence bundle, separated the user's report from observed state, and wrote a supported next action. No VPC, attachment or fault was created.
 
@@ -348,44 +359,7 @@ Issue → Checklist → Clear config error? YES → Self-resolve
 
 Automate collection for consistency. The Task 2 commands are the runnable baseline example; adjust the scope and filenames to the actual incident.
 
-**Basic Script Structure:**
-
-```bash
-#!/bin/bash
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-OUTDIR="hedgehog-diagnostics-${TIMESTAMP}"
-mkdir -p ${OUTDIR}
-
-# Problem description prompt
-read -p "Problem description: " DESC
-echo "Issue: ${DESC}" > ${OUTDIR}/diagnostic-timestamp.txt
-date >> ${OUTDIR}/diagnostic-timestamp.txt
-
-# Collect CRDs, events, logs
-kubectl get vpc,vpcattachment,vpcpeering -o yaml > ${OUTDIR}/crds-vpc.yaml 2>&1
-kubectl get switches,servers,connections -o yaml > ${OUTDIR}/crds-wiring.yaml 2>&1
-kubectl get agents -o yaml > ${OUTDIR}/crds-agents.yaml 2>&1
-kubectl get events --all-namespaces --sort-by='.lastTimestamp' > ${OUTDIR}/events.log 2>&1
-kubectl logs -n fab deployment/fabric-ctrl --tail=2000 > ${OUTDIR}/controller.log 2>&1
-
-# Versions and status
-kubectl version > ${OUTDIR}/kubectl-version.txt 2>&1
-kubectl get pods -n fab > ${OUTDIR}/pods-fab.txt 2>&1
-kubectl get agents -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.version}{"\n"}{end}' > ${OUTDIR}/agent-versions.txt 2>&1
-
-# Per-switch details (prompt for affected switches)
-read -p "Affected switches (comma-separated): " SWITCHES
-for switch in ${SWITCHES//,/ }; do
-    kubectl get agent ${switch} -o yaml > ${OUTDIR}/agent-${switch}.yaml 2>&1
-    kubectl get agent ${switch} -o jsonpath='{.status.state.interfaces}' | jq > ${OUTDIR}/agent-${switch}-interfaces.json 2>&1
-done
-
-# Compress
-tar czf ${OUTDIR}.tar.gz ${OUTDIR}
-echo "Created: ${OUTDIR}.tar.gz ($(du -h ${OUTDIR}.tar.gz | cut -f1))"
-```
-
-**Benefits:** Consistent naming and repeatable collection. Check every command's result; this illustrative script does not provide error handling.
+Use the Task 2 collection block as the basic script. It binds output names to the discovered Connection and switch, limits the controller log tail, and leaves the archive on the VM for review. Check each command result before sharing a bundle.
 
 **Before sharing:** Inspect the collected files manually for credentials and unrelated data. Search terms can help locate values to review, but a simple text substitution is not reliable redaction.
 
