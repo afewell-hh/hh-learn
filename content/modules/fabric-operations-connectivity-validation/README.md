@@ -14,7 +14,7 @@ tags:
   - connectivity
   - operations
   - troubleshooting
-description: "Validate VPC and VPCAttachment deployments with hands-on testing. Learn to verify connectivity, interpret events, and troubleshoot issues."
+description: "Validate VPC and VPCAttachment deployments with hands-on testing. Learn to verify connectivity, inspect Agent reconciliation, and troubleshoot issues."
 order: 203
 ---
 
@@ -26,7 +26,7 @@ In Modules 2.1 and 2.2, you provisioned infrastructure—creating the `webapp-pr
 
 But trust alone isn't enough in production. Before handing off to the application team, you need to **validate** that everything works as expected. Declarative infrastructure doesn't eliminate the need for verification—it just changes how you verify.
 
-In this module, you'll learn validation workflows that Fabric Operators use daily: inspecting VPC configurations, checking VPCAttachment status, reading reconciliation events, exploring Agent CRDs for switch-level state, and building a validation checklist you can use for every deployment.
+In this module, you'll learn validation workflows that Fabric Operators use daily: inspecting VPC configurations and VPCAttachments, checking Agent reconciliation, exploring Agent CRDs for switch-level state, and building a validation checklist you can use for every deployment.
 
 ## Learning Objectives
 
@@ -34,7 +34,7 @@ By the end of this module, you will be able to:
 
 1. **Validate VPC deployments** - Verify VPC configuration matches desired state
 2. **Validate VPCAttachment status** - Confirm server-to-VPC connectivity is operational
-3. **Interpret reconciliation events** - Read events to understand what happened during deployment
+3. **Interpret reconciliation status** - Compare Agent applied and current generations after deployment
 4. **Use Agent CRDs for validation** - Inspect switch-level configuration state
 5. **Troubleshoot deployment issues** - Diagnose and fix common validation failures
 
@@ -285,7 +285,7 @@ kubectl get agent leaf-01 -o yaml | grep -A 10 "E1/5"
 - **Status = Reality**: What the switch agent successfully applied
 - **Mismatch = Problem**: If spec and status diverge, configuration failed
 
-You don't need to understand every field in the Agent CRD. The key insight: if VPCAttachment events show success, the Agent CRDs should reflect the configuration.
+You don't need to understand every field in the Agent CRD. The key insight: after applying a VPCAttachment, its VPC configuration should appear in the relevant leaf Agent specs and their applied generations should catch up with current generations.
 
 **Success Criteria:**
 
@@ -297,7 +297,7 @@ You don't need to understand every field in the Agent CRD. The key insight: if V
 
 **Objective:** Understand end-to-end validation approach
 
-In a vlab environment, servers are simulated, so actual ping tests may not be possible. However, understanding the **validation methodology** is critical for production deployments.
+The VLAB servers are nested virtual machines, so a gateway ping is possible after configuring their data interfaces. The production examples below assume a single interface named `eth0`; they are illustrative and do not match this VLAB's bonded, tagged server connections.
 
 **Validation layers (from abstract to physical):**
 
@@ -308,7 +308,7 @@ In a vlab environment, servers are simulated, so actual ping tests may not be po
 
 **Production connectivity tests (when servers are real):**
 
-**For server-01 (static IP subnet):**
+**Production example only — server-01 (static IP subnet; use the VLAB procedure below for this lab):**
 
 ```bash
 # SSH to server-01
@@ -323,7 +323,7 @@ ping -c 3 10.10.10.1
 ping -c 3 10.10.10.20
 ```
 
-**For server-05 (DHCP subnet):**
+**Production example only — server-05 (DHCP subnet):**
 
 ```bash
 # SSH to server-05
@@ -339,19 +339,36 @@ ip addr show eth0
 ping -c 3 10.10.20.1
 ```
 
-**In vlab environment:**
+**Optional VLAB gateway check (server-01):**
 
-Since servers are simulated, focus on:
-- kubectl describe output showing no errors
-- Event inspection showing successful reconciliation
-- Agent CRD verification showing configuration applied
+After creating `webapp-prod` and its `server-01-web-servers` attachment, open the nested server from the lab VM with `cd ~/hhfab && hhfab vlab ssh --name server-01`. Run the following once per server boot inside that server. Check the interface names first; the released R0 image uses `enp2s1` and `enp2s2`. If the bond already exists, skip the setup and rerun only the ping. Choose another unused address in `10.10.10.0/24` if `10.10.10.10` is already assigned. The attachment uses an 802.3ad bond and tagged VLAN 1010. This configuration disappears when the nested server restarts and does not change the saved image.
+
+```bash
+ip -br link
+sudo modprobe bonding
+sudo ip link add bond0 type bond mode 802.3ad miimon 100 lacp_rate fast
+for nic in enp2s1 enp2s2; do
+  sudo ip link set "$nic" down
+  sudo ip link set "$nic" master bond0
+  sudo ip link set "$nic" up
+done
+sudo ip link set bond0 up
+sudo ip link add link bond0 name bond0.1010 type vlan id 1010
+sudo ip link set bond0.1010 up
+sudo ip addr add 10.10.10.10/24 dev bond0.1010
+sleep 10 # Allow LACP negotiation with the leaf pair
+ping -n -c 3 -W 2 10.10.10.1
+```
+
+The released R0 image passed this gateway ping. This optional check does not test DHCP. For the course checks, also verify the VPC and attachments exist and the relevant Agents show `APPLIEDG == CURRENTG`, as described in Step 4; an empty Kubernetes Events section is normal for these objects.
 
 **Validation checklist summary:**
 
 - ✅ VPC exists with correct subnets
 - ✅ VPCAttachments reconciled without errors
-- ✅ Events show successful configuration application
+- ✅ Agent generations show that configuration was applied
 - ✅ Agent CRDs contain expected configuration
+- ✅ (Optional VLAB check) Server-01 can ping its VPC gateway after its bond and VLAN are configured
 - ✅ (Production only) Servers can reach gateway and communicate
 
 **Success Criteria:**
@@ -382,7 +399,7 @@ Hedgehog infrastructure validation has multiple layers:
 **Layer 1: Kubernetes resource validation**
 - Does the VPC CRD exist?
 - Do VPCAttachment CRDs exist?
-- Are there any error events?
+- Did `kubectl apply` report a validation error?
 - Tool: `kubectl get`, `kubectl describe`
 
 **Layer 2: Reconciliation validation**
@@ -532,25 +549,25 @@ Use this comprehensive checklist for every VPC deployment:
 
 ### Common Validation Failures and Causes
 
-**Issue: VPC shows in kubectl get but describe shows errors**
+**Issue: VPC creation or update is rejected**
 
-**Symptom**: VPC exists but events show warnings
+**Symptom**: `kubectl apply` reports a validation error and the desired VPC state is not present
 
 **Cause**: Validation error in spec (CIDR overlap, VLAN conflict, invalid configuration)
 
 **Investigation**:
 ```bash
 kubectl describe vpc <name>
-kubectl get events --field-selector involvedObject.name=<vpc-name>
+kubectl get vpc <name> -o yaml
 ```
 
-**Fix**: Review events for specific error, fix YAML, reapply
+**Fix**: Review the apply error and VPC spec, fix the YAML, and reapply
 
 ---
 
-**Issue: VPCAttachment reconciliation stuck in "Reconciling" state**
+**Issue: VPCAttachment is not reflected in the relevant Agent specs**
 
-**Symptom**: Events show "Reconciling" but never "Applied"
+**Symptom**: The attachment's VPC data is absent from the relevant leaf Agent specs, or their applied generations do not catch up
 
 **Cause**: Connection doesn't exist, VPC reference invalid, or subnet doesn't exist
 
@@ -559,6 +576,7 @@ kubectl get events --field-selector involvedObject.name=<vpc-name>
 kubectl describe vpcattachment <name>
 kubectl get connection <connection-name>
 kubectl get vpc <vpc-name>
+kubectl get agents
 ```
 
 **Fix**: Verify connection and VPC exist, correct references in VPCAttachment YAML
@@ -582,9 +600,9 @@ kubectl logs <agent-pod-name>
 
 ---
 
-**Issue: Server has no connectivity despite successful VPCAttachment**
+**Issue: Server has no connectivity despite converged Agent generations**
 
-**Symptom**: VPCAttachment shows "Applied" but server can't reach network
+**Symptom**: `APPLIEDG == CURRENTG` on relevant Agents, but the server can't reach its gateway
 
 **Cause**: Server OS network not configured, wrong VLAN on server NIC
 
@@ -623,9 +641,9 @@ kubectl get vpc <vpc-name> -o jsonpath='{.spec.subnets.<subnet-name>.dhcp}' | jq
 
 ## Troubleshooting
 
-### Issue: VPC validation shows "subnet overlap" warning in events
+### Issue: VPC subnet validation rejects an overlap
 
-**Symptom:** VPC describes shows warning event about subnet overlap
+**Symptom:** `kubectl apply` reports a subnet validation error
 
 **Cause:** Subnet CIDR overlaps with another VPC's subnet
 
@@ -647,9 +665,9 @@ kubectl get vpcs -o yaml | grep -E "(name:|subnet:)"
 kubectl apply -f webapp-prod-vpc.yaml
 ```
 
-### Issue: VPCAttachment events show "Connection not found"
+### Issue: VPCAttachment references an unknown Connection
 
-**Symptom:** VPCAttachment describe shows error event "Connection 'server-01' not found"
+**Symptom:** The attachment does not appear in the expected leaf Agent specs; inspect its connection reference and the apply result
 
 **Cause:** Connection name in VPCAttachment doesn't match any Connection CRD
 
@@ -702,6 +720,8 @@ kubectl exec -n fab <agent-pod-name> -- ping <switch-ip>
 **Cause:** Server OS network configuration missing or incorrect
 
 **Fix:**
+
+The commands below are generic single-interface production examples. In this VLAB, use the bonded VLAN procedure in Step 5; `eth0` is not a server data interface here.
 
 ```bash
 # SSH to server and check network configuration
