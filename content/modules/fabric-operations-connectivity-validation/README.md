@@ -308,7 +308,7 @@ The VLAB servers are nested virtual machines, so a gateway ping is possible afte
 
 **Production connectivity tests (when servers are real):**
 
-**For server-01 (static IP subnet):**
+**Production example only — server-01 (static IP subnet; use the VLAB procedure below for this lab):**
 
 ```bash
 # SSH to server-01
@@ -323,7 +323,7 @@ ping -c 3 10.10.10.1
 ping -c 3 10.10.10.20
 ```
 
-**For server-05 (DHCP subnet):**
+**Production example only — server-05 (DHCP subnet):**
 
 ```bash
 # SSH to server-05
@@ -341,7 +341,7 @@ ping -c 3 10.10.20.1
 
 **Optional VLAB gateway check (server-01):**
 
-After creating `webapp-prod` and its `server-01-web-servers` attachment, open the nested server from the lab VM with `cd ~/hhfab && hhfab vlab ssh --name server-01`. Run the following once inside that server. Its data links are `enp2s1` and `enp2s2`; the attachment uses an 802.3ad bond and tagged VLAN 1010. This configuration is temporary and does not change the saved image.
+After creating `webapp-prod` and its `server-01-web-servers` attachment, open the nested server from the lab VM with `cd ~/hhfab && hhfab vlab ssh --name server-01`. Run the following once per server boot inside that server. If the bond already exists, skip the setup and rerun only the ping. Its data links are `enp2s1` and `enp2s2`; the attachment uses an 802.3ad bond and tagged VLAN 1010. This configuration is temporary and does not change the saved image.
 
 ```bash
 sudo modprobe bonding
@@ -355,17 +355,19 @@ sudo ip link set bond0 up
 sudo ip link add link bond0 name bond0.1010 type vlan id 1010
 sudo ip link set bond0.1010 up
 sudo ip addr add 10.10.10.10/24 dev bond0.1010
+sleep 10 # Allow LACP negotiation with the leaf pair
 ping -n -c 3 -W 2 10.10.10.1
 ```
 
-The released R0 image passed this gateway ping. A separate test also passed a routed ping between server-05 and server-01 after configuring both servers' bonds, VLANs, addresses and routes. DHCP lease assignment was not tested. For the course checks, also verify the VPC and attachments exist and the relevant Agents show `APPLIEDG == CURRENTG`; an empty Kubernetes Events section is normal for these objects.
+The released R0 image passed this gateway ping. This optional check does not test DHCP. For the course checks, also verify the VPC and attachments exist and the relevant Agents show `APPLIEDG == CURRENTG`, as described in Step 4; an empty Kubernetes Events section is normal for these objects.
 
 **Validation checklist summary:**
 
 - ✅ VPC exists with correct subnets
 - ✅ VPCAttachments reconciled without errors
-- ✅ Events show successful configuration application
+- ✅ Agent generations show that configuration was applied
 - ✅ Agent CRDs contain expected configuration
+- ✅ (Optional VLAB check) Server-01 can ping its VPC gateway after its bond and VLAN are configured
 - ✅ (Production only) Servers can reach gateway and communicate
 
 **Success Criteria:**
