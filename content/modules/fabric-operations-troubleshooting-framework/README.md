@@ -2,9 +2,9 @@
 title: "Systematic Troubleshooting Framework"
 slug: "fabric-operations-troubleshooting-framework"
 difficulty: "intermediate"
-estimated_minutes: 10
-version: "v1.0.0"
-validated_on: "2025-10-17"
+estimated_minutes: 15
+version: "v1.1.0"
+validated_on: "2026-11-19"
 pathway_slug: "network-like-hyperscaler"
 pathway_name: "Network Like a Hyperscaler"
 tags:
@@ -14,829 +14,133 @@ tags:
   - diagnostics
   - methodology
   - decision-trees
-description: "Learn systematic troubleshooting methodology using hypothesis-driven investigation, decision trees, and integrated diagnostic workflows for Hedgehog fabric operations."
+description: "Learn hypothesis-driven troubleshooting with evidence checks, decision paths, and diagnostic workflows for Hedgehog fabric operations."
 order: 401
 ---
 
 ## Introduction
 
-You've designed VPCs, attached servers, validated connectivity, and monitored fabric health. Your Hedgehog fabric is operational.
+A useful troubleshooting method starts with a report, then tests what the system actually shows. The report may describe a configuration that was never submitted, a change that failed admission, an object that was deleted, or a real forwarding problem. Each calls for a different next step.
 
-Then one morning: **"Server-07 can't reach the database. The application is down."**
+This module builds on the Pre-Support Diagnostic Checklist. It teaches you to form hypotheses, choose tests that can distinguish them, and stop when the evidence does not support a root cause. It is a **read-only framework**: no VPC or fault fixture is required, and you will not change the fabric.
 
-You could panic. Or you could apply **systematic troubleshooting methodology**—the difference between experienced operators and beginners.
+### Learning objectives
 
-Beginners randomly check things, hoping to stumble on the issue. Experts use **hypothesis-driven investigation**, eliminating possibilities systematically until they identify the root cause.
+After this module, you can:
 
-### Building on Pre-Escalation Diagnostics
+1. Separate a reported symptom from observed resource and switch state.
+2. Order checks from resource existence through reconciliation, operational state, telemetry and logs.
+3. Explain what each check proves and what it leaves unresolved.
+4. Revise hypotheses when a test contradicts the initial incident story.
+5. Record a supported next action or escalation request without inventing a root cause.
 
-In Module 3.4, you learned the **pre-escalation diagnostic checklist**—collecting evidence for support tickets. That checklist taught you *what* to collect: admission webhook errors, Agent CRD status, Grafana metrics, and logs.
+### Prerequisites
 
-Module 4.1a teaches you **how to diagnose issues independently** using that evidence:
-- **Form hypotheses** based on symptoms
-- **Test hypotheses** with kubectl and Grafana
-- **Eliminate possibilities** systematically
-- **Identify root cause** with confidence
+You should know how to run `kubectl` on the lab VM and navigate Grafana. The released R0 VM has a running fabric, but it does not seed a student VPC for this module. Earlier courses explain VPCs, VPCAttachments and Agent generations; you do not need to preserve their objects to complete this lesson.
 
-### What You'll Learn
+## Scenario: an unconfirmed VPC connectivity report
 
-**Troubleshooting Methodology:**
-- Hypothesis-driven investigation framework
-- Systematic evidence collection order
-- Root cause identification through elimination
+A user reports that `server-07` cannot reach a gateway in `customer-app-vpc`. They say an attachment was submitted earlier. You have no manifest, apply output or ArgoCD sync result yet.
 
-**Common Failure Modes:**
-- VPC attachment issues (incorrect subnet, connection, or VLAN)
-- BGP peering problems (Agent CRD state inspection)
-- Interface errors (Grafana Interface Dashboard analysis)
-- Configuration drift (GitOps reconciliation failures)
+On a fresh released R0 VM, `customer-app-vpc` and a server-07 attachment to it are absent. The actual wiring Connection is `server-07--unbundled--leaf-03`, with switch port `leaf-03/E1/3`. These facts are the starting observations, not a prearranged VLAN fault. The report is still useful: it tells you what configuration and history to request.
 
-**Diagnostic Workflow:**
-- Layer 1: Resource existence + Agent convergence check (fastest)
-- Layer 2: Agent CRD status (detailed switch state)
-- Layer 3: Grafana dashboards (visual metrics and trends)
-- Layer 4: Controller logs (reconciliation details)
+### The hypothesis loop
 
-**Decision Trees:**
-- Server cannot communicate in VPC
-- Cross-VPC connectivity fails
-- VPCAttachment shows success but doesn't work
+For every proposed cause, write down a test and what both possible results would mean.
 
-### The Scenario
+| Hypothesis | First test | Interpretation |
+|---|---|---|
+| The requested VPC or attachment is absent | Read the named VPC and attachment list | Absence is current state. Request the manifest and submission history; it does not prove a webhook rejected it. |
+| The attachment targets the wrong Connection | Compare its `.spec.connection` with `kubectl get connections` | Only test this if the attachment exists. A mismatch is a concrete configuration finding. |
+| The switch has not applied the latest desired configuration | Compare Agent `APPLIEDG` and `CURRENTG` | A gap means wait and recheck. Equality means the current Agent generation applied, not that application traffic works. |
+| The server port is down | Inspect the relevant Agent interface and Grafana | `oper` and counters describe operational state. They do not report configured tenant VLAN membership. |
+| Routing or telemetry is unhealthy | Inspect Agent BGP state and fresh Prometheus samples | A down session needs investigation. Zero metric series is a telemetry gap, not proof all sessions are healthy. |
 
-You'll learn systematic methodology for diagnosing connectivity failures. The framework you master here applies to any fabric issue you encounter.
+The most efficient next test is often the first resource check. If the reported objects are absent, a switch-port counter cannot explain why the user's desired VPC is missing.
 
-This module focuses on **the methodology itself**—how to think systematically about troubleshooting. In Module 4.1b, you'll apply this methodology in a hands-on troubleshooting lab.
+## Read-only investigation on the released lab
 
----
-
-## Learning Objectives
-
-By the end of this module, you will be able to:
-
-1. **Apply systematic troubleshooting methodology** - Use hypothesis-driven investigation to diagnose fabric issues
-2. **Identify common failure modes** - Recognize VPC attachment issues, BGP problems, interface errors, and configuration drift
-3. **Construct diagnostic workflows** - Build investigation paths from resource checks → Agent CRDs → Grafana metrics → logs
-4. **Differentiate issue types** - Distinguish between configuration, connectivity, and platform issues
-5. **Use decision trees for diagnosis** - Follow structured decision paths to identify root causes
-
----
-
-## Prerequisites
-
-Before starting this module, you should have:
-
-**Completed Courses:**
-- Course 1: Foundations & Interfaces (kubectl proficiency, GitOps workflow)
-- Course 2: Provisioning & Connectivity (VPC and VPCAttachment creation experience)
-- Course 3: Observability & Fabric Health (Prometheus metrics, Grafana dashboards, Agent CRD inspection, diagnostic checklist)
-
-**Understanding:**
-- How VPCs and VPCAttachments should work (expected behavior)
-- Agent CRD structure and status fields
-- Grafana dashboard navigation
-- kubectl describe and admission webhook error patterns
-
-**Environment:**
-- kubectl configured and authenticated
-- Grafana access (http://YOUR_VM_IP:3000)
-- Hedgehog fabric with at least one VPC deployed
-
----
-
-> **Before You Begin the Lab**
->
-> The hands-on exercises in this module require the **Hedgehog Virtual AI Data Center (vAIDC)** — a pre-configured GCP lab environment that includes a complete Hedgehog fabric, Grafana observability dashboards, and all required services ready to use.
->
-> **Ensure your vAIDC is running before proceeding.** If you haven't set it up yet, complete the [Accessing the Hedgehog vAIDC](https://hedgehog.cloud/learn/modules/accessing-the-hedgehog-virtual-ai-data-center?hsLang=en-us) module first — it takes about 20 minutes and only needs to be done once.
-
-## Scenario
-
-**Incident Report:**
-
-A developer reports that **server-07** in VPC **customer-app-vpc** cannot reach the gateway or other servers in the VPC. The VPCAttachment was created this morning using the standard GitOps workflow.
-
-**Initial Investigation:**
-
-You run `kubectl describe vpcattachment customer-app-vpc-server-07` and see `Events: <none>` — which is expected for fabric CRDs. The resource exists. `kubectl get agents` shows all agents converged (APPLIEDG == CURRENTG).
-
-But the server still has no connectivity.
-
-**Your Task:**
-
-Use systematic troubleshooting methodology to identify the root cause and document a solution.
-
-**Known Information:**
-- VPC: `customer-app-vpc`
-- Subnet: `frontend` (10.20.10.0/24, gateway 10.20.10.1, VLAN 1025)
-- Server: `server-07`
-- Expected Connection: `server-07--unbundled--leaf-04`
-- VPCAttachment: `customer-app-vpc-server-07`
-- Symptom: Server cannot ping gateway 10.20.10.1
-
----
-
-## Core Concepts & Deep Dive
-
-### Concept 1: Troubleshooting Methodology (Hypothesis-Driven Investigation)
-
-#### The Problem with Random Checking
-
-Beginners troubleshoot by checking things randomly:
-- "Let me check the controller logs"
-- "Maybe it's a BGP issue"
-- "Did the switch reboot?"
-- "Is DNS working?"
-
-This wastes time and misses systematic patterns. Worse, you might check dozens of things without finding the root cause, or accidentally stumble on the solution without understanding *why* it works.
-
-#### Systematic Approach: Hypothesis-Driven Investigation
-
-Professional troubleshooting follows a structured methodology:
-
-**Step 1: Gather Symptoms**
-
-Document what you know:
-- **What is not working?** (Specific behavior: "server-07 cannot ping 10.20.10.1")
-- **What is the expected behavior?** (Server should ping gateway successfully)
-- **When did it start?** (This morning after VPCAttachment creation)
-- **What changed recently?** (VPCAttachment created, committed to Git, synced by ArgoCD)
-
-**Step 2: Form Hypotheses**
-
-Based on symptoms, generate possible causes:
-- **Configuration error:** VLAN mismatch, wrong connection reference, incorrect subnet
-- **Connectivity issue:** BGP session down, interface down, physical layer problem
-- **Platform issue:** Switch failure, resource exhaustion, controller error
-
-**Step 3: Test Hypotheses**
-
-For each hypothesis, design a specific test:
-- **If VLAN mismatch** → Check Agent CRD interface configuration
-- **If BGP down** → Check Agent CRD bgpNeighbors state
-- **If interface down** → Check Grafana Interface Dashboard
-
-**Step 4: Eliminate or Confirm**
-
-Each test either:
-- **Eliminates** hypothesis (BGP is established → not a BGP issue)
-- **Confirms** hypothesis (VLAN 1010 expected, VLAN 1020 configured → VLAN mismatch confirmed!)
-
-**Step 5: Identify Root Cause**
-
-When one hypothesis is confirmed and others eliminated:
-- Root cause identified
-- Solution becomes clear
-- You can document findings with confidence
-
-#### Example Walkthrough
-
-**Symptoms:**
-- Server-07 in VPC `webapp-vpc`, subnet `frontend`
-- Expected: ping 10.0.10.1 (gateway)
-- Actual: "Destination Host Unreachable"
-- Recent change: VPCAttachment created today
-
-**Hypotheses:**
-1. VLAN not configured on switch interface (configuration issue)
-2. Interface is down (connectivity issue)
-3. Server network interface misconfigured (server issue)
-4. BGP session down (routing issue)
-
-**Tests:**
-
-**Hypothesis 1: VLAN not configured**
-```bash
-# Check Agent CRD for leaf-04 (server-07 connects to leaf-04)
-kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'
-
-# Look for: vlans field contains 1010
-```
-
-**Result:** VLAN 1010 is configured on E1/8 ✅ (Hypothesis 1 eliminated)
-
-**Hypothesis 2: Interface down**
-```bash
-# Check Grafana Interface Dashboard for leaf-04/E1/8
-# Or check Agent CRD:
-kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"].oper'
-
-# Look for: oper=up
-```
-
-**Result:** E1/8 oper=up ✅ (Hypothesis 2 eliminated)
-
-**Hypothesis 3: Server misconfigured**
-```bash
-# SSH to server-07
-ip link show enp2s1.1010
-
-# Look for: interface exists and is up
-```
-
-**Result:** Server interface enp2s1.1010 is up and tagged ✅ (Hypothesis 3 eliminated)
-
-**Hypothesis 4: BGP down**
-```bash
-# Check Agent CRD bgpNeighbors
-kubectl get agent leaf-04 -o jsonpath='{.status.state.bgpNeighbors.default}' | jq
-
-# Look for: all neighbors state=established
-```
-
-**Result:** All BGP sessions established ✅ (Hypothesis 4 eliminated)
-
-**Wait—all tests passed, but still broken?**
-
-When all initial hypotheses are eliminated, revise your hypothesis list. This is where systematic methodology shines: you don't give up or escalate prematurely. You form *new* hypotheses based on evidence.
-
-**Revised Hypothesis:** VPCAttachment references **wrong connection**.
-
-**Test:**
-```bash
-kubectl get vpcattachment webapp-vpc-server-07 -o jsonpath='{.spec.connection}'
-# Output: server-07--unbundled--leaf-05
-```
-
-**Root Cause Found:** VPCAttachment references `leaf-05` but server-07 actually connects to `leaf-04`.
-
-**Solution:** Update VPCAttachment connection reference in Gitea to `server-07--unbundled--leaf-04`, commit, wait for ArgoCD sync.
-
-#### Why This Methodology Works
-
-- **Eliminates guesswork:** You test, don't guess
-- **Builds evidence:** Each test adds to your knowledge
-- **Enables explanation:** You can document *why* the issue occurred
-- **Transfers to new scenarios:** The methodology applies to issues you've never seen before
-- **Supports escalation:** If you must escalate, you provide tested hypotheses and evidence
-
----
-
-### Concept 2: Common Failure Modes
-
-Knowing common failure patterns helps you form hypotheses quickly. Here are the most frequent issues in Hedgehog fabrics:
-
-#### Failure Mode 1: VPC Attachment Issues
-
-**Symptoms:**
-- VPCAttachment created, no error events in kubectl describe
-- Server cannot communicate within VPC (cannot ping gateway or other servers)
-
-**Common Root Causes:**
-
-1. **Wrong connection name**
-   - VPCAttachment references incorrect Connection CRD
-   - Example: VPCAttachment specifies `leaf-05` but server connects to `leaf-04`
-
-2. **Wrong subnet**
-   - VPCAttachment references non-existent subnet
-   - Example: VPCAttachment specifies `vpc-1/database` but VPC only has `vpc-1/frontend`
-
-3. **VLAN conflict**
-   - VPC subnet specifies VLAN already in use
-   - VLANNamespace allocates different VLAN
-   - Configuration and actual allocation mismatch
-
-4. **nativeVLAN mismatch**
-   - VPCAttachment expects untagged VLAN (`nativeVLAN: true`)
-   - Server expects tagged VLAN (interface enp2s1.1010)
-   - Or vice versa
-
-**Diagnostic Path:**
-
-```
-Check VPCAttachment spec
-  ↓
-Verify connection exists: kubectl get connection <name>
-  ↓
-Verify subnet exists in VPC: kubectl get vpc <vpc> -o yaml | grep <subnet>
-  ↓
-Check Agent CRD for switch interface: Is VLAN configured?
-  ↓
-Check Grafana Interface Dashboard: Is interface up?
-  ↓
-Check VLAN ID matches expected
-```
-
-**Resolution:**
-- Update VPCAttachment connection or subnet reference in Git
-- Fix VPC VLAN assignment if conflict exists
-- Adjust nativeVLAN setting to match server configuration
-
----
-
-#### Failure Mode 2: BGP Peering Problems
-
-**Symptoms:**
-- Cross-VPC connectivity fails (VPCPeering exists)
-- External connectivity fails (ExternalPeering exists)
-- Grafana Fabric Dashboard shows BGP sessions down
-
-**Common Root Causes:**
-
-1. **BGP session not established**
-   - Neighbor IP unreachable
-   - ASN mismatch
-   - Interface IP misconfigured
-
-2. **Route not advertised**
-   - VPCPeering permit list misconfiguration
-   - ExternalPeering prefix filter blocks routes
-
-3. **Community mismatch**
-   - External community filter blocks routes
-   - Inbound/outbound community misconfigured
-
-**Diagnostic Path:**
-
-```
-Check Grafana Fabric Dashboard: Which BGP sessions down?
-  ↓
-Check Agent CRD bgpNeighbors for affected switch
-  ↓
-Identify neighbor IP and state (idle, active, established)
-  ↓
-If state != established:
-  - Check ExternalAttachment neighbor IP/ASN
-  - Check switch interface IP configured correctly
-  - Check external router reachability
-  ↓
-If state = established but routes missing:
-  - Check VPCPeering permit list
-  - Check ExternalPeering prefix filters
-  - Check community configuration
-```
-
-**Resolution:**
-- Fix neighbor IP or ASN in ExternalAttachment
-- Update VPCPeering permit list to include required subnets
-- Verify ExternalPeering prefix filters allow expected routes
-- Correct community configuration in External resource
-
----
-
-#### Failure Mode 3: Interface Errors
-
-**Symptoms:**
-- Intermittent connectivity failures
-- Packet loss
-- Grafana Interface Dashboard shows errors
-
-**Common Root Causes:**
-
-1. **Physical layer issue**
-   - Bad cable, SFP, or switch port
-   - Dirty fiber optic connector
-
-2. **MTU mismatch**
-   - Server configured with MTU 9000
-   - Switch configured with MTU 1500
-   - Fragmentation issues
-
-3. **Congestion**
-   - Traffic exceeds interface capacity
-   - No QoS configured
-
-4. **Configuration error**
-   - Speed/duplex mismatch
-   - LACP misconfiguration on bundled/MCLAG connection
-
-**Diagnostic Path:**
-
-```
-Check Grafana Interface Dashboard: Which interface has errors?
-  ↓
-Check Agent CRD interface counters: ind (input discards), outbps (output bps)
-  ↓
-Check interface speed and MTU configuration
-  ↓
-Check physical layer: SFP status, cable integrity
-  ↓
-If congestion: Check traffic patterns in Grafana
-  ↓
-If LACP issue: Check server LACP configuration
-```
-
-**Resolution:**
-- Replace faulty cable or SFP
-- Align MTU configuration across server and switch
-- Implement QoS or upgrade link capacity
-- Fix speed/duplex or LACP configuration
-
----
-
-#### Failure Mode 4: Configuration Drift (GitOps Reconciliation Failures)
-
-**Symptoms:**
-- Git shows correct configuration
-- kubectl shows different configuration
-- ArgoCD shows "OutOfSync" status
-
-**Common Root Causes:**
-
-1. **Manual kubectl changes**
-   - Someone applied changes directly (bypassing Git)
-   - ArgoCD detects drift
-
-2. **ArgoCD sync disabled**
-   - Auto-sync turned off manually
-   - Changes in Git not applied
-
-3. **Git webhook broken**
-   - ArgoCD not notified of commits
-   - Manual sync required
-
-4. **Reconciliation error**
-   - Controller failed to apply configuration
-   - Dependency missing or validation failed
-
-**Diagnostic Path:**
-
-```
-Check ArgoCD application status: Synced or OutOfSync?
-  ↓
-Compare Git YAML to kubectl get <resource> -o yaml
-  ↓
-Check ArgoCD sync history: Last successful sync?
-  ↓
-Check controller logs for reconciliation errors
-  ↓
-Check ArgoCD sync status for admission webhook errors at sync time
-```
-
-**Resolution:**
-- Revert manual kubectl changes, re-sync from Git
-- Re-enable ArgoCD auto-sync
-- Fix Git webhook configuration
-- Resolve dependency or validation errors in Git configuration
-
----
-
-### Concept 3: Diagnostic Workflow (Evidence Collection Order)
-
-When facing an issue, collect evidence in this order for maximum efficiency:
-
-#### Layer 1: Resource Existence + Agent Convergence (Fastest Check)
-
-**Why first?** Quickly determines if resources were accepted and if reconciliation is complete.
-
-> **Note on Kubernetes events:** Hedgehog fabric controllers (VPC, VPCAttachment) do **not** emit
-> Kubernetes events. `kubectl describe vpc` will show `Events: <none>` — this is expected. Validation
-> errors surface at **apply time** via admission webhooks. System component events (pods, etc.) in
-> `kubectl get events -n fab` are unrelated to fabric CRD reconciliation.
+Run the following as `ubuntu` on the VM. The commands use the released wiring; use the Connection lookup and substitute its result if a later image changes the topology.
 
 ```bash
-# Check if resources exist (missing = rejected by admission webhook at apply time)
-kubectl get vpc webapp-vpc
-kubectl get vpcattachment webapp-vpc-server-07
-
-# Check Agent convergence (APPLIEDG == CURRENTG means config applied)
+kubectl get vpc customer-app-vpc -o name --ignore-not-found
+kubectl get vpcattachments -o json | jq '[.items[] | select((.spec.subnet // "") | startswith("customer-app-vpc/")) | {name: .metadata.name, subnet: .spec.subnet, connection: .spec.connection}]'
+kubectl get connections | grep '^server-07--'
+kubectl get connection server-07--unbundled--leaf-03 -o jsonpath='{.spec.unbundled.link.switch.port}' && echo
 kubectl get agents
-
-# Describe resource (Events: <none> is expected)
-kubectl describe vpcattachment webapp-vpc-server-07
+kubectl get agent leaf-03 -o json | jq '{currentGeneration: .metadata.generation, appliedGeneration: .status.lastAppliedGen, appliedCondition: [.status.conditions[]? | select(.type == "Applied") | .status], interface: (.status.state.interfaces["E1/3"] // null)}'
 ```
 
-**Look for:**
-- **Resource missing:** Was rejected by admission webhook — check ArgoCD sync for error message
-- **APPLIEDG < CURRENTG:** Reconciliation in progress — wait and recheck in 60 seconds
-- **APPLIEDG == CURRENTG but issue persists:** Config applied, investigate at switch level (Layer 2)
-- **kubectl describe Events:** Always `<none>` for fabric CRDs — not an error indicator
+On the released baseline, the VPC command prints nothing and the attachment query prints `[]`. The attachment filter selects `.spec.subnet` values beginning with `customer-app-vpc/`, the `vpc/subnet` reference form. The Connection lookup returns `server-07--unbundled--leaf-03` and `leaf-03/E1/3`. The port JSONPath applies to an **unbundled** Connection; if your wiring shows a different type, inspect that Connection's YAML before choosing a port. Compare `APPLIEDG` with `CURRENTG` for all seven Agents; use leaf-03's interface object for operational state. If the reported VPC exists in your lab, inspect its actual spec and attachment before deciding whether a connection mismatch is possible.
 
-**What this tells you:**
-- Whether the resource was accepted (exists or not)
-- Whether the admission webhook found a conflict (via ArgoCD sync error)
-- Whether reconciliation has converged (APPLIEDG == CURRENTG)
+**What you can conclude:** the reported VPC and attachment are absent now on a fresh R0 VM. The Connection exists independently of any VPC. An interface reported `up` and equal Agent generations do not establish DHCP, gateway reachability, or VLAN configuration. Ask the user for the intended VPC and attachment manifests and the result of `kubectl apply` or the ArgoCD sync. An admission error can be identified from that submission result; `kubectl get` alone cannot reconstruct one.
 
-**Time investment:** 10-30 seconds
+### Add operational context when the objects exist
 
-**When to move on:** If resources exist and agents are converged, proceed to Layer 2.
+If an attachment is present, read its `.spec.connection` and `.spec.subnet`, then compare the Connection with the server's real wiring and the subnet with the VPC spec. For a possible forwarding fault, check the server interface and a gateway ping **from that server**, as taught in Connectivity Validation. Running `ip link` on the lab host describes the host, not the nested `server-07` VM.
 
----
+Use Agent status and Grafana to inspect the relevant port. The Agent's `.status.state.interfaces` contains operational fields and counters; it has no `vlans` array in fabric v0.96.2. A quiet port or no error counter alone does not prove traffic is forwarding. When a student VPC is absent, do not expect a tenant interface or gateway to exist on the server.
 
-#### Layer 2: Agent CRD Status (Detailed Switch State)
+For BGP context, read the Agent's `bgpNeighbors` and the **Hedgehog Fabric** dashboard. Fresh Prometheus samples may take a few minutes after boot. If a metric query returns no series, wait and repeat before treating it as a telemetry problem. In **Hedgehog Switch Interface Counters**, select the discovered switch and port; record the interface state and actual counter series. In **Hedgehog Fabric Logs**, select the switch and interpret each log line in context. Virtual switches do not provide physical temperature, fan, SFP or ASIC sensor evidence.
 
-**Why second?** Agent CRD is the source of truth for actual switch configuration and operational state.
+## Four layers of diagnosis
+
+### 1. Desired resources and submission result
+
+Read the VPC, VPCAttachment, Connection and ArgoCD application state. Use a recorded `kubectl apply` error or ArgoCD sync error to diagnose validation. Hedgehog fabric CRDs do not emit success or rejection Events; `Events: <none>` from `kubectl describe` is expected and proves neither success nor failure. A missing object may have never been submitted, may have failed admission, or may have been deleted.
+
+### 2. Reconciliation and operational state
+
+Compare Agent applied/current generations, then inspect the Agent serving the actual Connection. Equal generations show that the latest desired Agent spec was applied. The `Applied=True` condition may persist across restarts, so compare generations as well. Inspect interface `oper` and counters and BGP neighbor state. These checks describe switch state; they do not substitute for a server traffic test.
+
+### 3. Trends and logs
+
+Use Grafana to compare state over time, provided metrics arrived for the period you select. A fresh VM has no 24-hour history. Switch logs can suggest a hypothesis, but a generic `ERR` line is not automatically the cause of the user's report. Correlate the log timestamp, switch and operation with the reported change.
+
+### 4. Targeted controller investigation
+
+When a present object fails to converge or ArgoCD shows a sync problem, read a bounded controller log tail:
 
 ```bash
-# Check agent readiness (agents in default namespace)
-kubectl get agents
-
-# View detailed switch state
-kubectl get agent leaf-04 -o yaml
-
-# Check BGP neighbors
-kubectl get agent leaf-04 -o jsonpath='{.status.state.bgpNeighbors}' | jq
-
-# Check interface state
-kubectl get agent leaf-04 -o json | jq '.status.state.interfaces["E1/8"]'
+kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -iE 'error|panic' || true
+kubectl get pods -n fab
 ```
 
-**Look for:**
-- **BGP neighbor state:** `established` vs `idle` or `active`
-- **Interface oper state:** `up` vs `down`
-- **VLAN configuration:** Which VLANs are configured on which interfaces
-- **Interface counters:** `ind` (input discards), `outbps` (output bps)
-- **Platform health:** PSU status, fan speeds, temperature
+No grep matches are a valid observation. `kubectl logs --previous` is relevant only if the controller restarted. An empty log search does not establish that the user's configuration is correct.
 
-**What Agent CRD tells you:**
-- Actual switch configuration (not just desired state)
-- Operational status (up/down, established/idle)
-- Performance metrics (errors, counters)
-- Hardware health
+## Decision paths
 
-**Time investment:** 1-2 minutes
+### A server cannot reach a VPC gateway
 
-**When to move on:** If Agent CRD shows expected configuration and healthy state, proceed to Layer 3.
+1. **Is the VPC present?** If no, ask for the manifest and submission history. Stop the switch diagnosis until the desired object is established.
+2. **Is the server attached to the intended subnet and real Connection?** If no, use the actual object and wiring to identify the specific mismatch. If the attachment is absent, request its manifest and submission result.
+3. **Have the affected Agents applied the current generation?** If no, wait and recheck; persistent divergence warrants controller and Agent diagnostics.
+4. **Is the switch interface operational?** If no, inspect the link and server. On a physical fabric, cable or SFP checks may apply; in VLAB, use the virtual Connection and VM status.
+5. **Can the server reach the gateway?** Test from the nested server with the expected VLAN and IP configuration. Only a real dataplane test can confirm that path.
+6. **Still unexplained?** Check BGP, metrics and logs, then escalate with observed outputs rather than a guessed root cause.
 
----
+### Cross-VPC connectivity fails
 
-#### Layer 3: Grafana Dashboards (Visual Metrics and Trends)
+Verify both VPCs, their attachments and any VPCPeering first. Check the peering spec, Agent convergence and the actual endpoint paths. If routing is suspected, inspect BGP sessions and route evidence. A missing peering object does not by itself reveal whether it was never requested, rejected or deleted.
 
-**Why third?** Grafana provides visual trends and historical context that kubectl cannot.
+### GitOps says the configuration is synced, but traffic fails
 
-**Fabric Dashboard:**
-- BGP session health (all established?)
-- BGP session flapping (repeated up/down transitions)
-- VPC count (as expected?)
+Confirm the ArgoCD application revision and compare the live VPC/attachment specs with the intended files under `active/`. Then inspect Agent generations and run a server-side traffic test. “Synced” reports that ArgoCD's tracked live objects match the desired revision; it is not a forwarding or application-health test. If an object is missing, inspect the sync result before attributing it to a webhook.
 
-**Interfaces Dashboard:**
-- Interface operational state (up/down over time)
-- Error rates (input errors, output errors)
-- Traffic patterns (bandwidth utilization, spikes, drops)
-- Packet counters (unicast, broadcast, multicast)
+## Practice: write a supported next action
 
-**Logs Dashboard:**
-- Recent ERROR logs (switch or controller)
-- Filter by switch name for targeted investigation
-- Syslog patterns (BGP state changes, interface flaps)
+For the fresh R0 observations above, write three lines:
 
-**Look for:**
-- Interfaces with high error rates (physical layer issues)
-- BGP sessions flapping (routing instability)
-- Traffic patterns indicating congestion or no traffic
-- Log patterns correlating with symptom timing
+1. **Reported:** server-07 cannot reach `customer-app-vpc`; the claimed earlier submission is unverified.
+2. **Observed:** the VPC and matching attachment are absent; server-07 is physically connected to leaf-03/E1/3; record the actual Agent generation and interface state you saw.
+3. **Next action:** revise the initial VLAN-fault hypothesis: without the VPC and attachment, there is no tenant VLAN for this report to inspect. Request the desired manifests and apply or ArgoCD sync result. Do not claim a VLAN conflict, automatic reassignment, switch failure or successful repair from this baseline.
 
-**What Grafana tells you:**
-- Historical trends (when did it start?)
-- Intermittent issues (not visible in current state)
-- Correlation between events (BGP flap coincides with interface errors)
+If you have an actual VPC and attachment from another exercise, repeat the resource and Connection comparison with their real names. Do not create a fault for this module. The Pre-Support Diagnostic Checklist shows how to save a private evidence bundle when a real incident requires escalation.
 
-**Time investment:** 2-3 minutes
+## Key points
 
-**When to move on:** If Grafana confirms hypotheses or reveals new patterns, validate with logs.
-
----
-
-#### Layer 4: Controller Logs (Reconciliation Details)
-
-**Why fourth?** Controller logs explain *why* reconciliation succeeded or failed.
-
-```bash
-# Check controller logs for specific resource
-kubectl logs -n fab deployment/fabric-ctrl | grep webapp-vpc-server-07
-
-# Check for errors
-kubectl logs -n fab deployment/fabric-ctrl --tail=200 | grep -i error
-
-# Follow logs live
-kubectl logs -n fab deployment/fabric-ctrl -f
-```
-
-**Look for:**
-- Reconciliation loops (same resource reconciling repeatedly)
-- Errors during configuration application
-- Validation failures
-- Dependency resolution issues
-
-**What controller logs tell you:**
-- Why controller made specific decisions
-- Why configuration wasn't applied
-- Timing of reconciliation attempts
-
-**Time investment:** 2-5 minutes
-
-**When to use:**
-- Events show `ReconcileFailed` but reason unclear
-- Configuration should be applied but isn't
-- Debugging GitOps sync issues
-
----
-
-#### Summary: Layered Diagnostic Approach
-
-| Layer | Tool | Purpose | Time | When to Use |
-|-------|------|---------|------|-------------|
-| 1 | kubectl get + agents | Resource existence + convergence check | 10-30s | Always first |
-| 2 | Agent CRD | Switch state verification | 1-2min | After events |
-| 3 | Grafana | Trends and historical context | 2-3min | For intermittent issues or validation |
-| 4 | Controller logs | Reconciliation debugging | 2-5min | When reconciliation fails or behavior unclear |
-
-**Total time for full diagnostic:** 5-10 minutes
-
-This layered approach ensures you:
-- Start with fastest checks (events)
-- Progress to detailed state (Agent CRD)
-- Validate with trends (Grafana)
-- Deep-dive only when necessary (logs)
-
----
-
-### Concept 4: Decision Trees for Common Scenarios
-
-Decision trees provide structured diagnostic paths for frequent issues. Follow the tree from top to bottom, testing at each decision point.
-
-#### Decision Tree 1: Server Cannot Communicate in VPC
-
-```
-Server cannot ping gateway or other servers in VPC
-  │
-  ├─ Check resources + Agent convergence
-  │    │
-  │    ├─ Resource missing (admission webhook rejected)?
-  │    │    ├─ YES → Check ArgoCD sync error, fix configuration
-  │    │    └─ NO (resource exists)
-  │    │
-  │    ├─ APPLIEDG < CURRENTG?
-  │    │    ├─ YES → Wait for convergence (up to 5 min)
-  │    │    └─ NO (converged) → Continue investigation
-  │
-  ├─ Check Agent CRD for switch
-  │    │
-  │    ├─ Is interface oper=up?
-  │    │    ├─ NO → Physical layer issue (cable, SFP, port)
-  │    │    └─ YES → Continue
-  │    │
-  │    ├─ Is VLAN configured on interface?
-  │    │    ├─ NO → VPCAttachment wrong connection or reconciliation failed
-  │    │    └─ YES → Continue
-  │    │
-  │    ├─ Is VLAN ID correct?
-  │    │    ├─ NO → Configuration error (VLAN mismatch or conflict)
-  │    │    └─ YES → Continue
-  │
-  ├─ Check server network interface
-  │    │
-  │    ├─ Is interface up and tagged with VLAN?
-  │    │    ├─ NO → Server configuration issue
-  │    │    └─ YES → Continue
-  │
-  ├─ Check Grafana Interface Dashboard
-  │    │
-  │    ├─ High error rates on interface?
-  │    │    ├─ YES → Physical layer issue or MTU mismatch
-  │    │    └─ NO → Escalate (unexpected issue)
-```
-
-**Example Usage:**
-
-1. Server-07 cannot ping gateway 10.20.10.1
-2. Resources exist, APPLIEDG == CURRENTG → Continue
-3. Check Agent CRD leaf-04 E1/8: oper=up → Continue
-4. Check VLAN on E1/8: VLAN 1020 configured
-5. VPC expects VLAN 1025 → **VLAN mismatch identified!**
-
----
-
-#### Decision Tree 2: Cross-VPC Connectivity Fails (VPCPeering Exists)
-
-```
-Server in VPC-1 cannot reach server in VPC-2
-  │
-  ├─ Check VPCPeering exists + Agent convergence
-  │    │
-  │    ├─ VPCPeering missing (admission webhook rejected)?
-  │    │    ├─ YES → Check ArgoCD sync error, fix configuration
-  │    │    └─ NO (exists) → Continue
-  │
-  ├─ Verify VPCPeering permit includes both subnets
-  │    │
-  │    ├─ Permit list missing subnet?
-  │    │    ├─ YES → Add subnet to permit list
-  │    │    └─ NO → Continue
-  │
-  ├─ Check both VPCs in same IPv4Namespace
-  │    │
-  │    ├─ Different namespaces?
-  │    │    ├─ YES → Configuration error (VPCPeering requires same namespace)
-  │    │    └─ NO → Continue
-  │
-  ├─ Check BGP sessions in Grafana Fabric Dashboard
-  │    │
-  │    ├─ BGP sessions down?
-  │    │    ├─ YES → Investigate BGP issue (Agent CRD bgpNeighbors)
-  │    │    └─ NO → Continue
-  │
-  ├─ Check VPC subnet isolation flags
-  │    │
-  │    ├─ isolated: true but no permit?
-  │    │    ├─ YES → Add permit list entry
-  │    │    └─ NO → Escalate (unexpected issue)
-```
-
-**Example Usage:**
-
-1. VPC-1 server cannot reach VPC-2 server
-2. Check events: No warnings → Continue
-3. Check VPCPeering permit list: Only includes VPC-1 frontend, missing VPC-2 backend
-4. **Permit list incomplete → Add VPC-2 backend to permit**
-
----
-
-#### Decision Tree 3: VPCAttachment Shows Success But Doesn't Work
-
-```
-kubectl describe shows no errors, but server has no connectivity
-  │
-  ├─ Verify VPCAttachment references correct connection
-  │    │
-  │    ├─ kubectl get vpcattachment <name> -o jsonpath='{.spec.connection}'
-  │    │
-  │    ├─ Connection matches server's actual connection?
-  │    │    ├─ NO → Root cause found: Wrong connection reference
-  │    │    └─ YES → Continue
-  │
-  ├─ Verify subnet exists in VPC
-  │    │
-  │    ├─ kubectl get vpc <vpc> -o yaml | grep <subnet>
-  │    │
-  │    ├─ Subnet exists?
-  │    │    ├─ NO → Root cause found: Subnet doesn't exist
-  │    │    └─ YES → Continue
-  │
-  ├─ Check Agent CRD for switch
-  │    │
-  │    ├─ VLAN configured on interface?
-  │    │    ├─ NO → Reconciliation failed (check controller logs)
-  │    │    └─ YES → Continue
-  │
-  ├─ Check nativeVLAN setting
-  │    │
-  │    ├─ VPCAttachment nativeVLAN matches server expectation?
-  │    │    ├─ NO → Root cause found: nativeVLAN mismatch
-  │    │    └─ YES → Escalate (unexpected issue)
-```
-
-**Example Usage:**
-
-1. VPCAttachment created, no events, but server has no connectivity
-2. Check connection: `server-07--unbundled--leaf-04` → Matches
-3. Check subnet exists: `customer-app-vpc/frontend` → Exists
-4. Check Agent CRD leaf-04 interface E1/8: VLAN 1020 configured
-5. VPC expects VLAN 1025 → **VLAN mismatch (allocation conflict)**
-
----
-
-## Conclusion
-
-You've mastered the systematic troubleshooting framework for Hedgehog fabric operations!
-
-### What You Learned
-
-**Troubleshooting Methodology:**
-- Hypothesis-driven investigation framework
-- Evidence-based elimination of possibilities
-- Root cause identification with confidence
-
-**Common Failure Modes:**
-- VPC attachment issues (VLAN conflicts, wrong connections)
-- BGP peering problems (permit lists, communities)
-- Interface errors (physical layer, MTU, congestion)
-- Configuration drift (GitOps sync issues)
-
-**Diagnostic Workflow:**
-- Layer 1: Resource existence + Agent convergence check (fastest)
-- Layer 2: Agent CRD (detailed switch state)
-- Layer 3: Grafana (trends and historical context)
-- Layer 4: Controller logs (reconciliation details)
-
-**Decision Trees:**
-- Server cannot communicate in VPC
-- Cross-VPC connectivity fails
-- VPCAttachment shows success but doesn't work
-
-### Key Takeaways
-
-1. **Systematic approach beats random checking** - Hypothesis-driven investigation saves time and ensures thorough diagnosis
-
-2. **Evidence collection order matters** - Start fast (resource check + convergence), then detailed (Agent CRD), then historical (Grafana)
-
-3. **"Accepted" doesn't mean "working"** - No admission webhook error and Events: <none> doesn't guarantee correct configuration (e.g., VLAN mismatch, wrong connection name)
-
-4. **Decision trees provide structure** - Follow diagnostic paths for common scenarios to avoid missing steps
-
-5. **Root cause identification requires testing** - Eliminate possibilities until one remains, don't assume
-
-### Next Steps
-
-In **Module 4.1b: Hands-On Fabric Diagnosis Lab**, you'll apply this methodology in a real troubleshooting scenario. You'll:
-- Use the layered diagnostic approach
-- Apply decision trees to identify root cause
-- Practice hypothesis-driven investigation
-- Document findings and solutions
-
-The framework you learned here is the foundation for all troubleshooting work. Master it now, and you'll diagnose issues confidently in any scenario.
-
----
-
-**You're now equipped with systematic troubleshooting methodology. See you in Module 4.1b for hands-on practice!**
+- Start with the desired objects and their submission result; then test reconciliation and operational state.
+- `APPLIEDG == CURRENTG` is an application check. It does not prove a gateway ping or DHCP lease.
+- Agent interface status and Grafana counters do not expose tenant VLAN membership in this fabric version.
+- An absent object, `Events: <none>`, or an empty metric result needs context before it supports a diagnosis.
+- Revise your hypothesis when evidence contradicts the initial incident story.
