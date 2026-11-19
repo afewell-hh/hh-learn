@@ -9,7 +9,7 @@
       "stem": "A user says server-07 cannot reach customer-app-vpc. On a fresh released lab, the named VPC lookup prints nothing and the matching VPCAttachment list is empty. What is the best next action?",
       "options": [
         {"id": "a", "text": "Restart the fabric controller because the webhook must have rejected the VPC"},
-        {"id": "b", "text": "Request the intended manifests and the kubectl apply result or ArgoCD sync history"},
+        {"id": "b", "text": "Request the manifests and submission history"},
         {"id": "c", "text": "Change the switch port to VLAN 1020"},
         {"id": "d", "text": "Escalate a confirmed DHCP failure"}
       ],
@@ -50,7 +50,7 @@
         {"id": "a", "text": "A VLAN conflict is confirmed because Grafana shows E1/3 Up"},
         {"id": "b", "text": "The switch applied VLAN 1020 because APPLIEDG equals CURRENTG"},
         {"id": "c", "text": "An empty Kubernetes Events list proves the VLAN change succeeded"},
-        {"id": "d", "text": "The claim is unverified; inspect the intended manifests and submission result, and do not assume automatic reassignment"}
+        {"id": "d", "text": "Unverified; inspect the manifests and submission result"}
       ],
       "correct_answer": "d",
       "points": 1
