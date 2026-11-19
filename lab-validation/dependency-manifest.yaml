@@ -253,8 +253,10 @@ modules:
       Read-only Grafana dashboard tour covering all 6 dashboards: Hedgehog
       Fabric, Hedgehog Switch Interface Counters, Hedgehog Fabric Platform
       Stats, Hedgehog Fabric Logs, Hedgehog mod of Node Exporter Full, and
-      Hedgehog Switch Critical Resources. Requires operational fabric (switches
-      up, Prometheus scraping). test-vpc persists but is not required.
+      Hedgehog Switch Critical Resources. Virtual-switch hardware sensors and
+      some root-filesystem series may be N/A; a fresh VM has limited history.
+      Students record actual BGP, interface, log and available host/resource
+      values after telemetry settles. No student VPC is required.
 
   - slug: fabric-operations-events-status
     course: 3
