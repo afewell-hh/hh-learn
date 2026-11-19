@@ -181,14 +181,6 @@ kubectl cluster-info
 kubectl get pods -n fab
 ```
 
-### Desktop Access (RDP)
-
-If you prefer a graphical desktop interface:
-
-- **Address:** `YOUR_VM_IP:3389`
-- **Username:** `ubuntu`
-- **Password:** `HHLab.Admin!`
-
 ### Check Lab Status (After SSH)
 
 ```bash
