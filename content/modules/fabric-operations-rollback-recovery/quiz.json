@@ -6,12 +6,12 @@
     {
       "id": "q1",
       "type": "multiple_choice",
-      "stem": "You need to rollback a VPC configuration change. The problematic commit is `a1b2c3d`. What is the CORRECT command sequence?",
+      "stem": "You recorded the actual VPC creation commit hash in CREATE. Which sequence safely undoes your commit in the shared repository?",
       "options": [
         {"id": "a", "text": "git reset --hard HEAD~1 && git push --force"},
-        {"id": "b", "text": "git revert a1b2c3d && git push origin main"},
+        {"id": "b", "text": "git revert --no-edit \"$CREATE\" && git push origin main"},
         {"id": "c", "text": "kubectl delete vpc vpc-prod && kubectl apply -f vpc-prod-backup.yaml"},
-        {"id": "d", "text": "git checkout a1b2c3d~1 && git push origin main"}
+        {"id": "d", "text": "git checkout \"$CREATE\"~1 && git push origin main"}
       ],
       "correct_answer": "b",
       "points": 1
@@ -35,7 +35,7 @@
       "stem": "You deleted VPC `test-vpc` 15 minutes ago but it's still showing 'Terminating' status with finalizers present. What should you do FIRST?",
       "options": [
         {"id": "a", "text": "Immediately remove finalizers with kubectl patch"},
-        {"id": "b", "text": "Check if VPCAttachments still exist and delete them"},
+        {"id": "b", "text": "Inspect the VPC, its attachments and peerings, and controller health before changing anything"},
         {"id": "c", "text": "Restart the fabric controller"},
         {"id": "d", "text": "Escalate to support immediately"}
       ],
@@ -48,7 +48,7 @@
       "stem": "ArgoCD sync failed with 'invalid YAML'. Your rollback commit is in Git but cluster state hasn't changed. What is the NEXT step?",
       "options": [
         {"id": "a", "text": "Delete the Git commit and start over"},
-        {"id": "b", "text": "Validate YAML locally with kubectl apply --dry-run, fix errors, and commit the fix"},
+        {"id": "b", "text": "Read the exact sync error, validate your file with kubectl apply --dry-run=server, fix it in Git, then resync"},
         {"id": "c", "text": "Force ArgoCD to sync with --force flag"},
         {"id": "d", "text": "Manually apply YAML with kubectl, bypassing ArgoCD"}
       ],
