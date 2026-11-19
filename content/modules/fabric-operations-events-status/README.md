@@ -117,7 +117,7 @@ By the end of this module, you will be able to:
 
 Suppose you provisioned a new VPC called `testapp-vpc` with a VPCAttachment for `server-03`, and the server reports it's not getting DHCP. You would use both Grafana and kubectl to diagnose the issue.
 
-> **Illustrative incident:** The released R0 lab starts without `testapp-vpc` or its server-03 attachment. Tasks 1–5 below describe a worked troubleshooting case and cannot be run as written on a fresh VM. The actual server-03 connection is `server-03--unbundled--leaf-01`; leaf-05 names in this example are hypothetical. Use the Connection lookup and Agent commands against objects you actually create; do not treat the example fault or output as a seeded lab fixture.
+> **Illustrative incident:** The released R0 lab starts without `testapp-vpc` or its server-03 attachment. Tasks 1–5 below describe a worked troubleshooting case and cannot be run as written on a fresh VM. The actual server-03 connection is `server-03--unbundled--leaf-01`; leaf-05 names in this example are hypothetical. Use the Connection lookup and Agent commands against objects you actually create; do not treat the example fault or output as a seeded lab fixture. Agent interface status in fabric v0.96.2 does not list VLAN membership, so the VLAN findings below are narrative until this scenario is rewritten.
 
 **Environment Access:**
 - **Grafana:** http://YOUR_VM_IP:3000
@@ -742,6 +742,8 @@ kubectl get agent leaf-01 -o jsonpath='{.status.state.criticalResources}' | jq
 kubectl get agent leaf-01 -o jsonpath='{.status.conditions[?(@.type=="Applied")].status}'
 # Output: True
 ```
+
+`Applied` is the condition this fabric version reports for leaf-01. Compare `APPLIEDG` with `CURRENTG` to confirm the latest generation has been applied; the condition alone does not establish that.
 
 **Why This Matters:**
 
