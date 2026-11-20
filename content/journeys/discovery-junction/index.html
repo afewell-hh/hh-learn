@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find out what Hedgehog does for an AI network</title>
+<!--
+  #529 R1 discovery junction. OFFLINE ASSEMBLY ONLY: not a HubSpot template, not provisioned,
+  not published. Self-contained: no script, no network, no tracking, no form, no state.
+  Verified existing hedgehog.cloud URLs are wired for the FarmGPU case study, the fabric
+  overview, OCP and download. Still "#" with a data-link-status: compare (#527 route),
+  replay (#488 provisional), contact (URL not supplied). No URL has been invented.
+  See README.md.
+
+  MESSAGING FRAME, set by the customer 2026-11-07 and refined 2026-11-09:
+  AI networking is the message. SONiC is an enabler and does not appear on the page.
+  The TOP LINE is deliberately general -- the network drives AI workload performance and
+  job completion time, and it is hard to get right -- because that premise is already
+  widely held. Narrower use-case messaging, segmentation included, stays on its own card
+  rather than leading, and belongs further down a path where a use case can be inferred.
+
+  ATTRIBUTION RULE, binding, set by the customer 2026-11-09 and settled against source.
+  SemiAnalysis IS named, and the NCCL data IS theirs: NCCL/RCCL networking performance is one
+  of the ClusterMAX criteria they test, and hedgehog.cloud's own case study credits the
+  comparison graph and the all-reduce figure to them ("Source: SemiAnalysis"). What they do
+  NOT do is rate fabrics -- they rate GPU clouds against the ClusterMAX criteria, and publish
+  no per-provider network rating and no Hedgehog product rating. So: name them, use the data,
+  and state that one limit in the small print. The unit test fails if the name appears without
+  the qualifier, and bans any claim of a SemiAnalysis rating of Hedgehog.
+-->
+<style>
+  :root { --ink:#16202a; --muted:#44525f; --line:#c9d2da; --accent:#0b5cad; --soft:#f3f6f9; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:#fff; }
+  main { max-width:56rem; margin:0 auto; padding:1.5rem 1rem 3rem; }
+  h1 { font-size:1.75rem; line-height:1.2; margin:0 0 .5rem; }
+  h2 { font-size:1.15rem; margin:0 0 .35rem; }
+  p { margin:0 0 .75rem; }
+  .lede { color:var(--muted); max-width:42rem; }
+  ul.paths { list-style:none; margin:1.5rem 0; padding:0; display:grid; gap:1rem; grid-template-columns:1fr; }
+  @media (min-width:40rem) { ul.paths { grid-template-columns:1fr 1fr; } ul.paths li.primary { grid-column:1 / -1; } }
+  ul.paths li { border:1px solid var(--line); border-radius:8px; padding:1rem; background:var(--soft); }
+  ul.paths li.primary { border:2px solid var(--accent); background:#fff; }
+  a.path { color:var(--accent); font-weight:600; text-decoration:underline; overflow-wrap:anywhere; }
+  a:focus-visible { outline:3px solid #f5a400; outline-offset:2px; }
+  .more { font-size:.95rem; }
+  .label { display:inline-block; font-size:.8rem; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 .4rem; }
+  .smallprint { font-size:.8rem; color:var(--muted); margin:.5rem 0 0; max-width:40rem; }
+  .smallprint a { color:var(--muted); }
+  .download { border-top:1px solid var(--line); padding-top:1.25rem; margin-top:2rem; }
+  .download a { display:inline-block; padding:.6rem 1.1rem; border:2px solid var(--ink); border-radius:6px; color:var(--ink); font-weight:700; text-decoration:none; }
+  .contact { margin-top:1.5rem; color:var(--muted); font-size:.95rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Find out what Hedgehog does for an AI network</h1>
+  <p class="lede">The network decides how much of a GPU cluster actually does work, and how long jobs take to finish. It is also the part that is hardest to get right. Pick whichever question is closest to yours. Every route below opens on its own, in any order, with nothing to fill in.</p>
+
+  <ul class="paths">
+    <li class="primary" id="path-performance">
+      <h2><a class="path" href="https://hedgehog.cloud/case-studies/farmgpu" data-destination="farmgpu-operator-results">See the results from a GPU cloud that runs it</a></h2>
+      <p>SemiAnalysis test NCCL networking performance as one of their ClusterMAX criteria for GPU clouds. Their NCCL results from FarmGPU and RunPod, both running a Hedgehog and Celestica fabric, are the source of the published comparison in which those clouds came out ahead of NVIDIA's Spectrum-X reference cluster and an untuned RoCEv2 cluster.</p>
+      <p>FarmGPU add their own account of the build: what the open fabric cost next to proprietary InfiniBand, and how long the cluster took to reach commercial launch. Their chief executive, JM Hands, chairs the Open Compute Project's neocloud working group. The numbers are on the pages that own them.</p>
+      <p class="more">Also: <a href="https://blog.farmgpu.com/building-an-ai-cluster-our-17-day-crash-course-in-open-networking/" data-destination="farmgpu-own-account">FarmGPU's own write-up</a> · <a href="https://hedgehog.cloud/blog/industry-leading-ai-network-performance" data-destination="hedgehog-results-analysis">Hedgehog's analysis of the results</a> · <a href="https://hedgehog.cloud/network-performance" data-destination="fabric-for-ai-workloads">what the fabric is designed to do for AI workloads</a></p>
+      <p class="smallprint">SemiAnalysis NCCL data, from their ClusterMAX testing of clouds that run this fabric. They rate clouds, not fabrics, so there is no SemiAnalysis rating of Hedgehog itself.</p>
+    </li>
+
+    <li id="path-segmentation">
+      <h2><a class="path" href="#" data-destination="compare" data-link-status="pending-527-route">Shrink the blast radius</a></h2>
+      <p>Most networks are hard on the outside and soft in the middle. Cloud VPC networking made segmentation cheap enough to be the default. On hardware you own it is still hand work, because the tooling cannot keep up with how fast applications and facilities change.</p>
+      <p>See what keeping segmentation in step with your applications looks like, old way beside Hedgehog way.</p>
+      <span class="label">Illustrative example: shows configuration, not tested traffic behaviour</span>
+    </li>
+
+    <li id="path-reference-architecture">
+      <h2><a class="path" href="https://hedgehog.cloud/ocp-reference-architecture-for-ai-networks" data-destination="ocp-reference-architectures">See an OCP reference architecture</a></h2>
+      <p>The AI networking blueprint Hedgehog has published through the Open Compute Project: an open design to build an AI fabric against, rather than a topology you invent. On the page that owns it.</p>
+    </li>
+
+    <li id="path-replay">
+      <h2><a class="path" href="#" data-destination="fabric-operator-replay" data-link-status="provisional-488-route">Watch an operator work through a fabric</a></h2>
+      <p>A short, step-by-step replay of running a Hedgehog fabric, so you can judge what the day to day actually costs you, and whether the platform team you already have can run an AI network without hiring specialists for it.</p>
+      <span class="label">Replay of recorded steps</span>
+    </li>
+  </ul>
+
+  <section class="download" id="download" aria-labelledby="dl-h">
+    <h2 id="dl-h">Ready to install and run it yourself?</h2>
+    <p>This is the download route, unchanged. It is for teams who already know they want to install and operate Hedgehog.</p>
+    <a href="https://hedgehog.cloud/download" data-destination="download">Download</a>
+  </section>
+
+  <p class="contact">Would rather talk it through? <a href="#" data-destination="contact" data-link-status="pending-url">Contact us</a>.</p>
+</main>
+</body>
+</html>
