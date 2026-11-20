@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eight Nodes, Six Switches</title>
+  <meta name="description" content="Variant B: the captured evidence first, then the security argument.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+  :root {
+    --ink:#11161c; --paper:#ffffff; --surface:#f4f6f8; --line:#dde3e9;
+    --body:#38424d; --dim:#64717e;
+    --hand:#9a5b00;   --hand-bg:#fdf3e2;  --hand-line:#e8cf9f;
+    --derived:#0f5f6e; --derived-bg:#e4f4f6; --derived-line:#a8d9e1;
+    --hero-bg:#0e1319; --hero-fg:#eef2f6; --hero-dim:#9aa7b4;
+    --rule:#c9d2da;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:#eef2f6; --paper:#0f141a; --surface:#161d25; --line:#2a333d;
+      --body:#c3ccd6; --dim:#8d99a6;
+      --hand:#f0b858; --hand-bg:#2a2112; --hand-line:#4d3c1b;
+      --derived:#6fd3e3; --derived-bg:#102a30; --derived-line:#235460;
+      --hero-bg:#080b0f; --hero-fg:#eef2f6; --hero-dim:#94a1ae;
+      --rule:#2a333d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink:#eef2f6; --paper:#0f141a; --surface:#161d25; --line:#2a333d;
+    --body:#c3ccd6; --dim:#8d99a6;
+    --hand:#f0b858; --hand-bg:#2a2112; --hand-line:#4d3c1b;
+    --derived:#6fd3e3; --derived-bg:#102a30; --derived-line:#235460;
+    --hero-bg:#080b0f; --hero-fg:#eef2f6; --hero-dim:#94a1ae;
+    --rule:#2a333d;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--body);
+    font:17px/1.6 "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1,h2,h3 { font-family:"Archivo", system-ui, sans-serif; color:var(--ink); text-wrap:balance; }
+  code, .mono { font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .wrap { max-width:46rem; margin:0 auto; padding-left:1rem; padding-right:1rem; }
+
+  /* hero */
+  .hero { background:var(--hero-bg); color:var(--hero-fg); padding-block:3rem 2.5rem; }
+  .hero .wrap > * { max-width:40rem; }
+  .eyebrow { font:600 .72rem/1.4 "Archivo",sans-serif; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--hero-dim); margin:0 0 1rem; }
+  .hero h1 { font-size:clamp(1.9rem, 5.5vw, 2.9rem); line-height:1.1; font-weight:700; margin:0 0 1.1rem; color:var(--hero-fg); }
+  .hero p { color:var(--hero-dim); font-size:1.08rem; margin:0 0 .9rem; }
+  .hero p strong { color:var(--hero-fg); font-weight:600; }
+
+  section { padding-block:2.5rem; }
+  section + section { border-top:1px solid var(--line); }
+  h2 { font-size:1.45rem; line-height:1.2; font-weight:650; margin:0 0 .4rem; }
+  .standfirst { color:var(--dim); margin:0 0 1.6rem; }
+  p { margin:0 0 1rem; }
+
+  /* the two threads */
+  .key { display:flex; flex-wrap:wrap; gap:.5rem 1.2rem; margin:0 0 1.5rem; font-size:.86rem; }
+  .key span { display:inline-flex; align-items:center; gap:.45rem; color:var(--dim); }
+  .dot { width:.65rem; height:.65rem; border-radius:50%; flex:none; }
+  .dot.h { background:var(--hand); } .dot.d { background:var(--derived); }
+
+  .decisions { list-style:none; margin:0; padding:0; display:grid; gap:.7rem; }
+  .decisions li { background:var(--hand-bg); border:1px solid var(--hand-line); border-radius:8px; padding:.85rem 1rem; }
+  .decisions b { display:block; font:600 1rem/1.35 "Archivo",sans-serif; color:var(--ink); margin-bottom:.2rem; }
+  .decisions span { display:block; font-size:.93rem; color:var(--body); }
+  .decisions em { display:block; font-style:normal; font-size:.88rem; color:var(--hand); margin-top:.35rem; }
+
+  .scope { padding:0; margin:0 0 1.5rem; }
+  .scope p { margin:0 0 .6rem; font-size:.95rem; }
+  .scope p:last-child { margin:0; }
+  .scope .tag { display:inline-block; font:600 .68rem/1.4 "Archivo",sans-serif; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--dim); margin:0 0 .5rem; }
+  .byhand { display:block; font-size:.82rem; line-height:1.45; color:var(--hand); font-weight:500; margin-top:.35rem; }
+  .sum { background:var(--hand-bg); border:1px solid var(--hand-line); border-radius:8px;
+    padding:1rem 1.1rem; margin-top:1.2rem; font-size:.93rem; }
+  .sum table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  .sum td { padding:.3rem 0; vertical-align:top; }
+  .sum td:last-child { text-align:right; font-weight:600; color:var(--hand); white-space:nowrap; padding-left:1rem; }
+  .sum tr.total td { border-top:1px solid var(--hand-line); padding-top:.6rem; font-weight:700; color:var(--ink); }
+  .sum tr.total td:last-child { color:var(--hand); font-size:1.15rem; }
+
+  .alarm { background:var(--surface); border-left:4px solid var(--hand); border-radius:0 8px 8px 0;
+    padding:1.1rem 1.2rem; margin:1.5rem 0 0; }
+  .alarm p:last-child { margin:0; }
+
+  pre.code { margin:0; background:var(--surface); border:1px solid var(--line); border-radius:8px;
+    padding:1rem; overflow-x:auto; font-size:.84rem; line-height:1.55; color:var(--ink); }
+  .caption { font-size:.84rem; color:var(--dim); margin:.5rem 0 0; }
+
+  table.derived { width:100%; border-collapse:collapse; font-size:.92rem; margin-top:1rem; }
+  table.derived th { text-align:left; font:600 .7rem/1.4 "Archivo",sans-serif; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--dim); padding:0 .6rem .5rem 0; border-bottom:1px solid var(--rule); }
+  table.derived td { padding:.65rem .6rem .65rem 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.derived td:first-child { color:var(--ink); font-weight:600; width:40%; }
+  table.derived code { font-size:.82em; color:var(--derived); overflow-wrap:anywhere; }
+  .wrote { color:var(--ink); font-weight:600; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.84em; }
+  .nothing { color:var(--dim); font-style:italic; }
+  .objs { display:inline-block; min-width:1.9rem; text-align:center; font:700 .82rem/1.5 "Archivo",sans-serif;
+    color:var(--derived); background:var(--derived-bg); border:1px solid var(--derived-line);
+    border-radius:999px; padding:0 .45rem; margin-right:.5rem; font-variant-numeric:tabular-nums; }
+  /* On a phone, three narrow columns turn the page's own proof into fine print.
+     Each decision becomes one labelled block instead. */
+  @media (max-width:39.99rem) {
+    table.derived thead { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+    table.derived, table.derived tbody, table.derived tr, table.derived td { display:block; width:100%; }
+    table.derived tr { border:1px solid var(--line); border-radius:8px; padding:.9rem 1rem; margin-bottom:.8rem; }
+    table.derived td { border:0; padding:0; }
+    table.derived td:first-child { width:auto; margin-bottom:.6rem; }
+    table.derived td:nth-child(2)::before { content:"Typed into Hedgehog"; display:block;
+      font:600 .64rem/1.4 "Archivo",sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
+    table.derived td:nth-child(3)::before { content:"Generated on the switch"; display:block;
+      font:600 .64rem/1.4 "Archivo",sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--dim);
+      margin-top:.6rem; }
+    table.derived td:nth-child(3) code { display:block; margin-top:.25rem; overflow-x:auto; white-space:nowrap; }
+    .flow .arrow { transform:rotate(90deg); }
+  }
+
+  .flow { display:grid; gap:.6rem; grid-template-columns:1fr; margin:0 0 1.4rem; }
+  @media (min-width:38rem) { .flow { grid-template-columns:1fr auto 1fr; align-items:center; } }
+  .flow .box { border-radius:8px; padding:.85rem 1rem; font-size:.9rem; }
+  .flow .in { background:var(--surface); border:1px solid var(--line); }
+  .flow .out { background:var(--derived-bg); border:1px solid var(--derived-line); }
+  .flow .arrow { text-align:center; color:var(--dim); font-size:1.3rem; font-weight:700; }
+  .flow b { display:block; font:600 .7rem/1.4 "Archivo",sans-serif; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--dim); margin-bottom:.3rem; }
+
+  .scale { display:grid; gap:1rem; grid-template-columns:1fr; margin-top:1.2rem; }
+  @media (min-width:34rem) { .scale { grid-template-columns:repeat(3,1fr); } }
+  .stat { padding:0; }
+  .stat .n { font:700 2rem/1 "Archivo",sans-serif; color:var(--ink); font-variant-numeric:tabular-nums; }
+  @media (max-width:33.99rem) { .scale .stat + .stat { border-top:1px solid var(--rule); padding-top:1rem; } }
+  .stat .l { display:block; font-size:.86rem; color:var(--body); margin-top:.4rem; }
+
+  .evidence { padding:0; }
+  .evidence h3 { font-size:1.05rem; margin:0 0 .5rem; font-weight:650; }
+  .evidence a { color:var(--derived); font-weight:600; text-decoration:underline; }
+  .wrap p a, blockquote.pull a { text-decoration:underline; }
+  .limits { font-size:.9rem; color:var(--dim); }
+  .limits li { margin-bottom:.45rem; }
+
+  footer { border-top:1px solid var(--line); padding-block:2rem 3rem; font-size:.86rem; color:var(--dim); }
+
+  .receipts { display:grid; gap:1rem; grid-template-columns:1fr; margin:1.4rem 0 0; }
+  @media (min-width:40rem) { .receipts { grid-template-columns:1fr 1fr; } }
+  .receipt { border-top:1px solid var(--rule); padding:.9rem 0 0; }
+  .receipt .big { font:700 1.9rem/1 "Archivo",sans-serif; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .receipt .claim { display:block; margin-top:.45rem; font-size:.95rem; color:var(--body); }
+  .receipt .src { display:block; margin-top:.6rem; font-size:.78rem; line-height:1.45; color:var(--dim); }
+  .receipt .src a { color:var(--dim); }
+  blockquote.pull { margin:1.4rem 0 0; padding:1.1rem 1.2rem; border-left:3px solid var(--rule); }
+  blockquote.pull p { margin:0 0 .5rem; font-size:1.02rem; color:var(--ink); }
+  blockquote.pull cite { font-style:normal; font-size:.82rem; color:var(--dim); }
+  .money { background:var(--hero-bg); color:var(--hero-fg); border-radius:10px; padding:1.4rem 1.5rem; margin-top:1.4rem; }
+  .money .row { display:flex; flex-wrap:wrap; gap:1.5rem; margin-bottom:1rem; }
+  .money .cell .n { display:block; font:700 1.8rem/1.1 "Archivo",sans-serif; color:#f0b858; font-variant-numeric:tabular-nums; }
+  .money .cell .l { display:block; font-size:.84rem; color:var(--hero-dim); margin-top:.2rem; }
+  .money p { color:var(--hero-dim); margin:0 0 .7rem; font-size:.95rem; }
+  .money p:last-child { margin:0; }
+  .money strong { color:var(--hero-fg); }
+
+  .next { display:grid; gap:.8rem; grid-template-columns:1fr; margin-top:1.3rem; }
+  @media (min-width:40rem) { .next { grid-template-columns:1fr 1fr; } }
+  .next a { display:block; border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem;
+    background:var(--paper); text-decoration:none; color:inherit; transition:border-color .15s; }
+  .next a:hover { border-color:var(--derived); }
+  .next .planned { display:block; border:0; border-top:1px solid var(--rule); border-radius:0;
+    padding:.9rem 0 0; background:transparent; }
+  .next .what { display:block; font:650 1rem/1.3 "Archivo",sans-serif; color:var(--ink); margin-bottom:.3rem; }
+  .next .why { display:block; font-size:.9rem; color:var(--body); }
+  .next .tagline { display:inline-block; margin-top:.6rem; font-size:.72rem; letter-spacing:.08em;
+    text-transform:uppercase; font-weight:600; border-radius:999px; padding:.1rem .55rem;
+    background:var(--surface); color:var(--dim); border:1px solid var(--line); }
+  .next .tagline.live { background:var(--derived-bg); color:var(--derived); border-color:var(--derived-line); }
+</style>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Neocloud operations</p>
+    <h1>The hard part happens before anyone types a command</h1>
+    <p>A customer signs for eight HGX B300 nodes. The eight you have free are not in the same rack. Say they hang off <strong>six different leaf switches</strong> — the exact number is yours to substitute, and the only part that matters is that it is more than one and you did not get to choose it.</p>
+    <p>Until those switches agree on exactly what this tenant is, the nodes earn nothing. On a hand-run EVPN/VXLAN fabric, getting them to agree is an engineering exercise, not a typing exercise.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+<div class="scope">
+      <p class="tag">What this story follows, and what we measured</p>
+      <p><strong>One network, for one tenant.</strong> A GPU tenant usually needs several: a frontend network, two backend planes so compute traffic stays on its own rails, and something for management. Each is its own network, and every port on every node has to join the right one.</p>
+      <p>Putting all of that on one page would bury the point. So this follows the smallest unit of the job — <strong>one subnet reaching one node</strong> — and then multiplies it back up at the end. Most of what follows repeats for every network; a few of the choices are made once per tenant, and the arithmetic at the end keeps those apart.</p>
+    </div>
+    <p style="font-size:.95rem">Everything below rests on one lab run: one spine, two SONiC switches, two servers. We read every switch's running configuration, applied one <code>VPC</code> and one <code>VPCAttachment</code>, waited for the fabric to converge, and read it again. The comparison that follows is that difference. It is configuration — what each switch was told to be — not measured traffic behaviour.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What the operator writes instead</h2>
+    <p class="standfirst">For that one network and one node — the same slice as above. Captured from a running Hedgehog fabric, not written for this page.</p>
+    <pre class="code">apiVersion: vpc.githedgehog.com/v1beta1
+kind: VPC
+metadata:
+  name: tenant-a
+spec:
+  subnets:
+    default:
+      subnet: 10.0.10.0/24
+      gateway: 10.0.10.1
+      vlan: 1010
+---
+apiVersion: vpc.githedgehog.com/v1beta1
+kind: VPCAttachment
+metadata:
+  name: tenant-a-server-01
+spec:
+  connection: server-01--unbundled--leaf-01
+  subnet: tenant-a/default</pre>
+    <p class="caption">Abridged for reading: the DHCP range and namespaces are omitted. The full file is 27 lines. A whole tenant is several of these — one network declaration each, and one attachment per port per node — all of the same shape.</p>
+    <p style="margin-top:1.4rem">The declaration supplies four things: a subnet, a gateway address, a VLAN number, and which port the server is on. Search it for <code>vni</code>, <code>route-target</code>, <code>irb</code>, <code>suppress</code>, <code>mtu</code>, <code>bgp</code>, <code>evpn</code> or <code>vxlan</code> and <strong>you will not find any of them.</strong></p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>So who decided them?</h2>
+    <p class="standfirst">The controller did. Here is the whole transaction.</p>
+    <div class="flow">
+      <div class="box in"><b>What a person types into Hedgehog</b>Four values: a subnet, a gateway, a VLAN number, and which port the server is on.</div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="box out"><b>What the controller writes to the switch</b>35 configuration objects and 24 lines of routing configuration, on the one leaf we measured.</div>
+    </div>
+    <p>Each row is one configuration choice a hand-run fabric makes a person own. The amber line under it is what that costs by hand. The middle column is the <strong>entire</strong> Hedgehog input for it — in six of nine rows, no field at all. The right column is what the controller generated because of it, and <span class="objs">n</span> is how many separate configuration objects that became <strong>on this one switch</strong>.</p>
+    <table class="derived">
+      <thead><tr><th>Decision, and what it costs by hand</th><th>Typed into Hedgehog</th><th>Generated on the switch</th></tr></thead>
+      <tbody>
+        <tr><td>L2VNI for the subnet<span class="byhand">By hand: pick a number no other tenant is using anywhere on the fabric, record it, apply it to all six</span></td><td class="wrote">vlan: 1010</td><td><span class="objs">2</span><code>map_101_Vlan1010 → vni 101</code></td></tr>
+        <tr><td>L3VNI for the tenant VRF<span class="byhand">By hand: a second fabric-unique number, allocated and recorded the same way</span></td><td class="nothing">nothing</td><td><span class="objs">2</span><code>VrfVtenant-a → vni 100</code></td></tr>
+        <tr><td>Route import policy<span class="byhand">By hand: author the import and export rules per VRF per leaf, and revisit them whenever the tenant peers with anything</span></td><td class="nothing">nothing</td><td><span class="objs">19</span><code>prefix sets, route maps, redistribution — all of it</code></td></tr>
+        <tr><td>Symmetric IRB transit network<span class="byhand">By hand: allocate a further transit VLAN and map it to the tenant VNI, identically on every leaf</span></td><td class="nothing">nothing</td><td><span class="objs">2</span><code>Vlan3000 "VPC tenant-a IRB" → vni 100</code></td></tr>
+        <tr><td>Anycast gateway<span class="byhand">By hand: the same address and the same MAC configured on every leaf carrying the subnet</span></td><td class="wrote">gateway: 10.0.10.1</td><td><span class="objs">1</span><code>SAG Vlan1010 → 10.0.10.1/24</code></td></tr>
+        <tr><td>ARP and neighbour suppression<span class="byhand">By hand: set the same way on all six, or behaviour changes with load</span></td><td class="nothing">nothing</td><td><span class="objs">1</span><code>SUPPRESS_VLAN_NEIGH Vlan1010 → on</code></td></tr>
+        <tr><td>VLAN-to-port mapping on the leaf<span class="byhand">By hand: per port, per leaf, matched to the right VNI — local VLAN numbers may differ, the VNI may not</span></td><td class="wrote">connection: …--leaf-01</td><td><span class="objs">2</span><code>VLAN_MEMBER + the port itself</code></td></tr>
+        <tr><td>MTU on the attached port<span class="byhand">By hand: verified on every hop the overlay crosses, not just the edge</span></td><td class="nothing">nothing</td><td><span class="objs">1</span><code>mtu 9036 on the attached port</code></td></tr>
+        <tr><td>BGP identity for the tenant<span class="byhand">By hand: an ASN and router-id per VRF per leaf, allocated without colliding with anything already deployed</span></td><td class="nothing">nothing</td><td><span class="objs">5</span><code>asn 4200006632, router-id 172.30.8.1, address families</code></td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:1.3rem">Read the amber lines as the job description. Every one of those lines is something a person allocates, records somewhere the next person will find it, applies to six switches, and verifies — then locates again the next time this tenant changes. Wherever that record lives, the fabric cannot read it — so nothing but the person checks whether this allocation collides with an existing one.</p>
+    <p>On the right, none of those values was typed per leaf: the controller derived them from the declaration. What this capture shows is the configuration that resulted on the one leaf the server attached to. It does not measure what landed on any other switch — see the boundary note at the end.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+<h2>Why this is a security problem, not just an operations problem</h2>
+    <p class="standfirst">Every value in that table is one a person would otherwise allocate, record and keep in step across every leaf the tenant touches.</p>
+<div class="alarm">
+      <p><strong>Here is why this is a security problem and not just an operations problem.</strong></p>
+      <p>None of these failures raise an alarm. A reused VNI does not error — it works, and two tenants are in the same broadcast domain. A mistyped route target does not error — it advertises routes somewhere they should never go. The fabric stays up, the dashboards stay green, and the thing you have built is not the thing you designed.</p>
+      <p>The blast radius of one wrong value is not one switch. It is the separation between two customers.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+<h2>This is the most common way networks break</h2>
+    <p class="standfirst">The industry has been measuring this for years.</p>
+    <blockquote class="pull">
+      <p>“Network-related issues continue to account for the largest share of IT service outages… As in previous years, these are driven primarily by <strong>configuration and change management failures</strong>.”</p>
+      <cite>Uptime Institute, <em>Annual Outage Analysis 2026</em>, Figure 11 (n=122). Configuration and change management has been the leading cause of network-related outages in every Uptime resiliency survey since 2021.</cite>
+    </blockquote>
+    <div class="receipts">
+      <div class="receipt">
+        <span class="big">92%</span>
+        <span class="claim">of operators say human error was <strong>at least a minor contributor</strong> to their most recent significant outage.</span>
+        <span class="src">Uptime Institute, <em>Annual Outage Analysis 2026</em>, Fig. 13, n=220. Uptime treats human error as a contributing factor, not a root cause.</span>
+      </div>
+      <div class="receipt">
+        <span class="big">87%</span>
+        <span class="claim">of those who had an impactful outage say it <strong>could have been avoided</strong> with better management, processes or configuration.</span>
+        <span class="src">Uptime Institute, <em>Annual Outage Analysis 2026</em>, citing its 2025 data centre survey, n=98. Up seven points on the prior year.</span>
+      </div>
+      <div class="receipt">
+        <span class="big">~70%</span>
+        <span class="claim">of outages come from <strong>changes to a live system</strong> — not from things breaking on their own.</span>
+        <span class="src">Google, <em>Site Reliability Engineering</em> (O'Reilly, 2016). Google's own operational experience, stated without a published methodology — read it as testimony, not as research.</span>
+      </div>
+      <div class="receipt">
+        <span class="big">1 in 5</span>
+        <span class="claim">say their most recent major outage cost them <strong>more than $1 million</strong>. For 57%, more than $100,000.</span>
+        <span class="src">Uptime Institute, <em>Annual Outage Analysis 2026</em>, n=94. Uptime deliberately publishes no average cost, because outlier events distort it.</span>
+      </div>
+    </div>
+    <p style="margin-top:1.3rem">And Uptime is explicit about <em>why</em> the number is moving. Their 2025 analysis says the rise in IT and networking outages is “<strong>likely caused by increased IT and network complexity, leading to issues with change management and misconfigurations</strong>.”</p>
+    <p>The failure mode here is not incompetence. It is competent people operating something with more moving parts than any one of them can hold in their head — which is a fair description of a multi-plane, rail-optimised AI fabric running EVPN/VXLAN.</p>
+  
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Now scale it back up</h2>
+    <p class="standfirst">Everything so far was one network reaching one node. Here is the tenant you actually signed. The arithmetic below applies that configuration model to the worked example — it is not a second measurement, and it assumes four networks landing on six leaves.</p>
+    <div class="scale">
+      <div class="stat"><span class="n">4</span><span class="l">networks: frontend, two backend planes, management</span></div>
+      <div class="stat"><span class="n">6</span><span class="l">switches those eight nodes are spread across</span></div>
+      <div class="stat"><span class="n">32</span><span class="l">ports to attach to the right network, at minimum</span></div>
+    </div>
+    <div class="sum">
+      <table>
+        <tr><td>Four of the nine repeat for every network, on every leaf that network touches<br><span style="color:var(--dim);font-size:.85rem">L2VNI, anycast gateway, neighbour suppression, VLAN-to-port mapping — 4 × 4 networks × 6 leaves</span></td><td>96</td></tr>
+        <tr><td>Four are settled once per tenant, then applied on every leaf<br><span style="color:var(--dim);font-size:.85rem">L3VNI, route policy, IRB transit, BGP identity — 4 × 6 leaves</span></td><td>24</td></tr>
+        <tr><td>MTU is a property of the fabric, established once and verified<br><span style="color:var(--dim);font-size:.85rem">not counted per tenant</span></td><td>—</td></tr>
+        <tr class="total"><td>Configuration choices to apply and keep in step, in this worked example</td><td>120</td></tr>
+      </table>
+    </div>
+    <p style="margin-top:1.3rem">One hundred and twenty applications of nine choices — and <strong>the fabric does not itself reconcile them against a record of what you already allocated.</strong> You find out from a tenant who cannot reach their own storage, or from a security review that discovers two customers in the same broadcast domain.</p>
+    <p>The Hedgehog side of the same tenant is four network declarations and one attachment per port. The operator still chooses subnets, gateways and VLAN numbers; what they do not do is allocate and track the identifiers behind them. Adding the ninth node is the same declaration again, not a new design exercise.</p>
+    <div class="money">
+      <p><strong>Eight HGX nodes is 64 GPUs.</strong> Priced at Lambda's published list rate for B200 capacity at scale — $8.87 per GPU per hour — that is the <strong>rentable value of the capacity standing idle</strong> while the switches are brought into agreement:</p>
+      <div class="row">
+        <span class="cell"><span class="n">$568</span><span class="l">per hour</span></span>
+        <span class="cell"><span class="n">$13,600</span><span class="l">per day</span></span>
+        <span class="cell"><span class="n">$95,000</span><span class="l">per week</span></span>
+      </div>
+      <p>The customer has signed. The nodes are racked and powered. The only thing between them and earning is a set of switches agreeing on what this tenant is.</p>
+      <p style="font-size:.85rem">Read this as the value of the asset while it waits, not as a bill. It assumes the capacity would otherwise be earning at a published list rate, which is the premise of the scenario rather than a measurement of anyone's contract.</p>
+      <p style="font-size:.8rem;margin-top:.9rem">Rate from <a href="https://lambda.ai/pricing" style="color:var(--hero-dim)">lambda.ai/pricing</a>, read 10 November 2026: HGX B200, 256+ GPUs, 2 weeks to 1 year — their lowest published tier, so this is the conservative end. B300 has no public list price; B200 is the nearest published capacity. 64 × $8.87 = $567.68/hr.</p>
+    </div>
+
+    <h2 style="margin-top:2.5rem">And capacity you own still strands</h2>
+    <p class="standfirst">The largest production GPU fleet ever characterised in public found that owning the GPUs is not the same as being able to allocate them — and named the network as one of the reasons.</p>
+    <blockquote class="pull">
+      <p>“High GPU demand does not yield high effective utilization: <strong>idle GPUs frequently become unallocatable</strong> because free capacity is stranded across nodes, lacks matching CPUs, or <strong>violates network-locality constraints</strong>.”</p>
+      <cite>Alibaba Serverless Infrastructure, characterised over six months across <strong>155,410 GPUs</strong> and 14 million jobs. USENIX OSDI 2026. The same paper defines GPU allocation as “the fraction of total GPU capacity claimed by jobs — which reflects how effectively resources are claimed and <strong>directly affects revenue</strong>.”</cite>
+    </blockquote>
+    <p style="margin-top:1.2rem">Their Figure 13 measures how much idle capacity cannot be handed out, by the shape of the request. For a single GPU it is <strong>5%</strong>. For an eight-GPU request with 128 CPUs beside it, it is <strong>28%</strong> — larger, more constrained placements strand more than small ones. The paper attributes that unallocatable capacity to GPUs stranded across nodes and to insufficient CPUs beside them — explicitly <em>not</em> to fractional-GPU fragmentation, which it finds negligible. Network locality appears in its own summary of why idle GPUs become unallocatable; the figure does not break out how much of the 28% it accounts for, and neither will we.</p>
+    <p>This is also why it compounds. In the hand-run model the next tenant is the whole exercise again, on a fabric that now has more existing allocations to collide with. The work does not get easier as the cluster fills. It gets harder, and one inconsistency costs more.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What we actually measured</h2>
+    <div class="evidence">
+      <h3>One tenant, applied to a live fabric</h3>
+      <p>A Hedgehog VLAB — one spine, two SONiC switches, two servers — on hhfab v0.51.4 and SONiC 4.5.2. We read every switch's running configuration, applied one VPC and one VPCAttachment, waited for the fabric to converge, and read it again.</p>
+      <p>On the one leaf the tenant's server attached to, <strong>35 configuration objects and 24 lines of routing configuration appeared</strong>, from 27 lines of declared intent. Every value in the table above comes from that difference.</p>
+      <p>That is the slice: one network, one node, one switch. The 120 figure above is that slice multiplied by the tenant in the opening — we did not build the eight-node tenant.</p>
+      <p style="margin-bottom:0"><span style="color:var(--dim)">The full side-by-side configuration is a companion page, in preparation.</span></p>
+    </div>
+    <h3 style="font-size:1.05rem;margin:1.8rem 0 .6rem">What this does not show</h3>
+    <ul class="limits">
+      <li>The lab is three switches and one network. The four-network, six-switch tenant is the shape of a real deployment, not something we ran.</li>
+      <li>This is configuration — control-plane evidence. It shows what each switch was told to be, not measured traffic behaviour between tenants.</li>
+      <li>The amber lines in the comparison are the configuration surface a hand-run EVPN/VXLAN deployment has to coordinate. We did not build one alongside to race it.</li>
+      <li>Route distinguishers and broadcast replication are fabric-wide choices made once at build time, so they did not appear in a per-tenant difference.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Where this goes next</h2>
+    <p class="standfirst">One place to go now, and three that are coming. Each says what it shows.</p>
+    <div class="next">
+      <a href="#" onclick="return false">
+        <span class="what">See the configuration side by side</span>
+        <span class="why">The full before-and-after from the lab run behind this page: what the switch ended up with, beside the file that caused it. Step through it line by line.</span>
+        <span class="tagline live">Built · captured from a real fabric</span>
+      </a>
+      <div class="planned"><span class="what">Watch a hand-made change get reverted</span>
+        <span class="why">Someone edits a switch directly, outside the declared config. The controller notices and puts it back. This is the answer to “what stops my fabric drifting away from what I declared?”</span>
+        <span class="tagline">Next to be built</span>
+      </div>
+      <div class="planned"><span class="what">Prove to a reviewer what changed, and when</span>
+        <span class="why">A compliance reviewer asks who altered tenant separation. Follow the trail from declared intent to reconciled state.</span>
+        <span class="tagline">Planned</span>
+      </div>
+      <div class="planned"><span class="what">Find out whether the network is holding your GPUs back</span>
+        <span class="why">A different question entirely: not how the tenant gets built, but what the fabric does to job completion once it is running.</span>
+        <span class="tagline">Planned</span>
+      </div>
+    </div>
+    <p style="margin-top:1.2rem;font-size:.9rem;color:var(--dim)">Three of these are not built yet, and say so.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Captured 9 November 2026 from a Hedgehog VLAB. Configuration read from the switches before and after one tenant was applied; both sides come from the same run.</div>
+</footer>
+
+</body>
+</html>
